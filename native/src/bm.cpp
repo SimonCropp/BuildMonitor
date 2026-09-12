@@ -204,7 +204,7 @@ void RenderDrawData(ImDrawData* data) {
             }
 
             BeginScissorMode(clipX, clipY, clipWidth, clipHeight);
-            unsigned int texture = static_cast<unsigned int>(reinterpret_cast<intptr_t>(cmd.GetTexID()));
+            unsigned int texture = static_cast<unsigned int>(cmd.GetTexID());
             rlBegin(RL_TRIANGLES);
             rlSetTexture(texture);
             for (unsigned int i = 0; i < cmd.ElemCount; i += 3) {
@@ -668,7 +668,7 @@ bool LoadFont() {
     image.mipmaps = 1;
     image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
     g.fontTexture = LoadTextureFromImage(image);
-    io.Fonts->SetTexID(static_cast<ImTextureID>(static_cast<intptr_t>(g.fontTexture.id)));
+    io.Fonts->SetTexID(static_cast<ImTextureID>(g.fontTexture.id));
     return g.fontTexture.id != 0;
 }
 
