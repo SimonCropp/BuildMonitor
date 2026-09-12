@@ -40,10 +40,49 @@ Refresh tokens are stored beside the access token and used when a poll is refuse
 
 ### Registering the applications
 
-Until an application is registered its id in `OAuthClients.cs` is empty and the browser and device buttons report that. To register:
+Until an application is registered its id in `OAuthClients.cs` is empty and the browser and device buttons report that. The ids for the hosted services are compiled in; a user with a self hosted GitLab or GitHub Enterprise Server registers their own and enters its id in the connection editor.
 
- * GitHub: an [OAuth App](https://github.com/settings/developers) with callback URL `http://127.0.0.1/callback` and "Enable Device Flow" ticked. GitHub matches the loopback callback on any port. The device flow needs only the client id; the browser flow also needs the client secret, embedded the way the GitHub CLI embeds its own.
- * GitLab: an [application](https://gitlab.com/-/user_settings/applications) with redirect URI `http://127.0.0.1/callback`, not confidential, scopes `read_api` and `api`.
- * Azure DevOps: a [Microsoft Entra app registration](https://portal.azure.com) for accounts in any organizational directory, with a mobile and desktop redirect URI of `http://localhost` and the delegated Azure DevOps `user_impersonation` permission.
 
-A user can enter their own application id in the connection editor, which is how a self hosted GitLab or GitHub Enterprise Server signs in.
+#### GitHub OAuth App
+
+https://github.com/settings/applications/new
+
+ * Application name: `BuildMonitor`
+ * Homepage URL: `https://github.com/SimonCropp/BuildMonitor`
+ * Authorization callback URL: `http://127.0.0.1/callback`
+ * Tick **Enable Device Flow**
+ * After creating, copy the **Client ID** into `GitHubClientId`. The device flow needs only that. For the browser flow also generate a client secret and put it in `GitHubClientSecret`; it is embedded the way the GitHub CLI embeds its own, a secret in name only.
+
+GitHub Enterprise Server: the same form under the server's own settings; the callback URL is unchanged.
+
+
+#### GitLab application
+
+https://gitlab.com/-/user_settings/applications
+
+ * Name: `BuildMonitor`
+ * Redirect URI: `http://127.0.0.1/callback`
+ * Untick **Confidential**
+ * Scopes: `read_api` and `api`
+ * After creating, copy the **Application ID** into `GitLabClientId`. The secret is unused.
+
+Self hosted GitLab: the same form under the instance's user settings. If the instance insists on an exact redirect match including a port, register `http://127.0.0.1:<port>/callback` and enter that port as the connection's callback port.
+
+
+#### Microsoft Entra app registration (Azure DevOps)
+
+https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade
+
+ * Name: `BuildMonitor`
+ * Supported account types: **Accounts in any organizational directory (multitenant)**
+ * Redirect URI: platform **Public client/native (mobile & desktop)**, value `http://localhost`
+ * After creating, under **API permissions** add **Azure DevOps**, Delegated, `user_impersonation`
+ * Under **Authentication**, set **Allow public client flows** to Yes, which the device flow needs
+ * Copy the **Application (client) ID** from Overview into `EntraClientId`
+
+Entra does not sign personal Microsoft accounts in to Azure DevOps; those users take a personal access token.
+
+
+#### Why the callback has no port
+
+Sign in opens a listener on `127.0.0.1` on whatever port is free, sends the browser to the provider with that port in `redirect_uri` and a random `state`, and receives the one-time code when the provider redirects back. RFC 8252 requires an authorization server to accept any port on a loopback redirect, because a desktop app cannot know in advance which port will be free, and GitHub, gitlab.com and Entra all do. The request never leaves the machine, and PKCE means a code is useless without the verifier the app kept in memory.
