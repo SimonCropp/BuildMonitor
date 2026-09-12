@@ -13,7 +13,10 @@
 static class OAuthClients
 {
     public const string GitHubClientId = "Ov23lidsjnhnW0pniEFX";
-    public const string GitHubClientSecret = "";
+    // Bundled on purpose. GitHub OAuth Apps have no PKCE, so every desktop app offering the web
+    // flow ships its secret, as the GitHub CLI does. It grants nothing by itself; a leak means
+    // regenerating it on github.com and shipping a new version.
+    public const string GitHubClientSecret = "ed9358ff15a34512bd504c0055cd24f8e5b35783";
     public const string GitLabClientId = "";
     public const string EntraClientId = "";
 
