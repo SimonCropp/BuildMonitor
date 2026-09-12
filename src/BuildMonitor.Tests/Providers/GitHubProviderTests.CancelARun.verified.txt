@@ -1,0 +1,3 @@
+﻿[
+  POST https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs/500/cancel
+]

@@ -1,0 +1,4 @@
+﻿[
+  POST https://api.travis-ci.com/build/899/restart,
+  POST https://api.travis-ci.com/build/900/cancel
+]

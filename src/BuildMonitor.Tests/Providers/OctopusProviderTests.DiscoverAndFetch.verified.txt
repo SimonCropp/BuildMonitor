@@ -1,0 +1,60 @@
+﻿{
+  builds: [
+    {
+      ConnectionId: octopus,
+      PipelineId: Projects-1,
+      PipelineName: Web,
+      RepoName: Default,
+      Branch: Production,
+      RunNumber: 1.2.3,
+      Status: Running,
+      StatusText: executing,
+      Queued: DateTimeOffset_1,
+      Started: DateTimeOffset_2,
+      Estimate: {
+        Percent: 40.0,
+        Remaining: 00:02:15
+      },
+      BuildUrl: https://octopus.example.com/app#/Spaces-1/deployments/Deployments-10,
+      CommitMessage: Deploy Web release 1.2.3 to Production,
+      CanRetry: false,
+      CanCancel: true,
+      ProviderRef: ServerTasks-100|/api/Spaces-1/tasks/rerun/ServerTasks-100|/api/Spaces-1/tasks/ServerTasks-100/cancel,
+      Key: octopus/Projects-1/Production,
+      PipelineKey: octopus/Projects-1,
+      IsActive: true,
+      Ordering: DateTimeOffset_2
+    },
+    {
+      ConnectionId: octopus,
+      PipelineId: Projects-1,
+      PipelineName: Web,
+      RepoName: Default,
+      Branch: Staging,
+      RunNumber: 1.2.3,
+      Status: Failed,
+      StatusText: failed,
+      Queued: DateTimeOffset_3,
+      Started: DateTimeOffset_4,
+      Finished: DateTimeOffset_5,
+      BuildUrl: https://octopus.example.com/app#/Spaces-1/deployments/Deployments-9,
+      CommitMessage: Deploy Web release 1.2.3 to Staging,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: ServerTasks-99|/api/Spaces-1/tasks/rerun/ServerTasks-99|/api/Spaces-1/tasks/ServerTasks-99/cancel,
+      Key: octopus/Projects-1/Staging,
+      PipelineKey: octopus/Projects-1,
+      IsActive: false,
+      Ordering: DateTimeOffset_4
+    }
+  ],
+  Requests: [
+    GET https://octopus.example.com/api/spaces?take=100,
+    GET https://octopus.example.com/api/Spaces-1/projects?take=100,
+    GET https://octopus.example.com/api/Spaces-1/environments/all,
+    GET https://octopus.example.com/api/Spaces-1/deployments?take=5,
+    GET https://octopus.example.com/api/Spaces-1/tasks?take=5&name=Deploy,
+    GET https://octopus.example.com/api/Spaces-1/tasks/ServerTasks-100/details,
+    GET https://octopus.example.com/api/tasks/ServerTasks-99
+  ]
+}

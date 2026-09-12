@@ -23,6 +23,8 @@
     <Using Include="System.Security.Cryptography" />
     <Using Include="System.Diagnostics.CodeAnalysis" />
     <Using Include="System.Collections.Immutable" />
+    <Using Include="System.Globalization" />
+    <Using Include="System.Text.Json.Serialization.Metadata" />
     <Using Include="Serilog" />
     <InternalsVisibleTo Include="BuildMonitor" />
     <InternalsVisibleTo Include="BuildMonitor.Tray" />

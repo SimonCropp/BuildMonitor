@@ -1,0 +1,81 @@
+﻿{
+  builds: [
+    {
+      ConnectionId: teamcity,
+      PipelineId: Verify_Build,
+      PipelineName: Verify / Build,
+      RepoName: Verify,
+      Branch: pull/15,
+      RunNumber: 120,
+      Status: Running,
+      StatusText: running,
+      Queued: DateTimeOffset_1,
+      Started: DateTimeOffset_2,
+      Estimate: {
+        Duration: 00:05:00,
+        Percent: 40.0,
+        Remaining: 00:03:00
+      },
+      BuildUrl: https://teamcity.example.com/buildConfiguration/Verify_Build/9001,
+      PullRequestNumber: 15,
+      CommitSha: abc123,
+      CommitMessage: Step 2 of 4,
+      Author: Simon,
+      CanRetry: false,
+      CanCancel: true,
+      ProviderRef: running|9001|Verify_Build|pull/15,
+      Key: teamcity/Verify_Build/pull/15,
+      PipelineKey: teamcity/Verify_Build,
+      IsActive: true,
+      Ordering: DateTimeOffset_2
+    },
+    {
+      ConnectionId: teamcity,
+      PipelineId: Verify_Build,
+      PipelineName: Verify / Build,
+      RepoName: Verify,
+      Branch: main,
+      RunNumber: 119,
+      Status: Failed,
+      StatusText: failure,
+      Queued: DateTimeOffset_3,
+      Started: DateTimeOffset_4,
+      Finished: DateTimeOffset_5,
+      BuildUrl: https://teamcity.example.com/buildConfiguration/Verify_Build/9000,
+      CommitMessage: Tests failed: 1,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: finished|9000|Verify_Build|main,
+      Key: teamcity/Verify_Build/main,
+      PipelineKey: teamcity/Verify_Build,
+      IsActive: false,
+      Ordering: DateTimeOffset_4
+    },
+    {
+      ConnectionId: teamcity,
+      PipelineId: Verify_Docs,
+      PipelineName: Verify / Docs,
+      RepoName: Verify,
+      Branch: main,
+      RunNumber: 50,
+      Status: Cancelled,
+      StatusText: canceled,
+      Queued: DateTimeOffset_6,
+      Started: DateTimeOffset_7,
+      Finished: DateTimeOffset_8,
+      BuildUrl: https://teamcity.example.com/buildConfiguration/Verify_Docs/8999,
+      CommitMessage: Canceled,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: finished|8999|Verify_Docs|main,
+      Key: teamcity/Verify_Docs/main,
+      PipelineKey: teamcity/Verify_Docs,
+      IsActive: false,
+      Ordering: DateTimeOffset_7
+    }
+  ],
+  Requests: [
+    GET https://teamcity.example.com/app/rest/buildTypes?locator=affectedProject:(id:_Root)&fields=buildType(id,name,projectName,projectId,webUrl),
+    GET https://teamcity.example.com/app/rest/builds?locator=affectedProject:(id:_Root),branch:default:any,state:any,canceled:any,failedToStart:any,count:10&fields=build(id,number,status,state,branchName,defaultBranch,webUrl,statusText,queuedDate,startDate,finishDate,buildTypeId,canceledInfo(text),running-info(percentageComplete,elapsedSeconds,estimatedTotalSeconds,leftSeconds),triggered(user(username,name)),revisions(revision(version)))
+  ]
+}

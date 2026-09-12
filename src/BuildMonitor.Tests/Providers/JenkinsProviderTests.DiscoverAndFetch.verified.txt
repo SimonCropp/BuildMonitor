@@ -1,0 +1,99 @@
+﻿{
+  builds: [
+    {
+      ConnectionId: jenkins,
+      PipelineId: https://jenkins.example.com/job/build-all/,
+      PipelineName: Build all,
+      RepoName: Build all,
+      Branch: main,
+      RunNumber: 501,
+      Status: Running,
+      StatusText: building,
+      Queued: DateTimeOffset_1,
+      Started: DateTimeOffset_1,
+      Estimate: {
+        Duration: 00:05:00
+      },
+      BuildUrl: https://jenkins.example.com/job/build-all/501/,
+      CanRetry: false,
+      CanCancel: true,
+      ProviderRef: https://jenkins.example.com/job/build-all/|501,
+      Key: jenkins/https://jenkins.example.com/job/build-all//main,
+      PipelineKey: jenkins/https://jenkins.example.com/job/build-all/,
+      IsActive: true,
+      Ordering: DateTimeOffset_1
+    },
+    {
+      ConnectionId: jenkins,
+      PipelineId: https://jenkins.example.com/job/build-all/,
+      PipelineName: Build all,
+      RepoName: Build all,
+      RunNumber: 500,
+      Status: Succeeded,
+      StatusText: success,
+      Queued: DateTimeOffset_2,
+      Started: DateTimeOffset_2,
+      Finished: DateTimeOffset_3,
+      Estimate: {
+        Duration: 00:05:00
+      },
+      BuildUrl: https://jenkins.example.com/job/build-all/500/,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: https://jenkins.example.com/job/build-all/|500,
+      Key: jenkins/https://jenkins.example.com/job/build-all//,
+      PipelineKey: jenkins/https://jenkins.example.com/job/build-all/,
+      IsActive: false,
+      Ordering: DateTimeOffset_2
+    },
+    {
+      ConnectionId: jenkins,
+      PipelineId: https://jenkins.example.com/job/team/job/app/job/PR-12/,
+      PipelineName: Team / App / PR-12,
+      RepoName: Team / App,
+      Branch: PR-12,
+      RunNumber: ,
+      StatusText: queued,
+      Queued: DateTimeOffset_4,
+      BuildUrl: https://jenkins.example.com/job/team/job/app/job/PR-12/,
+      PullRequestNumber: 12,
+      CanRetry: false,
+      CanCancel: true,
+      ProviderRef: https://jenkins.example.com/job/team/job/app/job/PR-12/|queue:77,
+      Key: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12//PR-12,
+      PipelineKey: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12/,
+      IsActive: true,
+      Ordering: DateTimeOffset_4
+    },
+    {
+      ConnectionId: jenkins,
+      PipelineId: https://jenkins.example.com/job/team/job/app/job/PR-12/,
+      PipelineName: Team / App / PR-12,
+      RepoName: Team / App,
+      Branch: PR-12,
+      RunNumber: 3,
+      Status: Failed,
+      StatusText: failure,
+      Queued: DateTimeOffset_5,
+      Started: DateTimeOffset_5,
+      Finished: DateTimeOffset_6,
+      Estimate: {
+        Duration: 00:01:05
+      },
+      BuildUrl: https://jenkins.example.com/job/team/job/app/job/PR-12/3/,
+      PullRequestNumber: 12,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: https://jenkins.example.com/job/team/job/app/job/PR-12/|3,
+      Key: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12//PR-12,
+      PipelineKey: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12/,
+      IsActive: false,
+      Ordering: DateTimeOffset_5
+    }
+  ],
+  Requests: [
+    GET https://jenkins.example.com/api/json?tree=jobs[name,displayName,url,color,_class,jobs[name,displayName,url,color,_class,jobs[name,displayName,url,color,_class]]],
+    GET https://jenkins.example.com/job/build-all/api/json?tree=builds[number,url,result,building,timestamp,duration,estimatedDuration,actions[lastBuiltRevision[branch[name]]]]{0,5},inQueue,queueItem[id,inQueueSince],
+    GET https://jenkins.example.com/job/team/job/app/job/PR-12/api/json?tree=builds[number,url,result,building,timestamp,duration,estimatedDuration,actions[lastBuiltRevision[branch[name]]]]{0,5},inQueue,queueItem[id,inQueueSince]
+  ]
+}

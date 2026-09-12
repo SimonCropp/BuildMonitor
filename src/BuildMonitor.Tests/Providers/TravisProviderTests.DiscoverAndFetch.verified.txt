@@ -1,0 +1,57 @@
+﻿{
+  builds: [
+    {
+      ConnectionId: travis,
+      PipelineId: VerifyTests/DiffEngine,
+      PipelineName: VerifyTests/DiffEngine,
+      RepoName: VerifyTests/DiffEngine,
+      Branch: main,
+      RunNumber: 120,
+      Status: Running,
+      StatusText: started,
+      Started: DateTimeOffset_1,
+      BuildUrl: https://app.travis-ci.com/github/VerifyTests/DiffEngine/builds/900,
+      BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/main,
+      CommitSha: abc,
+      CommitMessage: Fix,
+      Author: Simon,
+      CanRetry: false,
+      CanCancel: true,
+      ProviderRef: 900,
+      Key: travis/VerifyTests/DiffEngine/main,
+      PipelineKey: travis/VerifyTests/DiffEngine,
+      IsActive: true,
+      Ordering: DateTimeOffset_1
+    },
+    {
+      ConnectionId: travis,
+      PipelineId: VerifyTests/DiffEngine,
+      PipelineName: VerifyTests/DiffEngine,
+      RepoName: VerifyTests/DiffEngine,
+      Branch: feature,
+      RunNumber: 119,
+      Status: Failed,
+      StatusText: failed,
+      Started: DateTimeOffset_2,
+      Finished: DateTimeOffset_3,
+      BuildUrl: https://app.travis-ci.com/github/VerifyTests/DiffEngine/builds/899,
+      BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/feature,
+      PullRequestNumber: 7,
+      PullRequestUrl: https://github.com/VerifyTests/DiffEngine/pull/7,
+      CommitSha: def,
+      CommitMessage: Feature,
+      Author: Simon,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: 899,
+      Key: travis/VerifyTests/DiffEngine/feature,
+      PipelineKey: travis/VerifyTests/DiffEngine,
+      IsActive: false,
+      Ordering: DateTimeOffset_2
+    }
+  ],
+  Requests: [
+    GET https://api.travis-ci.com/repos?repository.active=true&limit=100&sort_by=default_branch.last_build:desc,
+    GET https://api.travis-ci.com/repo/VerifyTests%2FDiffEngine/builds?limit=5&sort_by=id:desc&include=build.commit
+  ]
+}

@@ -1,0 +1,63 @@
+﻿{
+  builds: [
+    {
+      ConnectionId: github,
+      PipelineId: VerifyTests/DiffEngine/10,
+      PipelineName: Test,
+      RepoName: VerifyTests/DiffEngine,
+      Branch: main,
+      RunNumber: 1234,
+      Status: Running,
+      StatusText: in_progress,
+      Queued: DateTimeOffset_1,
+      Started: DateTimeOffset_2,
+      BuildUrl: https://github.com/VerifyTests/DiffEngine/actions/runs/500,
+      BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/main,
+      CommitSha: 0123456789abcdef,
+      CommitMessage:
+Fix the thing
+
+Details,
+      Author: SimonCropp,
+      CanRetry: false,
+      CanCancel: true,
+      ProviderRef: VerifyTests/DiffEngine|500|,
+      Key: github/VerifyTests/DiffEngine/10/main,
+      PipelineKey: github/VerifyTests/DiffEngine/10,
+      IsActive: true,
+      Ordering: DateTimeOffset_2
+    },
+    {
+      ConnectionId: github,
+      PipelineId: VerifyTests/DiffEngine/10,
+      PipelineName: Test,
+      RepoName: VerifyTests/DiffEngine,
+      Branch: feature,
+      RunNumber: 1233,
+      Status: Failed,
+      StatusText: failure,
+      Queued: DateTimeOffset_3,
+      Started: DateTimeOffset_4,
+      Finished: DateTimeOffset_5,
+      BuildUrl: https://github.com/VerifyTests/DiffEngine/actions/runs/499,
+      BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/feature,
+      PullRequestNumber: 42,
+      PullRequestUrl: https://github.com/VerifyTests/DiffEngine/pull/42,
+      CommitSha: fedcba9876543210,
+      CommitMessage: Feature,
+      Author: someone,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: VerifyTests/DiffEngine|499|failure,
+      Key: github/VerifyTests/DiffEngine/10/feature,
+      PipelineKey: github/VerifyTests/DiffEngine/10,
+      IsActive: false,
+      Ordering: DateTimeOffset_4
+    }
+  ],
+  Requests: [
+    GET https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1,
+    GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows?per_page=100,
+    GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5
+  ]
+}

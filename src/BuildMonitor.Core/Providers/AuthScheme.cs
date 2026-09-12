@@ -1,7 +1,7 @@
 /// <summary>
 /// How the credential goes on the wire.
 /// </summary>
-enum AuthScheme
+public enum AuthScheme
 {
     // Authorization: Bearer {token}
     Bearer,

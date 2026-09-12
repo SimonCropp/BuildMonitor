@@ -1,0 +1,3 @@
+﻿[
+  GET https://api.github.com/orgs/VerifyTests/repos?per_page=100&sort=pushed&type=all&page=1
+]

@@ -1,0 +1,6 @@
+﻿[
+  POST https://teamcity.example.com/app/rest/buildQueue
+  {"buildType":{"id":"Verify_Build"},"branchName":"main"},
+  POST https://teamcity.example.com/app/rest/builds/id:9001
+  {"comment":"Cancelled from BuildMonitor","readdIntoQueue":false}
+]

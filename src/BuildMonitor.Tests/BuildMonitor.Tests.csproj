@@ -8,6 +8,7 @@
     <Using Include="System.Text.Json" />
     <Using Include="System.Net" />
     <Using Include="System.Net.Http" />
+    <Using Include="System.Net.Http.Headers" />
     <Using Include="System.Net.Sockets" />
     <Using Include="System.Collections.Immutable" />
     <PackageReference Include="Argon" />

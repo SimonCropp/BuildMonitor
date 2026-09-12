@@ -93,7 +93,7 @@ static class ProviderDescriptors
             new("organization", "Organization", Required: true),
             new("project", "Project", Required: false, Hint: "Leave empty for every project in the organization")
         ],
-        HasEstimate: true,
+        HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
         Notes: "The token needs Build (Read & execute).");

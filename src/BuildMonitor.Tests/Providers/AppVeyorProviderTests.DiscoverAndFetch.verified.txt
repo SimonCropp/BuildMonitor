@@ -1,0 +1,59 @@
+﻿{
+  builds: [
+    {
+      ConnectionId: appveyor,
+      PipelineId: simon/diffengine,
+      PipelineName: DiffEngine,
+      RepoName: VerifyTests/DiffEngine,
+      Branch: main,
+      RunNumber: 45,
+      Status: Running,
+      StatusText: running,
+      Queued: DateTimeOffset_1,
+      Started: DateTimeOffset_2,
+      BuildUrl: https://ci.appveyor.com/project/simon/diffengine/builds/100,
+      BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/main,
+      CommitSha: abc123,
+      CommitMessage: Fix,
+      Author: Simon,
+      CanRetry: false,
+      CanCancel: true,
+      ProviderRef: 100|1.0.45,
+      Key: appveyor/simon/diffengine/main,
+      PipelineKey: appveyor/simon/diffengine,
+      IsActive: true,
+      Ordering: DateTimeOffset_2
+    },
+    {
+      ConnectionId: appveyor,
+      PipelineId: simon/diffengine,
+      PipelineName: DiffEngine,
+      RepoName: VerifyTests/DiffEngine,
+      Branch: feature,
+      RunNumber: 44,
+      Status: Failed,
+      StatusText: failed,
+      Queued: DateTimeOffset_3,
+      Started: DateTimeOffset_4,
+      Finished: DateTimeOffset_5,
+      BuildUrl: https://ci.appveyor.com/project/simon/diffengine/builds/99,
+      BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/feature,
+      PullRequestNumber: 12,
+      PullRequestUrl: https://github.com/VerifyTests/DiffEngine/pull/12,
+      CommitSha: def456,
+      CommitMessage: Feature,
+      Author: Simon,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: 99|1.0.44,
+      Key: appveyor/simon/diffengine/feature,
+      PipelineKey: appveyor/simon/diffengine,
+      IsActive: false,
+      Ordering: DateTimeOffset_4
+    }
+  ],
+  Requests: [
+    GET https://ci.appveyor.com/api/projects,
+    GET https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5
+  ]
+}

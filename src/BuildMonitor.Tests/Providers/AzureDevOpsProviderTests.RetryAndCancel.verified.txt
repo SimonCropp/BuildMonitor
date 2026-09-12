@@ -1,0 +1,6 @@
+﻿[
+  PATCH https://dev.azure.com/contoso/Web/_apis/build/builds/300?retry=true&api-version=7.1
+  {},
+  PATCH https://dev.azure.com/contoso/Web/_apis/build/builds/301?api-version=7.1
+  {"status":"cancelling"}
+]

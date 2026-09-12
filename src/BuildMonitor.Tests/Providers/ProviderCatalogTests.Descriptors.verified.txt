@@ -1,0 +1,213 @@
+﻿[
+  {
+    Id: appveyor,
+    Name: AppVeyor,
+    BrowserSignIn: false,
+    DeviceSignIn: false,
+    SelfHosted: false,
+    DefaultServer: https://ci.appveyor.com,
+    TokenLabel: API token,
+    TokenHelpUrl: https://ci.appveyor.com/api-keys,
+    Scopes: [
+      {
+        Id: account,
+        Label: Account,
+        Required: false,
+        Hint: Only needed for a v2 (user level) token
+      }
+    ],
+    HasEstimate: false,
+    HasBranches: true,
+    HasPullRequests: true,
+    CustomClientId: false
+  },
+  {
+    Id: azure-devops,
+    Name: Azure DevOps,
+    BrowserSignIn: true,
+    DeviceSignIn: true,
+    SelfHosted: true,
+    DefaultServer: https://dev.azure.com,
+    TokenLabel: Personal access token,
+    TokenHelpUrl: https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate,
+    Scheme: BasicEmptyUserToken,
+    Scopes: [
+      {
+        Id: organization,
+        Label: Organization,
+        Required: true
+      },
+      {
+        Id: project,
+        Label: Project,
+        Required: false,
+        Hint: Leave empty for every project in the organization
+      }
+    ],
+    HasEstimate: false,
+    HasBranches: true,
+    HasPullRequests: true,
+    CustomClientId: false,
+    Notes: The token needs Build (Read & execute).
+  },
+  {
+    Id: bitbucket,
+    Name: Bitbucket Pipelines,
+    BrowserSignIn: false,
+    DeviceSignIn: false,
+    SelfHosted: false,
+    DefaultServer: https://api.bitbucket.org/2.0,
+    TokenLabel: API token,
+    TokenHelpUrl: https://id.atlassian.com/manage-profile/security/api-tokens,
+    Scheme: BasicEmailToken,
+    UserLabel: Atlassian account email,
+    Scopes: [
+      {
+        Id: workspace,
+        Label: Workspace,
+        Required: true
+      }
+    ],
+    HasEstimate: false,
+    HasBranches: true,
+    HasPullRequests: true,
+    CustomClientId: false,
+    Notes: The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.
+  },
+  {
+    Id: github,
+    Name: GitHub Actions,
+    BrowserSignIn: true,
+    DeviceSignIn: true,
+    SelfHosted: true,
+    DefaultServer: https://api.github.com,
+    TokenLabel: Personal access token,
+    TokenHelpUrl: https://github.com/settings/personal-access-tokens/new,
+    Scopes: [
+      {
+        Id: owner,
+        Label: Organization or user,
+        Required: false,
+        Hint: Leave empty for every repository you can see
+      }
+    ],
+    HasEstimate: false,
+    HasBranches: true,
+    HasPullRequests: true,
+    CustomClientId: false,
+    Notes: A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.
+  },
+  {
+    Id: gitlab,
+    Name: GitLab CI,
+    BrowserSignIn: true,
+    DeviceSignIn: true,
+    SelfHosted: true,
+    DefaultServer: https://gitlab.com,
+    TokenLabel: Personal access token,
+    TokenHelpUrl: https://gitlab.com/-/user_settings/personal_access_tokens,
+    Scheme: HeaderPrivateToken,
+    Scopes: [
+      {
+        Id: group,
+        Label: Group,
+        Required: false,
+        Hint: Leave empty for every project you are a member of
+      }
+    ],
+    HasEstimate: false,
+    HasBranches: true,
+    HasPullRequests: true,
+    CustomClientId: true,
+    Notes: The token needs the api scope to retry and cancel, or read_api to only watch.
+  },
+  {
+    Id: gocd,
+    Name: GoCD,
+    BrowserSignIn: false,
+    DeviceSignIn: false,
+    SelfHosted: true,
+    TokenLabel: Personal access token,
+    TokenHelpUrl: https://api.gocd.org/current/#access-tokens,
+    HasEstimate: false,
+    HasBranches: false,
+    HasPullRequests: false,
+    CustomClientId: false,
+    Notes: Create the token at {server}/go/access_tokens.
+  },
+  {
+    Id: jenkins,
+    Name: Jenkins,
+    BrowserSignIn: false,
+    DeviceSignIn: false,
+    SelfHosted: true,
+    TokenLabel: API token,
+    TokenHelpUrl: https://www.jenkins.io/doc/book/system-administration/authenticating-scripted-clients/,
+    Scheme: BasicUserToken,
+    UserLabel: User name,
+    HasEstimate: true,
+    HasBranches: true,
+    HasPullRequests: false,
+    CustomClientId: false,
+    Notes: Create the token at {server}/me/security.
+  },
+  {
+    Id: octopus,
+    Name: Octopus Deploy,
+    BrowserSignIn: false,
+    DeviceSignIn: false,
+    SelfHosted: true,
+    TokenLabel: API key,
+    TokenHelpUrl: https://octopus.com/docs/api/authentication/create-an-api-key,
+    Scheme: HeaderOctopusApiKey,
+    Scopes: [
+      {
+        Id: space,
+        Label: Space,
+        Required: false,
+        Hint: Leave empty for the default space
+      }
+    ],
+    HasEstimate: true,
+    HasBranches: false,
+    HasPullRequests: false,
+    CustomClientId: false
+  },
+  {
+    Id: teamcity,
+    Name: TeamCity,
+    BrowserSignIn: false,
+    DeviceSignIn: false,
+    SelfHosted: true,
+    TokenLabel: Access token,
+    TokenHelpUrl: https://www.jetbrains.com/help/teamcity/configuring-your-user-profile.html#Managing+Access+Tokens,
+    Scopes: [
+      {
+        Id: project,
+        Label: Project id,
+        Required: false,
+        Hint: Leave empty for every project
+      }
+    ],
+    HasEstimate: true,
+    HasBranches: true,
+    HasPullRequests: false,
+    CustomClientId: false,
+    Notes: Create the token under Profile, Access Tokens.
+  },
+  {
+    Id: travis,
+    Name: Travis CI,
+    BrowserSignIn: false,
+    DeviceSignIn: false,
+    SelfHosted: true,
+    DefaultServer: https://api.travis-ci.com,
+    TokenLabel: API token,
+    TokenHelpUrl: https://app.travis-ci.com/account/preferences,
+    Scheme: Token,
+    HasEstimate: false,
+    HasBranches: true,
+    HasPullRequests: true,
+    CustomClientId: false
+  }
+]

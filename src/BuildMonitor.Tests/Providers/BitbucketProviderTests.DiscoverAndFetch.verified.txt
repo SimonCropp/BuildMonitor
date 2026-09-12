@@ -1,0 +1,55 @@
+﻿{
+  builds: [
+    {
+      ConnectionId: bitbucket,
+      PipelineId: diffengine,
+      PipelineName: verify/diffengine,
+      RepoName: verify/diffengine,
+      Branch: main,
+      RunNumber: 88,
+      Status: Running,
+      StatusText: in_progress,
+      Queued: DateTimeOffset_1,
+      Started: DateTimeOffset_1,
+      BuildUrl: https://bitbucket.org/verify/diffengine/pipelines/results/88,
+      BranchUrl: https://bitbucket.org/verify/diffengine/branch/main,
+      CommitSha: abc123,
+      Author: Simon,
+      CanRetry: false,
+      CanCancel: true,
+      ProviderRef: {u1}|branch|main|abc123,
+      Key: bitbucket/diffengine/main,
+      PipelineKey: bitbucket/diffengine,
+      IsActive: true,
+      Ordering: DateTimeOffset_1
+    },
+    {
+      ConnectionId: bitbucket,
+      PipelineId: diffengine,
+      PipelineName: verify/diffengine,
+      RepoName: verify/diffengine,
+      Branch: feature,
+      RunNumber: 87,
+      Status: Failed,
+      StatusText: failed,
+      Queued: DateTimeOffset_2,
+      Started: DateTimeOffset_2,
+      Finished: DateTimeOffset_3,
+      BuildUrl: https://bitbucket.org/verify/diffengine/pipelines/results/87,
+      BranchUrl: https://bitbucket.org/verify/diffengine/branch/feature,
+      CommitSha: def456,
+      Author: Simon,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: {u2}|branch|feature|def456,
+      Key: bitbucket/diffengine/feature,
+      PipelineKey: bitbucket/diffengine,
+      IsActive: false,
+      Ordering: DateTimeOffset_2
+    }
+  ],
+  Requests: [
+    GET https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on,
+    GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5
+  ]
+}
