@@ -65,7 +65,10 @@ public class SecretStoreTests
     }
 
     [Test]
-    [Arguments("github", "", null)]
+    // Hosted GitHub has a compiled in id; the others do not yet, so an empty id gives no client.
+    [Arguments("github", "", "https://github.com/login/oauth/authorize")]
+    [Arguments("gitlab", "", null)]
+    [Arguments("azure-devops", "", null)]
     [Arguments("github", "myapp", "https://github.com/login/oauth/authorize")]
     [Arguments("gitlab", "myapp", "https://gitlab.com/oauth/authorize")]
     [Arguments("azure-devops", "myapp", "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize")]

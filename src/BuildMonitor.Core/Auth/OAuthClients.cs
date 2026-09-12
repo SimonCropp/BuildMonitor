@@ -12,7 +12,7 @@
 /// </summary>
 static class OAuthClients
 {
-    public const string GitHubClientId = "";
+    public const string GitHubClientId = "Ov23lidsjnhnW0pniEFX";
     public const string GitHubClientSecret = "";
     public const string GitLabClientId = "";
     public const string EntraClientId = "";
