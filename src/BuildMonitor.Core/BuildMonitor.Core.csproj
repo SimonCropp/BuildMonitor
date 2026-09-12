@@ -21,6 +21,7 @@
     <Using Include="System.Net.Http.Headers" />
     <Using Include="System.Net.Sockets" />
     <Using Include="System.Security.Cryptography" />
+    <Using Include="System.Diagnostics" />
     <Using Include="System.Diagnostics.CodeAnalysis" />
     <Using Include="System.Collections.Immutable" />
     <Using Include="System.Globalization" />

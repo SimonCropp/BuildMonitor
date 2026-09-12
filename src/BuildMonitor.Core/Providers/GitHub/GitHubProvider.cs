@@ -39,25 +39,37 @@ sealed class GitHubProvider : ProviderBase
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
+        var started = Stopwatch.GetTimestamp();
         var repositories = await Repositories(context, cancel);
-        var pipelines = new List<Pipeline>();
         var cutoff = DateTimeOffset.UtcNow - activeWindow;
-        foreach (var repository in repositories.Where(_ => !_.Archived && !_.Disabled && _.PushedAt > cutoff))
-        {
-            var workflows = await context.Http.Get(
-                $"repos/{repository.FullName}/actions/workflows?per_page=100",
-                GitHubContext.Default.GitHubWorkflows,
-                cancel);
-            pipelines.AddRange(workflows.Workflows
-                .Where(_ => _.State == "active")
-                .Select(_ => new Pipeline(
-                    $"{repository.FullName}/{_.Id}",
-                    _.Name,
-                    repository.FullName,
-                    repository.FullName,
-                    $"{repository.HtmlUrl}/actions/workflows/{Path.GetFileName(_.Path)}")));
-        }
-
+        var active = repositories.Where(_ => !_.Archived && !_.Disabled && _.PushedAt > cutoff).ToList();
+        var perRepository = await Concurrently.Map(
+            active,
+            async (repository, token) =>
+            {
+                var workflows = await context.Http.Get(
+                    $"repos/{repository.FullName}/actions/workflows?per_page=100",
+                    GitHubContext.Default.GitHubWorkflows,
+                    token);
+                return workflows.Workflows
+                    .Where(_ => _.State == "active")
+                    .Select(_ => new Pipeline(
+                        $"{repository.FullName}/{_.Id}",
+                        _.Name,
+                        repository.FullName,
+                        repository.FullName,
+                        $"{repository.HtmlUrl}/actions/workflows/{Path.GetFileName(_.Path)}"))
+                    .ToList();
+            },
+            cancel);
+        var pipelines = perRepository.SelectMany(_ => _).ToList();
+        Log.Information(
+            "GitHub discovery: {Repositories} repositories, {Active} pushed in the last {Days} days, {Pipelines} workflows, {Elapsed:0.0}s",
+            repositories.Count,
+            active.Count,
+            activeWindow.TotalDays,
+            pipelines.Count,
+            Stopwatch.GetElapsedTime(started).TotalSeconds);
         return pipelines;
     }
 
@@ -97,35 +109,47 @@ sealed class GitHubProvider : ProviderBase
 
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
     {
-        var builds = new List<Build>();
-        foreach (var repository in pipelines.GroupBy(_ => _.RepoName))
-        {
-            var byWorkflow = repository.ToDictionary(_ => long.Parse(_.Id[(_.Id.LastIndexOf('/') + 1)..]));
-            var count = Math.Min(100, perPipeline * byWorkflow.Count);
-            var runs = await context.Http.Get(
-                $"repos/{repository.Key}/actions/runs?per_page={count}",
-                GitHubContext.Default.GitHubRuns,
-                cancel);
-            var taken = new Dictionary<long, int>();
-            foreach (var run in runs.WorkflowRuns)
+        var started = Stopwatch.GetTimestamp();
+        var repositories = pipelines.GroupBy(_ => _.RepoName).ToList();
+        var perRepository = await Concurrently.Map(
+            repositories,
+            async (repository, token) =>
             {
-                if (!byWorkflow.TryGetValue(run.WorkflowId, out var pipeline))
+                var byWorkflow = repository.ToDictionary(_ => long.Parse(_.Id[(_.Id.LastIndexOf('/') + 1)..]));
+                var count = Math.Min(100, perPipeline * byWorkflow.Count);
+                var runs = await context.Http.Get(
+                    $"repos/{repository.Key}/actions/runs?per_page={count}",
+                    GitHubContext.Default.GitHubRuns,
+                    token);
+                var builds = new List<Build>();
+                var taken = new Dictionary<long, int>();
+                foreach (var run in runs.WorkflowRuns)
                 {
-                    continue;
+                    if (!byWorkflow.TryGetValue(run.WorkflowId, out var pipeline))
+                    {
+                        continue;
+                    }
+
+                    taken.TryGetValue(run.WorkflowId, out var soFar);
+                    if (soFar >= perPipeline)
+                    {
+                        continue;
+                    }
+
+                    taken[run.WorkflowId] = soFar + 1;
+                    builds.Add(Convert(context.Connection.Id, repository.Key, pipeline, run));
                 }
 
-                taken.TryGetValue(run.WorkflowId, out var soFar);
-                if (soFar >= perPipeline)
-                {
-                    continue;
-                }
-
-                taken[run.WorkflowId] = soFar + 1;
-                builds.Add(Convert(context.Connection.Id, repository.Key, pipeline, run));
-            }
-        }
-
-        return builds;
+                return builds;
+            },
+            cancel);
+        var all = perRepository.SelectMany(_ => _).ToList();
+        Log.Information(
+            "GitHub fetch: {Repositories} repositories, {Builds} runs, {Elapsed:0.0}s",
+            repositories.Count,
+            all.Count,
+            Stopwatch.GetElapsedTime(started).TotalSeconds);
+        return all;
     }
 
     static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRun run)

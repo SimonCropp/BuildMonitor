@@ -34,8 +34,12 @@ class FakeHttpHandler : HttpMessageHandler
         var extra = request.Headers
             .Where(_ => _.Key is "X-GoCD-Confirm" or "Jenkins-Crumb" or "If-None-Match")
             .Select(_ => $"\n  {_.Key}: {string.Join(",", _.Value)}");
-        Requests.Add(line + string.Concat(extra));
-        RequestHeaders.Add(request.Headers);
+        // Providers fan requests out; the record stays in arrival order under a lock.
+        lock (Requests)
+        {
+            Requests.Add(line + string.Concat(extra));
+            RequestHeaders.Add(request.Headers);
+        }
 
         var key = $"{request.Method} {url}";
         if (!responses.TryGetValue(key, out var response))
