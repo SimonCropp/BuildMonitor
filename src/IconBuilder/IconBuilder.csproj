@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!--
+    Renders the app's icons from Lucide, through IconifyBundle, into
+    src/BuildMonitor.Core/Images, which is committed. Run it (dotnet run, project src/IconBuilder)
+    after changing the icon list; nothing in a normal build runs it.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="IconifyBundle.Lucide" />
+    <PackageReference Include="Svg.Skia" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <Using Include="IconifyBundle" />
+    <Using Include="SkiaSharp" />
+    <Using Include="Svg.Skia" />
+  </ItemGroup>
+</Project>

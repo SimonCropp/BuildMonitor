@@ -25,4 +25,14 @@
   <Project Path="BuildMonitor.Tests/BuildMonitor.Tests.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <Project Path="BuildMonitor.Windows/BuildMonitor.Windows.csproj">
+    <!--
+    Builds everywhere: the launcher publishes it for the win RIDs from Linux and macOS too, which
+    EnableWindowsTargeting allows. It only runs on Windows.
+    -->
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="IconBuilder/IconBuilder.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
 </Solution>

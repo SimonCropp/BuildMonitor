@@ -11,6 +11,8 @@
     <Using Include="System.Net.Http.Headers" />
     <Using Include="System.Net.Sockets" />
     <Using Include="System.Collections.Immutable" />
+    <Using Include="System.ComponentModel" />
+    <Using Include="System.Runtime.InteropServices" />
     <PackageReference Include="Argon" />
     <PackageReference Include="MarkdownSnippets.MsBuild" PrivateAssets="all" />
     <PackageReference Include="Verify.TUnit" />

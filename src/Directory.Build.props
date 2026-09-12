@@ -22,6 +22,8 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
     <Verify_SponsorshipLicenseIgnored>true</Verify_SponsorshipLicenseIgnored>
+    <!-- IconifyBundle is maintained by the same author. -->
+    <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.Runtime.CompilerServices" />

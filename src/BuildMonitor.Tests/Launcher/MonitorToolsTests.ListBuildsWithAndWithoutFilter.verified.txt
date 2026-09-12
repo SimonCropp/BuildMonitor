@@ -1,0 +1,62 @@
+﻿[
+  {
+    Key: gh/DiffEngine/test.yml/main,
+    Connection: GitHub,
+    Pipeline: test.yml,
+    Repo: VerifyTests/DiffEngine,
+    Branch: main,
+    Run: 1234,
+    Status: Running,
+    Started: DateTimeOffset_1,
+    Progress: 0.5,
+    Timing: 03:00 left,
+    BuildUrl: https://example.com/gh/DiffEngine/test.yml/1234,
+    BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/main,
+    Commit: 0123456789abcdef,
+    CommitMessage: Fix the thing,
+    Author: SimonCropp,
+    CanRetry: false,
+    CanCancel: true
+  },
+  {
+    Key: gh/Verify/test.yml/feature/inline,
+    Connection: GitHub,
+    Pipeline: test.yml,
+    Repo: VerifyTests/Verify,
+    Branch: feature/inline,
+    Run: 77,
+    Status: Failed,
+    Started: DateTimeOffset_2,
+    Finished: DateTimeOffset_3,
+    Progress: -1.0,
+    Timing: 25m ago,
+    BuildUrl: https://example.com/gh/Verify/test.yml/77,
+    BranchUrl: https://github.com/VerifyTests/Verify/tree/feature/inline,
+    PullRequest: 42,
+    PullRequestUrl: https://github.com/VerifyTests/Verify/pull/42,
+    CommitMessage:
+Inline snapshots
+
+longer description,
+    Author: SimonCropp,
+    CanRetry: true,
+    CanCancel: false
+  },
+  {
+    Key: gh/DiffEngine/docs.yml/main,
+    Connection: GitHub,
+    Pipeline: docs.yml,
+    Repo: VerifyTests/DiffEngine,
+    Branch: main,
+    Run: 300,
+    Status: Succeeded,
+    Started: DateTimeOffset_4,
+    Finished: DateTimeOffset_5,
+    Progress: -1.0,
+    Timing: 23h ago,
+    BuildUrl: https://example.com/gh/DiffEngine/docs.yml/300,
+    BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/main,
+    CanRetry: true,
+    CanCancel: false
+  }
+]

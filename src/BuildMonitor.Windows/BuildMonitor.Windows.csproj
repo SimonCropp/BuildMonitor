@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!--
+    The whole head is Windows only, so this could target net10.0-windows. It does not, because
+    the launcher publishes it per RID from a platform neutral package and the publish must not be
+    platform locked. Same trick DiffEngineTray uses: claim the Windows platform only for the check
+    that would refuse UseWindowsForms on a platform neutral framework, then put it back.
+    -->
+    <NoWarn>$(NoWarn);NETSDK1137;WFAC010</NoWarn>
+    <!-- So the Linux and macOS CI jobs can still publish the win-x64 and win-arm64 heads. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- Every head produces the same executable name; the launcher looks it up by RID folder. -->
+    <AssemblyName>BuildMonitor.Tray</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RollForward>LatestMajor</RollForward>
+    <ApplicationIcon>tray.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
+    <PropertyGroup>
+      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
+  <Target Name="RestoreTargetPlatformIdentifier" AfterTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
+    <PropertyGroup>
+      <TargetPlatformIdentifier></TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
+
+  <ItemGroup>
+    <Using Include="System.ComponentModel" />
+    <Using Include="Serilog" />
+    <Using Include="System.Drawing" />
+    <Using Include="System.Drawing.Drawing2D" />
+    <Using Include="System.Drawing.Imaging" />
+    <Using Include="System.Drawing.Text" />
+    <Using Include="System.Windows.Forms" />
+    <!--
+    The Screen model has a Button, and so does WinForms. Types in the global namespace win over
+    ones a using brings in, so unqualified Button is the model's and the control needs a name.
+    -->
+    <Using Include="System.Windows.Forms.Button" Alias="FormsButton" />
+    <Using Include="System.Windows.Forms.Label" Alias="FormsLabel" />
+    <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <None Remove="tray.ico" />
+  </ItemGroup>
+</Project>

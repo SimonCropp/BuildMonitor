@@ -21,12 +21,15 @@
     tools/net10.0/any payload. The heads are published per RID below and bundled beside it.
     -->
     <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>
+    <!-- For the AttachConsole P/Invoke. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <Using Include="System.Text" />
     <Using Include="System.Text.Json" />
     <Using Include="System.ComponentModel" />
+    <InternalsVisibleTo Include="BuildMonitor.Tests" />
     <PackageReference Include="ModelContextProtocol" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
