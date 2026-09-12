@@ -17,7 +17,7 @@ static class OAuthClients
     // flow ships its secret, as the GitHub CLI does. It grants nothing by itself; a leak means
     // regenerating it on github.com and shipping a new version.
     public const string GitHubClientSecret = "ed9358ff15a34512bd504c0055cd24f8e5b35783";
-    public const string GitLabClientId = "";
+    public const string GitLabClientId = "gloas-a14d2cb2827449195f9e3a42389db9760d591221c70e58f752483ebffcccbd1a";
     public const string EntraClientId = "";
 
     const string azureDevOpsResource = "499b84ac-1321-427f-aa17-267ca6975798";
