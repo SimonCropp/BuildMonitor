@@ -32,6 +32,9 @@
     -->
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <Project Path="BuildMonitor.Native/BuildMonitor.Native.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <Project Path="IconBuilder/IconBuilder.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>

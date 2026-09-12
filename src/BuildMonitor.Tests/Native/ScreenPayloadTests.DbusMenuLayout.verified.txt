@@ -1,0 +1,416 @@
+﻿[
+  {
+    Id: 1,
+    ItemId: header:gh,
+    Label: GitHub,
+    Enabled: false,
+    Separator: false,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible
+    ]
+  },
+  {
+    Id: 3,
+    ItemId: build:open:gh/DiffEngine/test.yml/main,
+    Label: Open build,
+    Enabled: true,
+    Separator: false,
+    Icon: build,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 4,
+    ItemId: build:cancel:gh/DiffEngine/test.yml/main,
+    Label: Cancel,
+    Enabled: true,
+    Separator: false,
+    Icon: cancel,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 2,
+    ItemId: build:open:gh/DiffEngine/test.yml/main,
+    Label: test.yml main #1234 running,
+    Enabled: true,
+    Separator: false,
+    Icon: running,
+    Children: [
+      3,
+      4
+    ],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data,
+      children-display
+    ]
+  },
+  {
+    Id: 6,
+    ItemId: build:open:gh/Verify/test.yml/feature/inline,
+    Label: Open build,
+    Enabled: true,
+    Separator: false,
+    Icon: build,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 7,
+    ItemId: build:retry:gh/Verify/test.yml/feature/inline,
+    Label: Retry,
+    Enabled: true,
+    Separator: false,
+    Icon: retry,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 5,
+    ItemId: build:open:gh/Verify/test.yml/feature/inline,
+    Label: test.yml feature/inline #77 failed,
+    Enabled: true,
+    Separator: false,
+    Icon: failed,
+    Children: [
+      6,
+      7
+    ],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data,
+      children-display
+    ]
+  },
+  {
+    Id: 8,
+    ItemId: header:jenkins,
+    Label: Jenkins,
+    Enabled: false,
+    Separator: false,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible
+    ]
+  },
+  {
+    Id: 10,
+    ItemId: build:open:jenkins/build-all/main,
+    Label: Open build,
+    Enabled: true,
+    Separator: false,
+    Icon: build,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 11,
+    ItemId: build:cancel:jenkins/build-all/main,
+    Label: Cancel,
+    Enabled: true,
+    Separator: false,
+    Icon: cancel,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 9,
+    ItemId: build:open:jenkins/build-all/main,
+    Label: Build all main #501 running,
+    Enabled: true,
+    Separator: false,
+    Icon: running,
+    Children: [
+      10,
+      11
+    ],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data,
+      children-display
+    ]
+  },
+  {
+    Id: 13,
+    ItemId: build:open:jenkins/nightly/,
+    Label: Open build,
+    Enabled: true,
+    Separator: false,
+    Icon: build,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 14,
+    ItemId: build:cancel:jenkins/nightly/,
+    Label: Cancel,
+    Enabled: true,
+    Separator: false,
+    Icon: cancel,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 12,
+    ItemId: build:open:jenkins/nightly/,
+    Label: Nightly #88 queued,
+    Enabled: true,
+    Separator: false,
+    Icon: queued,
+    Children: [
+      13,
+      14
+    ],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data,
+      children-display
+    ]
+  },
+  {
+    Id: 15,
+    ItemId: header:octo,
+    Label: Octopus,
+    Enabled: false,
+    Separator: false,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible
+    ]
+  },
+  {
+    Id: 17,
+    ItemId: build:open:octo/Projects-1/,
+    Label: Open build,
+    Enabled: true,
+    Separator: false,
+    Icon: build,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 18,
+    ItemId: build:cancel:octo/Projects-1/,
+    Label: Cancel,
+    Enabled: true,
+    Separator: false,
+    Icon: cancel,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 16,
+    ItemId: build:open:octo/Projects-1/,
+    Label: Deploy Web #12 running,
+    Enabled: true,
+    Separator: false,
+    Icon: running,
+    Children: [
+      17,
+      18
+    ],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data,
+      children-display
+    ]
+  },
+  {
+    Id: 19,
+    Label: ,
+    Enabled: true,
+    Separator: true,
+    Children: [],
+    Properties: [
+      type
+    ]
+  },
+  {
+    Id: 20,
+    ItemId: open,
+    Label: Open,
+    Enabled: true,
+    Separator: false,
+    Icon: open,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 21,
+    ItemId: refresh,
+    Label: Refresh,
+    Enabled: true,
+    Separator: false,
+    Icon: refresh,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 22,
+    ItemId: options,
+    Label: Options,
+    Enabled: true,
+    Separator: false,
+    Icon: options,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 23,
+    ItemId: filters,
+    Label: Filters,
+    Enabled: true,
+    Separator: false,
+    Icon: filters,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 24,
+    ItemId: logs,
+    Label: Open logs,
+    Enabled: true,
+    Separator: false,
+    Icon: logs,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 25,
+    ItemId: issue,
+    Label: Raise issue,
+    Enabled: true,
+    Separator: false,
+    Icon: issue,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 26,
+    ItemId: update,
+    Label: Update,
+    Enabled: true,
+    Separator: false,
+    Icon: update,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 27,
+    ItemId: exit,
+    Label: Exit,
+    Enabled: true,
+    Separator: false,
+    Icon: exit,
+    Children: [],
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  }
+]

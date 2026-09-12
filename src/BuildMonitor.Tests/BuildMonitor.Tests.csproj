@@ -21,6 +21,14 @@
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
     <ProjectReference Include="..\BuildMonitor\BuildMonitor.csproj" />
+    <ProjectReference Include="..\BuildMonitor.Native\BuildMonitor.Native.csproj" />
+    <!--
+    The native renderers belong to the head, but NativeTests and PixelTests exercise them through
+    it, so this project needs whichever one matches the RID it is running on.
+    -->
+    <None Include="..\BuildMonitor.Native\runtimes\**\*"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="runtimes\%(RecursiveDir)%(Filename)%(Extension)" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
   </ItemGroup>
