@@ -1,0 +1,24 @@
+# Linux
+
+The Linux head draws its window with raylib and Dear ImGui, and puts its icon in the tray through the StatusNotifierItem protocol over D-Bus, which is what KDE Plasma, Cinnamon and XFCE provide out of the box.
+
+GNOME Shell has no tray of its own. Install the [AppIndicator and KStatusNotifierItem Support](https://extensions.gnome.org/extension/615/appindicator-support/) extension; without it BuildMonitor runs with the window only and says so in the log.
+
+
+## Dependencies
+
+The window needs an X11 or Wayland session with OpenGL. On a minimal install:
+
+```
+sudo apt-get install libx11-6 libxrandr2 libxi6 libxcursor1 libxinerama1 libgl1
+```
+
+
+## Credentials
+
+Tokens go to the Secret Service through `secret-tool` (package `libsecret-tools`) when it is installed, which is a GNOME Keyring or KWallet prompt the first time. Without it they are written to `~/.local/share/BuildMonitor/secrets`, readable by the user alone.
+
+
+## Run at startup
+
+A desktop entry in `~/.config/autostart/buildmonitor.desktop`, pointing at `~/.dotnet/tools/buildmonitor`.

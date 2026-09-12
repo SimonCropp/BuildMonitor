@@ -1,0 +1,26 @@
+# Azure DevOps
+
+Watches the pipelines of one organization, across every project or one named project.
+
+
+## Credential
+
+A [personal access token](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) with Build: Read & execute. Or sign in through Microsoft Entra ID, once an application is registered; see [Authentication](../auth.md). Personal Microsoft accounts cannot sign in that way.
+
+For Azure DevOps Server enter the server URL and the collection as the organization.
+
+
+## Rows
+
+One per pipeline definition. Pull request builds show the pull request number and link to it, on Azure Repos and on GitHub repositories.
+
+
+## Actions
+
+ * Retry re-runs the build
+ * Cancel cancels a queued or running build
+
+
+## Estimates
+
+The countdown comes from the median of the pipeline's last ten successful runs.

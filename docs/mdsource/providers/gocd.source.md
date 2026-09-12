@@ -1,0 +1,24 @@
+# GoCD
+
+Watches every pipeline on the server.
+
+
+## Credential
+
+A [personal access token](https://api.gocd.org/current/#access-tokens), created at `https://<server>/go/access_tokens`.
+
+
+## Rows
+
+One per pipeline. The stages of an instance fold into one status: building while any stage builds, failed or cancelled when one is, passed when every scheduled stage passed. The branch comes from the git material.
+
+
+## Actions
+
+ * Retry re-runs the failed jobs of the failed stage, or schedules the pipeline when nothing failed
+ * Cancel cancels the running stage
+
+
+## Estimates
+
+The countdown comes from the median of the pipeline's last ten successful instances.

@@ -1,0 +1,56 @@
+# MCP server
+
+`buildmonitor mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io/) server over stdio, so a local AI assistant can read the same builds the tray shows and act on them. It starts the tray if it is not running and talks to it over the local port.
+
+
+## Registering it
+
+Claude Code:
+
+```
+claude mcp add --transport stdio buildmonitor --scope user -- buildmonitor mcp
+```
+
+Or in a `.mcp.json` (Claude Code, project scope) or `.cursor/mcp.json` (Cursor):
+
+```json
+{
+  "mcpServers": {
+    "buildmonitor": {
+      "command": "buildmonitor",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+VS Code, in `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "buildmonitor": {
+      "type": "stdio",
+      "command": "buildmonitor",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `list_builds` | The latest build of every pipeline, with status, timing, progress and links. Optional substring filter on pipeline, repository, branch or connection. |
+| `list_failing` | The pipelines whose latest build failed. |
+| `get_build` | One build by key. |
+| `summary` | Counts of failing and running builds, the tray state, and each connection's health. |
+| `list_connections` | The connections and whether polling them works. Never returns credentials. |
+| `refresh` | Polls now. |
+| `retry_build` | Re-runs a finished build; failed jobs only where the provider supports that. |
+| `cancel_build` | Cancels a queued or running build. |
+| `open_build_in_browser` | Opens the build, its branch or its pull request. |
+
+Every build carries a `key`, which is what the acting tools take.

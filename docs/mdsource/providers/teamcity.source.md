@@ -1,0 +1,29 @@
+# TeamCity
+
+Watches every build configuration on the server, or those under one project.
+
+
+## Credential
+
+An [access token](https://www.jetbrains.com/help/teamcity/configuring-your-user-profile.html#Managing+Access+Tokens), created under Profile, Access Tokens, with the same permissions as the user or limited to a project.
+
+
+## Rows
+
+One per build configuration. Branches named `pull/n` or `n/merge`, as the pull request features create them, are shown as pull request n.
+
+
+## Actions
+
+ * Retry queues a new build of the configuration on the same branch
+ * Cancel cancels a queued or running build
+
+
+## Estimates
+
+TeamCity reports the percentage complete and the seconds left of a running build, and that drives the bar and the countdown.
+
+
+## Polling
+
+One request lists recent builds across every configuration, so a server with hundreds of configurations costs one call a poll.

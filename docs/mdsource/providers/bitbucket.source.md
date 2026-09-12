@@ -1,0 +1,29 @@
+# Bitbucket Pipelines
+
+Watches every repository the user is a member of in one workspace.
+
+
+## Credential
+
+An Atlassian [API token](https://id.atlassian.com/manage-profile/security/api-tokens) with the scopes `read:pipeline:bitbucket`, `write:pipeline:bitbucket`, `read:repository:bitbucket` and `read:workspace:bitbucket`, together with the Atlassian account email. App passwords stopped working in June 2026.
+
+
+## Rows
+
+One per repository. Pull request pipelines link to the pull request.
+
+
+## Actions
+
+ * Retry starts a new pipeline for the same commit; Bitbucket has no rerun
+ * Cancel stops a pending or running pipeline
+
+
+## Estimates
+
+The countdown comes from the median of the repository's last ten successful pipelines.
+
+
+## Polling
+
+Bitbucket allows a thousand requests an hour and charges one per repository, so the connection is polled no more than once a minute.

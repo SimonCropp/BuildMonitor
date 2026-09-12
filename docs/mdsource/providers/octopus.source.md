@@ -1,0 +1,24 @@
+# Octopus Deploy
+
+Watches the deployments of every project in one space: the default space, or the one the connection names.
+
+
+## Credential
+
+An [API key](https://octopus.com/docs/api/authentication/create-an-api-key), created under Profile, My API Keys.
+
+
+## Rows
+
+One per project, showing the latest deployment. The environment stands in for the branch and the release version for the run number.
+
+
+## Actions
+
+ * Retry re-runs the deployment task
+ * Cancel cancels a queued or executing task
+
+
+## Estimates
+
+Octopus reports the progress and the estimated time remaining of an executing task, and that drives the bar and the countdown.
