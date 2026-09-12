@@ -241,6 +241,12 @@ static class Fixtures
         return MonitorSession.SignInProgress(state, flow, "ABCD-1234", "https://github.com/login/device");
     }
 
+    public static SessionState Polling() =>
+        MonitorSession.SetProgress(
+            MonitorSession.SetHealth(WithBuilds(), GitHub.Id, ConnectionHealth.Polling),
+            GitHub.Id,
+            new(15, 20));
+
     public static SessionState NeedsAuth() =>
         MonitorSession.SetHealth(WithBuilds(), GitHub.Id, ConnectionHealth.NeedsAuth, "401 Unauthorized");
 

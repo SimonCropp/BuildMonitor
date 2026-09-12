@@ -61,7 +61,8 @@ sealed class GitHubProvider : ProviderBase
                         $"{repository.HtmlUrl}/actions/workflows/{Path.GetFileName(_.Path)}"))
                     .ToList();
             },
-            cancel);
+            cancel,
+            context.Progress);
         var pipelines = perRepository.SelectMany(_ => _).ToList();
         Log.Information(
             "GitHub discovery: {Repositories} repositories, {Active} pushed in the last {Days} days, {Pipelines} workflows, {Elapsed:0.0}s",
@@ -142,7 +143,8 @@ sealed class GitHubProvider : ProviderBase
 
                 return builds;
             },
-            cancel);
+            cancel,
+            context.Progress);
         var all = perRepository.SelectMany(_ => _).ToList();
         Log.Information(
             "GitHub fetch: {Repositories} repositories, {Builds} runs, {Elapsed:0.0}s",

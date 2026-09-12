@@ -461,7 +461,10 @@ static class MonitorSession
     // Polling
 
     public static SessionState SetHealth(SessionState state, string connectionId, ConnectionHealth health, string? error = null, DateTimeOffset? retryAfter = null) =>
-        UpdateConnection(state, connectionId, _ => _ with { Health = health, Error = error, RetryAfter = retryAfter });
+        UpdateConnection(state, connectionId, _ => _ with { Health = health, Error = error, RetryAfter = retryAfter, Progress = null });
+
+    public static SessionState SetProgress(SessionState state, string connectionId, PollProgress progress) =>
+        UpdateConnection(state, connectionId, _ => _.Health == ConnectionHealth.Polling ? _ with { Progress = progress } : _);
 
     /// <summary>
     /// The result of one poll: that connection's builds are replaced wholesale. Everything else
@@ -472,7 +475,7 @@ static class MonitorSession
         var next = UpdateConnection(
             state,
             connectionId,
-            _ => _ with { Health = ConnectionHealth.Ok, Error = null, RetryAfter = null, LastPolled = now, Pipelines = pipelines });
+            _ => _ with { Health = ConnectionHealth.Ok, Error = null, RetryAfter = null, LastPolled = now, Pipelines = pipelines, Progress = null });
         var previous = state.Builds.Where(_ => _.ConnectionId == connectionId).ToImmutableArray();
         var notification = state.Notification;
         if (state.Settings.NotifyOnFailure)

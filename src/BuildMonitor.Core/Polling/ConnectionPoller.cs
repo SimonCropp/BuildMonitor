@@ -197,7 +197,10 @@ sealed class ConnectionPoller
 
     async Task<ConnectionHealth> Poll(IProvider provider, Connection connection, string secret, Cancel cancel)
     {
-        var context = Providers.Context(connection, secret, handler);
+        var context = Providers.Context(connection, secret, handler) with
+        {
+            Progress = progress => host.Mutate(_ => MonitorSession.SetProgress(_, connectionId, progress))
+        };
         var now = DateTimeOffset.UtcNow;
         if (pipelines.Length == 0 ||
             now - discovered > RediscoverAfter)

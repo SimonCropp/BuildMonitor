@@ -17,6 +17,22 @@ public class ScreenTests
         Verify(Fixtures.Render(Fixtures.WithBuilds()));
 
     [Test]
+    public Task Polling() =>
+        Verify(Fixtures.Render(Fixtures.Polling()));
+
+    [Test]
+    public async Task ProgressIsDroppedWhenThePollEnds()
+    {
+        var state = Fixtures.Polling();
+        await Assert.That(state.Connection(Fixtures.GitHub.Id)!.Progress).IsEqualTo(new PollProgress(15, 20));
+        var done = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [], Fixtures.Now);
+        await Assert.That(done.Connection(Fixtures.GitHub.Id)!.Progress).IsNull();
+        // A late report after the poll finished must not resurrect it.
+        var late = MonitorSession.SetProgress(done, Fixtures.GitHub.Id, new(20, 20));
+        await Assert.That(late.Connection(Fixtures.GitHub.Id)!.Progress).IsNull();
+    }
+
+    [Test]
     public Task Folded() =>
         Verify(Fixtures.Render(Fixtures.Folded()));
 

@@ -11,11 +11,14 @@ static class Concurrently
     public static async Task<List<TResult>> Map<TItem, TResult>(
         IReadOnlyList<TItem> items,
         Func<TItem, Cancel, Task<TResult>> work,
-        Cancel cancel)
+        Cancel cancel,
+        Action<PollProgress>? progress = null)
     {
         var results = new TResult[items.Count];
         using var gate = new SemaphoreSlim(Limit);
         var tasks = new Task[items.Count];
+        var done = 0;
+        progress?.Invoke(new(0, items.Count));
         for (var index = 0; index < items.Count; index++)
         {
             var slot = index;
@@ -36,6 +39,8 @@ static class Concurrently
             {
                 gate.Release();
             }
+
+            progress?.Invoke(new(Interlocked.Increment(ref done), items.Count));
         }
     }
 }
