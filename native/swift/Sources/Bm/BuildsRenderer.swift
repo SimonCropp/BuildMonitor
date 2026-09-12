@@ -172,9 +172,9 @@ final class BuildsRenderer {
             let colour = field.enabled ? Palette.text : Palette.dim
             switch kind {
             case BM_FIELD_TEXT.rawValue, BM_FIELD_PASSWORD.rawValue, BM_FIELD_NUMBER.rawValue, BM_FIELD_SELECT.rawValue:
-                drawText(field.label, at: CGPoint(x: padding, y: y + 4), font: font, colour: Palette.dim)
+                drawText(field.label, at: CGPoint(x: padding, y: y + 4), font: font, colour: Palette.dim, width: 240)
                 let width: CGFloat = kind == BM_FIELD_NUMBER.rawValue ? 100 : 420
-                let box = CGRect(x: 210, y: y, width: width, height: 24)
+                let box = CGRect(x: 260, y: y, width: width, height: 24)
                 Palette.surface.setFill()
                 NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4).fill()
                 var shown = field.value

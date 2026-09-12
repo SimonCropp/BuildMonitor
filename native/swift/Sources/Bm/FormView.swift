@@ -47,9 +47,10 @@ final class FormView: NSView {
             if [BM_FIELD_TEXT, BM_FIELD_PASSWORD, BM_FIELD_NUMBER, BM_FIELD_SELECT].map({ Int32($0.rawValue) }).contains(field.kind) {
                 let label = NSTextField(labelWithString: field.label)
                 label.textColor = Palette.dim
-                label.frame = NSRect(x: 12, y: y + 4, width: 190, height: 20)
+                label.frame = NSRect(x: 12, y: y + 4, width: 240, height: 20)
+                label.lineBreakMode = .byTruncatingTail
                 addSubview(label)
-                control.frame = NSRect(x: 210, y: y, width: field.kind == Int32(BM_FIELD_NUMBER.rawValue) ? 100 : 420, height: 24)
+                control.frame = NSRect(x: 260, y: y, width: field.kind == Int32(BM_FIELD_NUMBER.rawValue) ? 100 : 420, height: 24)
             } else {
                 control.frame = NSRect(x: 12, y: y, width: 620, height: 24)
             }
