@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <NoWarn>$(NoWarn);CA1416;NU1902;WFO1000</NoWarn>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.Drawing" />
+    <Using Include="System.Windows.Forms" />
+    <Using Include="System.Collections.Immutable" />
+    <Using Include="System.Windows.Forms.Button" Alias="FormsButton" />
+    <PackageReference Include="Argon" />
+    <PackageReference Include="Verify.WinForms" />
+    <PackageReference Include="Verify.TUnit" />
+    <PackageReference Include="SimpleInfoName" />
+    <PackageReference Include="Verify" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\BuildMonitor.Windows\BuildMonitor.Windows.csproj" />
+    <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
+    <!-- The canonical states, shared with the text snapshots so both tiers describe one thing. -->
+    <Compile Include="..\BuildMonitor.Tests\Fixtures.cs" Link="Fixtures.cs" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+</Project>

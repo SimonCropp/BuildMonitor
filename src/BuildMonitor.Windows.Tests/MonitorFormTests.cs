@@ -1,0 +1,59 @@
+#if DEBUG
+/// <summary>
+/// The WinForms head drawing each canonical state. These are the pictures the docs show.
+/// </summary>
+[TUnit.Core.Executors.STAThreadExecutor]
+[NotInParallel(nameof(MonitorFormTests))]
+public class MonitorFormTests
+{
+    [Test]
+    public Task Builds() =>
+        Capture(Fixtures.WithBuilds());
+
+    [Test]
+    public Task Empty() =>
+        Capture(Fixtures.Empty());
+
+    [Test]
+    public Task Folded() =>
+        Capture(Fixtures.Folded());
+
+    [Test]
+    public Task NeedsAuth() =>
+        Capture(Fixtures.NeedsAuth());
+
+    [Test]
+    public Task Options() =>
+        Capture(Fixtures.Options());
+
+    [Test]
+    public Task Filters() =>
+        Capture(Fixtures.Filters());
+
+    [Test]
+    public Task ConnectionNew() =>
+        Capture(Fixtures.ConnectionNew());
+
+    [Test]
+    public Task ConnectionEdit() =>
+        Capture(Fixtures.ConnectionEdit());
+
+    [Test]
+    public Task SignInDevice() =>
+        Capture(Fixtures.SignInDevice());
+
+    static async Task Capture(SessionState state)
+    {
+        using var form = new MonitorForm(ScreenBuilder.Title, 1000, 640);
+        // Shown, off screen: a drop down list only paints its text once it has a handle and has
+        // been laid out, and DrawToBitmap of a form that was never shown leaves it blank.
+        form.StartPosition = FormStartPosition.Manual;
+        form.Location = new(-20000, -20000);
+        form.Show();
+        form.Apply(ScreenBuilder.Build(state, Fixtures.Now));
+        Application.DoEvents();
+        await Verify(form);
+        form.AllowClose = true;
+    }
+}
+#endif

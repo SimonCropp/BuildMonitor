@@ -219,7 +219,7 @@ static class AsciiRenderer
             case FieldKind.Button:
                 return field.Enabled ? $"[ {field.Label} ]" : $"( {field.Label} )";
             case FieldKind.Link:
-                return $"{field.Label} -> {field.Value}";
+                return field.Label == field.Value ? field.Value : $"{field.Label} -> {field.Value}";
             case FieldKind.ListRow:
                 return $"- {label}{field.Value} [x]";
             default:

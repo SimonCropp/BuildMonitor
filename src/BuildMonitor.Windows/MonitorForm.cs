@@ -91,7 +91,7 @@ sealed class MonitorForm : Form
     void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (formPanel.Visible &&
-            ActiveControl is TextBox or ComboBox &&
+            ActiveControl is TextBox or SelectControl &&
             e.KeyCode != Keys.Escape)
         {
             return;

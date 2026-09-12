@@ -121,18 +121,13 @@ sealed class FormPanel : Panel
             }
             case FieldKind.Select:
             {
-                var combo = new ComboBox
+                var select = new SelectControl
                 {
-                    DropDownStyle = ComboBoxStyle.DropDownList,
-                    Width = 260,
-                    BackColor = Palette.Surface,
-                    ForeColor = Palette.Text,
-                    FlatStyle = FlatStyle.Flat,
+                    Options = field.Options ?? [],
                     Margin = new(3, 4, 3, 4)
                 };
-                combo.Items.AddRange(field.Options?.Cast<object>().ToArray() ?? []);
-                combo.SelectedIndexChanged += (_, _) => Changed(field.Id, combo.SelectedItem?.ToString() ?? "");
-                return (Label(field.Label), combo);
+                select.ValueChanged += (_, _) => Changed(field.Id, select.Value);
+                return (Label(field.Label), select);
             }
             case FieldKind.Button:
             {
@@ -169,7 +164,9 @@ sealed class FormPanel : Panel
                 var remove = new FormsButton
                 {
                     Text = "✕",
-                    AutoSize = true,
+                    AutoSize = false,
+                    Size = new(24, 22),
+                    Margin = new(0, 2, 0, 0),
                     FlatStyle = FlatStyle.Flat,
                     ForeColor = Palette.Dim,
                     BackColor = Palette.Background,
@@ -225,13 +222,8 @@ sealed class FormPanel : Panel
                 }
 
                 break;
-            case ComboBox combo:
-                if (!combo.Focused &&
-                    combo.SelectedItem?.ToString() != field.Value)
-                {
-                    combo.SelectedItem = field.Value;
-                }
-
+            case SelectControl select:
+                select.Value = field.Value;
                 break;
             case FlowLayoutPanel panel when panel.Controls[0] is FormsLabel text:
                 text.Text = field.Label.Length == 0 ? field.Value : $"{field.Label}: {field.Value}";

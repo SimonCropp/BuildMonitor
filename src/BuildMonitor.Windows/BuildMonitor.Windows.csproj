@@ -47,6 +47,7 @@
     -->
     <Using Include="System.Windows.Forms.Button" Alias="FormsButton" />
     <Using Include="System.Windows.Forms.Label" Alias="FormsLabel" />
+    <InternalsVisibleTo Include="BuildMonitor.Windows.Tests" />
     <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <None Remove="tray.ico" />

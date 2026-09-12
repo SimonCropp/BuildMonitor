@@ -194,8 +194,9 @@ sealed class RowsCanvas : Control
         const int statusWidth = 80;
         const int barWidth = 110;
         const int timingWidth = 80;
-        var actionsWidth = Measure(row.CanRetry ? "Retry" : row.CanCancel ? "Cancel" : "") + (row.CanRetry || row.CanCancel ? 2 * chipPadding + padding : 0);
-        var linksWidth = Chips(row).Sum(_ => Measure(_.Label) + 2 * chipPadding + 6);
+        // Reserved for the widest set of chips, so the columns line up whatever a row carries.
+        var actionsWidth = Measure("Cancel") + 2 * chipPadding + padding;
+        var linksWidth = Measure("Build") + Measure("Branch") + Measure("PR 9999") + 3 * (2 * chipPadding + 6);
         var fixedWidth = runWidth + statusWidth + barWidth + timingWidth + linksWidth + actionsWidth + 6 * padding;
         var names = Math.Max(120, bounds.Width - x - fixedWidth);
         var pipelineWidth = names * 9 / 20;

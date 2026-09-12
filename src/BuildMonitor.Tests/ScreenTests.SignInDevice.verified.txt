@@ -3,7 +3,7 @@
 +----------------------------------------------------------------------------------------------------------------------+
 | Open the link and enter the code.                                                                                    |
 | Code: ABCD-1234                                                                                                      |
-| Open -> https://github.com/login/device                                                                              |
+| https://github.com/login/device                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

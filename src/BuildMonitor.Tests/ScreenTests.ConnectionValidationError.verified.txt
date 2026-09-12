@@ -5,7 +5,7 @@
 | Name: [                                        ] (AppVeyor)                                                          |
 | Account (optional): [                                        ] (Only needed for a v2 (user level) token)             |
 | API token: [                                        ]                                                                |
-| How to create a api token -> https://ci.appveyor.com/api-keys                                                        |
+| How to get an API token -> https://ci.appveyor.com/api-keys                                                          |
 | Error: Enter the api token.                                                                                          |
 |                                                                                                                      |
 |                                                                                                                      |
