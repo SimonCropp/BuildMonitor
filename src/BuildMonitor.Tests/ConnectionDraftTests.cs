@@ -1,0 +1,49 @@
+public class ConnectionDraftTests
+{
+    [Test]
+    public async Task BuildsAConnectionFromTheForm()
+    {
+        var state = Fixtures.ConnectionNew();
+        state = MonitorSession.FieldChanged(state, FormFields.Provider, "Azure DevOps");
+        state = MonitorSession.FieldChanged(state, FormFields.Name, " Work ");
+        state = MonitorSession.FieldChanged(state, FormFields.Scope("organization"), "contoso");
+        state = MonitorSession.FieldChanged(state, FormFields.Server, "https://dev.azure.com/");
+        var connection = ConnectionDraft.Build(state.Form!);
+        await Verify(connection);
+    }
+
+    [Test]
+    public async Task EmptyNameFallsBackToProvider()
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "GoCD");
+        await Assert.That(ConnectionDraft.Build(state.Form!).Name).IsEqualTo("GoCD");
+    }
+
+    [Test]
+    [Arguments("Jenkins", "Enter the server URL.")]
+    [Arguments("Azure DevOps", "Enter the organization.")]
+    [Arguments("Bitbucket Pipelines", "Enter the workspace.")]
+    [Arguments("AppVeyor", "Enter the api token.")]
+    [Arguments("GitHub Actions", "Sign in first, or switch to a token.")]
+    public async Task ValidationMessages(string provider, string expected)
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, provider);
+        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task BadServerIsRejected()
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Jenkins");
+        state = MonitorSession.FieldChanged(state, FormFields.Server, "jenkins.local");
+        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsEqualTo("The server must be an http or https URL.");
+    }
+
+    [Test]
+    public async Task EditingKeepsTheStoredToken()
+    {
+        var state = Fixtures.ConnectionEdit();
+        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsNull();
+        await Assert.That(ConnectionDraft.Build(state.Form!).Id).IsEqualTo(Fixtures.Jenkins.Id);
+    }
+}

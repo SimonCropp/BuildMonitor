@@ -1,0 +1,35 @@
+﻿{
+  RunAtStartup: true,
+  ShowWindowAtStart: true,
+  ShowOtherBranches: true,
+  PollIntervalSeconds: 45,
+  RunningPollIntervalSeconds: 10,
+  Port: 3796,
+  Connections: [
+    {
+      Id: gh,
+      ProviderId: github,
+      Name: GitHub
+    },
+    {
+      Id: jenkins,
+      ProviderId: jenkins,
+      Name: Jenkins,
+      Server: https://jenkins.example.com,
+      User: simon
+    },
+    {
+      Id: octo,
+      ProviderId: octopus,
+      Name: Octopus,
+      Server: https://octopus.example.com
+    }
+  ],
+  Filters: [
+    {
+      Kind: Suffix,
+      Target: Branch,
+      Text: -wip
+    }
+  ]
+}

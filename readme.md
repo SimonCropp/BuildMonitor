@@ -18,8 +18,7 @@ A build/CI monitor that runs in the system tray on Windows, macOS and Linux. It 
 
   * [Install](#install)
   * [Supported services](#supported-services)
-  * [Documentation](#documentation)
-  * [Icons](#icons)<!-- endToc -->
+  * [Documentation](#documentation)<!-- endToc -->
 
 
 ## Install

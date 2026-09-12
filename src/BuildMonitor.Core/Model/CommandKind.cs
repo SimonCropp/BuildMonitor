@@ -1,0 +1,43 @@
+/// <summary>
+/// Everything the user can ask for, whichever surface asked: a key, a footer button, a context
+/// menu item or a tray menu item. Keys reported by a head are the subset in BmKey in bm.h.
+/// </summary>
+enum CommandKind
+{
+    None,
+    ScrollUp,
+    ScrollDown,
+    PageUp,
+    PageDown,
+    ScrollHome,
+    ScrollEnd,
+    NextRow,
+    PreviousRow,
+    OpenBuild,
+    OpenBranch,
+    OpenPullRequest,
+    CopyBuildUrl,
+    Retry,
+    Cancel,
+    Refresh,
+    ToggleGroup,
+    ExcludePipeline,
+    OpenBuilds,
+    OpenOptions,
+    OpenFilters,
+    AddConnection,
+    EditConnection,
+    RemoveConnection,
+    AddFilter,
+    RemoveFilter,
+    SignIn,
+    CancelSignIn,
+    TestConnection,
+    Save,
+    CancelForm,
+    OpenLogs,
+    RaiseIssue,
+    Update,
+    Hide,
+    Quit
+}

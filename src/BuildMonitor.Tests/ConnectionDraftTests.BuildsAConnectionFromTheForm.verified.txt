@@ -1,0 +1,10 @@
+﻿{
+  Id: draft1,
+  ProviderId: azure-devops,
+  Name: Work,
+  Server: https://dev.azure.com,
+  Scope: {
+    organization: contoso
+  },
+  Auth: Browser
+}

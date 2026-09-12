@@ -1,0 +1,30 @@
+﻿+----------------------------------------------------------------------------------------------------------------------+
+| BuildMonitor                                                                       6 pipelines, 1 failing, 4 running |
++----------------------------------------------------------------------------------------------------------------------+
+|   + docs.yml            DiffEngine main           #300   succeeded            23h ago    Build Branch       [Retry]  |
+|   [-] Jenkins                                                                                                        |
+|   > Build all           build-all main            #501   running   [##------] 04:00 left Build              [Cancel] |
+|   ? Nightly             nightly                   #88    queued               queued     Build              [Cancel] |
+|   [-] Octopus                                                                                                        |
+| > > Deploy Web          Deploy Web                #12    running   [###-----] 02:15 left Build              [Cancel] |
++----------------------------------------------------------------------------------------------------------------------+
+| [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
++----------------------------------------------------------------------------------------------------------------------+
+tray: Failed "BuildMonitor: 1 failing, 4 running"
+  (GitHub)
+  test.yml main #1234 running > Open build | Cancel
+  test.yml feature/inline #77 failed > Open build | Retry
+  (Jenkins)
+  Build all main #501 running > Open build | Cancel
+  Nightly #88 queued > Open build | Cancel
+  (Octopus)
+  Deploy Web #12 running > Open build | Cancel
+  ---
+  Open
+  Refresh
+  Options
+  Filters
+  Open logs
+  Raise issue
+  Update
+  Exit

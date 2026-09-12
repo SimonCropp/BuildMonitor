@@ -1,0 +1,48 @@
+﻿+----------------------------------------------------------------------------------------------------------------------+
+| BuildMonitor                                                                                          Add connection |
++----------------------------------------------------------------------------------------------------------------------+
+| Provider: <AppVeyor>                                                                                                 |
+| Name: [                                        ] (AppVeyor)                                                          |
+| Account (optional): [                                        ] (Only needed for a v2 (user level) token)             |
+| API token: [                                        ]                                                                |
+| How to create a api token -> https://ci.appveyor.com/api-keys                                                        |
+| Error: Enter the api token.                                                                                          |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+
+| (Sign in) [Test] [Save] [Cancel]                                                                       Polled 5s ago |
++----------------------------------------------------------------------------------------------------------------------+
+tray: Failed "BuildMonitor: 1 failing, 4 running"
+  (GitHub)
+  test.yml main #1234 running > Open build | Cancel
+  test.yml feature/inline #77 failed > Open build | Retry
+  (Jenkins)
+  Build all main #501 running > Open build | Cancel
+  Nightly #88 queued > Open build | Cancel
+  (Octopus)
+  Deploy Web #12 running > Open build | Cancel
+  ---
+  Open
+  Refresh
+  Options
+  Filters
+  Open logs
+  Raise issue
+  Update
+  Exit

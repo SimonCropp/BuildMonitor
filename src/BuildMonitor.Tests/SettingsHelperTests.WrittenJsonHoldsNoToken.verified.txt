@@ -1,0 +1,35 @@
+﻿{
+  "RunAtStartup": false,
+  "ShowWindowAtStart": true,
+  "ShowOtherBranches": true,
+  "PollIntervalSeconds": 30,
+  "RunningPollIntervalSeconds": 10,
+  "Port": 3796,
+  "Connections": [
+    {
+      "Id": "gh",
+      "ProviderId": "github",
+      "Name": "GitHub",
+      "Scope": {},
+      "Auth": "Token"
+    },
+    {
+      "Id": "jenkins",
+      "ProviderId": "jenkins",
+      "Name": "Jenkins",
+      "Server": "https://jenkins.example.com",
+      "Scope": {},
+      "Auth": "Token",
+      "User": "simon"
+    },
+    {
+      "Id": "octo",
+      "ProviderId": "octopus",
+      "Name": "Octopus",
+      "Server": "https://octopus.example.com",
+      "Scope": {},
+      "Auth": "Token"
+    }
+  ],
+  "Filters": []
+}

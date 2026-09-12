@@ -1,0 +1,48 @@
+﻿+----------------------------------------------------------------------------------------------------------------------+
+| BuildMonitor                                                                                                 Options |
++----------------------------------------------------------------------------------------------------------------------+
+| [ ] Run at startup                                                                                                   |
+| [x] Show the window at startup                                                                                       |
+| [x] Show running builds on other branches                                                                            |
+| Poll interval (seconds): [30    ]                                                                                    |
+| Poll interval while a build is running (seconds): [10    ]                                                           |
+| Local port: [3796  ]                                                                                                 |
+| Connections:                                                                                                         |
+| - GitHub: GitHub Actions, ok [x]                                                                                     |
+| - Jenkins: Jenkins, ok [x]                                                                                           |
+| - Octopus: Octopus Deploy, ok [x]                                                                                    |
+| [ Add connection ]                                                                                                   |
+| Version: TheVersion                                                                                                  |
+| Documentation -> https://github.com/SimonCropp/BuildMonitor                                                          |
+| [ Open logs ]                                                                                                        |
+| [ Raise issue ]                                                                                                      |
+| [ Update ]                                                                                                           |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+
+| [Save] [Cancel]                                                                                        Polled 5s ago |
++----------------------------------------------------------------------------------------------------------------------+
+tray: Failed "BuildMonitor: 1 failing, 4 running"
+  (GitHub)
+  test.yml main #1234 running > Open build | Cancel
+  test.yml feature/inline #77 failed > Open build | Retry
+  (Jenkins)
+  Build all main #501 running > Open build | Cancel
+  Nightly #88 queued > Open build | Cancel
+  (Octopus)
+  Deploy Web #12 running > Open build | Cancel
+  ---
+  Open
+  Refresh
+  Options
+  Filters
+  Open logs
+  Raise issue
+  Update
+  Exit

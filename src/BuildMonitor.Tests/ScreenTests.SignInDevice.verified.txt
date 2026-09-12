@@ -1,0 +1,48 @@
+﻿+----------------------------------------------------------------------------------------------------------------------+
+| BuildMonitor                                                                               Sign in to GitHub Actions |
++----------------------------------------------------------------------------------------------------------------------+
+| Open the link and enter the code.                                                                                    |
+| Code: ABCD-1234                                                                                                      |
+| Open -> https://github.com/login/device                                                                              |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+
+| [Cancel]                                                                                               Polled 5s ago |
++----------------------------------------------------------------------------------------------------------------------+
+tray: Failed "BuildMonitor: 1 failing, 4 running"
+  (GitHub)
+  test.yml main #1234 running > Open build | Cancel
+  test.yml feature/inline #77 failed > Open build | Retry
+  (Jenkins)
+  Build all main #501 running > Open build | Cancel
+  Nightly #88 queued > Open build | Cancel
+  (Octopus)
+  Deploy Web #12 running > Open build | Cancel
+  ---
+  Open
+  Refresh
+  Options
+  Filters
+  Open logs
+  Raise issue
+  Update
+  Exit
