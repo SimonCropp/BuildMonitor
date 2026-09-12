@@ -31,6 +31,7 @@ static class ConnectionDraft
         var server = form.Value(FormFields.Server).Trim().TrimEnd('/');
         var user = form.Value(FormFields.User).Trim();
         var clientId = form.Value(FormFields.ClientId).Trim();
+        var callbackPort = int.TryParse(form.Value(FormFields.CallbackPort).Trim(), out var parsedPort) ? parsedPort : (int?) null;
         return new()
         {
             Id = form.EditingConnectionId ?? form.DraftConnectionId ?? Guid.NewGuid().ToString("N"),
@@ -40,7 +41,8 @@ static class ConnectionDraft
             Scope = scope.ToImmutable(),
             Auth = Method(form),
             User = user.Length == 0 ? null : user,
-            ClientId = clientId.Length == 0 ? null : clientId
+            ClientId = clientId.Length == 0 ? null : clientId,
+            CallbackPort = callbackPort
         };
     }
 
@@ -86,6 +88,14 @@ static class ConnectionDraft
         }
 
         var method = Method(form);
+        var callbackPort = form.Value(FormFields.CallbackPort).Trim();
+        if (method == AuthMethod.Browser &&
+            callbackPort.Length > 0 &&
+            (!int.TryParse(callbackPort, out var port) || port is < 1024 or > 65535))
+        {
+            return "The callback port must be between 1024 and 65535.";
+        }
+
         if (method == AuthMethod.Token)
         {
             if (Token(form) is null &&

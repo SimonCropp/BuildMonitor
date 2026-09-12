@@ -35,7 +35,10 @@ static class AsciiRenderer
         builder.Append(Full(Justify(Buttons(screen), screen.Status, inner), columns)).Append('\n');
         builder.Append(border);
         var text = Overlay(builder.ToString(), screen);
-        return $"{text}\n{Tray(screen.Tray)}";
+        var notification = screen.Notification is null
+            ? ""
+            : $"\nnotify: \"{screen.Notification.Title}\" \"{screen.Notification.Message}\"";
+        return $"{text}\n{Tray(screen.Tray)}{notification}";
     }
 
     // Builds page

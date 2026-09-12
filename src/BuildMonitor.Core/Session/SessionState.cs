@@ -27,7 +27,9 @@ record SessionState(
     // The last thing worth telling the user, shown on the status line until the next input.
     string Status,
     bool Hidden,
-    bool Exit)
+    bool Exit,
+    // Waiting for the loop to hand it to the tray. Null once shown.
+    Notification? Notification = null)
 {
     public static SessionState Start(Settings settings) =>
         new(

@@ -8,6 +8,7 @@ static class FormFields
     public const string RunAtStartup = "runAtStartup";
     public const string ShowWindowAtStart = "showWindowAtStart";
     public const string ShowOtherBranches = "showOtherBranches";
+    public const string NotifyOnFailure = "notifyOnFailure";
     public const string PollInterval = "pollInterval";
     public const string RunningPollInterval = "runningPollInterval";
     public const string Port = "port";
@@ -37,6 +38,7 @@ static class FormFields
     public const string Token = "token";
     public const string TokenHelp = "tokenHelp";
     public const string ClientId = "clientId";
+    public const string CallbackPort = "callbackPort";
     public const string Notes = "notes";
     public const string Message = "message";
 

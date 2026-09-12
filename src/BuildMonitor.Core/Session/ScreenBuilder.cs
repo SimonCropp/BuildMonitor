@@ -59,7 +59,8 @@ static class ScreenBuilder
             tray,
             state.Columns,
             state.Rows,
-            menu);
+            menu,
+            state.Notification);
     }
 
     static string Header(SessionState state, int pipelines, int failing, int running)
@@ -254,7 +255,8 @@ static class ScreenBuilder
             status,
             tray,
             state.Columns,
-            state.Rows);
+            state.Rows,
+            Notification: state.Notification);
     }
 
     static FormPage OptionsForm(SessionState state)
@@ -265,6 +267,7 @@ static class ScreenBuilder
             new(FormFields.RunAtStartup, FieldKind.Checkbox, "Run at startup", form.Value(FormFields.RunAtStartup)),
             new(FormFields.ShowWindowAtStart, FieldKind.Checkbox, "Show the window at startup", form.Value(FormFields.ShowWindowAtStart)),
             new(FormFields.ShowOtherBranches, FieldKind.Checkbox, "Show running builds on other branches", form.Value(FormFields.ShowOtherBranches)),
+            new(FormFields.NotifyOnFailure, FieldKind.Checkbox, "Notify when a build fails", form.Value(FormFields.NotifyOnFailure)),
             new(FormFields.PollInterval, FieldKind.Number, "Poll interval (seconds)", form.Value(FormFields.PollInterval)),
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),
             new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Hint: "Used by the launcher and the MCP server. Takes effect after a restart."),
@@ -363,6 +366,11 @@ static class ScreenBuilder
         else if (descriptor.CustomClientId)
         {
             fields.Add(new(FormFields.ClientId, FieldKind.Text, "OAuth application id (optional)", form.Value(FormFields.ClientId), Hint: "Only for a self hosted server with its own application"));
+        }
+
+        if (method == AuthMethod.Browser)
+        {
+            fields.Add(new(FormFields.CallbackPort, FieldKind.Number, "Callback port (optional)", form.Value(FormFields.CallbackPort), Hint: "Only when the application was registered with a fixed redirect port"));
         }
 
         if (descriptor.Notes is not null)

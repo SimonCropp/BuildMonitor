@@ -2,6 +2,7 @@
   RunAtStartup: true,
   ShowWindowAtStart: true,
   ShowOtherBranches: true,
+  NotifyOnFailure: true,
   PollIntervalSeconds: 45,
   RunningPollIntervalSeconds: 10,
   Port: 3796,

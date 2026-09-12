@@ -19,4 +19,6 @@ record Screen(
     int Columns,
     int Rows,
     // The open context menu, or null. Anchored to a visible row.
-    MenuOverlay? Menu = null);
+    MenuOverlay? Menu = null,
+    // What the tray should pop this frame, or null.
+    Notification? Notification = null);

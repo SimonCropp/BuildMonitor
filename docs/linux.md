@@ -9,6 +9,10 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 The Linux head draws its window with raylib and Dear ImGui, and puts its icon in the tray through the StatusNotifierItem protocol over D-Bus, which is what KDE Plasma, Cinnamon and XFCE provide out of the box.
 
+<img src="../src/BuildMonitor.Tests/Native/PixelTests.Builds.Linux.verified.png">
+
+Failure notifications go through `notify-send`, so they appear wherever a notification daemon is running.
+
 GNOME Shell has no tray of its own. Install the [AppIndicator and KStatusNotifierItem Support](https://extensions.gnome.org/extension/615/appindicator-support/) extension; without it BuildMonitor runs with the window only and says so in the log.
 
 

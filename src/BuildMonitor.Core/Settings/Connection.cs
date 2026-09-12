@@ -14,6 +14,10 @@ record Connection
     // A user supplied OAuth client id, for a self hosted instance with its own application
     // registration. Null means the id compiled into OAuthClients.
     public string? ClientId { get; init; }
+    // The loopback port the browser sign in listens on. Null picks a free one, which every
+    // hosted service accepts; a self hosted server whose application was registered with a
+    // fixed redirect port needs that port here.
+    public int? CallbackPort { get; init; }
 
     public string ScopeValue(string id) =>
         Scope.TryGetValue(id, out var value) ? value : "";

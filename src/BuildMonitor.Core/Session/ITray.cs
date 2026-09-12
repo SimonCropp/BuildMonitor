@@ -6,6 +6,12 @@ interface ITray : IDisposable
 {
     void Apply(TrayModel model);
 
+    /// <summary>
+    /// Pops a transient notification. Best effort: a desktop without a notification service
+    /// simply shows nothing, and the loop never waits on it.
+    /// </summary>
+    void Notify(Notification notification);
+
     TrayInput Poll();
 }
 

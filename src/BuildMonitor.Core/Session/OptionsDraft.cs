@@ -31,6 +31,7 @@ static class OptionsDraft
             RunAtStartup = form.Flag(FormFields.RunAtStartup),
             ShowWindowAtStart = form.Flag(FormFields.ShowWindowAtStart),
             ShowOtherBranches = form.Flag(FormFields.ShowOtherBranches),
+            NotifyOnFailure = form.Flag(FormFields.NotifyOnFailure),
             PollIntervalSeconds = poll,
             RunningPollIntervalSeconds = running,
             Port = port

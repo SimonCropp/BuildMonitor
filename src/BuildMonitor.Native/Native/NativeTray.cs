@@ -68,6 +68,19 @@ sealed unsafe class NativeTray : ITray
     {
     }
 
+    /// <summary>
+    /// Through osascript rather than UNUserNotificationCenter: that API refuses a process that is
+    /// not an app bundle, and this tool is a bare executable.
+    /// </summary>
+    public void Notify(Notification notification) =>
+        ProcessRunner.Run(
+            "osascript",
+            ["-e", $"display notification \"{Escape(notification.Message)}\" with title \"{Escape(notification.Title)}\""],
+            timeout: TimeSpan.FromSeconds(5));
+
+    static string Escape(string text) =>
+        text.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
     public TrayInput Poll() =>
         new();
 

@@ -1,6 +1,8 @@
 # macOS
 
-The macOS head is AppKit: a menu bar item and a window, drawn by a Swift library the tool carries for both Intel and Apple silicon. There is no app bundle; the tool is a plain executable, like every dotnet tool. The Dock icon may flash briefly at start, which is the price of that.
+The macOS head is AppKit: a menu bar item and a window, drawn by a Swift library the tool carries for both Intel and Apple silicon. There is no app bundle; the tool is a plain executable, like every dotnet tool. The Dock icon may flash briefly at start, which is the price of that, and failure notifications go through `osascript` because Notification Center only takes them from a bundle.
+
+<img src="../src/BuildMonitor.Tests/Native/PixelTests.Builds.OSX.verified.png">
 
 
 ## Credentials

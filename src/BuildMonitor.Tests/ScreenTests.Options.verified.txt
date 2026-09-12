@@ -4,6 +4,7 @@
 | [ ] Run at startup                                                                                                   |
 | [x] Show the window at startup                                                                                       |
 | [x] Show running builds on other branches                                                                            |
+| [x] Notify when a build fails                                                                                        |
 | Poll interval (seconds): [30    ]                                                                                    |
 | Poll interval while a build is running (seconds): [10    ]                                                           |
 | Local port: [3796  ]                                                                                                 |
@@ -17,7 +18,6 @@
 | [ Open logs ]                                                                                                        |
 | [ Raise issue ]                                                                                                      |
 | [ Update ]                                                                                                           |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

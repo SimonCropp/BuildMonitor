@@ -33,6 +33,8 @@ The connection editor links to the right page for the chosen provider.
 
 The browser flow opens the provider's sign in page in the default browser and listens on a loopback port for the redirect back. The device flow shows a code to enter on a page the browser opens, and needs no listener.
 
+The listener takes whatever port is free. GitHub and Microsoft Entra accept a loopback redirect on any port, and so does gitlab.com. A self hosted GitLab whose application was registered with a port in its redirect URI, such as `http://127.0.0.1:8420/callback`, needs that port entered as the connection's callback port so the redirect matches.
+
 Refresh tokens are stored beside the access token and used when a poll is refused. If that fails too the connection shows "sign in required" and the tray icon turns amber until it is signed in again.
 
 

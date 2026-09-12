@@ -54,7 +54,7 @@ sealed class SignInCoordinator(SessionHost host, ISecretStore secrets, HttpMessa
                     (code, url) => host.Mutate(_ => MonitorSession.SignInProgress(_, flowId, code, url)),
                     handler,
                     cancel)
-                : await OAuthFlows.Browser(client, LinkLauncher.OpenUrl, handler, 0, cancel);
+                : await OAuthFlows.Browser(client, LinkLauncher.OpenUrl, handler, connection.CallbackPort ?? 0, cancel);
             if (cancel.IsCancellationRequested)
             {
                 return;

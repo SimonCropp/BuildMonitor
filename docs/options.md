@@ -25,6 +25,11 @@ Whether the window opens when the tray starts, or only the icon appears.
 A pipeline's row is its latest run on any branch. With this on, every other branch that is queued or running right now gets a row too.
 
 
+## Notify when a build fails
+
+Pops a desktop notification when a poll finds a build that has failed since the previous poll. The first poll after starting is silent, so a red pipeline that has been red for a week is not announced every login. On Windows this is a balloon from the tray icon, on macOS a Notification Center banner, on Linux whatever `notify-send` reaches.
+
+
 ## Poll intervals
 
 How often each connection is polled, in seconds, and the shorter interval used while one of its builds is running. GitHub answers an unchanged repository from its cache without counting it against the rate limit, so a short interval is cheap there; Bitbucket allows a thousand requests an hour, so it is polled no more than once a minute whatever is set here.

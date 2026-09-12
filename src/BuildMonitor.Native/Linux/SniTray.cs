@@ -198,6 +198,16 @@ sealed class SniTray : ITray
         }
     }
 
+    /// <summary>
+    /// notify-send speaks org.freedesktop.Notifications for us and is installed wherever a
+    /// notification daemon is. Arguments go as a list, so a title with a quote in it is safe.
+    /// </summary>
+    public void Notify(Notification notification) =>
+        ProcessRunner.Run(
+            "notify-send",
+            ["--app-name=BuildMonitor", "--urgency=normal", notification.Title, notification.Message],
+            timeout: TimeSpan.FromSeconds(5));
+
     public void IconClicked() =>
         events.Enqueue(new(IconClicked: true));
 

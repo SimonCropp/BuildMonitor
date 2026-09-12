@@ -156,6 +156,20 @@ static class MonitorProgram
 
             var screen = ScreenBuilder.Build(state, DateTimeOffset.UtcNow);
             tray?.Apply(screen.Tray);
+            if (screen.Notification is { } notification)
+            {
+                // Cleared before the tray is asked, so a tray that throws does not pop it every frame.
+                host.Mutate(MonitorSession.ClearNotification);
+                try
+                {
+                    tray?.Notify(notification);
+                }
+                catch (Exception exception)
+                {
+                    Log.Warning(exception, "Notification failed");
+                }
+            }
+
             if (!window.Present(screen))
             {
                 return;

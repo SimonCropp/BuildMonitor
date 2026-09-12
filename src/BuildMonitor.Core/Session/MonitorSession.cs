@@ -183,6 +183,7 @@ static class MonitorSession
         values[FormFields.RunAtStartup] = Flag(settings.RunAtStartup);
         values[FormFields.ShowWindowAtStart] = Flag(settings.ShowWindowAtStart);
         values[FormFields.ShowOtherBranches] = Flag(settings.ShowOtherBranches);
+        values[FormFields.NotifyOnFailure] = Flag(settings.NotifyOnFailure);
         values[FormFields.PollInterval] = settings.PollIntervalSeconds.ToString();
         values[FormFields.RunningPollInterval] = settings.RunningPollIntervalSeconds.ToString();
         values[FormFields.Port] = settings.Port.ToString();
@@ -220,6 +221,7 @@ static class MonitorSession
         values[FormFields.User] = existing?.User ?? "";
         values[FormFields.Token] = "";
         values[FormFields.ClientId] = existing?.ClientId ?? "";
+        values[FormFields.CallbackPort] = existing?.CallbackPort?.ToString() ?? "";
         foreach (var scope in descriptor.Scopes)
         {
             values[FormFields.Scope(scope.Id)] = existing?.ScopeValue(scope.Id) ?? "";
@@ -471,15 +473,26 @@ static class MonitorSession
             state,
             connectionId,
             _ => _ with { Health = ConnectionHealth.Ok, Error = null, RetryAfter = null, LastPolled = now, Pipelines = pipelines });
+        var previous = state.Builds.Where(_ => _.ConnectionId == connectionId).ToImmutableArray();
+        var notification = state.Notification;
+        if (state.Settings.NotifyOnFailure)
+        {
+            notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, builds)) ?? notification;
+        }
+
         return Clamp(next with
         {
             Builds =
             [
                 ..next.Builds.Where(_ => _.ConnectionId != connectionId),
                 ..builds
-            ]
+            ],
+            Notification = notification
         });
     }
+
+    public static SessionState ClearNotification(SessionState state) =>
+        state with { Notification = null };
 
     public static SessionState ApplyMedians(SessionState state, ImmutableDictionary<string, TimeSpan> medians) =>
         state with { Medians = medians };

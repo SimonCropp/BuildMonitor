@@ -62,6 +62,9 @@ sealed class NotifyIconTray : ITray
         }
     }
 
+    public void Notify(Notification notification) =>
+        icon.ShowBalloonTip(5000, notification.Title, notification.Message, ToolTipIcon.Error);
+
     void Rebuild()
     {
         foreach (ToolStripItem item in menu.Items)

@@ -40,6 +40,21 @@ public class ConnectionDraftTests
     }
 
     [Test]
+    public async Task CallbackPortIsOptionalAndBounded()
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "GitLab CI");
+        state = MonitorSession.FieldChanged(state, FormFields.Auth, nameof(AuthMethod.Browser));
+        await Assert.That(ConnectionDraft.Build(state.Form!).CallbackPort).IsNull();
+
+        state = MonitorSession.FieldChanged(state, FormFields.CallbackPort, "80");
+        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsEqualTo("The callback port must be between 1024 and 65535.");
+
+        state = MonitorSession.FieldChanged(state, FormFields.CallbackPort, "8420");
+        await Assert.That(ConnectionDraft.Build(state.Form!).CallbackPort).IsEqualTo(8420);
+        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsEqualTo("Sign in first, or switch to a token.");
+    }
+
+    [Test]
     public async Task EditingKeepsTheStoredToken()
     {
         var state = Fixtures.ConnectionEdit();
