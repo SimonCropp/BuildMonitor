@@ -8,8 +8,9 @@ name: Publish NuGet
 # One-time setup:
 #   1. nuget.org -> Account -> Trusted Publishing: add a policy for this GitHub owner and
 #      repository, scoped to this workflow file, covering BuildMonitor.
-#   2. Repo -> Settings -> Secrets and variables -> Actions -> Variables: set NUGET_USER to the
-#      nuget.org username. A username is not sensitive, so it lives in a variable not a secret.
+#
+# The nuget.org username is hard coded below: it is not sensitive, and the policy is bound to this
+# repository anyway.
 on:
   push:
     tags:
@@ -43,7 +44,7 @@ jobs:
         uses: NuGet/login@v1
         id: login
         with:
-          user: ${{ vars.NUGET_USER }}
+          user: simoncropp
 
       # A plain build is the pack step: ProjectDefaults sets GeneratePackageOnBuild for every
       # Release package project, so the package is produced by its own build, with every head
