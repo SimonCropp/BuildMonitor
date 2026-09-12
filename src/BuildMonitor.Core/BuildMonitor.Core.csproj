@@ -40,5 +40,7 @@
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <None Remove="Images\**\*" />
     <EmbeddedResource Include="Images\*.png;Images\*.ico;Images\*.argb" LogicalName="BuildMonitor.Images.%(Filename)%(Extension)" />
+    <None Remove="Assets\**\*" />
+    <EmbeddedResource Include="Assets\JetBrainsMono-Regular.ttf" LogicalName="BuildMonitor.Assets.JetBrainsMono-Regular.ttf" />
   </ItemGroup>
 </Project>

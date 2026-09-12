@@ -43,6 +43,10 @@
                       ReferenceOutputAssembly="false"
                       Private="false"
                       ExcludeAssets="all" />
+    <ProjectReference Include="..\BuildMonitor.Native\BuildMonitor.Native.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      ExcludeAssets="all" />
   </ItemGroup>
 
   <!--
@@ -64,6 +68,10 @@
   <ItemGroup>
     <HeadRid Include="win-x64" Head="BuildMonitor.Windows" Native="false" Apphost="BuildMonitor.Tray.exe" />
     <HeadRid Include="win-arm64" Head="BuildMonitor.Windows" Native="false" Apphost="BuildMonitor.Tray.exe" />
+    <HeadRid Include="linux-x64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
+    <HeadRid Include="linux-arm64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
+    <HeadRid Include="osx-x64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
+    <HeadRid Include="osx-arm64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
   </ItemGroup>
 
   <Target Name="PublishHeads" Condition="'$(BundleHeads)' == 'true'">
