@@ -65,10 +65,10 @@ public class SecretStoreTests
     }
 
     [Test]
-    // Hosted GitHub and GitLab have compiled in ids; Entra does not yet, so an empty id gives no client.
+    // Every hosted service has a compiled in id, so no user supplied one is needed.
     [Arguments("github", "", "https://github.com/login/oauth/authorize")]
     [Arguments("gitlab", "", "https://gitlab.com/oauth/authorize")]
-    [Arguments("azure-devops", "", null)]
+    [Arguments("azure-devops", "", "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize")]
     [Arguments("github", "myapp", "https://github.com/login/oauth/authorize")]
     [Arguments("gitlab", "myapp", "https://gitlab.com/oauth/authorize")]
     [Arguments("azure-devops", "myapp", "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize")]

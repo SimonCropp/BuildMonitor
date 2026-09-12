@@ -18,7 +18,7 @@ static class OAuthClients
     // regenerating it on github.com and shipping a new version.
     public const string GitHubClientSecret = "ed9358ff15a34512bd504c0055cd24f8e5b35783";
     public const string GitLabClientId = "gloas-a14d2cb2827449195f9e3a42389db9760d591221c70e58f752483ebffcccbd1a";
-    public const string EntraClientId = "";
+    public const string EntraClientId = "a025403c-28eb-4352-9342-6bb4620ff2af";
 
     const string azureDevOpsResource = "499b84ac-1321-427f-aa17-267ca6975798";
 

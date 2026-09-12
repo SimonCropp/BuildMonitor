@@ -47,7 +47,7 @@ Refresh tokens are stored beside the access token and used when a poll is refuse
 
 ### Registering the applications
 
-Until an application is registered its id in `OAuthClients.cs` is empty and the browser and device buttons report that. The ids for the hosted services are compiled in; a user with a self hosted GitLab or GitHub Enterprise Server registers their own and enters its id in the connection editor.
+The ids for github.com, gitlab.com and Microsoft Entra are compiled into `OAuthClients.cs`, so sign in works without any setup. A self hosted GitLab or GitHub Enterprise Server needs its own registration, made as below, with its id entered in the connection editor.
 
 
 #### GitHub OAuth App
