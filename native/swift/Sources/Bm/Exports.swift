@@ -170,7 +170,7 @@ public func bmCapture(
     // Top-left origin like the view, so the capture and the window agree.
     context.translateBy(x: 0, y: CGFloat(height))
     context.scaleBy(x: 1, y: -1)
-    renderer.draw(Frame.decode(screen), in: context, size: CGSize(width: CGFloat(width), height: CGFloat(height)))
+    renderer.draw(Frame.decode(screen), in: context, size: CGSize(width: CGFloat(width), height: CGFloat(height)), staticForm: true)
 
     guard let image = context.makeImage() else {
         return 0

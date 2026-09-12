@@ -52,7 +52,8 @@ public class AppTests
             await Assert.That(info.FileName).IsEqualTo("powershell.exe");
             var encoded = info.ArgumentList.Last();
             var script = Encoding.Unicode.GetString(Convert.FromBase64String(encoded));
-            await Verify(script);
+            await Verify(script)
+                .UniqueForOSPlatform();
         }
         else
         {

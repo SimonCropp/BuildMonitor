@@ -52,7 +52,10 @@ final class BuildsRenderer {
             height: max(0, size.height - headerHeight - footerHeight))
     }
 
-    func draw(_ frame: Frame, in context: CGContext, size: CGSize) {
+    /// `staticForm` draws a form page as text and boxes. The window lays real controls over the
+    /// body instead, so it passes false; a capture has no window and passes true, which is what
+    /// makes a form snapshot show something.
+    func draw(_ frame: Frame, in context: CGContext, size: CGSize, staticForm: Bool = false) {
         layout(size: size)
         rowRects.removeAll()
         chips.removeAll()
@@ -71,6 +74,8 @@ final class BuildsRenderer {
 
         if !frame.isForm {
             drawRows(frame)
+        } else if staticForm {
+            drawForm(frame)
         }
 
         drawFooter(frame, size: size)
@@ -86,7 +91,7 @@ final class BuildsRenderer {
         let width = bodyRect.width
         let actionsWidth: CGFloat = 130
         let linksWidth: CGFloat = 210
-        let timingWidth: CGFloat = 80
+        let timingWidth: CGFloat = 100
         let barWidth: CGFloat = 110
         let statusWidth: CGFloat = 90
         let runWidth: CGFloat = 60
@@ -156,6 +161,67 @@ final class BuildsRenderer {
             if row.canCancel {
                 let chipRect = drawChip("Cancel", x: chipX, rowRect: rect, fill: Palette.cancelChip, textColour: Palette.text)
                 chips.append(Hit(row: index, link: Int32(BM_LINK_NONE.rawValue), action: Int32(BM_ACTION_CANCEL.rawValue), rect: chipRect))
+            }
+        }
+    }
+
+    private func drawForm(_ frame: Frame) {
+        var y = bodyRect.minY + 12
+        for field in frame.fields {
+            let kind = UInt32(field.kind)
+            let colour = field.enabled ? Palette.text : Palette.dim
+            switch kind {
+            case BM_FIELD_TEXT.rawValue, BM_FIELD_PASSWORD.rawValue, BM_FIELD_NUMBER.rawValue, BM_FIELD_SELECT.rawValue:
+                drawText(field.label, at: CGPoint(x: padding, y: y + 4), font: font, colour: Palette.dim)
+                let width: CGFloat = kind == BM_FIELD_NUMBER.rawValue ? 100 : 420
+                let box = CGRect(x: 210, y: y, width: width, height: 24)
+                Palette.surface.setFill()
+                NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4).fill()
+                var shown = field.value
+                if kind == BM_FIELD_PASSWORD.rawValue {
+                    shown = String(repeating: "•", count: field.value.count)
+                }
+
+                if shown.isEmpty {
+                    drawText(field.hint, at: CGPoint(x: box.minX + 8, y: y + 4), font: font, colour: Palette.dim, width: width - 16)
+                } else {
+                    drawText(shown, at: CGPoint(x: box.minX + 8, y: y + 4), font: font, colour: colour, width: width - 16)
+                }
+
+                if kind == BM_FIELD_SELECT.rawValue {
+                    drawText("▾", at: CGPoint(x: box.maxX - 20, y: y + 4), font: font, colour: Palette.dim)
+                }
+
+                y += 34
+            case BM_FIELD_CHECKBOX.rawValue:
+                let box = CGRect(x: padding, y: y + 5, width: 14, height: 14)
+                Palette.surface.setFill()
+                NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3).fill()
+                if field.value == "true" {
+                    drawText("✓", at: CGPoint(x: box.minX + 1, y: y + 2), font: smallFont, colour: Palette.chipText)
+                }
+
+                drawText(field.label, at: CGPoint(x: padding + 22, y: y + 4), font: font, colour: colour)
+                y += 34
+            case BM_FIELD_BUTTON.rawValue:
+                let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: colour]
+                let textSize = (field.label as NSString).size(withAttributes: attributes)
+                let box = CGRect(x: padding, y: y, width: textSize.width + 24, height: 24)
+                Palette.chip.setFill()
+                NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4).fill()
+                (field.label as NSString).draw(at: CGPoint(x: box.minX + 12, y: box.midY - textSize.height / 2), withAttributes: attributes)
+                y += 34
+            case BM_FIELD_LINK.rawValue:
+                drawText(field.label, at: CGPoint(x: padding, y: y + 4), font: font, colour: Palette.chipText)
+                y += 28
+            case BM_FIELD_LIST_ROW.rawValue:
+                let line = field.label.isEmpty ? field.value : "\(field.label): \(field.value)"
+                drawText("✕  " + line, at: CGPoint(x: padding, y: y + 4), font: font, colour: Palette.text)
+                y += 28
+            default:
+                let line = field.label.isEmpty ? field.value : (field.value.isEmpty ? field.label : "\(field.label): \(field.value)")
+                drawText(line, at: CGPoint(x: padding, y: y + 4), font: font, colour: field.id == "error" ? Palette.error : Palette.text, width: bodyRect.width - padding * 2)
+                y += 28
             }
         }
     }
