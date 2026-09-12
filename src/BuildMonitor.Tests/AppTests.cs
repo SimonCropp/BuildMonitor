@@ -57,7 +57,8 @@ public class AppTests
         else
         {
             await Assert.That(info.FileName).IsEqualTo("/bin/sh");
-            await Verify(info.ArgumentList.Last());
+            await Verify(info.ArgumentList.Last())
+                .UniqueForOSPlatform();
         }
     }
 
