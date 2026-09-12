@@ -1,0 +1,28 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="Release-NotWindows" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="../claude.md" />
+    <File Path="../.github/workflows/test.yml" />
+    <File Path="../.github/workflows/build-native.yml" />
+    <File Path="../.github/workflows/publish-nuget.yml" />
+    <File Path="../readme.source.md" />
+    <File Path="../.editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="../global.json" />
+    <File Path="mdsnippets.json" />
+  </Folder>
+  <Project Path="BuildMonitor.Core/BuildMonitor.Core.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="BuildMonitor/BuildMonitor.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="BuildMonitor.Tests/BuildMonitor.Tests.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+</Solution>

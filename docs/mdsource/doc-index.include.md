@@ -1,0 +1,8 @@
+ * [Tray](/docs/tray.md)
+ * [Options](/docs/options.md)
+ * [Filters](/docs/filters.md)
+ * [Authentication](/docs/auth.md)
+ * [MCP server](/docs/mcp.md)
+ * [Linux](/docs/linux.md)
+ * [macOS](/docs/macos.md)
+ * [Troubleshooting](/docs/troubleshooting.md)

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!--
+    Everything that is not a renderer: model, session, providers, auth, settings, protocol. Each
+    platform head and the launcher reference it; nothing packages it on its own.
+    -->
+    <AssemblyName>BuildMonitor.Core</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Text" />
+    <Using Include="System.Text.Json" />
+    <Using Include="System.Text.Json.Serialization" />
+    <Using Include="System.Net" />
+    <Using Include="System.Net.Http" />
+    <Using Include="System.Net.Http.Headers" />
+    <Using Include="System.Net.Sockets" />
+    <Using Include="System.Security.Cryptography" />
+    <Using Include="System.Diagnostics.CodeAnalysis" />
+    <Using Include="System.Collections.Immutable" />
+    <Using Include="Serilog" />
+    <InternalsVisibleTo Include="BuildMonitor" />
+    <InternalsVisibleTo Include="BuildMonitor.Tray" />
+    <InternalsVisibleTo Include="BuildMonitor.Tests" />
+    <InternalsVisibleTo Include="BuildMonitor.Windows.Tests" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <None Remove="Images\**\*" />
+    <EmbeddedResource Include="Images\*.png;Images\*.ico;Images\*.argb" LogicalName="BuildMonitor.Images.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

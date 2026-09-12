@@ -1,0 +1,226 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel in-progress runs if a new push lands on the same branch.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  windows:
+    name: windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # A plain build is also the pack step: ProjectDefaults sets GeneratePackageOnBuild for every
+      # Release package project, so this produces ./nugets as a side effect, with every head
+      # bundled into it.
+      - name: Build
+        run: dotnet build src --configuration Release
+
+      - name: Test
+        run: dotnet test --solution src/BuildMonitor.slnx --configuration Release --no-build --no-restore
+
+      - name: Upload received on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: received-windows
+          path: '**/*.received.*'
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload packages
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkgs
+          path: nugets/*.nupkg
+          if-no-files-found: warn
+          retention-days: 30
+
+  unix:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS is pinned rather than latest, because it carries committed pixel baselines and
+        # Core Text rasterisation moves between OS versions. Same image build-native uses.
+        os: [ubuntu-latest, macos-14]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # raylib links against X11, GL and friends. xvfb plus the Mesa software rasteriser are what
+      # the pixel snapshots run against. dbus hosts the private session bus the tray tests use.
+      - name: Install native dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build \
+            libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+            libgl1-mesa-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev \
+            xvfb libgl1-mesa-dri dbus
+
+      # CMake fetches raylib and imgui, so without this every PR re-clones and recompiles them.
+      # Keyed on the shim's own sources, which is what actually changes.
+      - name: Cache native build
+        if: runner.os == 'Linux' && hashFiles('native/CMakeLists.txt') != ''
+        uses: actions/cache@v4
+        with:
+          path: native/build
+          key: native-linux-x64-${{ hashFiles('native/CMakeLists.txt', 'native/src/**', 'native/include/**') }}
+
+      # Built here rather than taken from the committed binaries, so the Linux job tests the
+      # current native source and the pixel baselines track it.
+      - name: Build native renderer
+        if: runner.os == 'Linux' && hashFiles('native/CMakeLists.txt') != ''
+        run: |
+          cmake -S native -B native/build/linux-x64 -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build native/build/linux-x64
+          mkdir -p src/BuildMonitor.Native/runtimes/linux-x64/native
+          cp native/build/linux-x64/libbuildmonitor_ui.so src/BuildMonitor.Native/runtimes/linux-x64/native/
+
+      # Only this runner's own architecture, because this is the only thing that loads it. The
+      # committed universal binary is still loaded and checked by the native job below.
+      - name: Build native renderer
+        if: runner.os == 'macOS' && hashFiles('native/swift/Package.swift') != ''
+        run: |
+          swift build -c release --package-path native/swift
+          mkdir -p src/BuildMonitor.Native/runtimes/osx-arm64/native
+          cp "$(swift build -c release --package-path native/swift --show-bin-path)/libbuildmonitor_ui.dylib" \
+            src/BuildMonitor.Native/runtimes/osx-arm64/native/
+
+      # Release-NotWindows drops the WinForms tests from the solution. The Windows head itself
+      # still builds, because the launcher bundles it for the win RIDs.
+      - name: Build
+        run: dotnet build src --configuration Release-NotWindows
+
+      - name: Test
+        run: dotnet test --solution src/BuildMonitor.slnx --configuration Release-NotWindows --no-build --no-restore
+
+      # Pinned to one rasteriser rather than one platform: llvmpipe is pure software and so more
+      # reproducible than any GPU driver, and ImGui rasterises glyphs itself.
+      - name: Pixel snapshots
+        if: runner.os == 'Linux' && hashFiles('native/CMakeLists.txt') != ''
+        env:
+          BUILDMONITOR_PIXEL_TESTS: 'true'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          GALLIUM_DRIVER: llvmpipe
+        # Release, not Release-NotWindows: that is a solution level configuration which the slnx
+        # maps to a project configuration of Release, so the output lives in bin/Release.
+        run: >
+          xvfb-run -a --server-args="-screen 0 1920x1080x24"
+          dotnet test src/BuildMonitor.Tests/BuildMonitor.Tests.csproj
+          --configuration Release --no-build --no-restore
+
+      - name: Pixel snapshots
+        if: runner.os == 'macOS' && hashFiles('native/swift/Package.swift') != ''
+        env:
+          BUILDMONITOR_PIXEL_TESTS: 'true'
+        run: >
+          dotnet test src/BuildMonitor.Tests/BuildMonitor.Tests.csproj
+          --configuration Release --no-build --no-restore
+
+      - name: Upload received on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: received-${{ matrix.os }}
+          path: '**/*.received.*'
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # Neither job above loads a committed binary: both build the shim from source so their pixel
+  # baselines track it. This job loads the committed binaries as they are, which is what catches a
+  # wrong architecture, a file corrupted by a text mode checkout, an unsatisfied runtime
+  # dependency, or simply a rebuild that was never merged.
+  native:
+    name: native ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # osx-x64 has no entry: GitHub's Intel macOS runners are retired. Both macOS RIDs ship
+          # the same universal dylib, so loading it here covers the arm64 slice and the step below
+          # checks that the x86_64 slice is present.
+          - rid: osx-arm64
+            os: macos-14
+          - rid: linux-x64
+            os: ubuntu-24.04
+          - rid: linux-arm64
+            os: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Runtime libraries only, not the -dev packages: the shim links X11 and GL, so loading it
+      # needs them present even though nothing here opens a window.
+      - name: Install runtime dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-6 libxrandr2 libxi6 libxcursor1 libxinerama1 libgl1 libglx-mesa0 dbus
+
+      # The runtime load above only exercises the arm64 slice. Assert the x86_64 one is there too,
+      # since osx-x64 ships this identical file and cannot be loaded anywhere in CI.
+      - name: Check the macOS dylib is universal
+        if: matrix.rid == 'osx-arm64' && hashFiles('src/BuildMonitor.Native/runtimes/osx-arm64/native/libbuildmonitor_ui.dylib') != ''
+        run: |
+          for rid in osx-arm64 osx-x64; do
+            dylib="src/BuildMonitor.Native/runtimes/$rid/native/libbuildmonitor_ui.dylib"
+            archs=$(lipo -archs "$dylib")
+            echo "$rid: $archs"
+            for arch in x86_64 arm64; do
+              case " $archs " in
+                *" $arch "*) ;;
+                *) echo "::error::$dylib is missing the $arch slice"; exit 1 ;;
+              esac
+            done
+          done
+
+      - name: Test
+        run: dotnet test src/BuildMonitor.Tests/BuildMonitor.Tests.csproj --configuration Release
+
+      - name: Upload received on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: received-${{ matrix.rid }}
+          path: '**/*.received.*'
+          if-no-files-found: ignore
+          retention-days: 14

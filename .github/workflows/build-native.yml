@@ -1,0 +1,186 @@
+name: Build native
+
+# Produces the buildmonitor_ui binaries committed under
+# src/BuildMonitor.Native/runtimes/{rid}/native, in the head that loads them. There is no Windows
+# equivalent: that head renders with WinForms.
+#
+# They are committed rather than built during a normal build so that a plain
+# `dotnet build src --configuration Release` produces a shippable package on any machine, and
+# contributors never need a C++ toolchain. Run this whenever native/ changes.
+on:
+  push:
+    paths:
+      - 'native/**'
+      - '.github/workflows/build-native.yml'
+  pull_request:
+    paths:
+      - 'native/**'
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Open a PR with the rebuilt binaries'
+        type: boolean
+        default: true
+
+concurrency:
+  group: build-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # No Windows entries. That head renders with WinForms and loads no native library.
+          - rid: linux-x64
+            os: ubuntu-24.04
+          - rid: linux-arm64
+            os: ubuntu-24.04-arm
+          # One universal binary covers both macOS RIDs; it is copied into each below.
+          - rid: osx
+            os: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build \
+            libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+            libgl1-mesa-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev
+
+      - name: Configure
+        if: matrix.rid != 'osx'
+        run: cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        if: matrix.rid != 'osx'
+        run: cmake --build build --config Release
+
+      # macOS draws with AppKit and Core Text rather than raylib and ImGui, so it is a Swift
+      # package rather than a CMake project. Both --arch flags in one invocation produce a
+      # universal binary, so there is no separate lipo step.
+      - name: Build
+        if: matrix.rid == 'osx'
+        run: swift build -c release --arch arm64 --arch x86_64 --package-path native/swift
+
+      - name: Collect
+        shell: bash
+        run: |
+          # Laid out as src/{head}/runtimes/{rid}/native, so the propose job below can merge every
+          # artifact straight into src and the binaries land in the head that loads them.
+          collect() {
+            mkdir -p "artifacts/$1/runtimes/$2/native"
+            cp "$3" "artifacts/$1/runtimes/$2/native/"
+          }
+          case "${{ matrix.rid }}" in
+            linux-*)
+              strip build/libbuildmonitor_ui.so
+              collect BuildMonitor.Native "${{ matrix.rid }}" build/libbuildmonitor_ui.so
+              ;;
+            osx)
+              # swift build leaves a per architecture dylib in more than one place. Every candidate
+              # is checked, and if none is already universal they are merged, so the only thing
+              # that can be collected is a fat binary. The dSYM holds a DWARF file of the same
+              # name which is also universal, so it is excluded by path.
+              candidates=$(find native/swift/.build -name libbuildmonitor_ui.dylib -not -path '*.dSYM/*')
+              if [ -z "$candidates" ]; then
+                echo "::error::swift build produced no libbuildmonitor_ui.dylib"
+                exit 1
+              fi
+
+              dylib=""
+              for candidate in $candidates; do
+                archs=$(lipo -archs "$candidate" 2>/dev/null || echo "")
+                if [[ "$archs" == *x86_64* && "$archs" == *arm64* ]]; then
+                  dylib="$candidate"
+                  break
+                fi
+              done
+
+              if [ -z "$dylib" ]; then
+                dylib=universal/libbuildmonitor_ui.dylib
+                mkdir -p universal
+                # shellcheck disable=SC2086
+                lipo -create $candidates -output "$dylib"
+              fi
+
+              archs=$(lipo -archs "$dylib")
+              echo "collecting $dylib: $archs"
+              for arch in x86_64 arm64; do
+                case " $archs " in
+                  *" $arch "*) ;;
+                  *) echo "::error::$dylib is missing the $arch slice"; exit 1 ;;
+                esac
+              done
+
+              strip -x "$dylib"
+              # The dylib is universal, so both macOS RIDs get the same file.
+              collect BuildMonitor.Native osx-x64 "$dylib"
+              collect BuildMonitor.Native osx-arm64 "$dylib"
+              ;;
+          esac
+          ls -lhR artifacts
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: artifacts/
+          retention-days: 7
+
+  propose:
+    name: propose update
+    needs: build
+    # Also on push, not just manual dispatch. workflow_dispatch does not appear in the Actions UI
+    # until the workflow is on the default branch, so on a feature branch a push is the only way
+    # to trigger this.
+    #
+    # Branches only. Never on pull_request, which would mean opening a PR from a PR, and never on
+    # a tag: a tag checkout is a detached HEAD with no base branch to target.
+    if: >-
+      github.event_name != 'pull_request' &&
+      startsWith(github.ref, 'refs/heads/') &&
+      (github.event_name != 'workflow_dispatch' || inputs.commit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          merge-multiple: true
+          path: src
+
+      - name: Show what changed
+        run: |
+          ls -lhR src/BuildMonitor.Native/runtimes
+          git status --short
+
+      # A PR rather than a direct push: these are binaries, so the diff is not reviewable and the
+      # change deserves an explicit approval.
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: native-binaries-${{ github.ref_name }}
+          title: 'Rebuild native UI binaries'
+          commit-message: 'Rebuild native UI binaries'
+          body: |
+            Rebuilt `buildmonitor_ui` from `native/` for the four RIDs that load one.
+            Windows is not among them: that head renders with WinForms.
+
+            Produced by the `build-native` workflow from ${{ github.sha }}.
+          add-paths: |
+            src/BuildMonitor.Native/runtimes

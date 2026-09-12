@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.Text" />
+    <Using Include="System.Text.Json" />
+    <Using Include="System.Net" />
+    <Using Include="System.Net.Http" />
+    <Using Include="System.Net.Sockets" />
+    <Using Include="System.Collections.Immutable" />
+    <PackageReference Include="Argon" />
+    <PackageReference Include="MarkdownSnippets.MsBuild" PrivateAssets="all" />
+    <PackageReference Include="Verify.TUnit" />
+    <PackageReference Include="SimpleInfoName" />
+    <PackageReference Include="Verify" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
+    <ProjectReference Include="..\BuildMonitor\BuildMonitor.csproj" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+</Project>

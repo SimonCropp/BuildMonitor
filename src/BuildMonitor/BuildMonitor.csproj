@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+    WinExe rather than Exe. The dotnet tool shim inherits the subsystem of the entry assembly, so a
+    WinExe tool gets a GUI shim: Run-at-login can point at the stable ~/.dotnet/tools/buildmonitor
+    shim without a console window opening at every login. On macOS and Linux WinExe is an Exe. The
+    console verbs (status, help) attach to the parent console on Windows before writing.
+    -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>BuildMonitor</AssemblyName>
+    <PackageId>BuildMonitor</PackageId>
+    <ToolCommandName>buildmonitor</ToolCommandName>
+    <PackAsTool>true</PackAsTool>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RollForward>LatestMajor</RollForward>
+    <!--
+    RuntimeIdentifiers is deliberately NOT set. Combined with PackAsTool it empties the
+    tools/net10.0/any payload. The heads are published per RID below and bundled beside it.
+    -->
+    <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Text" />
+    <Using Include="System.Text.Json" />
+    <Using Include="System.ComponentModel" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
+  </ItemGroup>
+</Project>

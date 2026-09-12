@@ -1,0 +1,17 @@
+*.suo
+*.user
+bin/
+obj/
+.vs/
+*.DotSettings.user
+.idea/
+*.received.*
+nugets/
+.claude/settings.local.json
+nul
+/TestResults
+/coverage
+BenchmarkDotNet.Artifacts/
+native/build/
+/src/TestResults
+*.lnk
