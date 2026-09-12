@@ -1,0 +1,5 @@
+﻿version: 1
+verb: open
+key: Z2gvRGlmZkVuZ2luZS90ZXN0LnltbC9tYWlu
+body: bGluZSBvbmUKbGluZTogdHdv
+

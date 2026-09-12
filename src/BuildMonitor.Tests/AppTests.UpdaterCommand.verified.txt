@@ -1,0 +1,1 @@
+﻿Start-Sleep -Seconds 2; dotnet tool update BuildMonitor --global --prerelease; & 'home\buildmonitor'

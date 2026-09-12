@@ -1,0 +1,137 @@
+﻿{
+  builds: [
+    {
+      Key: gh/DiffEngine/test.yml/main,
+      Connection: GitHub,
+      Pipeline: test.yml,
+      Repo: VerifyTests/DiffEngine,
+      Branch: main,
+      Run: 1234,
+      Status: Running,
+      Started: DateTimeOffset_1,
+      Progress: 0.5,
+      Timing: 03:00 left,
+      BuildUrl: https://example.com/gh/DiffEngine/test.yml/1234,
+      BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/main,
+      Commit: 0123456789abcdef,
+      CommitMessage: Fix the thing,
+      Author: SimonCropp,
+      CanRetry: false,
+      CanCancel: true
+    },
+    {
+      Key: gh/Verify/test.yml/feature/inline,
+      Connection: GitHub,
+      Pipeline: test.yml,
+      Repo: VerifyTests/Verify,
+      Branch: feature/inline,
+      Run: 77,
+      Status: Failed,
+      Started: DateTimeOffset_2,
+      Finished: DateTimeOffset_3,
+      Progress: -1.0,
+      Timing: 25m ago,
+      BuildUrl: https://example.com/gh/Verify/test.yml/77,
+      BranchUrl: https://github.com/VerifyTests/Verify/tree/feature/inline,
+      PullRequest: 42,
+      PullRequestUrl: https://github.com/VerifyTests/Verify/pull/42,
+      CommitMessage:
+Inline snapshots
+
+longer description,
+      Author: SimonCropp,
+      CanRetry: true,
+      CanCancel: false
+    },
+    {
+      Key: gh/DiffEngine/docs.yml/main,
+      Connection: GitHub,
+      Pipeline: docs.yml,
+      Repo: VerifyTests/DiffEngine,
+      Branch: main,
+      Run: 300,
+      Status: Succeeded,
+      Started: DateTimeOffset_4,
+      Finished: DateTimeOffset_5,
+      Progress: -1.0,
+      Timing: 23h ago,
+      BuildUrl: https://example.com/gh/DiffEngine/docs.yml/300,
+      BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/main,
+      CanRetry: true,
+      CanCancel: false
+    },
+    {
+      Key: jenkins/build-all/main,
+      Connection: Jenkins,
+      Pipeline: Build all,
+      Repo: build-all,
+      Branch: main,
+      Run: 501,
+      Status: Running,
+      Started: DateTimeOffset_6,
+      Progress: 0.2,
+      Timing: 04:00 left,
+      BuildUrl: https://example.com/jenkins/build-all/501,
+      CanRetry: false,
+      CanCancel: true
+    },
+    {
+      Key: jenkins/nightly/,
+      Connection: Jenkins,
+      Pipeline: Nightly,
+      Repo: nightly,
+      Run: 88,
+      Status: Queued,
+      Progress: -1.0,
+      Timing: queued,
+      BuildUrl: https://example.com/jenkins/nightly/88,
+      CanRetry: false,
+      CanCancel: true
+    },
+    {
+      Key: octo/Projects-1/,
+      Connection: Octopus,
+      Pipeline: Deploy Web,
+      Repo: Deploy Web,
+      Run: 12,
+      Status: Running,
+      Started: DateTimeOffset_7,
+      Progress: 0.4,
+      Timing: 02:15 left,
+      BuildUrl: https://example.com/octo/Projects-1/12,
+      CanRetry: false,
+      CanCancel: true
+    }
+  ],
+  summary: {
+    Connections: 3,
+    Pipelines: 6,
+    Failing: 1,
+    Running: 4,
+    TrayIcon: Failed,
+    Status: Polled 5s ago,
+    ConnectionHealth: [
+      {
+        Id: gh,
+        Name: GitHub,
+        Provider: GitHub Actions,
+        Health: Ok,
+        LastPolled: DateTimeOffset_8
+      },
+      {
+        Id: jenkins,
+        Name: Jenkins,
+        Provider: Jenkins,
+        Health: Ok,
+        LastPolled: DateTimeOffset_9
+      },
+      {
+        Id: octo,
+        Name: Octopus,
+        Provider: Octopus Deploy,
+        Health: Ok,
+        LastPolled: DateTimeOffset_10
+      }
+    ]
+  }
+}
