@@ -24,6 +24,9 @@
     <Using Include="System.Diagnostics.CodeAnalysis" />
     <Using Include="System.Collections.Immutable" />
     <Using Include="System.Globalization" />
+    <Using Include="System.Threading.Channels" />
+    <Using Include="System.ComponentModel" />
+    <Using Include="System.Runtime.Versioning" />
     <Using Include="System.Text.Json.Serialization.Metadata" />
     <Using Include="Serilog" />
     <InternalsVisibleTo Include="BuildMonitor" />
