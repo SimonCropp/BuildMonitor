@@ -46,7 +46,14 @@ public class DurationHistoryTests
             history.Save(path);
 
             var loaded = DurationHistory.Load(path);
-            await Verify(loaded.Medians());
+            await Verify(loaded.Medians())
+                .Snapshot(
+                    """
+                    {
+                      a: 00:00:10,
+                      b: 00:00:20
+                    }
+                    """);
         }
         finally
         {

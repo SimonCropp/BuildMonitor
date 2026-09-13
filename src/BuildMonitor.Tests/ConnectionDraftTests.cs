@@ -9,7 +9,20 @@ public class ConnectionDraftTests
         state = MonitorSession.FieldChanged(state, FormFields.Scope("organization"), "contoso");
         state = MonitorSession.FieldChanged(state, FormFields.Server, "https://dev.azure.com/");
         var connection = ConnectionDraft.Build(state.Form!);
-        await Verify(connection);
+        await Verify(connection)
+            .Snapshot(
+                """
+                {
+                  Id: draft1,
+                  ProviderId: azure-devops,
+                  Name: Work,
+                  Server: https://dev.azure.com,
+                  Scope: {
+                    organization: contoso
+                  },
+                  Auth: Browser
+                }
+                """);
     }
 
     [Test]

@@ -4,7 +4,21 @@ public class SessionTests
     public async Task RowsAreHeadersThenBuilds()
     {
         var rows = RowProjection.Rows(Fixtures.WithBuilds());
-        await Verify(rows.Select(_ => $"{_.Kind} {_.Connection.Connection.Name} {_.Build?.PipelineName} {_.Build?.Branch} {_.Build?.Status}"));
+        await Verify(rows.Select(_ => $"{_.Kind} {_.Connection.Connection.Name} {_.Build?.PipelineName} {_.Build?.Branch} {_.Build?.Status}"))
+            .Snapshot(
+                """
+                [
+                  Header GitHub   ,
+                  Build GitHub test.yml main Running,
+                  Build GitHub test.yml feature/inline Failed,
+                  Build GitHub docs.yml main Succeeded,
+                  Header Jenkins   ,
+                  Build Jenkins Build all main Running,
+                  Build Jenkins Nightly  Queued,
+                  Header Octopus   ,
+                  Build Octopus Deploy Web  Running
+                ]
+                """);
     }
 
     [Test]

@@ -1,6 +1,0 @@
-﻿[
-  GET https://jenkins.example.com/crumbIssuer/api/json,
-  POST https://jenkins.example.com/job/build-all/501/stop,
-  GET https://jenkins.example.com/crumbIssuer/api/json,
-  POST https://jenkins.example.com/queue/cancelItem?id=77
-]

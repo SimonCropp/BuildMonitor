@@ -1,4 +1,0 @@
-﻿[
-  GET https://api.github.com/orgs/SimonCropp/repos?per_page=100&sort=pushed&type=all&page=1,
-  GET https://api.github.com/users/SimonCropp/repos?per_page=100&sort=pushed&page=1
-]

@@ -1,4 +1,0 @@
-﻿[
-  POST https://octopus.example.com/api/Spaces-1/tasks/rerun/ServerTasks-99,
-  POST https://octopus.example.com/api/Spaces-1/tasks/ServerTasks-100/cancel
-]

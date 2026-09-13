@@ -1,5 +1,0 @@
-﻿[
-  PUT https://ci.appveyor.com/api/builds
-  {"buildId":99,"reRunIncomplete":false},
-  DELETE https://ci.appveyor.com/api/builds/simon/diffengine/1.0.45
-]

@@ -36,7 +36,14 @@ public class TravisProviderTests
         var provider = ProviderTestHelpers.Provider("travis");
         await provider.Retry(context, builds.Single(_ => _.RunNumber == "119"), Cancel.None);
         await provider.Cancel(context, builds.Single(_ => _.RunNumber == "120"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  POST https://api.travis-ci.com/build/899/restart,
+                  POST https://api.travis-ci.com/build/900/cancel
+                ]
+                """);
     }
 
     [Test]

@@ -36,7 +36,15 @@ public class AppVeyorProviderTests
         var provider = ProviderTestHelpers.Provider("appveyor");
         await provider.Retry(context, builds.Single(_ => _.RunNumber == "44"), Cancel.None);
         await provider.Cancel(context, builds.Single(_ => _.RunNumber == "45"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  PUT https://ci.appveyor.com/api/builds
+                  {"buildId":99,"reRunIncomplete":false},
+                  DELETE https://ci.appveyor.com/api/builds/simon/diffengine/1.0.45
+                ]
+                """);
     }
 
     [Test]
@@ -46,6 +54,12 @@ public class AppVeyorProviderTests
             .Get("https://ci.appveyor.com/api/account/simon/projects", "[]");
         var context = ProviderTestHelpers.Context("appveyor", handler, scope: ("account", "simon"));
         await ProviderTestHelpers.Provider("appveyor").DiscoverPipelines(context, Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  GET https://ci.appveyor.com/api/account/simon/projects
+                ]
+                """);
     }
 }

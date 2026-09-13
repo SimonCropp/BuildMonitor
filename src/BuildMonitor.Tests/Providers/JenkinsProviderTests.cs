@@ -51,7 +51,17 @@ public class JenkinsProviderTests
         var builds = await ProviderTestHelpers.DiscoverAndFetch("jenkins", context);
         handler.Requests.Clear();
         await ProviderTestHelpers.Provider("jenkins").Retry(context, builds.Single(_ => _.RunNumber == "500"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  GET https://jenkins.example.com/crumbIssuer/api/json,
+                  POST https://jenkins.example.com/job/build-all/build
+                  Jenkins-Crumb: c1,
+                  POST https://jenkins.example.com/job/build-all/buildWithParameters
+                  Jenkins-Crumb: c1
+                ]
+                """);
     }
 
     [Test]
@@ -67,7 +77,16 @@ public class JenkinsProviderTests
         var provider = ProviderTestHelpers.Provider("jenkins");
         await provider.Cancel(context, builds.Single(_ => _.RunNumber == "501"), Cancel.None);
         await provider.Cancel(context, builds.Single(_ => _ is {RunNumber: "", PipelineName: "Team / App / PR-12"}), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  GET https://jenkins.example.com/crumbIssuer/api/json,
+                  POST https://jenkins.example.com/job/build-all/501/stop,
+                  GET https://jenkins.example.com/crumbIssuer/api/json,
+                  POST https://jenkins.example.com/queue/cancelItem?id=77
+                ]
+                """);
     }
 
     [Test]

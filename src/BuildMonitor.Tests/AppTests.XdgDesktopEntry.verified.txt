@@ -1,7 +1,0 @@
-﻿[Desktop Entry]
-Type=Application
-Name=BuildMonitor
-Comment=Build and CI monitor
-Exec="/home/simon/.dotnet/tools/buildmonitor"
-Terminal=false
-X-GNOME-Autostart-enabled=true

@@ -37,7 +37,14 @@ public class GitLabProviderTests
         var provider = ProviderTestHelpers.Provider("gitlab");
         await provider.Retry(context, builds.Single(_ => _.RunNumber == "119"), Cancel.None);
         await provider.Cancel(context, builds.Single(_ => _.RunNumber == "120"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  POST https://gitlab.com/api/v4/projects/77/pipelines/5000/retry,
+                  POST https://gitlab.com/api/v4/projects/77/pipelines/5001/cancel
+                ]
+                """);
     }
 
     [Test]
@@ -47,7 +54,13 @@ public class GitLabProviderTests
             .Get("https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&simple=true&archived=false&order_by=last_activity_at&per_page=100", "[]");
         var context = ProviderTestHelpers.Context("gitlab", handler, "https://gitlab.example.com/", scope: ("group", "verify"));
         await ProviderTestHelpers.Provider("gitlab").DiscoverPipelines(context, Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  GET https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&simple=true&archived=false&order_by=last_activity_at&per_page=100
+                ]
+                """);
     }
 
     [Test]

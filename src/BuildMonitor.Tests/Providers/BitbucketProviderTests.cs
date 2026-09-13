@@ -34,6 +34,14 @@ public class BitbucketProviderTests
         var provider = ProviderTestHelpers.Provider("bitbucket");
         await provider.Retry(context, builds.Single(_ => _.RunNumber == "87"), Cancel.None);
         await provider.Cancel(context, builds.Single(_ => _.RunNumber == "88"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  POST https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines
+                  {"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"feature","commit":{"type":"commit","hash":"def456"}}},
+                  POST https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines/{u1}/stopPipeline
+                ]
+                """);
     }
 }

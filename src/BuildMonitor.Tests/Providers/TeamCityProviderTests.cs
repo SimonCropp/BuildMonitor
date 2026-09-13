@@ -43,7 +43,16 @@ public class TeamCityProviderTests
         var provider = ProviderTestHelpers.Provider("teamcity");
         await provider.Retry(context, builds.Single(_ => _.RunNumber == "119"), Cancel.None);
         await provider.Cancel(context, builds.Single(_ => _.RunNumber == "120"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  POST https://teamcity.example.com/app/rest/buildQueue
+                  {"buildType":{"id":"Verify_Build"},"branchName":"main"},
+                  POST https://teamcity.example.com/app/rest/builds/id:9001
+                  {"comment":"Cancelled from BuildMonitor","readdIntoQueue":false}
+                ]
+                """);
     }
 
     [Test]

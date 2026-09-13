@@ -46,7 +46,14 @@ public class OctopusProviderTests
         var provider = ProviderTestHelpers.Provider("octopus");
         await provider.Retry(context, builds.Single(_ => _.Branch == "Staging"), Cancel.None);
         await provider.Cancel(context, builds.Single(_ => _.Branch == "Production"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  POST https://octopus.example.com/api/Spaces-1/tasks/rerun/ServerTasks-99,
+                  POST https://octopus.example.com/api/Spaces-1/tasks/ServerTasks-100/cancel
+                ]
+                """);
     }
 
     [Test]
@@ -57,7 +64,14 @@ public class OctopusProviderTests
             .Get($"{server}/api/Spaces-2/projects?take=100", """{"Items":[]}""");
         var context = ProviderTestHelpers.Context("octopus", handler, server, scope: ("space", "other"));
         await ProviderTestHelpers.Provider("octopus").DiscoverPipelines(context, Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  GET https://octopus.example.com/api/spaces?take=100,
+                  GET https://octopus.example.com/api/Spaces-2/projects?take=100
+                ]
+                """);
     }
 
     [Test]

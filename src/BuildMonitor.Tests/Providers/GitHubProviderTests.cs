@@ -46,7 +46,13 @@ public class GitHubProviderTests
         var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
         handler.Requests.Clear();
         await ProviderTestHelpers.Provider("github").Retry(context, builds.Single(_ => _.RunNumber == "1233"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  POST https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs/499/rerun-failed-jobs
+                ]
+                """);
     }
 
     [Test]
@@ -58,7 +64,13 @@ public class GitHubProviderTests
         var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
         handler.Requests.Clear();
         await ProviderTestHelpers.Provider("github").Cancel(context, builds.Single(_ => _.RunNumber == "1234"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  POST https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs/500/cancel
+                ]
+                """);
     }
 
     [Test]
@@ -69,7 +81,13 @@ public class GitHubProviderTests
         var context = ProviderTestHelpers.Context("github", handler, scope: ("owner", "VerifyTests"));
         var pipelines = await ProviderTestHelpers.Provider("github").DiscoverPipelines(context, Cancel.None);
         await Assert.That(pipelines).IsEmpty();
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  GET https://api.github.com/orgs/VerifyTests/repos?per_page=100&sort=pushed&type=all&page=1
+                ]
+                """);
     }
 
     [Test]
@@ -80,7 +98,14 @@ public class GitHubProviderTests
             .Get("https://api.github.com/users/SimonCropp/repos?per_page=100&sort=pushed&page=1", "[]");
         var context = ProviderTestHelpers.Context("github", handler, scope: ("owner", "SimonCropp"));
         await ProviderTestHelpers.Provider("github").DiscoverPipelines(context, Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  GET https://api.github.com/orgs/SimonCropp/repos?per_page=100&sort=pushed&type=all&page=1,
+                  GET https://api.github.com/users/SimonCropp/repos?per_page=100&sort=pushed&page=1
+                ]
+                """);
     }
 
     [Test]
@@ -131,6 +156,14 @@ public class GitHubProviderTests
 
         await Assert.That(first.Message).IsEqualTo("Signed in as simon");
         await Assert.That(second.Message).IsEqualTo("Signed in as simon");
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  GET https://api.github.com/user,
+                  GET https://api.github.com/user
+                  If-None-Match: "abc"
+                ]
+                """);
     }
 }

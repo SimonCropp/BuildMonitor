@@ -6,5 +6,6 @@ public static class ModuleInitializer
         VersionReader.VersionString = "TheVersion";
         // Looser than the WinForms baselines: these come from CI rasterisers.
         VerifierSettings.UseSsimForPng(0.999);
+        VerifierSettings.Inline(maxLines: 30, applyMaxLinesToExisting: true);
     }
 }

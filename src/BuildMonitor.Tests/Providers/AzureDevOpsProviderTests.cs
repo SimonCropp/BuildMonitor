@@ -40,7 +40,16 @@ public class AzureDevOpsProviderTests
         var provider = ProviderTestHelpers.Provider("azure-devops");
         await provider.Retry(context, builds.Single(_ => _.RunNumber == "20260101.2"), Cancel.None);
         await provider.Cancel(context, builds.Single(_ => _.RunNumber == "20260101.3"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  PATCH https://dev.azure.com/contoso/Web/_apis/build/builds/300?retry=true&api-version=7.1
+                  {},
+                  PATCH https://dev.azure.com/contoso/Web/_apis/build/builds/301?api-version=7.1
+                  {"status":"cancelling"}
+                ]
+                """);
     }
 
     [Test]
@@ -50,7 +59,13 @@ public class AzureDevOpsProviderTests
             .Get($"{organization}/Web/_apis/pipelines?api-version=7.1", """{"count":0,"value":[]}""");
         var context = ProviderTestHelpers.Context("azure-devops", handler, scope: [("organization", "contoso"), ("project", "Web")]);
         await ProviderTestHelpers.Provider("azure-devops").DiscoverPipelines(context, Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  GET https://dev.azure.com/contoso/Web/_apis/pipelines?api-version=7.1
+                ]
+                """);
     }
 
     [Test]

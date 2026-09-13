@@ -53,7 +53,8 @@ public class AppTests
             var encoded = info.ArgumentList.Last();
             var script = Encoding.Unicode.GetString(Convert.FromBase64String(encoded));
             await Verify(script)
-                .UniqueForOSPlatform();
+                .UniqueForOSPlatform()
+                .Snapshot("Start-Sleep -Seconds 2; dotnet tool update BuildMonitor --global --prerelease; & 'home\\buildmonitor'");
         }
         else
         {
@@ -65,11 +66,42 @@ public class AppTests
 
     [Test]
     public Task LaunchAgentPlist() =>
-        Verify(LaunchAgent.Compose("/Users/simon/.dotnet/tools/buildmonitor"));
+        Verify(LaunchAgent.Compose("/Users/simon/.dotnet/tools/buildmonitor"))
+            .Snapshot(
+                """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+                <plist version="1.0">
+                <dict>
+                    <key>Label</key>
+                    <string>com.simoncropp.buildmonitor</string>
+                    <key>ProgramArguments</key>
+                    <array>
+                        <string>/Users/simon/.dotnet/tools/buildmonitor</string>
+                    </array>
+                    <key>RunAtLoad</key>
+                    <true/>
+                    <key>LimitLoadToSessionType</key>
+                    <string>Aqua</string>
+                </dict>
+                </plist>
+
+                """);
 
     [Test]
     public Task XdgDesktopEntry() =>
-        Verify(XdgAutostart.Compose("/home/simon/.dotnet/tools/buildmonitor"));
+        Verify(XdgAutostart.Compose("/home/simon/.dotnet/tools/buildmonitor"))
+            .Snapshot(
+                """
+                [Desktop Entry]
+                Type=Application
+                Name=BuildMonitor
+                Comment=Build and CI monitor
+                Exec="/home/simon/.dotnet/tools/buildmonitor"
+                Terminal=false
+                X-GNOME-Autostart-enabled=true
+
+                """);
 
     [Test]
     public async Task RunKeyValueIsQuoted() =>

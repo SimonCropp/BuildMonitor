@@ -37,6 +37,15 @@ public class GoCdProviderTests
         var provider = ProviderTestHelpers.Provider("gocd");
         await provider.Retry(context, builds.Single(_ => _.RunNumber == "41"), Cancel.None);
         await provider.Cancel(context, builds.Single(_ => _.RunNumber == "42"), Cancel.None);
-        await Verify(handler.Requests);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  POST https://gocd.example.com/go/api/stages/web/41/test/2/run-failed-jobs
+                  X-GoCD-Confirm: true,
+                  POST https://gocd.example.com/go/api/stages/web/42/test/1/cancel
+                  X-GoCD-Confirm: true
+                ]
+                """);
     }
 }

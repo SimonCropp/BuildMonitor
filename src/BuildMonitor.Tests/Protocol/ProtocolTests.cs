@@ -7,7 +7,16 @@ public class ProtocolTests
         var text = message.Build();
         await Assert.That(Message.TryParse(text, out var parsed)).IsTrue();
         await Assert.That(parsed).IsEqualTo(message);
-        await Verify(text);
+        await Verify(text)
+            .Snapshot(
+                """
+                version: 1
+                verb: open
+                key: Z2gvRGlmZkVuZ2luZS90ZXN0LnltbC9tYWlu
+                body: bGluZSBvbmUKbGluZTogdHdv
+
+
+                """);
     }
 
     [Test]

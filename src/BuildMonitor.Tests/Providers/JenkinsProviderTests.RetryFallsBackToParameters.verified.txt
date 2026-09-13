@@ -1,7 +1,0 @@
-﻿[
-  GET https://jenkins.example.com/crumbIssuer/api/json,
-  POST https://jenkins.example.com/job/build-all/build
-  Jenkins-Crumb: c1,
-  POST https://jenkins.example.com/job/build-all/buildWithParameters
-  Jenkins-Crumb: c1
-]

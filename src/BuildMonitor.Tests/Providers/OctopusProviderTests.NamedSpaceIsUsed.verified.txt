@@ -1,4 +1,0 @@
-﻿[
-  GET https://octopus.example.com/api/spaces?take=100,
-  GET https://octopus.example.com/api/Spaces-2/projects?take=100
-]

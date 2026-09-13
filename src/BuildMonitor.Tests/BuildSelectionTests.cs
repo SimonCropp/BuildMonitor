@@ -4,7 +4,15 @@ public class BuildSelectionTests
     public async Task LatestPerPipelinePlusActiveBranches()
     {
         var selected = BuildSelection.Select(Fixtures.GitHubBuilds(), true);
-        await Verify(selected.Select(_ => $"{_.PipelineId} {_.Branch} #{_.RunNumber} {_.Status}"));
+        await Verify(selected.Select(_ => $"{_.PipelineId} {_.Branch} #{_.RunNumber} {_.Status}"))
+            .Snapshot(
+                """
+                [
+                  DiffEngine/test.yml main #1234 Running,
+                  Verify/test.yml feature/inline #77 Failed,
+                  DiffEngine/docs.yml main #300 Succeeded
+                ]
+                """);
     }
 
     [Test]

@@ -1,3 +1,0 @@
-﻿[
-  GET https://ci.appveyor.com/api/account/simon/projects
-]

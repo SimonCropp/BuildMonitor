@@ -1,5 +1,0 @@
-﻿[
-  GET https://api.github.com/user,
-  GET https://api.github.com/user
-  If-None-Match: "abc"
-]
