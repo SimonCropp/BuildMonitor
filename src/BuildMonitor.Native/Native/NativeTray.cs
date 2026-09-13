@@ -44,6 +44,7 @@ sealed class NativeTray : ITray
             fixed (byte* pointer = bytes)
             {
                 // The IDE reports this as redundant; the compiler's CS9363 requires it.
+                // ReSharper disable once RedundantUnsafeContext
                 unsafe
                 {
                     Bm.TraySetIcon((int) kind, pointer, bytes.Length);
@@ -61,6 +62,7 @@ sealed class NativeTray : ITray
 
             fixed (byte* pointer = bytes)
             {
+                // ReSharper disable once RedundantUnsafeContext
                 unsafe
                 {
                     Bm.TraySetMenuIcon(name, pointer, bytes.Length);
