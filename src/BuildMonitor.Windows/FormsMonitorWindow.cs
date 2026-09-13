@@ -1,7 +1,7 @@
 /// <summary>
 /// The WinForms <see cref="IMonitorWindow"/>. Pumped, not inverted: <see cref="MonitorProgram"/>
 /// owns the loop, so a frame is one <see cref="Application.DoEvents"/> rather than
-/// <see cref="Application.Run"/>. That is what keeps the loop shared with the native heads.
+/// <see cref="Application.Run()"/>. That is what keeps the loop shared with the native heads.
 /// DoEvents is safe here because nothing opens a modal dialog or nests a loop, and the state
 /// is behind <see cref="SessionHost"/>.
 /// </summary>

@@ -1,7 +1,7 @@
 /// <summary>
 /// The exports of libbuildmonitor_ui, one per entry in bm.h.
 /// </summary>
-static unsafe partial class Bm
+static partial class Bm
 {
     const string library = "buildmonitor_ui";
 

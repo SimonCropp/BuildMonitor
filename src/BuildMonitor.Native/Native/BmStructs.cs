@@ -62,7 +62,7 @@ struct BmTrayItem
 }
 
 [StructLayout(LayoutKind.Sequential)]
-unsafe struct BmScreen
+struct BmScreen
 {
     public byte* Strings;
     public int StringsLength;
@@ -100,7 +100,7 @@ unsafe struct BmScreen
 }
 
 [StructLayout(LayoutKind.Sequential)]
-unsafe struct BmInput
+struct BmInput
 {
     public int Key;
     public int ClickedButton;

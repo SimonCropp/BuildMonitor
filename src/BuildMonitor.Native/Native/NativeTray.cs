@@ -43,6 +43,7 @@ sealed class NativeTray : ITray
 
             fixed (byte* pointer = bytes)
             {
+                // The IDE reports this as redundant; the compiler's CS9363 requires it.
                 unsafe
                 {
                     Bm.TraySetIcon((int) kind, pointer, bytes.Length);
