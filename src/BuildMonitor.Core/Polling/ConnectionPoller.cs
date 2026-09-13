@@ -14,6 +14,7 @@ sealed class ConnectionPoller
     readonly Channel<bool> wake = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
     readonly CancelSource stop = new();
     readonly HashSet<string> recorded = [];
+    readonly ETagCache etags = new();
     Task? loop;
     ImmutableArray<Pipeline> pipelines = [];
     DateTimeOffset discovered = DateTimeOffset.MinValue;
@@ -197,7 +198,7 @@ sealed class ConnectionPoller
 
     async Task<ConnectionHealth> Poll(IProvider provider, Connection connection, string secret, Cancel cancel)
     {
-        var context = Providers.Context(connection, secret, handler) with
+        var context = Providers.Context(connection, secret, handler, etags) with
         {
             Progress = progress => host.Mutate(_ => MonitorSession.SetProgress(_, connectionId, progress))
         };
@@ -209,6 +210,8 @@ sealed class ConnectionPoller
             var filters = host.State.Settings.Filters;
             pipelines = [..found.Where(_ => !Filters.ExcludesPipeline(filters, _))];
             discovered = now;
+            // Every URL still in use is requested at least once between discoveries.
+            etags.Rotate();
         }
 
         var builds = await provider.FetchBuilds(context, pipelines, PerPipeline, cancel);

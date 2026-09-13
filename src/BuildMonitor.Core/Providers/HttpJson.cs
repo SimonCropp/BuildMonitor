@@ -5,13 +5,14 @@
 /// <para>
 /// GET responses carrying an ETag are cached and revalidated with If-None-Match. GitHub answers
 /// an unchanged resource with a 304 that does not count against the rate limit, which is what
-/// makes polling a hundred repositories every thirty seconds affordable.
+/// makes polling a hundred repositories every thirty seconds affordable. The cache is the
+/// caller's, because this client lives for one poll; see <see cref="ETagCache"/>.
 /// </para>
 /// </summary>
 sealed class HttpJson : IDisposable
 {
     readonly HttpClient client;
-    readonly ConcurrentDictionary<string, (string ETag, byte[] Body)> cache = new();
+    readonly ETagCache cache;
 
     public HttpJson(
         HttpMessageHandler handler,
@@ -19,8 +20,10 @@ sealed class HttpJson : IDisposable
         AuthScheme scheme,
         string? secret,
         string? user,
-        IEnumerable<KeyValuePair<string, string>>? headers = null)
+        IEnumerable<KeyValuePair<string, string>>? headers = null,
+        ETagCache? cache = null)
     {
+        this.cache = cache ?? new();
         client = new(handler, disposeHandler: false)
         {
             BaseAddress = baseAddress,
@@ -58,7 +61,7 @@ sealed class HttpJson : IDisposable
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         var key = new Uri(client.BaseAddress!, path).ToString();
-        var cached = cache.TryGetValue(key, out var entry);
+        var cached = cache.TryGet(key, out var entry);
         if (cached)
         {
             request.Headers.TryAddWithoutValidation("If-None-Match", entry.ETag);
@@ -76,7 +79,7 @@ sealed class HttpJson : IDisposable
         var etag = response.Headers.ETag?.ToString();
         if (etag is not null)
         {
-            cache[key] = (etag, body);
+            cache.Set(key, etag, body);
         }
 
         return body;

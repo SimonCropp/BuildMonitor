@@ -1,18 +1,22 @@
 public class PollerTests
 {
+    const string runsUrl = "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5";
+
     static FakeHttpHandler GitHubHandler() =>
         new FakeHttpHandler()
             .Get("https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1",
                 """[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"}]""")
             .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows?per_page=100",
                 """{"total_count":1,"workflows":[{"id":10,"name":"Test","path":".github/workflows/test.yml","state":"active"}]}""")
-            .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5",
+            .Map("GET", runsUrl,
                 """
                 {"total_count":2,"workflow_runs":[
                   {"id":500,"workflow_id":10,"run_number":2,"status":"in_progress","head_branch":"main","html_url":"https://github.com/x/500","created_at":"2026-01-01T11:56:00Z","updated_at":"2026-01-01T11:57:00Z","run_started_at":"2026-01-01T11:57:00Z","pull_requests":[]},
                   {"id":499,"workflow_id":10,"run_number":1,"status":"completed","conclusion":"success","head_branch":"main","html_url":"https://github.com/x/499","created_at":"2026-01-01T11:00:00Z","updated_at":"2026-01-01T11:05:00Z","run_started_at":"2026-01-01T11:00:00Z","pull_requests":[]}
                 ]}
-                """);
+                """,
+                HttpStatusCode.OK,
+                ("ETag", "\"runs\""));
 
     static (SessionHost Host, MemorySecretStore Secrets, DurationHistory History) Setup(bool withToken = true)
     {
@@ -53,6 +57,23 @@ public class PollerTests
         // One recorded run plus the manual one: median of 5 and 1 is 3, not something skewed by a
         // second recording of the same run.
         await Assert.That(history.Median("gh/VerifyTests/DiffEngine/10")).IsEqualTo(TimeSpan.FromMinutes(3));
+    }
+
+    [Test]
+    public async Task ALaterPollRevalidatesWithTheETag()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = GitHubHandler();
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null);
+        await poller.PollOnce(Cancel.None);
+
+        // An unchanged repository answers an empty 304; the rows come from the body the first poll kept.
+        handler.Map("GET", runsUrl, "", HttpStatusCode.NotModified);
+        var health = await poller.PollOnce(Cancel.None);
+
+        await Assert.That(health).IsEqualTo(ConnectionHealth.Ok);
+        await Assert.That(handler.Requests[^1]).IsEqualTo($"GET {runsUrl}\n  If-None-Match: \"runs\"");
+        await Assert.That(host.State.Builds.Length).IsEqualTo(2);
     }
 
     [Test]
