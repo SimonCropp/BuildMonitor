@@ -317,11 +317,13 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
     if (screen.rowCount == 0) {
         ImGui::TextColored(dim, "Nothing to show yet.");
     } else if (ImGui::BeginTable("rows", 8, flags)) {
-        ImGui::TableSetupColumn("pipeline", ImGuiTableColumnFlags_WidthStretch, 3.0f);
-        ImGui::TableSetupColumn("repo", ImGuiTableColumnFlags_WidthStretch, 3.5f);
+        // The pipeline cell starts with a status square a row height wide, so it takes the larger
+        // share; weighted as the repo column was, a ten character name no longer fit beside it.
+        ImGui::TableSetupColumn("pipeline", ImGuiTableColumnFlags_WidthStretch, 3.5f);
+        ImGui::TableSetupColumn("repo", ImGuiTableColumnFlags_WidthStretch, 3.4f);
         ImGui::TableSetupColumn("run", ImGuiTableColumnFlags_WidthFixed, 70.0f);
         ImGui::TableSetupColumn("status", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-        ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, 104.0f);
         ImGui::TableSetupColumn("timing", ImGuiTableColumnFlags_WidthFixed, 90.0f);
         ImGui::TableSetupColumn("links", ImGuiTableColumnFlags_WidthFixed, 210.0f);
         ImGui::TableSetupColumn("actions", ImGuiTableColumnFlags_WidthFixed, 80.0f);
@@ -389,7 +391,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                 ImGui::PushStyleColor(ImGuiCol_PlotHistogram, StatusColour(BM_STATUS_RUNNING));
                 ImGui::PushStyleColor(ImGuiCol_FrameBg, barTrack);
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (ImGui::GetFrameHeight() - 8.0f) / 2.0f);
-                ImGui::ProgressBar(row.progress, ImVec2(110.0f, 8.0f), "");
+                ImGui::ProgressBar(row.progress, ImVec2(94.0f, 8.0f), "");
                 ImGui::PopStyleColor(2);
             }
 
