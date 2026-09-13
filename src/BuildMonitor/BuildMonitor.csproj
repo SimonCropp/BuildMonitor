@@ -61,20 +61,21 @@
     <GenerateNuspecDependsOn Condition="'$(BundleHeads)' == 'true'">AddHeadsToPackage;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
   </PropertyGroup>
 
-  <!--
-  Each RID names the head that renders on it. Every head produces a BuildMonitor.Tray apphost,
-  so heads/{rid} keeps one shape and HeadLocator does not know which project it came from.
-  -->
-  <ItemGroup>
-    <HeadRid Include="win-x64" Head="BuildMonitor.Windows" Native="false" Apphost="BuildMonitor.Tray.exe" />
-    <HeadRid Include="win-arm64" Head="BuildMonitor.Windows" Native="false" Apphost="BuildMonitor.Tray.exe" />
-    <HeadRid Include="linux-x64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
-    <HeadRid Include="linux-arm64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
-    <HeadRid Include="osx-x64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
-    <HeadRid Include="osx-arm64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
-  </ItemGroup>
-
   <Target Name="PublishHeads" Condition="'$(BundleHeads)' == 'true'">
+    <!--
+    Each RID names the head that renders on it. Every head produces a BuildMonitor.Tray apphost,
+    so heads/{rid} keeps one shape and HeadLocator does not know which project it came from.
+    Inside the target rather than at the top level: a top level item whose Include is not a path
+    shows in the IDE's project tree as a missing file.
+    -->
+    <ItemGroup>
+      <HeadRid Include="win-x64" Head="BuildMonitor.Windows" Native="false" Apphost="BuildMonitor.Tray.exe" />
+      <HeadRid Include="win-arm64" Head="BuildMonitor.Windows" Native="false" Apphost="BuildMonitor.Tray.exe" />
+      <HeadRid Include="linux-x64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
+      <HeadRid Include="linux-arm64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
+      <HeadRid Include="osx-x64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
+      <HeadRid Include="osx-arm64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
+    </ItemGroup>
     <RemoveDir Directories="$(HeadStageDir)" />
     <Warning Condition="'%(HeadRid.Native)' == 'true' And !Exists('$(MSBuildThisFileDirectory)..\%(HeadRid.Head)\runtimes\%(HeadRid.Identity)\native')"
              Code="BM0001"
