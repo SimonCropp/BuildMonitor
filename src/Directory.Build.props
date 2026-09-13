@@ -17,12 +17,12 @@
     One NoWarn, because a second property of the same name replaces the first rather than adding to
     it.
     -->
-    <NoWarn>CS1591;CS0649;NU1608;NU1109;CA1416;SC023;SC031</NoWarn>
+    <NoWarn>CS1591;CS0649;NU1608;NU1109;CA1416</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
     <Verify_SponsorshipExemption>OpenSource</Verify_SponsorshipExemption>
-    <Verify_SponsorshipExemptionUntil>2026-09</Verify_SponsorshipExemptionUntil>
+    <Verify_SponsorshipExemptionUntil>2027-08</Verify_SponsorshipExemptionUntil>
     <!-- IconifyBundle is maintained by the same author. -->
     <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>
   </PropertyGroup>
