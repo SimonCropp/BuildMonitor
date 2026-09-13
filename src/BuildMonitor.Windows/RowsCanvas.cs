@@ -11,7 +11,6 @@ sealed class RowsCanvas : Control
     const int chipHeight = 20;
 
     BuildsPage? page;
-    MenuOverlay? menu;
     int menuShownForRow = -1;
     int hoverRow = -1;
     readonly List<(int Row, LinkKind Link, RowAction Action, Rectangle Bounds)> chips = [];
@@ -67,7 +66,6 @@ sealed class RowsCanvas : Control
     public void Apply(BuildsPage builds, MenuOverlay? overlay)
     {
         page = builds;
-        menu = overlay;
         if (overlay is null)
         {
             menuShownForRow = -1;

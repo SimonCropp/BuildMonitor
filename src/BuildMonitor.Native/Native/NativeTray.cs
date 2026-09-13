@@ -3,7 +3,7 @@
 /// <c>bm_present</c> and the clicks come back through <c>bm_poll_input</c>, so this only hands
 /// over the icons at start and says whether a tray exists at all.
 /// </summary>
-sealed unsafe class NativeTray : ITray
+sealed class NativeTray : ITray
 {
     NativeTray()
     {
@@ -43,7 +43,10 @@ sealed unsafe class NativeTray : ITray
 
             fixed (byte* pointer = bytes)
             {
-                Bm.TraySetIcon((int) kind, pointer, bytes.Length);
+                unsafe
+                {
+                    Bm.TraySetIcon((int) kind, pointer, bytes.Length);
+                }
             }
         }
 
@@ -57,7 +60,10 @@ sealed unsafe class NativeTray : ITray
 
             fixed (byte* pointer = bytes)
             {
-                Bm.TraySetMenuIcon(name, pointer, bytes.Length);
+                unsafe
+                {
+                    Bm.TraySetMenuIcon(name, pointer, bytes.Length);
+                }
             }
         }
 
