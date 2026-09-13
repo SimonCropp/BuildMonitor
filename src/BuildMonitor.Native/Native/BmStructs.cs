@@ -95,6 +95,8 @@ unsafe struct BmScreen
     public BmString TrayTooltip;
     public BmTrayItem* TrayItems;
     public int TrayItemCount;
+
+    public int Theme;
 }
 
 [StructLayout(LayoutKind.Sequential)]

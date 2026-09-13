@@ -61,7 +61,7 @@ final class Runtime {
 
         let application = NSApplication.shared
         application.setActivationPolicy(.regular)
-        application.appearance = NSAppearance(named: .darkAqua)
+        application.appearance = NSAppearance(named: Palette.light ? .aqua : .darkAqua)
         application.mainMenu = MainMenu.build(target)
         application.finishLaunching()
 
@@ -90,7 +90,7 @@ final class Runtime {
         let width = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
         let scroller = NSScroller(frame: NSRect(x: 0, y: 0, width: width, height: view.bounds.height))
         scroller.scrollerStyle = .legacy
-        scroller.knobStyle = .light
+        scroller.knobStyle = Palette.light ? .dark : .light
         scroller.target = target
         scroller.action = #selector(ControlTarget.scrolled(_:))
         view.addSubview(scroller)
@@ -100,6 +100,10 @@ final class Runtime {
     }
 
     func present(_ frame: Frame) {
+        if Palette.use(frame.theme) {
+            retheme()
+        }
+
         tray?.apply(frame)
         guard let view else {
             // Hidden with no window yet: still pump, so the tray menu and the app menu work.
@@ -115,6 +119,18 @@ final class Runtime {
         pump()
         popMenu(frame)
         measure()
+    }
+
+    /// The drawn parts read the palette every frame; this is for what AppKit holds on to: the
+    /// app's appearance, which the controls and menus follow, and the form's built controls.
+    private func retheme() {
+        guard window != nil else {
+            return
+        }
+
+        NSApplication.shared.appearance = NSAppearance(named: Palette.light ? .aqua : .darkAqua)
+        scroller?.knobStyle = Palette.light ? .dark : .light
+        view?.form.retheme()
     }
 
     private func position(_ frame: Frame) {

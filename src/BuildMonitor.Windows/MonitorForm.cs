@@ -133,6 +133,11 @@ sealed class MonitorForm : Form
         }
 
         last = screen;
+        if (Palette.Use(screen.Theme))
+        {
+            Retheme();
+        }
+
         header.Text = screen.Builds?.Header ?? screen.Form?.Title ?? "";
         if (screen.Builds is { } builds)
         {
@@ -161,6 +166,23 @@ sealed class MonitorForm : Form
         }
 
         footer.Apply(screen.Buttons, screen.Status);
+    }
+
+    /// <summary>
+    /// Pushes the palette into every control that copied a colour when it was made. Without this
+    /// a theme change on save would leave the header, footer and form controls in the old theme
+    /// until a restart.
+    /// </summary>
+    void Retheme()
+    {
+        BackColor = Palette.Background;
+        ForeColor = Palette.Text;
+        header.ForeColor = Palette.Dim;
+        header.BackColor = Palette.Surface;
+        canvas.Retheme();
+        footer.Retheme();
+        formPanel.Retheme();
+        Invalidate(true);
     }
 
     public MonitorInput Drain()

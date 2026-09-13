@@ -8,7 +8,7 @@ static unsafe partial class Bm
     /// <summary>
     /// Keep in sync with BM_VERSION in bm.h.
     /// </summary>
-    public const int ExpectedVersion = 1;
+    public const int ExpectedVersion = 2;
 
     [LibraryImport(library, EntryPoint = "bm_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int Init(int width, int height, string title, byte* fontTtf, int fontLength, float fontSize, int hidden);

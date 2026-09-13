@@ -3,6 +3,7 @@
   "ShowWindowAtStart": true,
   "ShowOtherBranches": true,
   "NotifyOnFailure": true,
+  "Theme": "System",
   "PollIntervalSeconds": 30,
   "RunningPollIntervalSeconds": 10,
   "Port": 3796,

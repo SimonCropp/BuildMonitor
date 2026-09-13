@@ -12,6 +12,7 @@ record Settings
     public bool ShowWindowAtStart { get; init; } = true;
     public bool ShowOtherBranches { get; init; } = true;
     public bool NotifyOnFailure { get; init; } = true;
+    public Theme Theme { get; init; }
     public int PollIntervalSeconds { get; init; } = 30;
     public int RunningPollIntervalSeconds { get; init; } = 10;
     public int Port { get; init; } = global::Port.Default;

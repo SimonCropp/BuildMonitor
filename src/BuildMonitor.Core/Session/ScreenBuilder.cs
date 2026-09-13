@@ -60,7 +60,8 @@ static class ScreenBuilder
             state.Columns,
             state.Rows,
             menu,
-            state.Notification);
+            state.Notification,
+            state.Settings.Theme);
     }
 
     static string Header(SessionState state, int pipelines, int failing, int running)
@@ -256,7 +257,8 @@ static class ScreenBuilder
             tray,
             state.Columns,
             state.Rows,
-            Notification: state.Notification);
+            Notification: state.Notification,
+            Theme: state.Settings.Theme);
     }
 
     static FormPage OptionsForm(SessionState state)
@@ -268,6 +270,7 @@ static class ScreenBuilder
             new(FormFields.ShowWindowAtStart, FieldKind.Checkbox, "Show the window at startup", form.Value(FormFields.ShowWindowAtStart)),
             new(FormFields.ShowOtherBranches, FieldKind.Checkbox, "Show running builds on other branches", form.Value(FormFields.ShowOtherBranches)),
             new(FormFields.NotifyOnFailure, FieldKind.Checkbox, "Notify when a build fails", form.Value(FormFields.NotifyOnFailure)),
+            new(FormFields.Theme, FieldKind.Select, "Theme", form.Value(FormFields.Theme), Options: Enum.GetNames<Theme>()),
             new(FormFields.PollInterval, FieldKind.Number, "Poll interval (seconds)", form.Value(FormFields.PollInterval)),
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),
             new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Hint: "Used by the launcher and the MCP server. Takes effect after a restart."),

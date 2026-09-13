@@ -9,6 +9,7 @@ static class FormFields
     public const string ShowWindowAtStart = "showWindowAtStart";
     public const string ShowOtherBranches = "showOtherBranches";
     public const string NotifyOnFailure = "notifyOnFailure";
+    public const string Theme = "theme";
     public const string PollInterval = "pollInterval";
     public const string RunningPollInterval = "runningPollInterval";
     public const string Port = "port";

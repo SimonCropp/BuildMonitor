@@ -67,12 +67,14 @@ sealed class NotifyIconTray : ITray
 
     void Rebuild()
     {
-        foreach (ToolStripItem item in menu.Items)
+        // A snapshot: disposing an item removes it from menu.Items, which would break the enumerator.
+        foreach (var item in menu.Items.Cast<ToolStripItem>().ToList())
         {
             item.Dispose();
         }
 
         menu.Items.Clear();
+        MenuTheme.Apply(menu);
         if (model is null)
         {
             return;

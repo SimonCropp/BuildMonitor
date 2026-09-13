@@ -27,7 +27,8 @@
     TrayIcon@136,
     TrayTooltip@140,
     TrayItems@152,
-    TrayItemCount@160
+    TrayItemCount@160,
+    Theme@164
   ],
   InputOffsets: [
     Key@0,
@@ -70,5 +71,5 @@
     Hide=15,
     Quit=16
   ],
-  Version: 1
+  Version: 2
 }

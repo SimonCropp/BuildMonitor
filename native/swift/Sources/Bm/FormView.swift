@@ -25,6 +25,12 @@ final class FormView: NSView {
         true
     }
 
+    /// Labels and links hold their colours, so the next apply rebuilds every control.
+    func retheme() {
+        layer?.backgroundColor = Palette.background.cgColor
+        shape = []
+    }
+
     func apply(_ fields: [Frame.Field]) {
         let newShape = fields.map { "\($0.kind):\($0.id)" }
         if newShape != shape {

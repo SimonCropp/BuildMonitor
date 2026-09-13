@@ -168,6 +168,8 @@ public func bmCapture(
     context.setShouldSubpixelQuantizeFonts(false)
 
     // Top-left origin like the view, so the capture and the window agree.
+    _ = Palette.use(screen.pointee.theme)
+
     context.translateBy(x: 0, y: CGFloat(height))
     context.scaleBy(x: 1, y: -1)
     renderer.draw(Frame.decode(screen), in: context, size: CGSize(width: CGFloat(width), height: CGFloat(height)), staticForm: true)

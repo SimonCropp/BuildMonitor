@@ -21,4 +21,6 @@ record Screen(
     // The open context menu, or null. Anchored to a visible row.
     MenuOverlay? Menu = null,
     // What the tray should pop this frame, or null.
-    Notification? Notification = null);
+    Notification? Notification = null,
+    // The saved theme, not the draft on the options page, so the palette changes on save.
+    Theme Theme = Theme.System);

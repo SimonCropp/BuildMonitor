@@ -81,8 +81,15 @@ sealed class RowsCanvas : Control
         Invalidate();
     }
 
+    public void Retheme()
+    {
+        BackColor = Palette.Background;
+        ForeColor = Palette.Text;
+    }
+
     void ShowMenu(MenuOverlay overlay)
     {
+        MenuTheme.Apply(contextMenu);
         contextMenu.Items.Clear();
         for (var index = 0; index < overlay.Labels.Count; index++)
         {

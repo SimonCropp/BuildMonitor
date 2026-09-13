@@ -45,7 +45,8 @@ sealed unsafe class ScreenPayload
             SelectedRow = -1,
             MenuRow = -1,
             TrayIcon = (int) source.Tray.Icon,
-            TrayTooltip = Add(source.Tray.Tooltip)
+            TrayTooltip = Add(source.Tray.Tooltip),
+            Theme = (int) source.Theme
         };
 
         if (source.Builds is { } builds)

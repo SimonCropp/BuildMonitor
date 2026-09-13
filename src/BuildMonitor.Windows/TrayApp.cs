@@ -13,7 +13,24 @@ static class TrayApp
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
-        Application.SetColorMode(SystemColorMode.Dark);
+        // Decided once, here: SetColorMode after windows exist hangs, so a theme change on save
+        // repaints the palette immediately but native parts (check boxes, scroll bars) follow on
+        // the next start.
+        Palette.Use(StartupTheme());
+        Application.SetColorMode(Palette.Light ? SystemColorMode.Classic : SystemColorMode.Dark);
+    }
+
+    static Theme StartupTheme()
+    {
+        try
+        {
+            return SettingsHelper.Read().Theme;
+        }
+        catch (Exception exception)
+        {
+            Log.Warning(exception, "Could not read the theme from settings");
+            return Theme.System;
+        }
     }
 
     /// <summary>

@@ -46,31 +46,63 @@ struct State {
 
 State g;
 
-// Colours, transcribed from the WinForms head's Palette so every head agrees.
-const ImVec4 background = ImVec4(24 / 255.0f, 24 / 255.0f, 24 / 255.0f, 1.0f);
-const ImVec4 surface = ImVec4(32 / 255.0f, 32 / 255.0f, 32 / 255.0f, 1.0f);
-const ImVec4 headerRow = ImVec4(38 / 255.0f, 38 / 255.0f, 38 / 255.0f, 1.0f);
-const ImVec4 selectedRow = ImVec4(44 / 255.0f, 50 / 255.0f, 66 / 255.0f, 1.0f);
-const ImVec4 hoverRow = ImVec4(36 / 255.0f, 36 / 255.0f, 40 / 255.0f, 1.0f);
-const ImVec4 text = ImVec4(212 / 255.0f, 212 / 255.0f, 212 / 255.0f, 1.0f);
-const ImVec4 dim = ImVec4(140 / 255.0f, 140 / 255.0f, 140 / 255.0f, 1.0f);
-const ImVec4 border = ImVec4(56 / 255.0f, 56 / 255.0f, 56 / 255.0f, 1.0f);
-const ImVec4 barTrack = ImVec4(58 / 255.0f, 58 / 255.0f, 58 / 255.0f, 1.0f);
-const ImVec4 chip = ImVec4(52 / 255.0f, 52 / 255.0f, 56 / 255.0f, 1.0f);
-const ImVec4 chipText = ImVec4(180 / 255.0f, 200 / 255.0f, 255 / 255.0f, 1.0f);
-const ImVec4 retryChip = ImVec4(48 / 255.0f, 82 / 255.0f, 52 / 255.0f, 1.0f);
-const ImVec4 cancelChip = ImVec4(96 / 255.0f, 52 / 255.0f, 52 / 255.0f, 1.0f);
-const ImVec4 errorText = ImVec4(233 / 255.0f, 129 / 255.0f, 129 / 255.0f, 1.0f);
+ImVec4 Rgb(int red, int green, int blue) {
+    return ImVec4(red / 255.0f, green / 255.0f, blue / 255.0f, 1.0f);
+}
+
+// Colours, transcribed from the WinForms head's Palette so every head agrees. Set by UsePalette.
+bool lightPalette = false;
+bool paletteSet = false;
+ImVec4 background;
+ImVec4 surface;
+ImVec4 headerRow;
+ImVec4 selectedRow;
+ImVec4 hoverRow;
+ImVec4 text;
+ImVec4 dim;
+ImVec4 border;
+ImVec4 barTrack;
+ImVec4 chip;
+ImVec4 chipText;
+ImVec4 retryChip;
+ImVec4 cancelChip;
+ImVec4 errorText;
+
+void UsePalette(bool light) {
+    lightPalette = light;
+    background = light ? Rgb(250, 250, 250) : Rgb(24, 24, 24);
+    surface = light ? Rgb(240, 240, 240) : Rgb(32, 32, 32);
+    headerRow = light ? Rgb(232, 232, 232) : Rgb(38, 38, 38);
+    selectedRow = light ? Rgb(204, 222, 245) : Rgb(44, 50, 66);
+    hoverRow = light ? Rgb(236, 238, 244) : Rgb(36, 36, 40);
+    text = light ? Rgb(32, 32, 32) : Rgb(212, 212, 212);
+    dim = light ? Rgb(110, 110, 110) : Rgb(140, 140, 140);
+    border = light ? Rgb(204, 204, 204) : Rgb(56, 56, 56);
+    barTrack = light ? Rgb(220, 220, 220) : Rgb(58, 58, 58);
+    chip = light ? Rgb(226, 226, 232) : Rgb(52, 52, 56);
+    chipText = light ? Rgb(0, 90, 180) : Rgb(180, 200, 255);
+    retryChip = light ? Rgb(200, 230, 204) : Rgb(48, 82, 52);
+    cancelChip = light ? Rgb(244, 208, 208) : Rgb(96, 52, 52);
+    errorText = light ? Rgb(196, 43, 28) : Rgb(233, 129, 129);
+}
 
 ImVec4 StatusColour(int32_t status) {
     switch (status) {
-        case BM_STATUS_QUEUED: return ImVec4(150 / 255.0f, 150 / 255.0f, 150 / 255.0f, 1.0f);
-        case BM_STATUS_RUNNING: return ImVec4(86 / 255.0f, 156 / 255.0f, 214 / 255.0f, 1.0f);
-        case BM_STATUS_SUCCEEDED: return ImVec4(126 / 255.0f, 214 / 255.0f, 139 / 255.0f, 1.0f);
-        case BM_STATUS_FAILED: return ImVec4(233 / 255.0f, 129 / 255.0f, 129 / 255.0f, 1.0f);
-        case BM_STATUS_CANCELLED: return ImVec4(160 / 255.0f, 160 / 255.0f, 160 / 255.0f, 1.0f);
-        default: return ImVec4(120 / 255.0f, 120 / 255.0f, 120 / 255.0f, 1.0f);
+        case BM_STATUS_QUEUED: return lightPalette ? Rgb(120, 120, 120) : Rgb(150, 150, 150);
+        case BM_STATUS_RUNNING: return lightPalette ? Rgb(0, 120, 212) : Rgb(86, 156, 214);
+        case BM_STATUS_SUCCEEDED: return lightPalette ? Rgb(16, 124, 16) : Rgb(126, 214, 139);
+        case BM_STATUS_FAILED: return lightPalette ? Rgb(196, 43, 28) : Rgb(233, 129, 129);
+        case BM_STATUS_CANCELLED: return lightPalette ? Rgb(120, 120, 120) : Rgb(160, 160, 160);
+        default: return lightPalette ? Rgb(140, 140, 140) : Rgb(120, 120, 120);
     }
+}
+
+Color ClearColour() {
+    return Color{
+        static_cast<unsigned char>(background.x * 255.0f),
+        static_cast<unsigned char>(background.y * 255.0f),
+        static_cast<unsigned char>(background.z * 255.0f),
+        255};
 }
 
 const char* Begin(const BmScreen& screen, const BmString& value) {
@@ -616,7 +648,12 @@ void Frame(const BmScreen& screen, int width, int height, bool feed) {
 }
 
 void ApplyStyle() {
-    ImGui::StyleColorsDark();
+    if (lightPalette) {
+        ImGui::StyleColorsLight();
+    } else {
+        ImGui::StyleColorsDark();
+    }
+
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowPadding = ImVec2(10.0f, 8.0f);
     style.FramePadding = ImVec2(8.0f, 4.0f);
@@ -644,6 +681,19 @@ void ApplyStyle() {
     style.Colors[ImGuiCol_SliderGrab] = border;
     style.Colors[ImGuiCol_TableRowBg] = background;
     style.Colors[ImGuiCol_TableRowBgAlt] = background;
+}
+
+// There is no dependable way to ask a Linux desktop for its colour scheme from here, so System
+// stays dark, which is what this head always drew.
+void UseTheme(int32_t theme) {
+    bool light = theme == BM_THEME_LIGHT;
+    if (paletteSet && light == lightPalette) {
+        return;
+    }
+
+    paletteSet = true;
+    UsePalette(light);
+    ApplyStyle();
 }
 
 bool LoadFont() {
@@ -711,7 +761,7 @@ BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const u
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
-    ApplyStyle();
+    UseTheme(BM_THEME_DARK);
     if (!LoadFont()) {
         return 0;
     }
@@ -726,8 +776,9 @@ BM_API int32_t bm_present(const BmScreen* screen) {
         return 0;
     }
 
+    UseTheme(screen->theme);
     BeginDrawing();
-    ClearBackground(Color{24, 24, 24, 255});
+    ClearBackground(ClearColour());
     Frame(*screen, GetScreenWidth(), GetScreenHeight(), true);
     RenderDrawData(ImGui::GetDrawData());
     EndDrawing();
@@ -768,8 +819,9 @@ BM_API int32_t bm_capture(const BmScreen* screen, int32_t width, int32_t height,
         return 0;
     }
 
+    UseTheme(screen->theme);
     BeginTextureMode(target);
-    ClearBackground(Color{24, 24, 24, 255});
+    ClearBackground(ClearColour());
     Frame(*screen, width, height, false);
     RenderDrawData(ImGui::GetDrawData());
     EndTextureMode();

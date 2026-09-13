@@ -65,6 +65,7 @@ struct Frame {
     let trayIcon: Int32
     let trayTooltip: String
     let trayItems: [TrayItem]
+    let theme: Int32
 
     var isForm: Bool { page == Int32(BM_PAGE_FORM.rawValue) }
 
@@ -143,6 +144,7 @@ struct Frame {
             menuRow: screen.menuRow,
             trayIcon: screen.trayIcon,
             trayTooltip: text(screen.trayTooltip),
-            trayItems: trayItems)
+            trayItems: trayItems,
+            theme: screen.theme)
     }
 }

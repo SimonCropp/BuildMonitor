@@ -84,7 +84,7 @@ sealed class SelectControl : Control
         if (Enabled &&
             e.Button == MouseButtons.Left)
         {
-            menu.Show(this, new Point(0, Height));
+            ShowMenu();
         }
 
         base.OnMouseDown(e);
@@ -95,11 +95,17 @@ sealed class SelectControl : Control
         if (Enabled &&
             e.KeyCode is Keys.Space or Keys.Enter or Keys.Down)
         {
-            menu.Show(this, new Point(0, Height));
+            ShowMenu();
             e.Handled = true;
         }
 
         base.OnKeyDown(e);
+    }
+
+    void ShowMenu()
+    {
+        MenuTheme.Apply(menu);
+        menu.Show(this, new Point(0, Height));
     }
 
     protected override void Dispose(bool disposing)

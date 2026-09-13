@@ -142,6 +142,13 @@ typedef struct BmTrayItem {
     int32_t depth;
 } BmTrayItem;
 
+/* Keep in sync with Theme.cs. System is resolved by the implementation, which can ask the platform. */
+enum BmTheme {
+    BM_THEME_SYSTEM = 0,
+    BM_THEME_DARK = 1,
+    BM_THEME_LIGHT = 2
+};
+
 typedef struct BmScreen {
     const uint8_t* strings;
     int32_t stringsLength;
@@ -179,6 +186,9 @@ typedef struct BmScreen {
     BmString trayTooltip;
     const BmTrayItem* trayItems;
     int32_t trayItemCount;
+
+    /* A BmTheme. */
+    int32_t theme;
 } BmScreen;
 
 /* Keep in sync with NativeMonitorWindow.Key */
@@ -259,7 +269,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 1
+#define BM_VERSION 2
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

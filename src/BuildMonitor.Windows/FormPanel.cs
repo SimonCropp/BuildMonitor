@@ -56,10 +56,21 @@ sealed class FormPanel : Panel
         }
     }
 
+    /// <summary>
+    /// Every field control holds its colours, so the next <see cref="Apply"/> rebuilds them all.
+    /// </summary>
+    public void Retheme()
+    {
+        BackColor = Palette.Background;
+        table.BackColor = Palette.Background;
+        signature = "";
+    }
+
     void Rebuild(FormPage form)
     {
         table.SuspendLayout();
-        foreach (Control control in table.Controls)
+        // A snapshot: disposing a control removes it from table.Controls.
+        foreach (var control in table.Controls.Cast<Control>().ToList())
         {
             control.Dispose();
         }

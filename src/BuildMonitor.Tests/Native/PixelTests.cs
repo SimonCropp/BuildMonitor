@@ -60,7 +60,8 @@ public class PixelTests
 
     static async Task Capture(SessionState state)
     {
-        var screen = ScreenBuilder.Build(state, Fixtures.Now);
+        // Pinned rather than System, so a capture does not depend on the theme of whoever ran it.
+        var screen = ScreenBuilder.Build(state with { Settings = state.Settings with { Theme = Theme.Dark } }, Fixtures.Now);
         var path = Path.Combine(Path.GetTempPath(), $"bm-{Guid.NewGuid():N}.png");
         try
         {

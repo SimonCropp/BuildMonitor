@@ -184,6 +184,7 @@ static class MonitorSession
         values[FormFields.ShowWindowAtStart] = Flag(settings.ShowWindowAtStart);
         values[FormFields.ShowOtherBranches] = Flag(settings.ShowOtherBranches);
         values[FormFields.NotifyOnFailure] = Flag(settings.NotifyOnFailure);
+        values[FormFields.Theme] = settings.Theme.ToString();
         values[FormFields.PollInterval] = settings.PollIntervalSeconds.ToString();
         values[FormFields.RunningPollInterval] = settings.RunningPollIntervalSeconds.ToString();
         values[FormFields.Port] = settings.Port.ToString();

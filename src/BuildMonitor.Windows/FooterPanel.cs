@@ -75,6 +75,19 @@ sealed class FooterPanel : Panel
         }
     }
 
+    public void Retheme()
+    {
+        BackColor = Palette.Surface;
+        buttons.BackColor = Palette.Surface;
+        status.ForeColor = Palette.Dim;
+        foreach (var button in pool)
+        {
+            button.ForeColor = Palette.Text;
+            button.BackColor = Palette.Chip;
+            button.FlatAppearance.BorderColor = Palette.Border;
+        }
+    }
+
     public int DrainClickedButton()
     {
         var value = clicked;
