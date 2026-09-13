@@ -20,5 +20,5 @@ record Connection
     public int? CallbackPort { get; init; }
 
     public string ScopeValue(string id) =>
-        Scope.TryGetValue(id, out var value) ? value : "";
+        CollectionExtensions.GetValueOrDefault(Scope, id, "");
 }

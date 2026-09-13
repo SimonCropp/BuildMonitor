@@ -7,7 +7,6 @@ sealed class SelectControl : Control
 {
     readonly ContextMenuStrip menu = new();
     string value = "";
-    IReadOnlyList<string> options = [];
 
     public event EventHandler? ValueChanged;
 
@@ -52,17 +51,20 @@ sealed class SelectControl : Control
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public IReadOnlyList<string> Options
     {
-        get => options;
+        get;
         set
         {
-            options = value;
+            field = value;
             menu.Items.Clear();
-            foreach (var option in options)
+            foreach (var option in field)
             {
-                menu.Items.Add(new ToolStripMenuItem(option) { ForeColor = Palette.Text });
+                menu.Items.Add(new ToolStripMenuItem(option)
+                {
+                    ForeColor = Palette.Text
+                });
             }
         }
-    }
+    } = [];
 
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -105,7 +107,7 @@ sealed class SelectControl : Control
     void ShowMenu()
     {
         MenuTheme.Apply(menu);
-        menu.Show(this, new Point(0, Height));
+        menu.Show(this, new(0, Height));
     }
 
     protected override void Dispose(bool disposing)

@@ -19,7 +19,7 @@ record FormState(
     bool SignedIn)
 {
     public string Value(string id) =>
-        Values.TryGetValue(id, out var value) ? value : "";
+        CollectionExtensions.GetValueOrDefault(Values, id, "");
 
     public bool Flag(string id) =>
         Value(id) == "true";

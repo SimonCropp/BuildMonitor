@@ -66,7 +66,7 @@ public class JenkinsProviderTests
         handler.Requests.Clear();
         var provider = ProviderTestHelpers.Provider("jenkins");
         await provider.Cancel(context, builds.Single(_ => _.RunNumber == "501"), Cancel.None);
-        await provider.Cancel(context, builds.Single(_ => _.RunNumber == "" && _.PipelineName == "Team / App / PR-12"), Cancel.None);
+        await provider.Cancel(context, builds.Single(_ => _ is {RunNumber: "", PipelineName: "Team / App / PR-12"}), Cancel.None);
         await Verify(handler.Requests);
     }
 

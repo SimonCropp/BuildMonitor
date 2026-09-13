@@ -149,7 +149,7 @@ sealed class TeamCityProvider : ProviderBase
     public override Task Cancel(ProviderContext context, Build build, Cancel cancel)
     {
         var parts = Split(build);
-        var body = HttpJson.Json(new TeamCityCancel("Cancelled from BuildMonitor", false), TeamCityContext.Default.TeamCityCancel);
+        var body = HttpJson.Json(new("Cancelled from BuildMonitor", false), TeamCityContext.Default.TeamCityCancel);
         var path = parts[0] == "queued" ? $"buildQueue/id:{parts[1]}" : $"builds/id:{parts[1]}";
         return context.Http.Send(HttpMethod.Post, path, body, cancel);
     }

@@ -7,7 +7,7 @@ public class NotificationTests
         var builds = Fixtures.GitHubBuilds();
         var failed = builds.Select(_ => _.RunNumber == "1234" ? _ with { Status = BuildStatus.Failed, Finished = Fixtures.Now } : _).ToImmutableArray();
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, state.Connection(Fixtures.GitHub.Id)!.Pipelines, failed, Fixtures.Now);
-        await Assert.That(next.Notification).IsEqualTo(new Notification("test.yml failed", "VerifyTests/DiffEngine main #1234"));
+        await Assert.That(next.Notification).IsEqualTo(new("test.yml failed", "VerifyTests/DiffEngine main #1234"));
         await Verify(Fixtures.Render(next));
     }
 

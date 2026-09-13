@@ -7,8 +7,7 @@ static class InputApplier
 {
     public static SessionState Apply(SessionState state, MonitorInput input, MonitorActions actions, IMonitorWindow window)
     {
-        if (input.Columns > 0 &&
-            input.Rows > 0 &&
+        if (input is {Columns: > 0, Rows: > 0} &&
             (input.Columns != state.Columns || input.Rows != state.Rows))
         {
             state = MonitorSession.Resize(state, input.Columns, input.Rows);
@@ -312,7 +311,7 @@ static class InputApplier
                 return MonitorSession.OpenConnectionEditor(state, null, Guid.NewGuid().ToString("N"));
             case CommandKind.EditConnection:
             {
-                var id = target ?? (MonitorSession.SelectedRow(state)?.Connection.Connection.Id);
+                var id = target ?? MonitorSession.SelectedRow(state)?.Connection.Connection.Id;
                 return id is null ? state : MonitorSession.OpenConnectionEditor(state, id, Guid.NewGuid().ToString("N"));
             }
             case CommandKind.RemoveConnection:

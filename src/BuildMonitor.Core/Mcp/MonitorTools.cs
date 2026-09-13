@@ -29,8 +29,8 @@ sealed class MonitorTools(IProtocolClient client)
         return builds.Where(_ => _.Status == nameof(BuildStatus.Failed)).ToList();
     }
 
-    public async Task<BuildDto> GetBuild(string key, Cancel cancel) =>
-        await Read(new(Verb.Get, key), DtoContext.Default.BuildDto, cancel);
+    public Task<BuildDto> GetBuild(string key, Cancel cancel) =>
+        Read(new(Verb.Get, key), DtoContext.Default.BuildDto, cancel);
 
     public Task<SummaryDto> Summary(Cancel cancel) =>
         Read(new(Verb.Summary), DtoContext.Default.SummaryDto, cancel);

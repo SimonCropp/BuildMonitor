@@ -85,7 +85,7 @@ static class MonitorProgram
         }
 
         using var cancel = new CancelSource();
-        var poller = new Poller(host, secrets, history, handler, new TokenRefresher(secrets, handler));
+        var poller = new Poller(host, secrets, history, handler, new(secrets, handler));
         var actions = RealActions.Create(host, poller, secrets, signIn, runAtLogin, () => host.Mutate(MonitorSession.Quit));
         poller.Start();
         var listening = server.Listen(new MessageHandler(host, poller, LinkLauncher.OpenUrl, windowCommands.Enqueue).Handle, cancel.Token);

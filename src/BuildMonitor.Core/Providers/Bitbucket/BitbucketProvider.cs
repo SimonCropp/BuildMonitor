@@ -95,7 +95,7 @@ sealed class BitbucketProvider : ProviderBase
         var target = parts[1] == "branch"
             ? new BitbucketTarget("pipeline_ref_target", "branch", parts[2], new("commit", parts[3]))
             : new BitbucketTarget("pipeline_commit_target", null, null, new("commit", parts[3]));
-        var body = HttpJson.Json(new BitbucketTrigger(target), BitbucketContext.Default.BitbucketTrigger);
+        var body = HttpJson.Json(new(target), BitbucketContext.Default.BitbucketTrigger);
         return context.Http.Send(HttpMethod.Post, $"repositories/{Encode(context.Scope("workspace"))}/{build.PipelineId}/pipelines", body, cancel);
     }
 

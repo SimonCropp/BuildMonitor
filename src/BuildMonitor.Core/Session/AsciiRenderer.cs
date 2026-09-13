@@ -212,7 +212,7 @@ static class AsciiRenderer
             case FieldKind.Number:
             {
                 var width = field.Kind == FieldKind.Number ? 6 : Math.Min(40, Math.Max(10, inner - label.Length - 4));
-                var value = field.Kind == FieldKind.Password ? new string('*', field.Value.Length) : field.Value;
+                var value = field.Kind == FieldKind.Password ? new('*', field.Value.Length) : field.Value;
                 var box = $"[{Fit(value, width)}]";
                 var hint = field.Value.Length == 0 && field.Hint is not null ? $" ({field.Hint})" : "";
                 return $"{label}{box}{hint}{(field.Enabled ? "" : " (disabled)")}";

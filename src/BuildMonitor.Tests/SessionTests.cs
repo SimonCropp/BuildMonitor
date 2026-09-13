@@ -151,7 +151,7 @@ public class SessionTests
         var state = Fixtures.WithBuilds();
         var build = state.Builds.First(_ => _.PipelineName == "Nightly");
         var next = MonitorSession.ExcludePipeline(state, build);
-        await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new Filter(FilterKind.Exact, FilterTarget.Pipeline, "Nightly"));
+        await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Pipeline, "Nightly"));
         await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.PipelineName == "Nightly")).IsFalse();
     }
 }

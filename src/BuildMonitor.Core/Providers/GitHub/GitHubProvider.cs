@@ -42,7 +42,7 @@ sealed class GitHubProvider : ProviderBase
         var started = Stopwatch.GetTimestamp();
         var repositories = await Repositories(context, cancel);
         var cutoff = DateTimeOffset.UtcNow - activeWindow;
-        var active = repositories.Where(_ => !_.Archived && !_.Disabled && _.PushedAt > cutoff).ToList();
+        var active = repositories.Where(_ => _ is {Archived: false, Disabled: false} && _.PushedAt > cutoff).ToList();
         var perRepository = await Concurrently.Map(
             active,
             async (repository, token) =>

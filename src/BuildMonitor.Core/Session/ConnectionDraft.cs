@@ -58,8 +58,7 @@ static class ConnectionDraft
     public static string? Validate(FormState form)
     {
         var descriptor = Descriptor(form);
-        if (descriptor.SelfHosted &&
-            descriptor.DefaultServer is null &&
+        if (descriptor is {SelfHosted: true, DefaultServer: null} &&
             form.Value(FormFields.Server).Trim().Length == 0)
         {
             return "Enter the server URL.";

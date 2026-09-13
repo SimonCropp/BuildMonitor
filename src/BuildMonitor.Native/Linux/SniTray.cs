@@ -76,7 +76,7 @@ sealed class SniTray : ITray
         await Register();
         // A watcher that restarts, as the panel does when it crashes or is reconfigured, needs
         // the item registered again.
-        await connection.WatchSignalAsync<(string Name, string NewOwner)>(
+        await connection.WatchSignalAsync(
             "org.freedesktop.DBus",
             "/org/freedesktop/DBus",
             "org.freedesktop.DBus",
@@ -106,8 +106,7 @@ sealed class SniTray : ITray
             return;
         }
 
-        if (notification.HasValue &&
-            notification.Value.Name == WatcherName &&
+        if (notification is {HasValue: true, Value.Name: WatcherName} &&
             notification.Value.NewOwner.Length > 0)
         {
             _ = Register();
@@ -121,7 +120,7 @@ sealed class SniTray : ITray
         writer.WriteString(name);
         var message = writer.CreateMessage();
         writer.Dispose();
-        return connection.CallMethodAsync<bool>(message, ReadBool, null);
+        return connection.CallMethodAsync(message, ReadBool, null);
     }
 
     static bool ReadBool(Tmds.DBus.Protocol.Message message, object? state) =>

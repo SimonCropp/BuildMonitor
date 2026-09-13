@@ -124,7 +124,7 @@ static class OAuthFlows
             await delay(interval, cancel);
             var token = await Token(
                 client,
-                new Dictionary<string, string>
+                new()
                 {
                     ["client_id"] = client.ClientId,
                     ["device_code"] = device.DeviceCode,

@@ -38,8 +38,7 @@ sealed class SignInCoordinator(SessionHost host, ISecretStore secrets, HttpMessa
         }
 
         if (method == AuthMethod.Browser &&
-            client.ProviderId == "github" &&
-            client.ClientSecret is null &&
+            client is {ProviderId: "github", ClientSecret: null} &&
             connection.ClientId is null)
         {
             Fail(flowId, "GitHub's browser sign in needs a client secret. Use the device flow instead.");

@@ -97,7 +97,7 @@ sealed class RowsCanvas : Control
         }
 
         var y = Math.Min(Height, (overlay.Row + 1) * RowHeight);
-        contextMenu.Show(this, new Point(padding + 20, y));
+        contextMenu.Show(this, new(padding + 20, y));
     }
 
     public MonitorInput Drain()
@@ -224,7 +224,7 @@ sealed class RowsCanvas : Control
             using var trackBrush = new SolidBrush(Palette.BarTrack);
             graphics.FillRectangle(trackBrush, track);
             using var fillBrush = new SolidBrush(Palette.Status(BuildStatus.Running));
-            graphics.FillRectangle(fillBrush, new Rectangle(track.Left, track.Top, (int) (track.Width * row.Progress), track.Height));
+            graphics.FillRectangle(fillBrush, new(track.Left, track.Top, (int) (track.Width * row.Progress), track.Height));
         }
 
         x += barWidth + padding;

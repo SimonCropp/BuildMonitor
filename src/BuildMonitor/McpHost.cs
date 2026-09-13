@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ModelContextProtocol.Server;
 
 /// <summary>
 /// The stdio MCP server. Stdout is the protocol channel, so every log line goes to stderr. The
