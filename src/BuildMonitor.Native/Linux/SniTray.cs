@@ -84,8 +84,7 @@ sealed class SniTray : ITray
             ReadNameOwnerChanged,
             OnNameOwnerChanged,
             ObserverFlags.None,
-            false,
-            null);
+            false);
         return true;
     }
 
@@ -120,7 +119,7 @@ sealed class SniTray : ITray
         writer.WriteString(name);
         var message = writer.CreateMessage();
         writer.Dispose();
-        return connection.CallMethodAsync(message, ReadBool, null);
+        return connection.CallMethodAsync(message, ReadBool);
     }
 
     static bool ReadBool(Tmds.DBus.Protocol.Message message, object? state) =>

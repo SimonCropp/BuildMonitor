@@ -36,7 +36,7 @@ public class PackageTests
     [PackageTest]
     public async Task Contents()
     {
-        using var archive = ZipFile.OpenRead(Package()!);
+        await using var archive = await ZipFile.OpenReadAsync(Package()!);
         var entries = archive.Entries
             .Select(_ => _.FullName)
             .Where(_ => !_.StartsWith("_rels/", StringComparison.Ordinal) && !_.StartsWith("package/", StringComparison.Ordinal) && _ != "[Content_Types].xml")
@@ -50,7 +50,7 @@ public class PackageTests
     [PackageTest]
     public async Task EveryRidHasAHead()
     {
-        using var archive = ZipFile.OpenRead(Package()!);
+        await using var archive = await ZipFile.OpenReadAsync(Package()!);
         var heads = archive.Entries
             .Select(_ => _.FullName)
             .Where(_ => _.StartsWith("tools/net10.0/any/heads/", StringComparison.Ordinal) && _.Contains("/BuildMonitor.Tray", StringComparison.Ordinal) && !_.EndsWith(".dll", StringComparison.Ordinal) && !_.EndsWith(".json", StringComparison.Ordinal))
@@ -63,17 +63,7 @@ public class PackageTests
     [PackageTest]
     public async Task NoPdbsShip()
     {
-        using var archive = ZipFile.OpenRead(Package()!);
+        await using var archive = await ZipFile.OpenReadAsync(Package()!);
         await Assert.That(archive.Entries.Any(_ => _.FullName.EndsWith(".pdb", StringComparison.Ordinal))).IsFalse();
     }
-
-}
-
-/// <summary>
-/// A Debug build produces no package, and there is nothing to assert about that.
-/// </summary>
-public sealed class PackageTestAttribute() : SkipAttribute("No package in nugets; run a Release build first.")
-{
-    public override Task<bool> ShouldSkip(TestRegisteredContext context) =>
-        Task.FromResult(PackageTests.Package() is null);
 }

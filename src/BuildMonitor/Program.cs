@@ -27,8 +27,8 @@ static class Program
                 return 0;
             case CommandKindLauncher.Unknown:
                 ConsoleAttach.TryAttachParent();
-                Console.Error.WriteLine($"Unknown command: {command.Argument}");
-                Console.Error.WriteLine(CommandLine.Usage);
+                await Console.Error.WriteLineAsync($"Unknown command: {command.Argument}");
+                await Console.Error.WriteLineAsync(CommandLine.Usage);
                 return 1;
             default:
                 ConsoleAttach.TryAttachParent();
@@ -65,7 +65,7 @@ static class Program
         }
         catch (TrayUnreachableException)
         {
-            Console.Error.WriteLine($"BuildMonitor is not running (nothing answered on port {port}). Run `buildmonitor` to start it.");
+            await Console.Error.WriteLineAsync($"BuildMonitor is not running (nothing answered on port {port}). Run `buildmonitor` to start it.");
             return 3;
         }
     }

@@ -45,7 +45,7 @@ public class LoopbackListenerTests
         using var listener = new LoopbackListener();
         using var cancel = new CancelSource();
         var waiting = listener.WaitForCallback(cancel.Token);
-        cancel.Cancel();
+        await cancel.CancelAsync();
         await Assert.That(async () => await waiting).Throws<OperationCanceledException>();
     }
 }

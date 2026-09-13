@@ -4,7 +4,7 @@
 /// </summary>
 class FakeHttpHandler : HttpMessageHandler
 {
-    readonly Dictionary<string, FakeResponse> responses = new(StringComparer.OrdinalIgnoreCase);
+    Dictionary<string, FakeResponse> responses = new(StringComparer.OrdinalIgnoreCase);
 
     public List<string> Requests { get; } = [];
     public List<HttpRequestHeaders> RequestHeaders { get; } = [];
