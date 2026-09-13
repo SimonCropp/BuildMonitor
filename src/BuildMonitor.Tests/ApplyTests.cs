@@ -73,7 +73,7 @@ public class ApplyTests
     [Test]
     public async Task TrayExitQuits()
     {
-        var state = Apply(Fixtures.WithBuilds(), new(TrayItem: TrayMenu.Exit), new RecordingActions());
+        var state = Apply(Fixtures.WithBuilds(), new(TrayItem: TrayMenu.Exit), new());
         await Assert.That(state.Exit).IsTrue();
     }
 
@@ -177,7 +177,7 @@ public class ApplyTests
     [Test]
     public async Task ListRowClickEditsTheConnection()
     {
-        var state = Apply(Fixtures.Options(), new(ClickedField: FormFields.Connection(Fixtures.Octopus.Id)), new RecordingActions());
+        var state = Apply(Fixtures.Options(), new(ClickedField: FormFields.Connection(Fixtures.Octopus.Id)), new());
         await Assert.That(state.Page).IsEqualTo(Page.Connection);
         await Assert.That(state.Form!.EditingConnectionId).IsEqualTo(Fixtures.Octopus.Id);
     }
@@ -195,7 +195,7 @@ public class ApplyTests
     public async Task InputClearsTheStatus()
     {
         var state = MonitorSession.SetStatus(Fixtures.WithBuilds(), "Done");
-        state = Apply(state, new(Key: CommandKind.NextRow), new RecordingActions());
+        state = Apply(state, new(Key: CommandKind.NextRow), new());
         await Assert.That(state.Status).IsEqualTo("");
     }
 
