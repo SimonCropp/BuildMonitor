@@ -75,7 +75,12 @@ final class BuildsRenderer {
         if !frame.isForm {
             drawRows(frame)
         } else if staticForm {
+            // Clipped to the body, so fields past the bottom are cut off the way the window's
+            // scroll view cuts them off, rather than drawn over the footer.
+            context.saveGState()
+            context.clip(to: bodyRect)
             drawForm(frame)
+            context.restoreGState()
         }
 
         drawFooter(frame, size: size)

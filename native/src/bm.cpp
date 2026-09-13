@@ -824,6 +824,10 @@ BM_API int32_t bm_capture(const BmScreen* screen, int32_t width, int32_t height,
     }
 
     UseTheme(screen->theme);
+    // ImGui sizes a child's scrollbar from the content size of the previous frame, so a single
+    // frame would draw a scrollbar the last capture needed and omit one this capture needs. The
+    // first frame settles the layout and is discarded.
+    Frame(*screen, width, height, false);
     BeginTextureMode(target);
     ClearBackground(ClearColour());
     Frame(*screen, width, height, false);
