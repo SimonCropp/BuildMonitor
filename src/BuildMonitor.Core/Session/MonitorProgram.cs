@@ -12,7 +12,6 @@ static class MonitorProgram
     /// the only thing to keep up with is the tray, which does not need sixty a second.
     /// </summary>
     public static readonly TimeSpan HiddenFrame = TimeSpan.FromMilliseconds(100);
-
     public static int Run(string[] args, OpenWindow openWindow, OpenTray openTray)
     {
         Logging.Init();
@@ -125,6 +124,7 @@ static class MonitorProgram
             host.Mutate(MonitorSession.OpenOptions);
         }
 
+        var screens = new ScreenCache();
         while (true)
         {
             // Socket driven window changes are applied on this thread rather than the listener's,
@@ -154,8 +154,12 @@ static class MonitorProgram
                 return;
             }
 
-            var screen = ScreenBuilder.Build(state, DateTimeOffset.UtcNow);
-            tray?.Apply(screen.Tray);
+            var screen = screens.Get(state, DateTimeOffset.UtcNow, out var rebuilt);
+            if (rebuilt)
+            {
+                tray?.Apply(screen.Tray);
+            }
+
             if (screen.Notification is { } notification)
             {
                 // Cleared before the tray is asked, so a tray that throws does not pop it every frame.
