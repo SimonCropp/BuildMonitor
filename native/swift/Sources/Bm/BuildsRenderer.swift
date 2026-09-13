@@ -95,7 +95,8 @@ final class BuildsRenderer {
         let barWidth: CGFloat = 110
         let statusWidth: CGFloat = 90
         let runWidth: CGFloat = 60
-        let textWidth = max(120, width - padding * 2 - actionsWidth - linksWidth - timingWidth - barWidth - statusWidth - runWidth - 24)
+        let textX = rowHeight + padding
+        let textWidth = max(120, width - textX - padding - actionsWidth - linksWidth - timingWidth - barWidth - statusWidth - runWidth - 4)
         let pipelineWidth = textWidth * 0.45
         let repoWidth = textWidth - pipelineWidth
 
@@ -119,9 +120,11 @@ final class BuildsRenderer {
 
             let colour = Palette.status(row.status)
             colour.setFill()
-            NSBezierPath(ovalIn: CGRect(x: padding, y: rect.midY - 5, width: 10, height: 10)).fill()
+            // The full height of the row and flush with its neighbours, so a run of rows in one status
+            // reads as one block rather than a column of dots.
+            CGRect(x: rect.minX, y: rect.minY, width: rowHeight, height: rowHeight).fill()
 
-            var x = padding + 20
+            var x = textX
             drawText(row.pipeline, at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: pipelineWidth - 8)
             x += pipelineWidth
             drawText(row.repoBranch, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: repoWidth - 8)

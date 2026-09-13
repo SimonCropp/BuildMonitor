@@ -1,5 +1,5 @@
 /// <summary>
-/// The builds page, owner drawn: one row per <see cref="BuildRow"/> with a status dot, the
+/// The builds page, owner drawn: one row per <see cref="BuildRow"/> with a status square, the
 /// names, a progress bar and chips for the links and actions. Hit rectangles are recorded as
 /// the rows are drawn, so a click resolves against what was actually on screen.
 /// </summary>
@@ -186,14 +186,15 @@ sealed class RowsCanvas : Control
 
     void DrawBuild(Graphics graphics, BuildRow row, Rectangle bounds, int index)
     {
-        var x = padding + 12;
-        var centreY = bounds.Top + bounds.Height / 2;
+        // The full height of the row and flush with its neighbours, so a run of rows in one status
+        // reads as one block rather than a column of dots.
         using (var brush = new SolidBrush(Palette.Status(row.Status)))
         {
-            graphics.FillEllipse(brush, x, centreY - 5, 10, 10);
+            graphics.FillRectangle(brush, bounds.Left, bounds.Top, bounds.Height, bounds.Height);
         }
 
-        x += 22;
+        var x = bounds.Height + padding;
+        var centreY = bounds.Top + bounds.Height / 2;
         // Widths: the two names share what the fixed cells leave.
         const int runWidth = 60;
         const int statusWidth = 80;

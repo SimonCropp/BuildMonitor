@@ -28,7 +28,7 @@ Rows sort what is happening now to the top of each group: running, then queued, 
 
 Each row carries:
 
- * a status dot and text
+ * a status square and text; the squares of neighbouring rows touch, so a run of failures reads as one block
  * the pipeline, the repository and the branch
  * the run number
  * a progress bar and a countdown while the build runs, from the provider's own estimate where it gives one and otherwise from the median of the pipeline's last ten successful runs. A build that runs past its estimate shows how far over it is. Without any estimate the elapsed time is shown

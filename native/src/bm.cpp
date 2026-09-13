@@ -359,8 +359,12 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             ImVec4 colour = StatusColour(row.status);
             ImDrawList* draw = ImGui::GetWindowDrawList();
             ImVec2 cursor = ImGui::GetCursorScreenPos();
-            draw->AddCircleFilled(ImVec2(cursor.x + 8.0f, cursor.y + ImGui::GetFrameHeight() / 2.0f), 5.0f, ImGui::GetColorU32(colour));
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
+            // The full height of the row and flush with its neighbours, so a run of rows in one status
+            // reads as one block rather than a column of dots. A cell's cursor starts the cell padding
+            // below the top of its row, and every row is exactly rowHeight tall.
+            float top = cursor.y - ImGui::GetStyle().CellPadding.y;
+            draw->AddRectFilled(ImVec2(cursor.x, top), ImVec2(cursor.x + rowHeight, top + rowHeight), ImGui::GetColorU32(colour));
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + rowHeight + ImGui::GetStyle().ItemSpacing.x);
             std::string selectableLabel = pipeline + "##row";
             if (ImGui::Selectable(selectableLabel.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap)) {
                 g.input.clickedRow = i;
