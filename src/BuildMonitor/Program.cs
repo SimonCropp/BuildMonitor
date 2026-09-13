@@ -77,7 +77,12 @@ static class Program
             Console.WriteLine(response.Body);
         }
 
-        return response.Ok ? 0 : 1;
+        if (response.Ok)
+        {
+            return 0;
+        }
+
+        return 1;
     }
 
     static Settings? ReadSettings()

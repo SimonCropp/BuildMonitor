@@ -5,7 +5,7 @@
 static class Port
 {
     public const int Default = 3796;
-    public const string Variable = "BuildMonitor_Port";
+    const string variable = "BuildMonitor_Port";
 
     /// <summary>
     /// The environment wins over settings, so a test or a second profile can run beside a real
@@ -13,7 +13,7 @@ static class Port
     /// </summary>
     public static int Resolve(Settings? settings = null)
     {
-        var variable = Environment.GetEnvironmentVariable(Variable);
+        var variable = Environment.GetEnvironmentVariable(Port.variable);
         if (!string.IsNullOrWhiteSpace(variable) &&
             int.TryParse(variable, out var fromEnvironment) &&
             fromEnvironment > 0)

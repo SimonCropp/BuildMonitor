@@ -1,0 +1,1 @@
+﻿record TeamCityQueueRequest(TeamCityBuildTypeReference BuildType, string? BranchName);

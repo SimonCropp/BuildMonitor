@@ -13,10 +13,6 @@
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <ResolveAssemblyReferencesSilent>true</ResolveAssemblyReferencesSilent>
-    <!--
-    One NoWarn, because a second property of the same name replaces the first rather than adding to
-    it.
-    -->
     <NoWarn>CS1591;CS0649;NU1608;NU1109;CA1416</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>

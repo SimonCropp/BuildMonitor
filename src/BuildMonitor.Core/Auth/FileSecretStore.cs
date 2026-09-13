@@ -59,7 +59,8 @@ class FileSecretStore(string directory) : ISecretStore
         var safe = new StringBuilder(key.Length);
         foreach (var character in key)
         {
-            safe.Append(char.IsAsciiLetterOrDigit(character) || character is '-' or '_' ? character : '_');
+            safe.Append(char.IsAsciiLetterOrDigit(character) ||
+                        character is '-' or '_' ? character : '_');
         }
 
         return Path.Combine(Directory, $"{safe}{Extension}");

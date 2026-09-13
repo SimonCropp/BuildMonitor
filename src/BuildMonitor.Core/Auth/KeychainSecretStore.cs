@@ -11,7 +11,12 @@ sealed class KeychainSecretStore : ISecretStore
     public string? Read(string key)
     {
         var (code, output) = ProcessRunner.Run("/usr/bin/security", ["find-generic-password", "-s", service, "-a", key, "-w"]);
-        return code == 0 ? output.TrimEnd('\n', '\r') : null;
+        if (code == 0)
+        {
+            return output.TrimEnd('\n', '\r');
+        }
+
+        return null;
     }
 
     public void Write(string key, string value)

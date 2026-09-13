@@ -30,6 +30,13 @@ static class StatusPrinter
         return builder.ToString();
     }
 
-    static string Fit(string text, int width) =>
-        text.Length > width ? $"{text[..(width - 1)]}>" : text.PadRight(width);
+    static string Fit(string text, int width)
+    {
+        if (text.Length > width)
+        {
+            return $"{text[..(width - 1)]}>";
+        }
+
+        return text.PadRight(width);
+    }
 }

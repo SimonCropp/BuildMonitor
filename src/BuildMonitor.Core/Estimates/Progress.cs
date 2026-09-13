@@ -45,7 +45,8 @@ static class Progress
             return (Cap(onlyPercent / 100), Format(elapsed));
         }
 
-        if (estimate is null || estimate.Value <= TimeSpan.Zero)
+        if (estimate is null ||
+            estimate.Value <= TimeSpan.Zero)
         {
             return (-1, Format(elapsed));
         }
@@ -56,10 +57,15 @@ static class Progress
     static double Cap(double fraction) =>
         Math.Clamp(fraction, 0, runningCap);
 
-    static string Countdown(TimeSpan remaining) =>
-        remaining < TimeSpan.Zero
-            ? $"+{Format(-remaining)}"
-            : $"{Format(remaining)} left";
+    static string Countdown(TimeSpan remaining)
+    {
+        if (remaining < TimeSpan.Zero)
+        {
+            return $"+{Format(-remaining)}";
+        }
+
+        return $"{Format(remaining)} left";
+    }
 
     public static string Format(TimeSpan span)
     {

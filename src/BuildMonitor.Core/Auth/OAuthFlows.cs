@@ -4,7 +4,7 @@
 /// </summary>
 static class OAuthFlows
 {
-    public static readonly TimeSpan BrowserTimeout = TimeSpan.FromMinutes(5);
+    static readonly TimeSpan browserTimeout = TimeSpan.FromMinutes(5);
 
     public static async Task<AuthResult> Browser(
         OAuthClient client,
@@ -42,7 +42,7 @@ static class OAuthFlows
         openBrowser($"{client.AuthorizeUrl}?{Query(parameters)}");
 
         using var timeout = CancelSource.CreateLinkedTokenSource(cancel);
-        timeout.CancelAfter(BrowserTimeout);
+        timeout.CancelAfter(browserTimeout);
         IReadOnlyDictionary<string, string> callback;
         try
         {

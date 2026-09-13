@@ -1,0 +1,1 @@
+﻿record BitbucketTarget(string Type, string? RefType, string? RefName, BitbucketTargetCommit Commit);

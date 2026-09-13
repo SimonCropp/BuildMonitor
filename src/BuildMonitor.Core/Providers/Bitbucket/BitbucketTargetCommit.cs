@@ -1,0 +1,1 @@
+﻿record BitbucketTargetCommit(string Type, string Hash);

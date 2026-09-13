@@ -5,16 +5,16 @@
 /// </summary>
 sealed class ConnectionPoller
 {
-    readonly string connectionId;
-    readonly SessionHost host;
-    readonly ISecretStore secrets;
-    readonly DurationHistory history;
-    readonly HttpMessageHandler handler;
-    readonly TokenRefresher? refresher;
-    readonly Channel<bool> wake = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
-    readonly CancelSource stop = new();
-    readonly HashSet<string> recorded = [];
-    readonly ETagCache etags = new();
+    string connectionId;
+    SessionHost host;
+    ISecretStore secrets;
+    DurationHistory history;
+    HttpMessageHandler handler;
+    TokenRefresher? refresher;
+    Channel<bool> wake = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
+    CancelSource stop = new();
+    HashSet<string> recorded = [];
+    ETagCache etags = new();
     Task? loop;
     ImmutableArray<Pipeline> pipelines = [];
     DateTimeOffset discovered = DateTimeOffset.MinValue;

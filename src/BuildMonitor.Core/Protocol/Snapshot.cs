@@ -12,10 +12,15 @@ static class Snapshot
     public static BuildDto? Find(SessionState state, string key, DateTimeOffset now)
     {
         var row = RowProjection.Rows(state).FirstOrDefault(_ => _.Build?.Key == key);
-        return row is null ? null : Build(state, row.Connection.Connection, row.Build!, now);
+        if (row is null)
+        {
+            return null;
+        }
+
+        return Build(state, row.Connection.Connection, row.Build!, now);
     }
 
-    public static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now)
+    static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now)
     {
         var (fraction, timing) = Progress.Compute(build, Estimator.Estimate(build, state.Medians), now);
         return new(

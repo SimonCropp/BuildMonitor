@@ -1,0 +1,1 @@
+﻿record Command(CommandKindLauncher Kind, string? Argument = null);

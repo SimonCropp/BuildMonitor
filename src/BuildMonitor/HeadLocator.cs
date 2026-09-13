@@ -5,12 +5,9 @@
 /// </summary>
 static class HeadLocator
 {
-    public const string Variable = "BuildMonitor_Head";
-    public const string FileName = "BuildMonitor.Tray";
-
     public static string? Find(string? baseDirectory = null)
     {
-        var overridden = Environment.GetEnvironmentVariable(Variable);
+        var overridden = Environment.GetEnvironmentVariable("BuildMonitor_Head");
         if (!string.IsNullOrWhiteSpace(overridden))
         {
             return overridden;
@@ -21,7 +18,7 @@ static class HeadLocator
 
     public static string? Find(string baseDirectory, IEnumerable<string> rids, bool windows)
     {
-        var file = windows ? $"{FileName}.exe" : FileName;
+        var file = windows ? "BuildMonitor.Tray.exe" : "BuildMonitor.Tray";
         foreach (var rid in rids)
         {
             var candidate = Path.Combine(baseDirectory, "heads", rid, file);

@@ -61,8 +61,13 @@ sealed class MonitorTools(IProtocolClient client)
             throw new InvalidOperationException(response.Body);
         }
 
-        return JsonSerializer.Deserialize(response.Body, info) ??
-               throw new InvalidOperationException("Empty response");
+        var read = JsonSerializer.Deserialize(response.Body, info);
+        if (read == null)
+        {
+            throw new InvalidOperationException("Empty response");
+        }
+
+        return read;
     }
 
     async Task<string> Send(Message message, Cancel cancel)
@@ -73,6 +78,11 @@ sealed class MonitorTools(IProtocolClient client)
             throw new InvalidOperationException(response.Body);
         }
 
-        return response.Body.Length == 0 ? "Done" : response.Body;
+        if (response.Body.Length == 0)
+        {
+            return "Done";
+        }
+
+        return response.Body;
     }
 }

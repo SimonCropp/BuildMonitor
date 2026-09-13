@@ -11,8 +11,8 @@
 /// </summary>
 sealed class HttpJson : IDisposable
 {
-    readonly HttpClient client;
-    readonly ETagCache cache;
+    HttpClient client;
+    ETagCache cache;
 
     public HttpJson(
         HttpMessageHandler handler,

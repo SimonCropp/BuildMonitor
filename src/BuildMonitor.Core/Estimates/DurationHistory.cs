@@ -5,9 +5,9 @@
 /// </summary>
 sealed class DurationHistory
 {
-    public const int Keep = 10;
-    readonly Lock gate = new();
-    readonly Dictionary<string, List<double>> seconds;
+    const int keep = 10;
+    Lock gate = new();
+    Dictionary<string, List<double>> seconds;
 
     public DurationHistory() :
         this(new())
@@ -33,9 +33,9 @@ sealed class DurationHistory
             }
 
             list.Add(duration.TotalSeconds);
-            if (list.Count > Keep)
+            if (list.Count > keep)
             {
-                list.RemoveRange(0, list.Count - Keep);
+                list.RemoveRange(0, list.Count - keep);
             }
         }
     }

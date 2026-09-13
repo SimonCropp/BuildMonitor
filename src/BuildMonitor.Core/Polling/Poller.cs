@@ -3,24 +3,16 @@
 /// result lands in the <see cref="SessionHost"/>; nothing here holds state of its own beyond
 /// which loops are running.
 /// </summary>
-sealed class Poller : IAsyncDisposable
+sealed class Poller(
+    SessionHost host,
+    ISecretStore secrets,
+    DurationHistory history,
+    HttpMessageHandler handler,
+    TokenRefresher? refresher = null)
+    : IAsyncDisposable
 {
-    readonly SessionHost host;
-    readonly ISecretStore secrets;
-    readonly DurationHistory history;
-    readonly HttpMessageHandler handler;
-    readonly TokenRefresher? refresher;
-    readonly ConcurrentDictionary<string, ConnectionPoller> pollers = new();
-    readonly CancelSource cancel = new();
-
-    public Poller(SessionHost host, ISecretStore secrets, DurationHistory history, HttpMessageHandler handler, TokenRefresher? refresher = null)
-    {
-        this.host = host;
-        this.secrets = secrets;
-        this.history = history;
-        this.handler = handler;
-        this.refresher = refresher;
-    }
+    ConcurrentDictionary<string, ConnectionPoller> pollers = new();
+    CancelSource cancel = new();
 
     public void Start() =>
         Sync(host.State.Settings);

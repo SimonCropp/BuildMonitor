@@ -1,7 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
 /// <summary>
 /// The stdio MCP server. Stdout is the protocol channel, so every log line goes to stderr. The
 /// tray is started first if it is not running; the tools then talk to it over the socket.

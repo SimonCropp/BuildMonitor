@@ -12,13 +12,13 @@
 /// </summary>
 static class OAuthClients
 {
-    public const string GitHubClientId = "Ov23lidsjnhnW0pniEFX";
+    const string gitHubClientId = "Ov23lidsjnhnW0pniEFX";
     // Bundled on purpose. GitHub OAuth Apps have no PKCE, so every desktop app offering the web
     // flow ships its secret, as the GitHub CLI does. It grants nothing by itself; a leak means
     // regenerating it on github.com and shipping a new version.
-    public const string GitHubClientSecret = "ed9358ff15a34512bd504c0055cd24f8e5b35783";
-    public const string GitLabClientId = "gloas-a14d2cb2827449195f9e3a42389db9760d591221c70e58f752483ebffcccbd1a";
-    public const string EntraClientId = "a025403c-28eb-4352-9342-6bb4620ff2af";
+    const string gitHubClientSecret = "ed9358ff15a34512bd504c0055cd24f8e5b35783";
+    const string gitLabClientId = "gloas-a14d2cb2827449195f9e3a42389db9760d591221c70e58f752483ebffcccbd1a";
+    const string entraClientId = "a025403c-28eb-4352-9342-6bb4620ff2af";
 
     const string azureDevOpsResource = "499b84ac-1321-427f-aa17-267ca6975798";
 
@@ -30,9 +30,11 @@ static class OAuthClients
         {
             case "github":
             {
-                var hosted = server.Length == 0 || server == "https://api.github.com";
+                var hosted = server.Length == 0 ||
+                             server == "https://api.github.com";
                 var web = hosted ? "https://github.com" : server;
-                var clientId = connection.ClientId ?? (hosted ? GitHubClientId : "");
+                var clientId = connection.ClientId ??
+                               (hosted ? gitHubClientId : "");
                 if (clientId.Length == 0)
                 {
                     return null;
@@ -44,16 +46,18 @@ static class OAuthClients
                     $"{web}/login/oauth/access_token",
                     $"{web}/login/device/code",
                     clientId,
-                    hosted && connection.ClientId is null && GitHubClientSecret.Length > 0 ? GitHubClientSecret : null,
+                    hosted && connection.ClientId is null && gitHubClientSecret.Length > 0 ? gitHubClientSecret : null,
                     ["repo"],
                     "http://127.0.0.1:{port}/callback",
                     Pkce: true);
             }
             case "gitlab":
             {
-                var hosted = server.Length == 0 || server == "https://gitlab.com";
+                var hosted = server.Length == 0 ||
+                             server == "https://gitlab.com";
                 var web = hosted ? "https://gitlab.com" : server;
-                var clientId = connection.ClientId ?? (hosted ? GitLabClientId : "");
+                var clientId = connection.ClientId ??
+                               (hosted ? gitLabClientId : "");
                 if (clientId.Length == 0)
                 {
                     return null;
@@ -72,7 +76,8 @@ static class OAuthClients
             }
             case "azure-devops":
             {
-                var clientId = connection.ClientId ?? EntraClientId;
+                var clientId = connection.ClientId ??
+                               entraClientId;
                 if (clientId.Length == 0)
                 {
                     return null;

@@ -1,0 +1,1 @@
+﻿record BitbucketTrigger(BitbucketTarget Target);

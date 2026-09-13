@@ -1,0 +1,1 @@
+﻿record TeamCityCancel(string Comment, bool ReaddIntoQueue);

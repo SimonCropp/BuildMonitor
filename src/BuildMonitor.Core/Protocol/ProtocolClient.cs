@@ -3,14 +3,14 @@
 /// </summary>
 sealed class ProtocolClient(int port) : IProtocolClient
 {
-    public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(3);
+    static TimeSpan timeout = TimeSpan.FromSeconds(3);
 
-    public int Port { get; } = port;
+    int Port { get; } = port;
 
     public async Task<Response> Send(Message message, Cancel cancel)
     {
         using var timeout = CancelSource.CreateLinkedTokenSource(cancel);
-        timeout.CancelAfter(message.Verb is Verb.Retry or Verb.Cancel ? TimeSpan.FromSeconds(30) : Timeout);
+        timeout.CancelAfter(message.Verb is Verb.Retry or Verb.Cancel ? TimeSpan.FromSeconds(30) : ProtocolClient.timeout);
         using var client = new TcpClient();
         try
         {

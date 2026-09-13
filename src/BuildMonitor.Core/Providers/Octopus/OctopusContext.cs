@@ -1,0 +1,10 @@
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(OctopusPage<OctopusSpace>))]
+[JsonSerializable(typeof(OctopusPage<OctopusProject>))]
+[JsonSerializable(typeof(OctopusPage<OctopusDeployment>))]
+[JsonSerializable(typeof(OctopusPage<OctopusTask>))]
+[JsonSerializable(typeof(List<OctopusEnvironment>))]
+[JsonSerializable(typeof(OctopusTask))]
+[JsonSerializable(typeof(OctopusTaskDetails))]
+[JsonSerializable(typeof(OctopusUser))]
+partial class OctopusContext : JsonSerializerContext;

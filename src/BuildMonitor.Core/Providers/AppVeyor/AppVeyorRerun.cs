@@ -1,0 +1,1 @@
+﻿record AppVeyorRerun(long BuildId, bool ReRunIncomplete);

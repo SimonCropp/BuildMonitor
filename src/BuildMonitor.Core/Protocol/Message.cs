@@ -6,12 +6,12 @@
 /// </summary>
 record Message(Verb Verb, string? Key = null, string? Body = null)
 {
-    public const int Version = 1;
+    const int version = 1;
 
     public string Build()
     {
         var builder = new StringBuilder();
-        builder.Append("version: ").Append(Version).Append('\n');
+        builder.Append("version: ").Append(version).Append('\n');
         builder.Append("verb: ").Append(Verb.ToString().ToLowerInvariant()).Append('\n');
         if (Key is not null)
         {

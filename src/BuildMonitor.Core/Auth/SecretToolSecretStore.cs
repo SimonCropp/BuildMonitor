@@ -12,7 +12,12 @@ sealed class SecretToolSecretStore : ISecretStore
     public string? Read(string key)
     {
         var (code, output) = ProcessRunner.Run("secret-tool", ["lookup", "service", service, "key", key]);
-        return code == 0 && output.Length > 0 ? output.TrimEnd('\n', '\r') : null;
+        if (code == 0 && output.Length > 0)
+        {
+            return output.TrimEnd('\n', '\r');
+        }
+
+        return null;
     }
 
     public void Write(string key, string value)
