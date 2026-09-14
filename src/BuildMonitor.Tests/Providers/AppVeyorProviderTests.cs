@@ -1,9 +1,9 @@
 public class AppVeyorProviderTests
 {
-    static FakeHttpHandler Handler() =>
+    static FakeHttpHandler Handler(string projectsUrl = "https://ci.appveyor.com/api/projects") =>
         new FakeHttpHandler()
             .Get(
-                "https://ci.appveyor.com/api/projects",
+                projectsUrl,
                 """
                 [{"projectId":1,"accountName":"simon","slug":"diffengine","name":"DiffEngine","repositoryType":"gitHub","repositoryName":"VerifyTests/DiffEngine"}]
                 """)
@@ -66,17 +66,25 @@ public class AppVeyorProviderTests
     }
 
     [Test]
-    public async Task UserLevelTokenNamesTheAccount()
+    public async Task UserLevelTokenPrefixesOnlyCallsThatDoNotNameTheAccount()
     {
-        var handler = new FakeHttpHandler()
-            .Get("https://ci.appveyor.com/api/account/simon/projects", "[]");
+        var handler = Handler("https://ci.appveyor.com/api/account/simon/projects")
+            .Map("PUT", "https://ci.appveyor.com/api/account/simon/builds", "{}")
+            .Map("DELETE", "https://ci.appveyor.com/api/builds/simon/diffengine/1.0.45", "", HttpStatusCode.NoContent);
         var context = ProviderTestHelpers.Context("appveyor", handler, scope: ("account", "simon"));
-        await ProviderTestHelpers.Provider("appveyor").DiscoverPipelines(context, Cancel.None);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("appveyor", context);
+        var provider = ProviderTestHelpers.Provider("appveyor");
+        await provider.Retry(context, builds.Single(_ => _.RunNumber == "44"), Cancel.None);
+        await provider.Cancel(context, builds.Single(_ => _.RunNumber == "45"), Cancel.None);
         await Verify(handler.Requests)
             .Snapshot(
                 """
                 [
-                  GET https://ci.appveyor.com/api/account/simon/projects
+                  GET https://ci.appveyor.com/api/account/simon/projects,
+                  GET https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5,
+                  PUT https://ci.appveyor.com/api/account/simon/builds
+                  {"buildId":99,"reRunIncomplete":false},
+                  DELETE https://ci.appveyor.com/api/builds/simon/diffengine/1.0.45
                 ]
                 """);
     }

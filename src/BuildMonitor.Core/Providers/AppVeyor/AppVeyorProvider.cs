@@ -6,7 +6,10 @@ sealed class AppVeyorProvider : ProviderBase
     public override ProviderDescriptor Descriptor => ProviderDescriptors.AppVeyor;
 
     /// <summary>
-    /// A v2 (user level) token works across accounts but every call must name one.
+    /// A v2 (user level) token works across accounts, so a call must name the account. Most name
+    /// it through this prefix, but history and cancel carry it in their own path and have no
+    /// prefixed route: AppVeyor answers one with a 200 carrying its web app's HTML, which failed
+    /// to parse for every project.
     /// </summary>
     static string Prefix(ProviderContext context)
     {
@@ -33,7 +36,7 @@ sealed class AppVeyorProvider : ProviderBase
         foreach (var pipeline in pipelines)
         {
             var history = await context.Http.Get(
-                $"{Prefix(context)}/projects/{pipeline.Id}/history?recordsNumber={perPipeline}",
+                $"api/projects/{pipeline.Id}/history?recordsNumber={perPipeline}",
                 AppVeyorContext.Default.AppVeyorHistory,
                 cancel);
             builds.AddRange(history.Builds.Select(_ => Convert(context.Connection.Id, pipeline, _)));
@@ -111,7 +114,7 @@ sealed class AppVeyorProvider : ProviderBase
     public override Task Cancel(ProviderContext context, Build build, Cancel cancel)
     {
         var version = Split(build)[1];
-        return context.Http.Send(HttpMethod.Delete, $"{Prefix(context)}/builds/{build.PipelineId}/{Encode(version)}", null, cancel);
+        return context.Http.Send(HttpMethod.Delete, $"api/builds/{build.PipelineId}/{Encode(version)}", null, cancel);
     }
 
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)

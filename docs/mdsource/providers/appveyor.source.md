@@ -87,6 +87,11 @@ None. Responses send `Cache-Control: no-cache`, `Pragma: no-cache` and `Expires:
 Only the latest build per project, through the projects list. History is per project.
 
 
+### Accounts
+
+A v2 token spans accounts, so calls are prefixed with `api/account/{account}` [docs]. Only the calls that do not already name the account have a prefixed route. The projects list and re-run do; history and cancel, whose paths carry the account, do not, and `GET api/account/{account}/projects/{account}/{slug}/history` answers 200 with the web app's HTML where an unknown path under `api/` gets a JSON 404 [live]. So history and cancel go unprefixed.
+
+
 ### Sources
 
  * [Projects and builds API](https://www.appveyor.com/docs/api/projects-builds/)
