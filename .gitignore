@@ -15,3 +15,4 @@ BenchmarkDotNet.Artifacts/
 native/build/
 /src/TestResults
 *.lnk
+/src/BuildMonitor.Tests/Providers/TestResults
