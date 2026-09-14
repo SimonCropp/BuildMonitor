@@ -49,6 +49,9 @@ struct State {
 
 State g;
 
+// ImGui 1.92 keeps IM_PI in imgui_internal.h, so imgui.h alone no longer declares it.
+const float pi = 3.14159265f;
+
 ImVec4 Rgb(int red, int green, int blue) {
     return ImVec4(red / 255.0f, green / 255.0f, blue / 255.0f, 1.0f);
 }
@@ -284,14 +287,26 @@ int TextResize(ImGuiInputTextCallbackData* data) {
     return 0;
 }
 
+// A line of the font with a pixel above and below, as the WinForms canvas sizes its chips, so a chip
+// grows with the text in it.
 bool Chip(const char* label, const ImVec4& colour, const ImVec4& foreground) {
     ImGui::PushStyleColor(ImGuiCol_Button, colour);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(colour.x + 0.08f, colour.y + 0.08f, colour.z + 0.08f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, colour);
     ImGui::PushStyleColor(ImGuiCol_Text, foreground);
-    bool clicked = ImGui::SmallButton(label);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 1.0f));
+    bool clicked = ImGui::Button(label);
+    ImGui::PopStyleVar();
     ImGui::PopStyleColor(4);
     return clicked;
+}
+
+float ChipWidth(const char* label) {
+    return ImGui::CalcTextSize(label).x + 2.0f * ImGui::GetStyle().FramePadding.x;
+}
+
+float ChipHeight() {
+    return ImGui::GetTextLineHeight() + 2.0f;
 }
 
 void DrawBuilds(const BmScreen& screen, float bodyHeight) {
@@ -324,8 +339,8 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         ImVec2 at = ImGui::GetCursorScreenPos();
         float radius = 8.0f;
         float lineHeight = ImGui::GetTextLineHeight();
-        float start = static_cast<float>(std::fmod(GetTime(), 1.0)) * 2.0f * IM_PI;
-        spinner->PathArcTo(ImVec2(at.x + radius + 2.0f, at.y + lineHeight / 2.0f), radius, start, start + 1.5f * IM_PI, 24);
+        float start = static_cast<float>(std::fmod(GetTime(), 1.0)) * 2.0f * pi;
+        spinner->PathArcTo(ImVec2(at.x + radius + 2.0f, at.y + lineHeight / 2.0f), radius, start, start + 1.5f * pi, 24);
         spinner->PathStroke(ImGui::GetColorU32(dim), ImDrawFlags_None, 2.5f);
         ImGui::Dummy(ImVec2(2.0f * radius + 4.0f, lineHeight));
         ImGui::SameLine();
@@ -346,17 +361,27 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             nameText = std::max(nameText, ImGui::CalcTextSize(name.c_str()).x);
         }
 
-        const float fixedColumns = 70.0f + 104.0f + 90.0f + 210.0f + 80.0f;
+        const ImGuiStyle& style = ImGui::GetStyle();
+        // Measured rather than fixed, so each cell holds its widest text at whatever size the font
+        // was loaded: a run number, a countdown past an hour, and the widest set of chips a row
+        // carries, so the columns line up whatever a row holds.
+        const float runWidth = ImGui::CalcTextSize("#000000").x;
+        const float barWidth = 104.0f;
+        const float timingWidth = ImGui::CalcTextSize("0:00:00 left").x;
+        const float linksWidth = ChipWidth("Build") + ChipWidth("Branch") + ChipWidth("PR 9999") + 2.0f * style.ItemSpacing.x;
+        const float actionsWidth = ChipWidth("Cancel");
+        // Each boundary between the seven columns carries cell padding on both sides of it.
+        const float fixedColumns = runWidth + barWidth + timingWidth + linksWidth + actionsWidth + 6.0f * 2.0f * style.CellPadding.x;
         const float minimumDetail = 120.0f;
-        float nameWanted = rowHeight + ImGui::GetStyle().ItemSpacing.x + nameText + 2.0f * ImGui::GetStyle().CellPadding.x;
+        float nameWanted = rowHeight + style.ItemSpacing.x + nameText + 2.0f * style.CellPadding.x;
         float nameWidth = std::max(40.0f, std::min(nameWanted, tableWidth - fixedColumns - minimumDetail));
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, nameWidth);
         ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("run", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-        ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, 104.0f);
-        ImGui::TableSetupColumn("timing", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-        ImGui::TableSetupColumn("links", ImGuiTableColumnFlags_WidthFixed, 210.0f);
-        ImGui::TableSetupColumn("actions", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("run", ImGuiTableColumnFlags_WidthFixed, runWidth);
+        ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, barWidth);
+        ImGui::TableSetupColumn("timing", ImGuiTableColumnFlags_WidthFixed, timingWidth);
+        ImGui::TableSetupColumn("links", ImGuiTableColumnFlags_WidthFixed, linksWidth);
+        ImGui::TableSetupColumn("actions", ImGuiTableColumnFlags_WidthFixed, actionsWidth);
 
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.
@@ -366,6 +391,12 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             anyIcon = anyIcon || screen.rows[i].provider.length > 0;
         }
 
+        // Every cell is centred in its row, as the WinForms canvas centres its text, rather than hung
+        // from the top of it, where a row taller than its chips leaves the text above the chips.
+        const float cellHeight = rowHeight - 2.0f * style.CellPadding.y;
+        const float textOffset = (cellHeight - ImGui::GetTextLineHeight()) / 2.0f;
+        const float chipOffset = (cellHeight - ChipHeight()) / 2.0f;
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0.0f, 0.5f));
         for (int32_t i = 0; i < screen.rowCount; i++) {
             const BmRow& row = screen.rows[i];
             bool group = (row.flags & BM_ROW_GROUP) != 0;
@@ -388,13 +419,14 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             // The full height of the row and flush with its neighbours, so a run of rows in one status
             // reads as one block rather than a column of dots. A cell's cursor starts the cell padding
             // below the top of its row, and every row is exactly rowHeight tall.
-            float top = cursor.y - ImGui::GetStyle().CellPadding.y;
+            float top = cursor.y - style.CellPadding.y;
             draw->AddRectFilled(ImVec2(cursor.x, top), ImVec2(cursor.x + rowHeight, top + rowHeight), ImGui::GetColorU32(colour));
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + rowHeight + ImGui::GetStyle().ItemSpacing.x);
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + rowHeight + style.ItemSpacing.x);
             std::string selectableLabel = name + "##row";
-            // A click on a group toggles it, so the second press of a double click is dropped, or it
-            // would close what the first opened.
-            if (ImGui::Selectable(selectableLabel.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap) &&
+            // As tall as the cell, so a click anywhere on the row selects it. A click on a group
+            // toggles it, so the second press of a double click is dropped, or it would close what
+            // the first opened.
+            if (ImGui::Selectable(selectableLabel.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap, ImVec2(0.0f, cellHeight)) &&
                 !(group && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))) {
                 g.input.clickedRow = i;
             }
@@ -425,24 +457,40 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                     ImGui::SetCursorScreenPos(at);
                 }
 
-                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconSize + ImGui::GetStyle().ItemSpacing.x);
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconSize + style.ItemSpacing.x);
             }
 
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
+            // Cut off at the cell's edge rather than the column's, which is only the cell padding
+            // short of the run number, so a pipeline and branch too long for the cell stop short of it.
+            ImVec2 detailAt = ImGui::GetCursorScreenPos();
+            ImGui::PushClipRect(ImVec2(detailAt.x, top), ImVec2(detailAt.x + ImGui::GetContentRegionAvail().x, top + rowHeight), true);
             ImGui::TextColored(dim, "%s", Str(screen, row.detail).c_str());
+            ImGui::PopClipRect();
             ImGui::TableSetColumnIndex(2);
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
             ImGui::TextColored(dim, "%s", Str(screen, row.runNumber).c_str());
             ImGui::TableSetColumnIndex(3);
             if (row.progress >= 0.0f) {
-                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, StatusColour(BM_STATUS_RUNNING));
-                ImGui::PushStyleColor(ImGuiCol_FrameBg, barTrack);
-                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (ImGui::GetFrameHeight() - 8.0f) / 2.0f);
-                ImGui::ProgressBar(row.progress, ImVec2(94.0f, 8.0f), "");
-                ImGui::PopStyleColor(2);
+                // Drawn rather than submitted as a ProgressBar. That is a framed item, which moves the
+                // row's text baseline down by the frame padding, and the timing text in the next cell
+                // would follow it to sit below the rest of the row.
+                ImVec2 trackMin(ImGui::GetCursorScreenPos().x, top + (rowHeight - 8.0f) / 2.0f);
+                float filled = 94.0f * std::min(row.progress, 1.0f);
+                draw->AddRectFilled(trackMin, ImVec2(trackMin.x + 94.0f, trackMin.y + 8.0f), ImGui::GetColorU32(barTrack), style.FrameRounding);
+                draw->AddRectFilled(trackMin, ImVec2(trackMin.x + filled, trackMin.y + 8.0f), ImGui::GetColorU32(StatusColour(BM_STATUS_RUNNING)), style.FrameRounding);
             }
 
             ImGui::TableSetColumnIndex(4);
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
             ImGui::TextColored(dim, "%s", Str(screen, row.timing).c_str());
             ImGui::TableSetColumnIndex(5);
+            // Moved down only when a chip follows. A cursor moved with no item submitted after it is
+            // an error to ImGui, which it reports with a tooltip over the window.
+            if (row.buildLabel.length > 0 || row.branchLabel.length > 0 || row.pullRequestLabel.length > 0) {
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + chipOffset);
+            }
+
             if (row.buildLabel.length > 0) {
                 if (Chip(Str(screen, row.buildLabel).c_str(), chip, chipText)) {
                     g.input.clickedLinkRow = i;
@@ -469,6 +517,10 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             }
 
             ImGui::TableSetColumnIndex(6);
+            if (row.flags & (BM_ROW_CAN_RETRY | BM_ROW_CAN_CANCEL)) {
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + chipOffset);
+            }
+
             if (row.flags & BM_ROW_CAN_RETRY) {
                 if (Chip("Retry", retryChip, text)) {
                     g.input.clickedActionRow = i;
@@ -488,6 +540,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             ImGui::PopID();
         }
 
+        ImGui::PopStyleVar();
         ImGui::EndTable();
     }
 
@@ -536,10 +589,32 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
     }
 }
 
+// A label beside a box: level with the text in the box, and wrapped short of the box when it is
+// wider than the column the boxes line up at.
+void BoxLabel(const std::string& label, float boxX) {
+    ImGui::AlignTextToFramePadding();
+    ImGui::PushTextWrapPos(boxX - ImGui::GetStyle().ItemSpacing.x);
+    ImGui::TextColored(dim, "%s", label.c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::SameLine(boxX);
+}
+
 void DrawForm(const BmScreen& screen, float bodyHeight) {
     ImGui::TextColored(dim, "%s", Str(screen, screen.formTitle).c_str());
     ImGui::Separator();
     ImGui::BeginChild("form", ImVec2(0, bodyHeight - ImGui::GetFrameHeight()), ImGuiChildFlags_None, ImGuiWindowFlags_None);
+    // The boxes line up a gap past the widest label beside one, like an auto sized column, rather
+    // than at a fixed offset that a label outgrows at a larger font and runs under its box. Never
+    // so far right that the widest box would leave the window: a label wider than that wraps.
+    float labelWidth = 0.0f;
+    for (int32_t i = 0; i < screen.fieldCount; i++) {
+        int32_t kind = screen.fields[i].kind;
+        if (kind == BM_FIELD_TEXT || kind == BM_FIELD_PASSWORD || kind == BM_FIELD_NUMBER || kind == BM_FIELD_SELECT) {
+            labelWidth = std::max(labelWidth, ImGui::CalcTextSize(Str(screen, screen.fields[i].label).c_str()).x);
+        }
+    }
+
+    const float boxX = std::min(labelWidth + 2.0f * ImGui::GetStyle().ItemSpacing.x, std::max(220.0f, ImGui::GetContentRegionAvail().x - 420.0f));
     for (int32_t i = 0; i < screen.fieldCount; i++) {
         const BmField& field = screen.fields[i];
         std::string id = Str(screen, field.id);
@@ -565,8 +640,7 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
                     buffer = value;
                 }
 
-                ImGui::TextColored(dim, "%s", label.c_str());
-                ImGui::SameLine(220.0f);
+                BoxLabel(label, boxX);
                 ImGui::SetNextItemWidth(field.kind == BM_FIELD_NUMBER ? 100.0f : 420.0f);
                 ImGuiInputTextFlags flags = ImGuiInputTextFlags_CallbackResize;
                 if (field.kind == BM_FIELD_PASSWORD) flags |= ImGuiInputTextFlags_Password;
@@ -586,8 +660,7 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
                 break;
             }
             case BM_FIELD_SELECT: {
-                ImGui::TextColored(dim, "%s", label.c_str());
-                ImGui::SameLine(220.0f);
+                BoxLabel(label, boxX);
                 ImGui::SetNextItemWidth(260.0f);
                 if (ImGui::BeginCombo("##select", value.c_str())) {
                     for (int32_t o = 0; o < field.optionCount; o++) {
@@ -651,7 +724,11 @@ void DrawFooter(const BmScreen& screen) {
         const BmButton& button = screen.buttons[i];
         ImGui::PushID(1000 + i);
         ImGui::BeginDisabled((button.flags & BM_BUTTON_ENABLED) == 0);
-        if (ImGui::Button(Str(screen, button.label).c_str(), ImVec2(90.0f, 0.0f))) {
+        std::string label = Str(screen, button.label);
+        // One width for every short label, so a row of buttons lines up, and wider only for a label
+        // that would not fit it.
+        float width = std::max(90.0f, ImGui::CalcTextSize(label.c_str()).x + 2.0f * ImGui::GetStyle().FramePadding.x);
+        if (ImGui::Button(label.c_str(), ImVec2(width, 0.0f))) {
             g.input.clickedButton = i;
         }
 
