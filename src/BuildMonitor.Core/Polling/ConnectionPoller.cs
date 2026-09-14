@@ -131,7 +131,7 @@ sealed class ConnectionPoller
 
             try
             {
-                await WaitFor(Delay(), cancel);
+                await WaitFor(cancel);
             }
             catch (OperationCanceledException)
             {
@@ -168,13 +168,21 @@ sealed class ConnectionPoller
         return wakeAt is { } at ? Max(at - now, TimeSpan.Zero) : RediscoverAfter;
     }
 
-    async Task WaitFor(TimeSpan? delay, Cancel cancel)
+    /// <summary>
+    /// Sleeps out <see cref="Delay"/>, or until woken. A wake that arrived during the cycle has
+    /// already been planned for, so it is drained first, and the delay is read only after. Read
+    /// before, a refresh landing between the two had its flag missed by the delay and its wake
+    /// drained, and waited out the whole schedule instead of polling at once.
+    /// </summary>
+    async Task WaitFor(Cancel cancel)
     {
-        // A wake that arrived during the cycle has already been planned for.
         while (wake.Reader.TryRead(out _))
         {
         }
 
+        // Refresh and Nudge set their flag before they wake, so one arriving after the drain is
+        // either seen here or left in the channel to end the sleep.
+        var delay = Delay();
         if (delay is null)
         {
             await wake.Reader.ReadAsync(cancel);
