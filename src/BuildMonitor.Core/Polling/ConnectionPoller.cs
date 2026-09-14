@@ -25,6 +25,9 @@ sealed class ConnectionPoller
     Task? loop;
     ImmutableArray<Pipeline> discoveredPipelines = [];
     DateTimeOffset discovered = DateTimeOffset.MinValue;
+    // The option the pipelines above were discovered under. Changing it rediscovers at once, or
+    // hidden repositories would linger, or shown ones stay missing, until the next rediscovery.
+    bool? discoveredWithForks;
     int discoveryFailures;
     ImmutableDictionary<string, GroupMemory> memory = ImmutableDictionary<string, GroupMemory>.Empty;
     // Nudges and refreshes arrive from other threads, and a cycle in flight must not lose them.
@@ -272,7 +275,8 @@ sealed class ConnectionPoller
     {
         var context = Providers.Context(connection, secret, handler, etags, budget) with
         {
-            Progress = visible ? progress => host.Mutate(_ => MonitorSession.SetProgress(_, connectionId, progress)) : _ => { }
+            Progress = visible ? progress => host.Mutate(_ => MonitorSession.SetProgress(_, connectionId, progress)) : _ => { },
+            ShowForksAndCollaborations = host.State.Settings.ShowForksAndCollaborations
         };
         var descriptor = provider.Descriptor;
         var now = clock();
@@ -496,7 +500,9 @@ sealed class ConnectionPoller
     /// </summary>
     async Task<bool> Discover(IProvider provider, ProviderContext context, Connection connection, DateTimeOffset now, Cancel cancel)
     {
-        var due = discoveredPipelines.Length == 0 || now - discovered > RediscoverAfter;
+        var due = discoveredPipelines.Length == 0 ||
+                  now - discovered > RediscoverAfter ||
+                  discoveredWithForks != context.ShowForksAndCollaborations;
         var inDebt = bucket is { Tokens: < 0 };
         if (!due ||
             (inDebt && discoveredPipelines.Length > 0))
@@ -508,6 +514,7 @@ sealed class ConnectionPoller
         {
             discoveredPipelines = [..await provider.DiscoverPipelines(context, cancel)];
             discovered = now;
+            discoveredWithForks = context.ShowForksAndCollaborations;
             discoveryFailures = 0;
             return true;
         }

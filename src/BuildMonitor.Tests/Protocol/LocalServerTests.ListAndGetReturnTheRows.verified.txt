@@ -97,7 +97,7 @@
     "Timing": "23h ago",
     "BuildUrl": "https://example.com/gh/DiffEngine/docs.yml/300",
     "BranchUrl": "https://github.com/VerifyTests/DiffEngine/tree/main",
-    "CanRetry": true,
+    "CanRetry": false,
     "CanCancel": false
   }
 ],

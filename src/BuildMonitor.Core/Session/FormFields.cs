@@ -8,6 +8,7 @@ static class FormFields
     public const string RunAtStartup = "runAtStartup";
     public const string ShowWindowAtStart = "showWindowAtStart";
     public const string ShowOtherBranches = "showOtherBranches";
+    public const string ShowForks = "showForks";
     public const string NotifyOnFailure = "notifyOnFailure";
     public const string Theme = "theme";
     public const string PollInterval = "pollInterval";

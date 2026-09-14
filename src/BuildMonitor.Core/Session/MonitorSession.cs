@@ -258,7 +258,7 @@ static class MonitorSession
             }
 
             items.Add(new("Copy build URL", CommandKind.CopyBuildUrl));
-            if (build.CanRetry)
+            if (build.Retryable())
             {
                 items.Add(new("Retry", CommandKind.Retry));
             }
@@ -307,6 +307,7 @@ static class MonitorSession
         values[FormFields.RunAtStartup] = Flag(settings.RunAtStartup);
         values[FormFields.ShowWindowAtStart] = Flag(settings.ShowWindowAtStart);
         values[FormFields.ShowOtherBranches] = Flag(settings.ShowOtherBranches);
+        values[FormFields.ShowForks] = Flag(settings.ShowForksAndCollaborations);
         values[FormFields.NotifyOnFailure] = Flag(settings.NotifyOnFailure);
         values[FormFields.Theme] = settings.Theme.ToString();
         values[FormFields.PollInterval] = settings.PollIntervalSeconds.ToString();

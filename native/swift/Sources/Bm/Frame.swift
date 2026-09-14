@@ -11,7 +11,6 @@ struct Frame {
         let detail: String
         let provider: String
         let runNumber: String
-        let statusText: String
         let timing: String
         let buildLabel: String
         let branchLabel: String
@@ -58,6 +57,8 @@ struct Frame {
     let totalRows: Int32
     let selectedRow: Int32
     let loading: Bool
+    let names: [String]
+    let groupNames: [String]
     let formTitle: String
     let fields: [Field]
     let buttons: [Button]
@@ -91,7 +92,6 @@ struct Frame {
                 detail: text($0.detail),
                 provider: text($0.provider),
                 runNumber: text($0.runNumber),
-                statusText: text($0.statusText),
                 timing: text($0.timing),
                 buildLabel: text($0.buildLabel),
                 branchLabel: text($0.branchLabel),
@@ -129,6 +129,8 @@ struct Frame {
                 depth: Int($0.depth))
         }
 
+        let allNames = UnsafeBufferPointer(start: screen.names, count: Int(screen.nameCount + screen.groupNameCount)).map(text)
+
         return Frame(
             page: screen.page,
             title: text(screen.title),
@@ -139,6 +141,8 @@ struct Frame {
             totalRows: screen.totalRows,
             selectedRow: screen.selectedRow,
             loading: screen.loading != 0,
+            names: Array(allNames.prefix(Int(screen.nameCount))),
+            groupNames: Array(allNames.dropFirst(Int(screen.nameCount))),
             formTitle: text(screen.formTitle),
             fields: fields,
             buttons: buttons,

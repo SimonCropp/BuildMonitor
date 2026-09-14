@@ -31,6 +31,7 @@ static class OptionsDraft
             RunAtStartup = form.Flag(FormFields.RunAtStartup),
             ShowWindowAtStart = form.Flag(FormFields.ShowWindowAtStart),
             ShowOtherBranches = form.Flag(FormFields.ShowOtherBranches),
+            ShowForksAndCollaborations = form.Flag(FormFields.ShowForks),
             NotifyOnFailure = form.Flag(FormFields.NotifyOnFailure),
             Theme = Enum.TryParse<Theme>(form.Value(FormFields.Theme), out var theme) ? theme : current.Theme,
             PollIntervalSeconds = poll,

@@ -6,7 +6,6 @@
 static class AsciiRenderer
 {
     const int barWidth = 10;
-    const int statusWidth = 9;
     const int timingWidth = 10;
     const int linksWidth = 18;
     const int actionsWidth = 8;
@@ -51,33 +50,42 @@ static class AsciiRenderer
             return ["Loading builds..."];
         }
 
-        var layout = Layout(inner, page.Rows.Any(_ => _.Provider.Length > 0));
+        // "[-] " leads a group's name.
+        var longest = Math.Max(
+            page.Names.Select(_ => _.Length).DefaultIfEmpty().Max(),
+            page.GroupNames.Select(_ => _.Length + 4).DefaultIfEmpty().Max());
+        var layout = Layout(inner, page.Rows.Any(_ => _.Provider.Length > 0), longest);
         return page.Rows.Select(_ => RowLine(_, layout)).ToList();
     }
 
+    static string DisplayName(BuildRow row) =>
+        row.Kind == RowKind.Group
+            ? $"{(row.Expanded ? "[-]" : "[+]")} {row.Name}"
+            : row.Name;
+
     /// <summary>
     /// The fixed cells around the two name columns, dropped from the right when the window is too
-    /// narrow to hold them, so the names always keep a readable width. The first name column takes
-    /// the larger share: it holds the repository and branch, the longer of the two.
+    /// narrow to hold them, so the names always keep a readable width. The first name column is as
+    /// wide as its longest name, so short project names leave the pipeline room, but never so wide
+    /// that the pipeline cell drops below a readable width.
     /// </summary>
-    static (int Name, int Detail, bool Provider, bool Status, bool Bar, bool Links, bool Actions) Layout(int inner, bool provider)
+    static (int Name, int Detail, bool Provider, bool Bar, bool Links, bool Actions) Layout(int inner, bool provider, int longest)
     {
         // marker, glyph, run number: always present.
         const int fixedCells = 1 + 1 + 6;
-        var status = true;
         var bar = true;
         var links = true;
         var actions = true;
         while (true)
         {
-            var used = fixedCells + timingWidth + (provider ? providerWidth : 0) + (status ? statusWidth : 0) + (bar ? barWidth : 0) + (links ? linksWidth : 0) + (actions ? actionsWidth : 0);
-            var cells = 4 + (provider ? 1 : 0) + (status ? 1 : 0) + (bar ? 1 : 0) + (links ? 1 : 0) + (actions ? 1 : 0);
+            var used = fixedCells + timingWidth + (provider ? providerWidth : 0) + (bar ? barWidth : 0) + (links ? linksWidth : 0) + (actions ? actionsWidth : 0);
+            var cells = 4 + (provider ? 1 : 0) + (bar ? 1 : 0) + (links ? 1 : 0) + (actions ? 1 : 0);
             // One space between each cell, and two name cells.
             var remaining = inner - used - (cells + 1);
             if (remaining >= 28)
             {
-                var detail = remaining * 9 / 20;
-                return (remaining - detail, detail, provider, status, bar, links, actions);
+                var name = Math.Clamp(longest, 8, remaining - 12);
+                return (name, remaining - name, provider, bar, links, actions);
             }
 
             if (actions)
@@ -92,28 +100,21 @@ static class AsciiRenderer
             {
                 bar = false;
             }
-            else if (status)
-            {
-                status = false;
-            }
             else
             {
-                return (Math.Max(8, remaining * 3 / 5), Math.Max(6, remaining - remaining * 3 / 5), provider, false, false, false, false);
+                return (Math.Max(8, remaining * 3 / 5), Math.Max(6, remaining - remaining * 3 / 5), provider, false, false, false);
             }
         }
     }
 
-    static string RowLine(BuildRow row, (int Name, int Detail, bool Provider, bool Status, bool Bar, bool Links, bool Actions) layout)
+    static string RowLine(BuildRow row, (int Name, int Detail, bool Provider, bool Bar, bool Links, bool Actions) layout)
     {
         var marker = row.Selected ? '>' : ' ';
-        var name = row.Kind == RowKind.Group
-            ? $"{(row.Expanded ? "[-]" : "[+]")} {row.Name}"
-            : row.Name;
         var cells = new List<string>
         {
             marker.ToString(),
             Glyph(row.Status).ToString(),
-            Fit(name, layout.Name)
+            Fit(DisplayName(row), layout.Name)
         };
         // Beside the pipeline it ran, so a group's members, whose first cell is empty, still say
         // which service each came from.
@@ -124,10 +125,6 @@ static class AsciiRenderer
 
         cells.Add(Fit(row.Detail, layout.Detail));
         cells.Add(Fit(row.RunNumber, 6).PadLeft(6));
-        if (layout.Status)
-        {
-            cells.Add(Fit(row.StatusText, statusWidth));
-        }
 
         if (layout.Bar)
         {

@@ -11,6 +11,7 @@ record Settings
     public bool RunAtStartup { get; init; }
     public bool ShowWindowAtStart { get; init; } = true;
     public bool ShowOtherBranches { get; init; } = true;
+    public bool ShowForksAndCollaborations { get; init; }
     public bool NotifyOnFailure { get; init; } = true;
     public Theme Theme { get; init; }
     public int PollIntervalSeconds { get; init; } = 30;

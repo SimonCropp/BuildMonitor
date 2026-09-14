@@ -49,7 +49,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
 
                 if (message.Verb == Verb.Retry)
                 {
-                    if (!build.CanRetry)
+                    if (!build.Retryable())
                     {
                         return Response.Error("That build cannot be retried");
                     }

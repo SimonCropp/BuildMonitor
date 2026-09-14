@@ -68,7 +68,6 @@ typedef struct BmRow {
     /* A name given to bm_set_row_icon, drawn at the start of the detail cell, or empty for none. */
     BmString provider;
     BmString runNumber;
-    BmString statusText;
     BmString timing;
     /* Link chips. A zero length label means no chip. */
     BmString buildLabel;
@@ -174,6 +173,11 @@ typedef struct BmScreen {
     /* 1 when there are no rows yet because a connection has not finished its first poll: draw a
        spinner rather than an empty page. */
     int32_t loading;
+    /* Every distinct first column name across all rows, not only the visible slice, to size the
+       column from: nameCount build names, then groupNameCount group names, drawn behind an arrow. */
+    const BmString* names;
+    int32_t nameCount;
+    int32_t groupNameCount;
 
     /* The form page. */
     BmString formTitle;

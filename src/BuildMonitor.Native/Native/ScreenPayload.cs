@@ -6,6 +6,7 @@ sealed unsafe class ScreenPayload
 {
     readonly List<byte> strings = [];
     readonly List<BmRow> rows = [];
+    readonly List<BmString> names = [];
     readonly List<BmField> fields = [];
     readonly List<BmString> options = [];
     readonly List<BmButton> buttons = [];
@@ -26,6 +27,7 @@ sealed unsafe class ScreenPayload
     {
         strings.Clear();
         rows.Clear();
+        names.Clear();
         fields.Clear();
         options.Clear();
         buttons.Clear();
@@ -56,6 +58,12 @@ sealed unsafe class ScreenPayload
             screen.TotalRows = builds.TotalRows;
             screen.SelectedRow = builds.SelectedRow;
             screen.Loading = builds.Loading ? 1 : 0;
+            screen.NameCount = builds.Names.Count;
+            screen.GroupNameCount = builds.GroupNames.Count;
+            foreach (var name in builds.Names.Concat(builds.GroupNames))
+            {
+                names.Add(Add(name));
+            }
             foreach (var row in builds.Rows)
             {
                 rows.Add(new()
@@ -71,7 +79,6 @@ sealed unsafe class ScreenPayload
                     Detail = Add(row.Detail),
                     Provider = Add(row.Provider),
                     RunNumber = Add(row.RunNumber),
-                    StatusText = Add(row.StatusText),
                     Timing = Add(row.Timing),
                     BuildLabel = Add(row.Build?.Label ?? ""),
                     BranchLabel = Add(row.Branch?.Label ?? ""),
@@ -176,6 +183,7 @@ sealed unsafe class ScreenPayload
     {
         var stringBytes = strings.Count == 0 ? [0] : CollectionsMarshal.AsSpan(strings).ToArray();
         var rowArray = rows.ToArray();
+        var nameArray = names.ToArray();
         var fieldArray = fields.ToArray();
         var optionArray = options.ToArray();
         var buttonArray = buttons.ToArray();
@@ -183,6 +191,7 @@ sealed unsafe class ScreenPayload
         var trayArray = trayItems.ToArray();
         fixed (byte* stringPointer = stringBytes)
         fixed (BmRow* rowPointer = rowArray)
+        fixed (BmString* namePointer = nameArray)
         fixed (BmField* fieldPointer = fieldArray)
         fixed (BmString* optionPointer = optionArray)
         fixed (BmButton* buttonPointer = buttonArray)
@@ -194,6 +203,7 @@ sealed unsafe class ScreenPayload
             frame.StringsLength = strings.Count;
             frame.Rows = rowPointer;
             frame.RowCount = rowArray.Length;
+            frame.Names = namePointer;
             frame.Fields = fieldPointer;
             frame.FieldCount = fieldArray.Length;
             frame.Options = optionPointer;
@@ -219,7 +229,7 @@ sealed unsafe class ScreenPayload
         string Text(BmString value) => Encoding.UTF8.GetString(blob, value.Offset, value.Length);
         foreach (var row in rows)
         {
-            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' '{Text(row.Detail)}' provider='{Text(row.Provider)}' '{Text(row.RunNumber)}' '{Text(row.StatusText)}' '{Text(row.Timing)}' links='{Text(row.BuildLabel)}','{Text(row.BranchLabel)}','{Text(row.PullRequestLabel)}'");
+            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' '{Text(row.Detail)}' provider='{Text(row.Provider)}' '{Text(row.RunNumber)}''{Text(row.Timing)}' links='{Text(row.BuildLabel)}','{Text(row.BranchLabel)}','{Text(row.PullRequestLabel)}'");
         }
 
         foreach (var field in fields)

@@ -20,7 +20,6 @@ record BuildRow(
     string Detail,
     string Provider,
     string RunNumber,
-    string StatusText,
     double Progress,
     string Timing,
     bool Selected,

@@ -10,6 +10,13 @@ record ProviderContext(Connection Connection, HttpJson Http)
     /// </summary>
     public Action<PollProgress> Progress { get; init; } = _ => { };
 
+    /// <summary>
+    /// Whether discovery includes forks and repositories the user only collaborates on. Off, they
+    /// are left out of the listing itself, so an account with hundreds of forks pays no workflow
+    /// call per fork only to hide the result.
+    /// </summary>
+    public bool ShowForksAndCollaborations { get; init; }
+
     public string Scope(string id) =>
         Connection.ScopeValue(id);
 }

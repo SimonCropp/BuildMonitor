@@ -407,7 +407,7 @@ static class InputApplier
 
     static SessionState Retry(SessionState state, Build build, MonitorActions actions)
     {
-        if (!build.CanRetry)
+        if (!build.Retryable())
         {
             return state;
         }

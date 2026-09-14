@@ -18,6 +18,11 @@ Whether the window opens when the tray starts, or only the icon appears.
 A pipeline's row is its latest run on any branch. With this on, every other branch that is queued or running right now gets a row too.
 
 
+## Show forks and collaborator repositories
+
+Off by default. GitHub then watches the repositories owned by the signed in account and by the organizations it belongs to, and leaves out forks and repositories where the account is only a collaborator. They are left out of discovery itself, so they cost no API calls. Turning it on discovers them on the next poll.
+
+
 ## Notify when a build fails
 
 Pops a desktop notification when a poll finds a build that has failed since the previous poll. The first poll after starting is silent, so a red pipeline that has been red for a week is not announced every login. On Windows this is a balloon from the tray icon, on macOS a Notification Center banner, on Linux whatever `notify-send` reaches.

@@ -3,10 +3,11 @@ public class GitHubProviderTests
     static FakeHttpHandler Handler() =>
         new FakeHttpHandler()
             .Get(
-                "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1",
+                "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
                 """
                 [
                   {"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"},
+                  {"full_name":"SimonCropp/Forked","html_url":"https://github.com/SimonCropp/Forked","archived":false,"disabled":false,"fork":true,"pushed_at":"2099-01-01T00:00:00Z"},
                   {"full_name":"VerifyTests/Old","html_url":"https://github.com/VerifyTests/Old","archived":false,"disabled":false,"pushed_at":"2000-01-01T00:00:00Z"},
                   {"full_name":"VerifyTests/Archived","html_url":"https://github.com/VerifyTests/Archived","archived":true,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"}
                 ]
@@ -35,6 +36,21 @@ public class GitHubProviderTests
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("github", ProviderTestHelpers.Context("github", handler));
         await Verify(new { builds, handler.Requests });
+    }
+
+    [Test]
+    public async Task ForksAndCollaborationsAreDiscoveredWhenAskedFor()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1",
+                """[{"full_name":"SimonCropp/Forked","html_url":"https://github.com/SimonCropp/Forked","archived":false,"disabled":false,"fork":true,"pushed_at":"2099-01-01T00:00:00Z"}]""")
+            .Get(
+                "https://api.github.com/repos/SimonCropp/Forked/actions/workflows?per_page=100",
+                """{"total_count":1,"workflows":[{"id":1,"name":"Test","path":".github/workflows/test.yml","state":"active"}]}""");
+        var context = ProviderTestHelpers.Context("github", handler) with { ShowForksAndCollaborations = true };
+        var pipelines = await ProviderTestHelpers.Provider("github").DiscoverPipelines(context, Cancel.None);
+        await Assert.That(pipelines.Single().RepoName).IsEqualTo("SimonCropp/Forked");
     }
 
     [Test]
@@ -149,13 +165,13 @@ public class GitHubProviderTests
         var context = ProviderTestHelpers.Context("github", handler);
         var activity = await ProviderTestHelpers.Provider("github").RecentActivity(context, [], ImmutableDictionary<string, string>.Empty, Cancel.None);
         await Assert.That(activity!["VerifyTests/DiffEngine"]).IsEqualTo("2099-01-01T00:00:00.0000000+00:00");
-        await Assert.That(handler.Requests.Single()).IsEqualTo("GET https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1");
+        await Assert.That(handler.Requests.Single()).IsEqualTo("GET https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1");
     }
 
     [Test]
     public async Task RecentActivitySharesTheDiscoveryETag()
     {
-        const string listing = "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1";
+        const string listing = "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1";
         var handler = new FakeHttpHandler().Map("GET", listing, "[]", HttpStatusCode.OK, ("ETag", "\"repos\""));
         var context = ProviderTestHelpers.Context("github", handler);
         var provider = ProviderTestHelpers.Provider("github");

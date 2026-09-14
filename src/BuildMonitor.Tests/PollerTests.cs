@@ -4,7 +4,7 @@ public class PollerTests
 
     static FakeHttpHandler GitHubHandler() =>
         new FakeHttpHandler()
-            .Get("https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1",
+            .Get("https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
                 """[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"}]""")
             .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows?per_page=100",
                 """{"total_count":1,"workflows":[{"id":10,"name":"Test","path":".github/workflows/test.yml","state":"active"}]}""")
@@ -193,7 +193,7 @@ public class PollerTests
     // Quiet last built a day before, so it waits the five minute idle cap.
     static FakeHttpHandler TwoRepositories() =>
         new FakeHttpHandler()
-            .Get("https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1",
+            .Get("https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
                 """
                 [
                   {"full_name":"VerifyTests/Busy","html_url":"https://github.com/VerifyTests/Busy","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"},
@@ -340,7 +340,7 @@ public class PollerTests
         await Assert.That(Fetches(handler, busyRuns)).IsEqualTo(1);
     }
 
-    const string listing = "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1";
+    const string listing = "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1";
 
     [Test]
     public async Task TheFirstProbeOnlyRecords()

@@ -42,7 +42,11 @@ sealed class GitHubProvider : ProviderBase
         var started = Stopwatch.GetTimestamp();
         var repositories = await Repositories(context, cancel);
         var cutoff = DateTimeOffset.UtcNow - activeWindow;
-        var active = repositories.Where(_ => _ is {Archived: false, Disabled: false} && _.PushedAt > cutoff).ToList();
+        var active = repositories
+            .Where(_ => _ is {Archived: false, Disabled: false} &&
+                        _.PushedAt > cutoff &&
+                        (context.ShowForksAndCollaborations || !_.Fork))
+            .ToList();
         var perRepository = await Concurrently.Map(
             active,
             async (repository, token) =>
@@ -75,18 +79,27 @@ sealed class GitHubProvider : ProviderBase
     }
 
     /// <summary>
-    /// The repository listings discovery reads, most recently pushed first: every repository the
-    /// token can see, or with an owner named, an organization, or a user when no organization of
+    /// The repository listings discovery reads, most recently pushed first: the repositories the
+    /// user owns or reaches through an organization, plus those they only collaborate on when
+    /// asked for, or with an owner named, an organization, or a user when no organization of
     /// that name is found.
     /// </summary>
-    static string[] Listings(string owner) =>
-        owner.Length == 0
+    static string[] Listings(ProviderContext context)
+    {
+        var owner = context.Scope("owner");
+        if (owner.Length > 0)
+        {
+            return [$"orgs/{Encode(owner)}/repos?per_page=100&sort=pushed&type=all", $"users/{Encode(owner)}/repos?per_page=100&sort=pushed"];
+        }
+
+        return context.ShowForksAndCollaborations
             ? ["user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member"]
-            : [$"orgs/{Encode(owner)}/repos?per_page=100&sort=pushed&type=all", $"users/{Encode(owner)}/repos?per_page=100&sort=pushed"];
+            : ["user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member"];
+    }
 
     static async Task<List<GitHubRepository>> Repositories(ProviderContext context, Cancel cancel)
     {
-        var listings = Listings(context.Scope("owner"));
+        var listings = Listings(context);
         try
         {
             return await Pages(context, listings[0], cancel);
@@ -106,7 +119,7 @@ sealed class GitHubProvider : ProviderBase
     /// </summary>
     public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
     {
-        var listings = Listings(context.Scope("owner"));
+        var listings = Listings(context);
         // With an owner named, the cached listing is the one discovery settled on; asking the
         // organization first every time would pay its 404 on every probe of a user.
         var listing = listings.FirstOrDefault(_ => context.Http.IsCached($"{_}&page=1")) ?? listings[0];

@@ -11,6 +11,7 @@ sealed class RowsCanvas : Control
     const int chipHeight = 20;
     const int iconSize = 16;
     const int spinnerSize = 18;
+    const int minimumDetail = 120;
 
     BuildsPage? page;
     int menuShownForRow = -1;
@@ -161,6 +162,11 @@ sealed class RowsCanvas : Control
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps
         // its name in line with the rows under it.
         var iconWidth = page.Rows.Any(_ => _.Provider.Length > 0) ? iconSize + padding : 0;
+        var nameColumn = page.Names
+            .Select(_ => MeasureName(_, Font))
+            .Concat(page.GroupNames.Select(_ => MeasureName($"▾ {_}", bold)))
+            .DefaultIfEmpty()
+            .Max();
         for (var index = 0; index < page.Rows.Count; index++)
         {
             var top = index * RowHeight;
@@ -180,11 +186,21 @@ sealed class RowsCanvas : Control
                 graphics.FillRectangle(new SolidBrush(Palette.HoverRow), bounds);
             }
 
-            DrawRow(graphics, row, bounds, index, iconWidth);
+            DrawRow(graphics, row, bounds, index, iconWidth, nameColumn);
         }
     }
 
-    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth)
+    static string DisplayName(BuildRow row) =>
+        row.Kind == RowKind.Group ? $"{(row.Expanded ? "▾" : "▸")} {row.Name}" : row.Name;
+
+    // With the padding Draw leaves, so the widest name fits without an ellipsis.
+    static int MeasureName(string text, Font font) =>
+        TextRenderer.MeasureText(text, font, Size.Empty, TextFormatFlags.NoPrefix).Width;
+
+    Font NameFont(BuildRow row) =>
+        row.Kind == RowKind.Group ? bold : Font;
+
+    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, int nameColumn)
     {
         // The full height of the row and flush with its neighbours, so a run of rows in one status
         // reads as one block rather than a column of dots.
@@ -197,21 +213,19 @@ sealed class RowsCanvas : Control
         var centreY = bounds.Top + bounds.Height / 2;
         // Widths: the two names share what the fixed cells leave.
         const int runWidth = 60;
-        const int statusWidth = 80;
         const int barWidth = 110;
         const int timingWidth = 80;
         // Reserved for the widest set of chips, so the columns line up whatever a row carries.
         var actionsWidth = Measure("Cancel") + 2 * chipPadding + padding;
         var linksWidth = Measure("Build") + Measure("Branch") + Measure("PR 9999") + 3 * (2 * chipPadding + 6);
-        var fixedWidth = runWidth + statusWidth + barWidth + timingWidth + linksWidth + actionsWidth + 6 * padding;
+        var fixedWidth = runWidth + barWidth + timingWidth + linksWidth + actionsWidth + 5 * padding;
         var names = Math.Max(120, bounds.Width - x - fixedWidth);
-        // The first name holds the repository and branch, the longer of the two.
-        var detailWidth = names * 9 / 20;
-        var nameWidth = names - detailWidth;
+        // As wide as the widest name, so a short project name leaves the pipeline room, but never
+        // so wide that the pipeline cell drops below a readable width.
+        var nameWidth = Math.Clamp(nameColumn, 40, Math.Max(40, names - minimumDetail));
+        var detailWidth = names - nameWidth;
 
-        var group = row.Kind == RowKind.Group;
-        var name = group ? $"{(row.Expanded ? "▾" : "▸")} {row.Name}" : row.Name;
-        Draw(graphics, name, group ? bold : Font, x, bounds, nameWidth, Palette.Text);
+        Draw(graphics, DisplayName(row), NameFont(row), x, bounds, nameWidth, Palette.Text);
         x += nameWidth + padding;
         // The logo leads the second cell, beside the pipeline it ran, so a group's members, whose
         // first cell is empty, still show which service each one came from.
@@ -221,12 +235,10 @@ sealed class RowsCanvas : Control
             graphics.DrawImage(icon, x, centreY - iconSize / 2, iconSize, iconSize);
         }
 
-        Draw(graphics, row.Detail, Font,x + iconWidth, bounds, detailWidth - iconWidth, Palette.Dim);
+        Draw(graphics, row.Detail, Font, x + iconWidth, bounds, detailWidth - iconWidth, Palette.Dim);
         x += detailWidth + padding;
         Draw(graphics, row.RunNumber, Font, x, bounds, runWidth, Palette.Dim);
         x += runWidth + padding;
-        Draw(graphics, row.StatusText, Font, x, bounds, statusWidth, Palette.Status(row.Status));
-        x += statusWidth + padding;
 
         if (row.Progress >= 0)
         {

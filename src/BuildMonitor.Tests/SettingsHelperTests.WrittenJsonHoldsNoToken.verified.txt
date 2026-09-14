@@ -2,6 +2,7 @@
   "RunAtStartup": false,
   "ShowWindowAtStart": true,
   "ShowOtherBranches": true,
+  "ShowForksAndCollaborations": false,
   "NotifyOnFailure": true,
   "Theme": "System",
   "PollIntervalSeconds": 30,

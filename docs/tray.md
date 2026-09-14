@@ -30,13 +30,13 @@ Two or more failed builds of one project share a group, and so do two or more th
 
 Each row carries:
 
- * a status square and text; the squares of neighbouring rows touch, so a run of failures reads as one block
+ * a status square; the squares of neighbouring rows touch, so a run of failures reads as one block
  * the provider's logo, when the connections span more than one CI service
  * the repository, then the pipeline and branch; the pipeline is left out when it is named after the repository, as an AppVeyor project is
  * the run number
  * a progress bar and a countdown while the build runs, from the provider's own estimate where it gives one and otherwise from the median of the pipeline's last ten successful runs. A build that runs past its estimate shows how far over it is. Without any estimate the elapsed time is shown
  * links: Build opens the run, Branch opens the branch in the repository, PR opens the pull request
- * Retry, for a finished run; Cancel, for a queued or running one
+ * Retry, for a failed or cancelled run; Cancel, for a queued or running one
 
 Right click a row for the same actions plus copying the build URL and excluding the pipeline, which adds an exact match to the [filters](filters.md).
 

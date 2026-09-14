@@ -40,7 +40,7 @@ static class Snapshot
             build.CommitSha,
             build.CommitMessage,
             build.Author,
-            build.CanRetry,
+            build.Retryable(),
             build.CanCancel);
     }
 

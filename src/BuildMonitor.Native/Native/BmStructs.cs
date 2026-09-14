@@ -17,7 +17,6 @@ struct BmRow
     public BmString Detail;
     public BmString Provider;
     public BmString RunNumber;
-    public BmString StatusText;
     public BmString Timing;
     public BmString BuildLabel;
     public BmString BranchLabel;
@@ -78,6 +77,9 @@ struct BmScreen
     public int TotalRows;
     public int SelectedRow;
     public int Loading;
+    public BmString* Names;
+    public int NameCount;
+    public int GroupNameCount;
 
     public BmString FormTitle;
     public BmField* Fields;

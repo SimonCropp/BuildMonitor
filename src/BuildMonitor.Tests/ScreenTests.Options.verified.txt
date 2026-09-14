@@ -4,6 +4,7 @@
 | [ ] Run at startup                                                                                                   |
 | [x] Show the window at startup                                                                                       |
 | [x] Show running builds on other branches                                                                            |
+| [ ] Show forks and collaborator repositories                                                                         |
 | [x] Notify when a build fails                                                                                        |
 | Theme: <System>                                                                                                      |
 | Poll interval (seconds): [30    ]                                                                                    |
@@ -19,7 +20,6 @@
 | [ Open logs ]                                                                                                        |
 | [ Raise issue ]                                                                                                      |
 | [ Update ]                                                                                                           |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

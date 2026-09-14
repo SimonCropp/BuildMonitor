@@ -111,17 +111,20 @@ final class BuildsRenderer {
         let linksWidth: CGFloat = 210
         let timingWidth: CGFloat = 100
         let barWidth: CGFloat = 110
-        let statusWidth: CGFloat = 90
         let runWidth: CGFloat = 60
         let iconSize: CGFloat = 16
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.
         let iconWidth: CGFloat = frame.rows.contains { !$0.provider.isEmpty } ? iconSize + 8 : 0
         let textX = rowHeight + padding
-        let textWidth = max(120, width - textX - padding - actionsWidth - linksWidth - timingWidth - barWidth - statusWidth - runWidth - 4)
-        // The first name holds the repository and branch, the longer of the two.
-        let detailWidth = textWidth * 0.45
-        let nameWidth = textWidth - detailWidth
+        let textWidth = max(120, width - textX - padding - actionsWidth - linksWidth - timingWidth - barWidth - runWidth - 4)
+        // As wide as the widest name across every row, not only those on screen, so it does not shift
+        // while scrolling. Never so wide that the pipeline cell drops below a readable width.
+        let widest = (frame.names + frame.groupNames.map { "▾ " + $0 })
+            .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
+            .max() ?? 0
+        let nameWidth = min(widest + 8, max(40, textWidth - 120))
+        let detailWidth = textWidth - nameWidth
 
         for (index, row) in frame.rows.enumerated() {
             let rect = CGRect(x: 0, y: bodyRect.minY + CGFloat(index) * rowHeight, width: width, height: rowHeight)
@@ -139,8 +142,7 @@ final class BuildsRenderer {
             CGRect(x: rect.minX, y: rect.minY, width: rowHeight, height: rowHeight).fill()
 
             var x = textX
-            let name = row.isGroup ? (row.isExpanded ? "▾ " : "▸ ") + row.name : row.name
-            drawText(name, at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: nameWidth - 8)
+            drawText(displayName(row), at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: nameWidth - 8)
             x += nameWidth
             // The logo leads the detail cell, beside the pipeline it ran, so a group's members, whose
             // first cell is empty, still show which service each came from.
@@ -153,8 +155,6 @@ final class BuildsRenderer {
             x += detailWidth
             drawText(row.runNumber, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: runWidth)
             x += runWidth
-            drawText(row.statusText, at: CGPoint(x: x, y: textY), font: font, colour: colour, width: statusWidth)
-            x += statusWidth
             if row.progress >= 0 {
                 let track = CGRect(x: x, y: rect.midY - 4, width: barWidth - 10, height: 8)
                 Palette.barTrack.setFill()
@@ -188,6 +188,10 @@ final class BuildsRenderer {
                 chips.append(Hit(row: index, link: Int32(BM_LINK_NONE.rawValue), action: Int32(BM_ACTION_CANCEL.rawValue), rect: chipRect))
             }
         }
+    }
+
+    private func displayName(_ row: Frame.Row) -> String {
+        row.isGroup ? (row.isExpanded ? "▾ " : "▸ ") + row.name : row.name
     }
 
     private func drawForm(_ frame: Frame) {

@@ -78,12 +78,12 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                                                       9 pipelines, 2 failing, 4 running |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   ? nightly              jenkins                  #88    queued               queued     Build              [Cancel] |
-                |   x [-] Verify                    2 failing              failed               25m ago                                |
-                |   x                      github   test.yml featu> #77    failed               25m ago    Build Branch PR 42 [Retry]  |
-                |   x                      github   release.yml ma> #9     failed               50m ago    Build Branch       [Retry]  |
-                |   + [+] Verify                    2 passing              succeeded            2h ago                                 |
-                | > + DiffEngine           github   docs.yml main   #300   succeeded            23h ago    Build Branch       [Retry]  |
+                |   ? nightly    jenkins                                      #88               queued     Build              [Cancel] |
+                |   x [-] Verify          2 failing                                             25m ago                                |
+                |   x            github   test.yml feature/inline             #77               25m ago    Build Branch PR 42 [Retry]  |
+                |   x            github   release.yml main                    #9                50m ago    Build Branch       [Retry]  |
+                |   + [+] Verify          2 passing                                             2h ago                                 |
+                | > + DiffEngine github   docs.yml main                       #300              23h ago    Build Branch                |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+

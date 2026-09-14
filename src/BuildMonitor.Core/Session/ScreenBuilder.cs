@@ -53,7 +53,7 @@ static class ScreenBuilder
         return new(
             Title,
             Page.Builds,
-            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Loading(state, rows.Length)),
+            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(rows, RowKind.Build), Names(rows, RowKind.Group), Loading(state, rows.Length)),
             null,
             Buttons(state),
             status,
@@ -75,6 +75,21 @@ static class ScreenBuilder
         rows == 0 &&
         state.Connections.Any(_ => _.LastPolled is null &&
                                    _.Health is ConnectionHealth.Unpolled or ConnectionHealth.Polling);
+
+    static IReadOnlyList<string> Names(ImmutableArray<Row> rows, RowKind kind) =>
+        rows.Where(_ => _.Kind == kind).Select(NameOf).Distinct().ToList();
+
+    /// <summary>
+    /// What a row's first cell says. One rule for the composed row and for the names the column is
+    /// sized from, so the width can not be measured from text the row does not show.
+    /// </summary>
+    static string NameOf(Row row) =>
+        row.Kind switch
+        {
+            RowKind.Group => row.Group!.Project,
+            RowKind.Member => "",
+            _ => row.Build!.ShortRepoName()
+        };
 
     static string Header(SessionState state, int pipelines, int failing, int running)
     {
@@ -106,11 +121,10 @@ static class ScreenBuilder
         return new(
             row.Kind,
             build.Status,
-            row.Kind == RowKind.Member ? "" : repo,
+            NameOf(row),
             string.Join(' ', detail.Where(_ => _.Length > 0)),
             provider ? row.Connection!.Connection.ProviderId : "",
             build.RunNumber.Length == 0 ? "" : $"#{build.RunNumber}",
-            build.StatusText ?? build.Status.ToString().ToLowerInvariant(),
             fraction,
             timing,
             selected,
@@ -120,7 +134,7 @@ static class ScreenBuilder
             build.PullRequestUrl is null
                 ? null
                 : new(LinkKind.PullRequest, build.PullRequestNumber is null ? "PR" : $"PR {build.PullRequestNumber}", build.PullRequestUrl),
-            build.CanRetry,
+            build.Retryable(),
             build.CanCancel);
     }
 
@@ -138,11 +152,10 @@ static class ScreenBuilder
         return new(
             RowKind.Group,
             group.Failed ? BuildStatus.Failed : BuildStatus.Succeeded,
-            group.Project,
+            NameOf(row),
             group.Failed ? $"{members.Length} failing" : $"{members.Length} passing",
             "",
             "",
-            group.Failed ? "failed" : "succeeded",
             -1,
             timing,
             selected,
@@ -273,6 +286,7 @@ static class ScreenBuilder
             new(FormFields.RunAtStartup, FieldKind.Checkbox, "Run at startup", form.Value(FormFields.RunAtStartup)),
             new(FormFields.ShowWindowAtStart, FieldKind.Checkbox, "Show the window at startup", form.Value(FormFields.ShowWindowAtStart)),
             new(FormFields.ShowOtherBranches, FieldKind.Checkbox, "Show running builds on other branches", form.Value(FormFields.ShowOtherBranches)),
+            new(FormFields.ShowForks, FieldKind.Checkbox, "Show forks and collaborator repositories", form.Value(FormFields.ShowForks)),
             new(FormFields.NotifyOnFailure, FieldKind.Checkbox, "Notify when a build fails", form.Value(FormFields.NotifyOnFailure)),
             new(FormFields.Theme, FieldKind.Select, "Theme", form.Value(FormFields.Theme), Options: Enum.GetNames<Theme>()),
             new(FormFields.PollInterval, FieldKind.Number, "Poll interval (seconds)", form.Value(FormFields.PollInterval)),
@@ -445,7 +459,7 @@ static class ScreenBuilder
             {
                 new(TrayMenu.BuildItem(build, TrayMenu.OpenAction), "Open build", IconName: "build")
             };
-            if (build.CanRetry)
+            if (build.Retryable())
             {
                 children.Add(new(TrayMenu.BuildItem(build, TrayMenu.RetryAction), "Retry", IconName: "retry"));
             }

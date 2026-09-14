@@ -10,6 +10,7 @@
 #include "rlgl.h"
 #include "imgui.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -316,6 +317,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
     }
 
     ImGuiTableFlags flags = ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadOuterX;
+    float tableWidth = ImGui::GetContentRegionAvail().x;
     if (screen.rowCount == 0 && screen.loading) {
         // An arc turning once a second, from the clock: the window is drawn every frame anyway.
         ImDrawList* spinner = ImGui::GetWindowDrawList();
@@ -330,14 +332,27 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         ImGui::TextColored(dim, "Loading builds");
     } else if (screen.rowCount == 0) {
         ImGui::TextColored(dim, "Nothing to show yet.");
-    } else if (ImGui::BeginTable("rows", 8, flags)) {
-        // The name cell starts with a status square a row height wide, and holds
-        // the repository and branch, the longer of the two names, so it takes most of the stretch;
-        // the pipeline beside it is usually a short workflow name.
-        ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch, 4.2f);
-        ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthStretch, 2.7f);
+    } else if (ImGui::BeginTable("rows", 7, flags)) {
+        // The name cell starts with a status square a row height wide, then is as wide as the widest
+        // name across every row, not only those on screen, so it does not shift while scrolling.
+        // Never so wide that the pipeline cell drops below a readable width.
+        float nameText = 0.0f;
+        for (int32_t i = 0; i < screen.nameCount + screen.groupNameCount; i++) {
+            std::string name = Str(screen, screen.names[i]);
+            if (i >= screen.nameCount) {
+                name = "v " + name;
+            }
+
+            nameText = std::max(nameText, ImGui::CalcTextSize(name.c_str()).x);
+        }
+
+        const float fixedColumns = 70.0f + 104.0f + 90.0f + 210.0f + 80.0f;
+        const float minimumDetail = 120.0f;
+        float nameWanted = rowHeight + ImGui::GetStyle().ItemSpacing.x + nameText + 2.0f * ImGui::GetStyle().CellPadding.x;
+        float nameWidth = std::max(40.0f, std::min(nameWanted, tableWidth - fixedColumns - minimumDetail));
+        ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, nameWidth);
+        ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthStretch, 1.0f);
         ImGui::TableSetupColumn("run", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-        ImGui::TableSetupColumn("status", ImGuiTableColumnFlags_WidthFixed, 90.0f);
         ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, 104.0f);
         ImGui::TableSetupColumn("timing", ImGuiTableColumnFlags_WidthFixed, 90.0f);
         ImGui::TableSetupColumn("links", ImGuiTableColumnFlags_WidthFixed, 210.0f);
@@ -406,8 +421,6 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             ImGui::TableSetColumnIndex(2);
             ImGui::TextColored(dim, "%s", Str(screen, row.runNumber).c_str());
             ImGui::TableSetColumnIndex(3);
-            ImGui::TextColored(colour, "%s", Str(screen, row.statusText).c_str());
-            ImGui::TableSetColumnIndex(4);
             if (row.progress >= 0.0f) {
                 ImGui::PushStyleColor(ImGuiCol_PlotHistogram, StatusColour(BM_STATUS_RUNNING));
                 ImGui::PushStyleColor(ImGuiCol_FrameBg, barTrack);
@@ -416,9 +429,9 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                 ImGui::PopStyleColor(2);
             }
 
-            ImGui::TableSetColumnIndex(5);
+            ImGui::TableSetColumnIndex(4);
             ImGui::TextColored(dim, "%s", Str(screen, row.timing).c_str());
-            ImGui::TableSetColumnIndex(6);
+            ImGui::TableSetColumnIndex(5);
             if (row.buildLabel.length > 0) {
                 if (Chip(Str(screen, row.buildLabel).c_str(), chip, chipText)) {
                     g.input.clickedLinkRow = i;
@@ -444,7 +457,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                 }
             }
 
-            ImGui::TableSetColumnIndex(7);
+            ImGui::TableSetColumnIndex(6);
             if (row.flags & BM_ROW_CAN_RETRY) {
                 if (Chip("Retry", retryChip, text)) {
                     g.input.clickedActionRow = i;
