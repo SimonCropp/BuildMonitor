@@ -59,6 +59,53 @@ public class SessionTests
     }
 
     [Test]
+    public async Task SelectionFollowsItsPipelineToAnotherBranch()
+    {
+        // Row 3 is docs.yml on main. A run starting on a branch takes over the pipeline's row and,
+        // being running, sorts to the top of the group.
+        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 3);
+        var run = Fixtures.Build(Fixtures.GitHub.Id, "DiffEngine/docs.yml", "docs.yml", "VerifyTests/DiffEngine", "feature/x", "301", BuildStatus.Running, started: Fixtures.Now);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [..Fixtures.GitHubBuilds(), run], Fixtures.Now);
+        await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/DiffEngine/docs.yml/feature/x");
+    }
+
+    [Test]
+    public async Task SelectionMovesUpWhenItsPipelineIsExcluded()
+    {
+        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 3);
+        var next = MonitorSession.ExcludePipeline(state, MonitorSession.SelectedBuild(state)!);
+        await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/test.yml/feature/inline");
+    }
+
+    [Test]
+    public async Task FoldingMovesTheSelectionToTheHeader()
+    {
+        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 2);
+        var folded = MonitorSession.ToggleGroup(state, Fixtures.GitHub.Id);
+        await Assert.That(folded.SelectedRow).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task MenuClosesWhenAPollMovesItsRow()
+    {
+        // Row 1 is the running DiffEngine build, which offers Cancel. A newer run sorts above it,
+        // so a menu left where it was drawn would sit on another build.
+        var state = MonitorSession.OpenMenu(Fixtures.WithBuilds(), 1);
+        var rerun = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "feature/inline", "78", BuildStatus.Running, started: Fixtures.Now);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [..Fixtures.GitHubBuilds(), rerun], Fixtures.Now);
+        await Assert.That(next.Menu).IsNull();
+        await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/DiffEngine/test.yml/main");
+    }
+
+    [Test]
+    public async Task MenuStaysWhenAPollLeavesItsRow()
+    {
+        var state = MonitorSession.OpenMenu(Fixtures.WithBuilds(), 1);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.Jenkins.Id, [], [], Fixtures.Now);
+        await Assert.That(next.Menu).IsEqualTo(state.Menu);
+    }
+
+    [Test]
     public async Task ToggleGroupTwiceRestores()
     {
         var state = Fixtures.WithBuilds();

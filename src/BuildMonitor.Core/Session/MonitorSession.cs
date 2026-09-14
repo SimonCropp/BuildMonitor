@@ -61,8 +61,9 @@ static class MonitorSession
     }
 
     /// <summary>
-    /// Keeps the scroll top and the selection inside the rows that exist, which changes with
-    /// every poll and every fold.
+    /// Keeps the scroll top and the selection inside the rows that exist. Enough when only the
+    /// window, the scroll or the index changed; a transition that changes the rows goes through
+    /// <see cref="Follow"/>, or the selection lands on whichever row took its place.
     /// </summary>
     static SessionState Clamp(SessionState state)
     {
@@ -79,6 +80,80 @@ static class MonitorSession
 
         return state with { ScrollTop = top, SelectedRow = selected };
     }
+
+    /// <summary>
+    /// Re-applies the selection to rows that changed. A poll re-sorts a group, running first, and
+    /// a fold, a filter or a removed connection takes rows out, so the row at the selected index
+    /// is often a different one afterwards. The selection keeps its row: the same pipeline on the
+    /// same branch, else the same pipeline when its latest run is on another branch now, else the
+    /// nearest row above it that is still shown, which in a folded group is the header.
+    /// <para>
+    /// The menu does not follow. Moved, it would put a different item under the pointer; left in
+    /// place, it would sit beside another build. Unless its row is still where it was drawn, it
+    /// closes.
+    /// </para>
+    /// </summary>
+    static SessionState Follow(SessionState before, SessionState after)
+    {
+        var previous = RowProjection.Rows(before);
+        var rows = RowProjection.Rows(after);
+        var indexes = new Dictionary<(RowKind, string), int>();
+        for (var index = 0; index < rows.Length; index++)
+        {
+            indexes.TryAdd(Identity(rows[index]), index);
+        }
+
+        var followed = Clamp(after with { SelectedRow = Locate(previous, rows, indexes, before.SelectedRow) });
+        if (followed.Menu is { } menu &&
+            (followed.ScrollTop != before.ScrollTop ||
+             menu.Row >= previous.Length ||
+             !indexes.TryGetValue(Identity(previous[menu.Row]), out var row) ||
+             row != menu.Row))
+        {
+            return followed with { Menu = null };
+        }
+
+        return followed;
+    }
+
+    static int Locate(ImmutableArray<Row> previous, ImmutableArray<Row> rows, Dictionary<(RowKind, string), int> indexes, int selected)
+    {
+        if (selected < 0 ||
+            selected >= previous.Length)
+        {
+            return selected;
+        }
+
+        if (indexes.TryGetValue(Identity(previous[selected]), out var index))
+        {
+            return index;
+        }
+
+        if (previous[selected].Build is { } build)
+        {
+            var pipeline = build.PipelineKey;
+            for (var candidate = 0; candidate < rows.Length; candidate++)
+            {
+                if (rows[candidate].Build?.PipelineKey == pipeline)
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        for (var above = selected - 1; above >= 0; above--)
+        {
+            if (indexes.TryGetValue(Identity(previous[above]), out index))
+            {
+                return index;
+            }
+        }
+
+        return 0;
+    }
+
+    static (RowKind, string) Identity(Row row) =>
+        (row.Kind, row.Build?.Key ?? row.Connection.Connection.Id);
 
     public static Row? SelectedRow(SessionState state)
     {
@@ -103,7 +178,7 @@ static class MonitorSession
         var folded = ReferenceEquals(unfolded, state.FoldedGroups)
             ? state.FoldedGroups.Add(connectionId)
             : unfolded;
-        return Clamp(state with { FoldedGroups = folded });
+        return Follow(state, state with { FoldedGroups = folded });
     }
 
     // Context menu
@@ -361,7 +436,7 @@ static class MonitorSession
             })
             .ToImmutableArray();
         var ids = settings.Connections.Select(_ => _.Id).ToHashSet();
-        return Clamp(state with
+        return Follow(state, state with
         {
             Settings = settings,
             Connections = connections,
@@ -484,7 +559,7 @@ static class MonitorSession
             notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, builds)) ?? notification;
         }
 
-        return Clamp(next with
+        return Follow(state, next with
         {
             Builds =
             [
@@ -528,7 +603,7 @@ static class MonitorSession
             notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, news)) ?? notification;
         }
 
-        return Clamp(next with
+        return Follow(state, next with
         {
             Builds =
             [
