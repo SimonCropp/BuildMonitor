@@ -1,6 +1,16 @@
 # Filters
 
+Windows:
+
 <img src="../src/BuildMonitor.Windows.Tests/MonitorFormTests.Filters.verified.png">
+
+macOS:
+
+<img src="../src/BuildMonitor.Tests/Native/PixelTests.Filters.OSX.verified.png">
+
+Linux:
+
+<img src="../src/BuildMonitor.Tests/Native/PixelTests.Filters.Linux.verified.png">
 
 A filter excludes what it matches. Each one has:
 

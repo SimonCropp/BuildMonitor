@@ -1,6 +1,16 @@
 # Options
 
+Windows:
+
 <img src="../src/BuildMonitor.Windows.Tests/MonitorFormTests.Options.verified.png">
+
+macOS:
+
+<img src="../src/BuildMonitor.Tests/Native/PixelTests.Options.OSX.verified.png">
+
+Linux:
+
+<img src="../src/BuildMonitor.Tests/Native/PixelTests.Options.Linux.verified.png">
 
 
 ## Run at startup
