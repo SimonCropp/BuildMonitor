@@ -9,17 +9,26 @@
 static class NativeResolver
 {
     const string name = "buildmonitor_ui";
+    static readonly Lock gate = new();
     static bool registered;
 
+    /// <summary>
+    /// Tests call this from parallel threads. The lock makes a second caller wait until the
+    /// resolver is set: with only a flag, set before it, that caller went straight on to a
+    /// P/Invoke, which fell back to the default probing and threw DllNotFoundException.
+    /// </summary>
     public static void Register()
     {
-        if (registered)
+        lock (gate)
         {
-            return;
-        }
+            if (registered)
+            {
+                return;
+            }
 
-        registered = true;
-        NativeLibrary.SetDllImportResolver(typeof(NativeResolver).Assembly, Resolve);
+            NativeLibrary.SetDllImportResolver(typeof(NativeResolver).Assembly, Resolve);
+            registered = true;
+        }
     }
 
     static nint Resolve(string library, Assembly assembly, DllImportSearchPath? searchPath)
