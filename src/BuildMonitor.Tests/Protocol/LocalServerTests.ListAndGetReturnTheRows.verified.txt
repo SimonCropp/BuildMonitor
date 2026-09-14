@@ -2,6 +2,35 @@
   list:
 [
   {
+    "Key": "jenkins/build-all/main",
+    "Connection": "Jenkins",
+    "Pipeline": "Build all",
+    "Repo": "build-all",
+    "Branch": "main",
+    "Run": "501",
+    "Status": "Running",
+    "Started": "2026-01-01T11:59:00+00:00",
+    "Progress": 0.2,
+    "Timing": "04:00 left",
+    "BuildUrl": "https://example.com/jenkins/build-all/501",
+    "CanRetry": false,
+    "CanCancel": true
+  },
+  {
+    "Key": "octo/Projects-1/",
+    "Connection": "Octopus",
+    "Pipeline": "Deploy Web",
+    "Repo": "Deploy Web",
+    "Run": "12",
+    "Status": "Running",
+    "Started": "2026-01-01T11:58:30+00:00",
+    "Progress": 0.4,
+    "Timing": "02:15 left",
+    "BuildUrl": "https://example.com/octo/Projects-1/12",
+    "CanRetry": false,
+    "CanCancel": true
+  },
+  {
     "Key": "gh/DiffEngine/test.yml/main",
     "Connection": "GitHub",
     "Pipeline": "test.yml",
@@ -17,6 +46,19 @@
     "Commit": "0123456789abcdef",
     "CommitMessage": "Fix the thing",
     "Author": "SimonCropp",
+    "CanRetry": false,
+    "CanCancel": true
+  },
+  {
+    "Key": "jenkins/nightly/",
+    "Connection": "Jenkins",
+    "Pipeline": "Nightly",
+    "Repo": "nightly",
+    "Run": "88",
+    "Status": "Queued",
+    "Progress": -1,
+    "Timing": "queued",
+    "BuildUrl": "https://example.com/jenkins/nightly/88",
     "CanRetry": false,
     "CanCancel": true
   },
@@ -57,48 +99,6 @@
     "BranchUrl": "https://github.com/VerifyTests/DiffEngine/tree/main",
     "CanRetry": true,
     "CanCancel": false
-  },
-  {
-    "Key": "jenkins/build-all/main",
-    "Connection": "Jenkins",
-    "Pipeline": "Build all",
-    "Repo": "build-all",
-    "Branch": "main",
-    "Run": "501",
-    "Status": "Running",
-    "Started": "2026-01-01T11:59:00+00:00",
-    "Progress": 0.2,
-    "Timing": "04:00 left",
-    "BuildUrl": "https://example.com/jenkins/build-all/501",
-    "CanRetry": false,
-    "CanCancel": true
-  },
-  {
-    "Key": "jenkins/nightly/",
-    "Connection": "Jenkins",
-    "Pipeline": "Nightly",
-    "Repo": "nightly",
-    "Run": "88",
-    "Status": "Queued",
-    "Progress": -1,
-    "Timing": "queued",
-    "BuildUrl": "https://example.com/jenkins/nightly/88",
-    "CanRetry": false,
-    "CanCancel": true
-  },
-  {
-    "Key": "octo/Projects-1/",
-    "Connection": "Octopus",
-    "Pipeline": "Deploy Web",
-    "Repo": "Deploy Web",
-    "Run": "12",
-    "Status": "Running",
-    "Started": "2026-01-01T11:58:30+00:00",
-    "Progress": 0.4,
-    "Timing": "02:15 left",
-    "BuildUrl": "https://example.com/octo/Projects-1/12",
-    "CanRetry": false,
-    "CanCancel": true
   }
 ],
   get:

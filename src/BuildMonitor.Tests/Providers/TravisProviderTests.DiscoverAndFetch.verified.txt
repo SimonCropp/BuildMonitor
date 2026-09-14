@@ -20,7 +20,6 @@
       ProviderRef: 900,
       Key: travis/VerifyTests/DiffEngine/main,
       PipelineKey: travis/VerifyTests/DiffEngine,
-      ProjectKey: travis/VerifyTests/DiffEngine,
       IsActive: true,
       Ordering: DateTimeOffset_1
     },
@@ -47,7 +46,6 @@
       ProviderRef: 899,
       Key: travis/VerifyTests/DiffEngine/feature,
       PipelineKey: travis/VerifyTests/DiffEngine,
-      ProjectKey: travis/VerifyTests/DiffEngine,
       IsActive: false,
       Ordering: DateTimeOffset_2
     }

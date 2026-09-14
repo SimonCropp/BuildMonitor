@@ -15,8 +15,8 @@ public class MonitorFormTests
         Capture(Fixtures.Empty());
 
     [Test]
-    public Task Folded() =>
-        Capture(Fixtures.Folded());
+    public Task Groups() =>
+        Capture(Fixtures.WithFailedGroup());
 
     [Test]
     public Task NeedsAuth() =>

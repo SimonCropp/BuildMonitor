@@ -60,8 +60,9 @@ static class RateHeaders
                 continue;
             }
 
-            var end = text.IndexOfAny([',', ';']);
-            var number = end < 0 ? text : text[..end];
+            var span = text.AsSpan();
+            var end = span.IndexOfAny(',', ';');
+            var number = end < 0 ? span : span[..end];
             if (double.TryParse(number.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
             {
                 return value;

@@ -43,6 +43,25 @@ static class Program
 
     static readonly SKColor glyphColour = new(0x8A, 0x8A, 0x8A);
 
+    /// <summary>
+    /// Provider logos from Simple Icons, keyed by provider id. Iconify carries the shapes but not
+    /// the brand colours, so those are transcribed from simple-icons. A brand that is near black,
+    /// GitHub and TeamCity, is drawn in the glyph grey instead, or it would vanish on a dark theme.
+    /// </summary>
+    static readonly (string Id, Icon Icon, SKColor Colour)[] providers =
+    [
+        ("appveyor", SimpleIcons.Appveyor, new(0x00, 0xB3, 0xE0)),
+        ("travis", SimpleIcons.Travisci, new(0x3E, 0xAA, 0xAF)),
+        ("jenkins", SimpleIcons.Jenkins, new(0xD2, 0x49, 0x39)),
+        ("github", SimpleIcons.Github, glyphColour),
+        ("azure-devops", SimpleIcons.Azuredevops, new(0x00, 0x78, 0xD7)),
+        ("teamcity", SimpleIcons.Teamcity, glyphColour),
+        ("gitlab", SimpleIcons.Gitlab, new(0xFC, 0x6D, 0x26)),
+        ("gocd", SimpleIcons.Gocd, new(0x94, 0x39, 0x9E)),
+        ("bitbucket", SimpleIcons.Bitbucket, new(0x00, 0x52, 0xCC)),
+        ("octopus", SimpleIcons.Octopusdeploy, new(0x2F, 0x93, 0xE0))
+    ];
+
     static int Main()
     {
         var root = FindRepositoryRoot();
@@ -82,6 +101,15 @@ static class Program
             {
                 using var bitmap = Glyph(icon, glyphColour, size);
                 File.WriteAllBytes(Path.Combine(images, $"glyph-{name}-{size}.png"), Png(bitmap));
+            }
+        }
+
+        foreach (var (id, icon, colour) in providers)
+        {
+            foreach (var size in glyphSizes)
+            {
+                using var bitmap = Glyph(icon, colour, size);
+                File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-{size}.png"), Png(bitmap));
             }
         }
 

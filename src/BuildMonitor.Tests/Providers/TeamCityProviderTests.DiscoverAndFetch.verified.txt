@@ -26,7 +26,6 @@
       ProviderRef: running|9001|Verify_Build|pull/15,
       Key: teamcity/Verify_Build/pull/15,
       PipelineKey: teamcity/Verify_Build,
-      ProjectKey: teamcity/Verify,
       IsActive: true,
       Ordering: DateTimeOffset_2
     },
@@ -49,7 +48,6 @@
       ProviderRef: finished|9000|Verify_Build|main,
       Key: teamcity/Verify_Build/main,
       PipelineKey: teamcity/Verify_Build,
-      ProjectKey: teamcity/Verify,
       IsActive: false,
       Ordering: DateTimeOffset_4
     },
@@ -72,7 +70,6 @@
       ProviderRef: finished|8999|Verify_Docs|main,
       Key: teamcity/Verify_Docs/main,
       PipelineKey: teamcity/Verify_Docs,
-      ProjectKey: teamcity/Verify,
       IsActive: false,
       Ordering: DateTimeOffset_7
     }

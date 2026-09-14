@@ -8,7 +8,7 @@ static partial class Bm
     /// <summary>
     /// Keep in sync with BM_VERSION in bm.h.
     /// </summary>
-    public const int ExpectedVersion = 2;
+    public const int ExpectedVersion = 3;
 
     [LibraryImport(library, EntryPoint = "bm_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int Init(int width, int height, string title, byte* fontTtf, int fontLength, float fontSize, int hidden);
@@ -42,6 +42,9 @@ static partial class Bm
 
     [LibraryImport(library, EntryPoint = "bm_tray_set_menu_icon", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void TraySetMenuIcon(string name, byte* png, int length);
+
+    [LibraryImport(library, EntryPoint = "bm_set_row_icon", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void SetRowIcon(string name, byte* png, int length);
 
     [LibraryImport(library, EntryPoint = "bm_shutdown")]
     public static partial void Shutdown();

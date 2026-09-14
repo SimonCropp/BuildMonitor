@@ -38,12 +38,6 @@ record Build(
 
     public string PipelineKey => $"{ConnectionId}/{PipelineId}";
 
-    /// <summary>
-    /// What green pipelines share a row by: the repository, or whatever the provider calls its
-    /// project. Scoped to the connection, so two servers that both have a "main" stay apart.
-    /// </summary>
-    public string ProjectKey => $"{ConnectionId}/{RepoName}";
-
     public bool IsActive => Status is BuildStatus.Queued or BuildStatus.Running;
 
     public DateTimeOffset? Ordering => Started ?? Queued ?? Finished;

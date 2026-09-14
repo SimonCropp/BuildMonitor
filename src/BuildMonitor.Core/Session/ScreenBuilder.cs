@@ -29,13 +29,14 @@ static class ScreenBuilder
         var body = MonitorSession.BodyRows(state);
         var top = Math.Clamp(state.ScrollTop, 0, Math.Max(0, rows.Length - body));
         var visible = rows.Skip(top).Take(body).ToList();
+        var provider = ShowProvider(state);
         var composed = new List<BuildRow>(visible.Count);
         for (var index = 0; index < visible.Count; index++)
         {
-            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now));
+            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, provider, now));
         }
 
-        var builds = rows.SelectMany(_ => _.Builds).ToList();
+        var builds = RowProjection.Builds(state);
         var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
         var running = builds.Count(_ => _.IsActive);
         var selected = state.SelectedRow >= top && state.SelectedRow < top + visible.Count
@@ -52,7 +53,7 @@ static class ScreenBuilder
         return new(
             Title,
             Page.Builds,
-            new(Header(state, builds.Count, failing, running), composed, top, rows.Length, selected, failing, running),
+            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Loading(state, rows.Length)),
             null,
             Buttons(state),
             status,
@@ -64,6 +65,17 @@ static class ScreenBuilder
             state.Settings.Theme);
     }
 
+    /// <summary>
+    /// No rows because a connection has not finished its first poll, which for a large account
+    /// takes a while, rather than because there is nothing to show: the empty page said the latter.
+    /// Only the first poll counts, so an account with no builds does not flash a spinner on every
+    /// later poll, and a connection that is failing says so in the footer instead.
+    /// </summary>
+    static bool Loading(SessionState state, int rows) =>
+        rows == 0 &&
+        state.Connections.Any(_ => _.LastPolled is null &&
+                                   _.Health is ConnectionHealth.Unpolled or ConnectionHealth.Polling);
+
     static string Header(SessionState state, int pipelines, int failing, int running)
     {
         if (state.Connections.Length == 0)
@@ -74,49 +86,29 @@ static class ScreenBuilder
         return $"{Plural(pipelines, "pipeline")}, {failing} failing, {running} running";
     }
 
-    static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now)
+    static BuildRow Compose(SessionState state, Row row, bool selected, bool provider, DateTimeOffset now)
     {
-        var connection = row.Connection;
-        if (row.Kind == RowKind.Project)
-        {
-            return ComposeProject(row, selected, now);
-        }
-
         if (row.Build is not { } build)
         {
-            var health = connection.Describe(now);
-            var label = health.Length == 0 ? connection.Connection.Name : $"{connection.Connection.Name} ({health})";
-            return new(
-                RowKind.Header,
-                BuildStatus.Unknown,
-                label,
-                "",
-                "",
-                "",
-                -1,
-                "",
-                selected,
-                row.Folded,
-                null,
-                null,
-                null,
-                false,
-                false,
-                health,
-                connection.Connection.Name);
+            return ComposeGroup(row, row.Group!, selected, now);
         }
 
         var estimate = Estimator.Estimate(build, state.Medians);
         var (fraction, timing) = Progress.Compute(build, estimate, now);
         var repo = build.ShortRepoName();
-        var repoBranch = build.Branch is null
-            ? repo
-            : $"{repo} {build.Branch}";
+        // The pipeline is left out when the provider names it after the repository, as AppVeyor
+        // does, rather than the same name reading in both columns.
+        List<string> detail =
+        [
+            string.Equals(repo, build.PipelineName, StringComparison.OrdinalIgnoreCase) ? "" : build.PipelineName,
+            build.Branch ?? ""
+        ];
         return new(
-            RowKind.Build,
+            row.Kind,
             build.Status,
-            build.PipelineName,
-            repoBranch,
+            row.Kind == RowKind.Member ? "" : repo,
+            string.Join(' ', detail.Where(_ => _.Length > 0)),
+            provider ? row.Connection!.Connection.ProviderId : "",
             build.RunNumber.Length == 0 ? "" : $"#{build.RunNumber}",
             build.StatusText ?? build.Status.ToString().ToLowerInvariant(),
             fraction,
@@ -129,91 +121,49 @@ static class ScreenBuilder
                 ? null
                 : new(LinkKind.PullRequest, build.PullRequestNumber is null ? "PR" : $"PR {build.PullRequestNumber}", build.PullRequestUrl),
             build.CanRetry,
-            build.CanCancel,
-            Tooltip(build, now),
-            connection.Connection.Name);
+            build.CanCancel);
     }
 
     /// <summary>
-    /// A project's green builds as one line. No links and no actions: which build they would act
-    /// on is ambiguous, so the row is expanded first. The tooltip names every member.
+    /// A group's own row: the project, then what a closed group would otherwise hide, how many
+    /// builds it holds and how long since the latest. No links and no actions: which build they
+    /// would act on is ambiguous, so the group is opened first.
     /// </summary>
-    static BuildRow ComposeProject(Row row, bool selected, DateTimeOffset now)
+    static BuildRow ComposeGroup(Row row, GroupKey group, bool selected, DateTimeOffset now)
     {
         var members = row.Members;
-        var first = members[0];
-        var branch = members.Select(_ => _.Branch).Distinct().ToList() is [{ } shared] ? shared : null;
         var latest = members.MaxBy(_ => _.Finished ?? _.Started ?? _.Queued ?? DateTimeOffset.MinValue)!;
         var (_, timing) = Progress.Compute(latest, null, now);
-        var lines = new List<string>
-        {
-            branch is null ? first.RepoName : $"{first.RepoName} {branch}"
-        };
-        foreach (var member in members)
-        {
-            var (_, age) = Progress.Compute(member, null, now);
-            List<string> parts = [member.PipelineName, member.RunNumberLabel(), age];
-            lines.Add(string.Join(' ', parts.Where(_ => _.Length > 0)));
-        }
 
         return new(
-            RowKind.Project,
-            BuildStatus.Succeeded,
-            $"{members.Length} pipelines",
-            branch is null ? first.ShortRepoName() : $"{first.ShortRepoName()} {branch}",
+            RowKind.Group,
+            group.Failed ? BuildStatus.Failed : BuildStatus.Succeeded,
+            group.Project,
+            group.Failed ? $"{members.Length} failing" : $"{members.Length} passing",
             "",
-            "succeeded",
+            "",
+            group.Failed ? "failed" : "succeeded",
             -1,
             timing,
             selected,
-            false,
+            row.Expanded,
             null,
             null,
             null,
             false,
-            false,
-            string.Join("\n", lines),
-            row.Connection.Connection.Name);
+            false);
     }
 
     /// <summary>
-    /// What the row cannot say for itself: the whole repository name, the commit, its author,
-    /// when it started.
+    /// A provider icon on every row only earns its width when the connections span more than one
+    /// provider. Two GitHub connections are still one kind of build.
     /// </summary>
-    static string Tooltip(Build build, DateTimeOffset now)
-    {
-        var lines = new List<string>
-        {
-            build.Branch is null ? build.RepoName : $"{build.RepoName} {build.Branch}"
-        };
-        if (build.CommitMessage is not null)
-        {
-            lines.Add(build.CommitMessage.Split('\n')[0].Trim());
-        }
-
-        var details = new List<string>();
-        if (build.Author is not null)
-        {
-            details.Add(build.Author);
-        }
-
-        if (build.CommitSha is not null)
-        {
-            details.Add(build.CommitSha.Length > 7 ? build.CommitSha[..7] : build.CommitSha);
-        }
-
-        if (details.Count > 0)
-        {
-            lines.Add(string.Join(" ", details));
-        }
-
-        if (build.Started is { } started)
-        {
-            lines.Add($"started {Progress.Age(now - started)} ago");
-        }
-
-        return string.Join("\n", lines);
-    }
+    public static bool ShowProvider(SessionState state) =>
+        state.Connections
+            .Select(_ => _.Connection.ProviderId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Skip(1)
+            .Any();
 
     public static IReadOnlyList<Button> Buttons(SessionState state) =>
         state.Page switch
@@ -263,10 +213,19 @@ static class ScreenBuilder
             return state.Status;
         }
 
-        var attention = state.Connections.FirstOrDefault(_ => _.Health == ConnectionHealth.NeedsAuth);
-        if (attention is not null)
+        // With no heading per connection, the footer is the one place always on screen that can
+        // say a connection is failing, and otherwise its builds would just quietly stop changing.
+        var problems = state.Connections
+            .Where(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error or ConnectionHealth.RateLimited)
+            .OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (problems.Count > 0)
         {
-            return $"Sign in required for {attention.Connection.Name}";
+            var first = problems[0];
+            var problem = first.Health == ConnectionHealth.NeedsAuth
+                ? $"Sign in required for {first.Connection.Name}"
+                : $"{first.Connection.Name}: {first.Describe(now)}";
+            return problems.Count == 1 ? problem : $"{problem} (+{problems.Count - 1} more)";
         }
 
         var polled = state.Connections
@@ -467,11 +426,7 @@ static class ScreenBuilder
 
     public static TrayModel Tray(SessionState state)
     {
-        var rows = RowProjection.Rows(state);
-        var builds = state.Connections
-            .Select(_ => _.Connection.Id)
-            .SelectMany(_ => RowProjection.Builds(state, _))
-            .ToList();
+        var builds = RowProjection.Builds(state);
         var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
         var running = builds.Count(_ => _.IsActive);
         var icon = Icon(state, builds);
@@ -479,54 +434,36 @@ static class ScreenBuilder
             ? "BuildMonitor: no connections"
             : $"BuildMonitor: {failing} failing, {running} running";
 
+        var provider = ShowProvider(state);
         var items = new List<TrayMenuItem>();
-        var shown = 0;
-        var overflow = false;
-        foreach (var connection in rows.Where(_ => _.Kind == RowKind.Header).Select(_ => _.Connection))
+        var interesting = builds
+            .Where(_ => _.Status == BuildStatus.Failed || _.IsActive)
+            .ToList();
+        foreach (var build in interesting.Take(TrayMenu.MaxBuilds))
         {
-            var interesting = RowProjection.Builds(state, connection.Connection.Id)
-                .Where(_ => _.Status == BuildStatus.Failed || _.IsActive)
-                .ToList();
-            if (interesting.Count == 0)
+            var children = new List<TrayMenuItem>
             {
-                continue;
+                new(TrayMenu.BuildItem(build, TrayMenu.OpenAction), "Open build", IconName: "build")
+            };
+            if (build.CanRetry)
+            {
+                children.Add(new(TrayMenu.BuildItem(build, TrayMenu.RetryAction), "Retry", IconName: "retry"));
             }
 
-            items.Add(new($"header:{connection.Connection.Id}", connection.Connection.Name, Enabled: false));
-            foreach (var build in interesting)
+            if (build.CanCancel)
             {
-                if (shown >= TrayMenu.MaxBuilds)
-                {
-                    overflow = true;
-                    break;
-                }
-
-                shown++;
-                var children = new List<TrayMenuItem>
-                {
-                    new(TrayMenu.BuildItem(build, TrayMenu.OpenAction), "Open build", IconName: "build")
-                };
-                if (build.CanRetry)
-                {
-                    children.Add(new(TrayMenu.BuildItem(build, TrayMenu.RetryAction), "Retry", IconName: "retry"));
-                }
-
-                if (build.CanCancel)
-                {
-                    children.Add(new(TrayMenu.BuildItem(build, TrayMenu.CancelAction), "Cancel", IconName: "cancel"));
-                }
-
-                var label = build.Branch is null
-                    ? $"{build.PipelineName} {build.RunNumberLabel()} {build.Status.ToString().ToLowerInvariant()}"
-                    : $"{build.PipelineName} {build.Branch} {build.RunNumberLabel()} {build.Status.ToString().ToLowerInvariant()}";
-                items.Add(new(TrayMenu.BuildItem(build, TrayMenu.OpenAction), label.Trim(), IconName: build.Status.ToString().ToLowerInvariant(), Children: children));
+                children.Add(new(TrayMenu.BuildItem(build, TrayMenu.CancelAction), "Cancel", IconName: "cancel"));
             }
 
-            if (overflow)
-            {
-                items.Add(new(TrayMenu.Overflow, $"Only {TrayMenu.MaxBuilds} builds shown", Enabled: false));
-                break;
-            }
+            var iconName = provider
+                ? $"provider-{state.Connection(build.ConnectionId)!.Connection.ProviderId}"
+                : build.Status.ToString().ToLowerInvariant();
+            items.Add(new(TrayMenu.BuildItem(build, TrayMenu.OpenAction), TrayLabel(build), IconName: iconName, Children: children));
+        }
+
+        if (interesting.Count > TrayMenu.MaxBuilds)
+        {
+            items.Add(new(TrayMenu.Overflow, $"Only {TrayMenu.MaxBuilds} builds shown", Enabled: false));
         }
 
         if (items.Count > 0)
@@ -545,7 +482,25 @@ static class ScreenBuilder
         return new(icon, tooltip, items);
     }
 
-    static TrayIconKind Icon(SessionState state, List<Build> builds)
+    /// <summary>
+    /// A menu item has no columns, so the repository leads, and is left out when the pipeline has
+    /// the same name, as a Jenkins job or an Octopus project often does, rather than read twice.
+    /// </summary>
+    static string TrayLabel(Build build)
+    {
+        var repo = build.ShortRepoName();
+        List<string> parts =
+        [
+            string.Equals(repo, build.PipelineName, StringComparison.OrdinalIgnoreCase) ? "" : repo,
+            build.PipelineName,
+            build.Branch ?? "",
+            build.RunNumberLabel(),
+            build.Status.ToString().ToLowerInvariant()
+        ];
+        return string.Join(' ', parts.Where(_ => _.Length > 0));
+    }
+
+    static TrayIconKind Icon(SessionState state, ImmutableArray<Build> builds)
     {
         if (state.Connections.Any(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error))
         {
@@ -562,7 +517,7 @@ static class ScreenBuilder
             return TrayIconKind.Running;
         }
 
-        if (builds.Count > 0 &&
+        if (builds.Length > 0 &&
             builds.All(_ => _.Status == BuildStatus.Succeeded))
         {
             return TrayIconKind.Success;

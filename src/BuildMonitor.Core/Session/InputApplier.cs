@@ -44,7 +44,16 @@ static class InputApplier
 
         if (input.ClickedRow >= 0)
         {
-            state = MonitorSession.SelectRow(MonitorSession.CloseMenu(state), state.ScrollTop + input.ClickedRow);
+            var clicked = state.ScrollTop + input.ClickedRow;
+            state = MonitorSession.SelectRow(MonitorSession.CloseMenu(state), clicked);
+            // A group row draws an arrow and has nothing to open, so a click on it opens or closes
+            // it. Selecting it alone looked like the click did nothing. A head sends a double click
+            // on a group as one click, or it would open and close again.
+            if (state.SelectedRow == clicked &&
+                MonitorSession.SelectedRow(state) is { Kind: RowKind.Group, Group: { } group })
+            {
+                state = MonitorSession.ToggleGroup(state, group);
+            }
         }
 
         if (input.ClickedLinkRow >= 0)
@@ -243,11 +252,11 @@ static class InputApplier
             case CommandKind.OpenBranch:
             case CommandKind.OpenPullRequest:
             {
-                // A shared row has no one build to open, so Enter or a double click expands it.
+                // A group has no one build to open, so Enter or a double click opens or closes it.
                 if (command == CommandKind.OpenBuild &&
-                    MonitorSession.SelectedRow(state) is { Kind: RowKind.Project } project)
+                    MonitorSession.SelectedRow(state) is { Kind: RowKind.Group, Group: { } group })
                 {
-                    return MonitorSession.ToggleProject(state, project.Members[0].ProjectKey);
+                    return MonitorSession.ToggleGroup(state, group);
                 }
 
                 if (MonitorSession.SelectedBuild(state) is not { } build)
@@ -281,25 +290,11 @@ static class InputApplier
             case CommandKind.Cancel:
                 return MonitorSession.SelectedBuild(state) is { } cancel ? Cancel(state, cancel, actions) : state;
             case CommandKind.Refresh:
-            {
-                var connection = state.Page == Page.Builds ? MonitorSession.SelectedRow(state)?.Connection : null;
-                if (connection is not null &&
-                    MonitorSession.SelectedRow(state)?.Kind == RowKind.Header)
-                {
-                    actions.Refresh(connection.Connection.Id);
-                    return MonitorSession.SetStatus(state, $"Refreshing {connection.Connection.Name}");
-                }
-
                 actions.Refresh(null);
                 return MonitorSession.SetStatus(state, "Refreshing");
-            }
             case CommandKind.ToggleGroup:
-                return MonitorSession.SelectedRow(state) is { } row
-                    ? MonitorSession.ToggleGroup(state, row.Connection.Connection.Id)
-                    : state;
-            case CommandKind.ToggleProject:
-                return MonitorSession.SelectedRow(state)?.Builds.FirstOrDefault() is { } member
-                    ? MonitorSession.ToggleProject(state, member.ProjectKey)
+                return MonitorSession.SelectedRow(state)?.Group is { } toggled
+                    ? MonitorSession.ToggleGroup(state, toggled)
                     : state;
             case CommandKind.ExcludePipeline:
             {
@@ -322,7 +317,7 @@ static class InputApplier
                 return MonitorSession.OpenConnectionEditor(state, null, Guid.NewGuid().ToString("N"));
             case CommandKind.EditConnection:
             {
-                var id = target ?? MonitorSession.SelectedRow(state)?.Connection.Connection.Id;
+                var id = target ?? MonitorSession.SelectedRow(state)?.Connection?.Connection.Id;
                 return id is null ? state : MonitorSession.OpenConnectionEditor(state, id, Guid.NewGuid().ToString("N"));
             }
             case CommandKind.RemoveConnection:

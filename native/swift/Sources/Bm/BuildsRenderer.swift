@@ -89,7 +89,20 @@ final class BuildsRenderer {
 
     private func drawRows(_ frame: Frame) {
         if frame.rows.isEmpty {
-            drawText("Nothing to show yet.", at: CGPoint(x: padding, y: bodyRect.minY + 8), font: font, colour: Palette.dim)
+            var x = padding
+            if frame.loading {
+                // An arc turning once a second, from the clock: the window is drawn every frame anyway.
+                let size: CGFloat = 16
+                let angle = CGFloat(Date().timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1)) * 360
+                let path = NSBezierPath()
+                path.appendArc(withCenter: CGPoint(x: x + size / 2, y: bodyRect.minY + 8 + font.pointSize * 0.65), radius: size / 2, startAngle: angle, endAngle: angle + 270)
+                path.lineWidth = 2.5
+                Palette.dim.setStroke()
+                path.stroke()
+                x += size + 8
+            }
+
+            drawText(frame.loading ? "Loading builds" : "Nothing to show yet.", at: CGPoint(x: x, y: bodyRect.minY + 8), font: font, colour: Palette.dim)
             return
         }
 
@@ -100,10 +113,15 @@ final class BuildsRenderer {
         let barWidth: CGFloat = 110
         let statusWidth: CGFloat = 90
         let runWidth: CGFloat = 60
+        let iconSize: CGFloat = 16
+        // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
+        // name in line with the rows under it.
+        let iconWidth: CGFloat = frame.rows.contains { !$0.provider.isEmpty } ? iconSize + 8 : 0
         let textX = rowHeight + padding
         let textWidth = max(120, width - textX - padding - actionsWidth - linksWidth - timingWidth - barWidth - statusWidth - runWidth - 4)
-        let pipelineWidth = textWidth * 0.45
-        let repoWidth = textWidth - pipelineWidth
+        // The first name holds the repository and branch, the longer of the two.
+        let detailWidth = textWidth * 0.45
+        let nameWidth = textWidth - detailWidth
 
         for (index, row) in frame.rows.enumerated() {
             let rect = CGRect(x: 0, y: bodyRect.minY + CGFloat(index) * rowHeight, width: width, height: rowHeight)
@@ -111,18 +129,9 @@ final class BuildsRenderer {
             if row.isSelected {
                 Palette.selectedRow.setFill()
                 rect.fill()
-            } else if row.isHeader {
-                Palette.headerRow.setFill()
-                rect.fill()
             }
 
             let textY = rect.minY + (rowHeight - font.pointSize * 1.3) / 2
-            if row.isHeader {
-                let label = (row.isFolded ? "▸ " : "▾ ") + row.pipeline
-                drawText(label, at: CGPoint(x: padding, y: textY), font: font, colour: Palette.dim)
-                continue
-            }
-
             let colour = Palette.status(row.status)
             colour.setFill()
             // The full height of the row and flush with its neighbours, so a run of rows in one status
@@ -130,10 +139,18 @@ final class BuildsRenderer {
             CGRect(x: rect.minX, y: rect.minY, width: rowHeight, height: rowHeight).fill()
 
             var x = textX
-            drawText(row.pipeline, at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: pipelineWidth - 8)
-            x += pipelineWidth
-            drawText(row.repoBranch, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: repoWidth - 8)
-            x += repoWidth
+            let name = row.isGroup ? (row.isExpanded ? "▾ " : "▸ ") + row.name : row.name
+            drawText(name, at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: nameWidth - 8)
+            x += nameWidth
+            // The logo leads the detail cell, beside the pipeline it ran, so a group's members, whose
+            // first cell is empty, still show which service each came from.
+            if let icon = RowIcons.images[row.provider] {
+                let iconRect = CGRect(x: x, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize)
+                icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+            }
+
+            drawText(row.detail, at: CGPoint(x: x + iconWidth, y: textY), font: font, colour: Palette.dim, width: detailWidth - iconWidth - 8)
+            x += detailWidth
             drawText(row.runNumber, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: runWidth)
             x += runWidth
             drawText(row.statusText, at: CGPoint(x: x, y: textY), font: font, colour: colour, width: statusWidth)

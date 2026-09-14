@@ -24,7 +24,6 @@ Details,
       ProviderRef: VerifyTests/DiffEngine|500|,
       Key: github/VerifyTests/DiffEngine/10/main,
       PipelineKey: github/VerifyTests/DiffEngine/10,
-      ProjectKey: github/VerifyTests/DiffEngine,
       IsActive: true,
       Ordering: DateTimeOffset_2
     },
@@ -52,7 +51,6 @@ Details,
       ProviderRef: VerifyTests/DiffEngine|499|failure,
       Key: github/VerifyTests/DiffEngine/10/feature,
       PipelineKey: github/VerifyTests/DiffEngine/10,
-      ProjectKey: github/VerifyTests/DiffEngine,
       IsActive: false,
       Ordering: DateTimeOffset_4
     }

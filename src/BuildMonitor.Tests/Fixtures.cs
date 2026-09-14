@@ -199,11 +199,27 @@ static class Fixtures
             status is BuildStatus.Queued or BuildStatus.Running && canCancel,
             run);
 
-    public const string VerifyProject = "gh/VerifyTests/Verify";
+    public static readonly GroupKey VerifyPassing = new("Verify", false);
+
+    public static readonly GroupKey VerifyFailing = new("Verify", true);
+
+    public static int RowOf(SessionState state, Func<Row, bool> match)
+    {
+        var rows = RowProjection.Rows(state);
+        for (var index = 0; index < rows.Length; index++)
+        {
+            if (match(rows[index]))
+            {
+                return index;
+            }
+        }
+
+        throw new("No row matches");
+    }
 
     /// <summary>
-    /// Verify gains two green workflows beside its failing one, so the green pair shares a row
-    /// while DiffEngine's single green workflow keeps its own.
+    /// Verify gains two green workflows beside its failing one, so the green pair shares a closed
+    /// group while DiffEngine's single green workflow keeps its own row.
     /// </summary>
     public static SessionState WithGreenProject() =>
         MonitorSession.ApplyPoll(
@@ -237,14 +253,54 @@ static class Fixtures
             ],
             Now - TimeSpan.FromSeconds(12));
 
+    /// <summary>
+    /// <see cref="WithGreenProject"/> plus a failing release workflow, so Verify has an open red
+    /// group of two beside its closed green one.
+    /// </summary>
+    public static SessionState WithFailedGroup()
+    {
+        var state = WithGreenProject();
+        return MonitorSession.ApplyPoll(
+            state,
+            GitHub.Id,
+            [],
+            [
+                ..state.Builds.Where(_ => _.ConnectionId == GitHub.Id),
+                Build(
+                    GitHub.Id,
+                    "Verify/release.yml",
+                    "release.yml",
+                    "VerifyTests/Verify",
+                    "main",
+                    "9",
+                    BuildStatus.Failed,
+                    started: Now - TimeSpan.FromHours(1),
+                    finished: Now - TimeSpan.FromMinutes(50),
+                    branchUrl: "https://github.com/VerifyTests/Verify/tree/main")
+            ],
+            Now - TimeSpan.FromSeconds(12));
+    }
+
+    /// <summary>
+    /// Only GitHub, so no row needs a provider icon to tell it apart.
+    /// </summary>
+    public static SessionState SingleProvider()
+    {
+        var state = MonitorSession.Resize(SessionState.Start(new() { Connections = [GitHub] }), 120, 30);
+        return MonitorSession.ApplyPoll(state, GitHub.Id, [], GitHubBuilds(), Now - TimeSpan.FromSeconds(12));
+    }
+
+    public static SessionState ConnectionErrors() =>
+        MonitorSession.SetHealth(RateLimited(), Jenkins.Id, ConnectionHealth.Error, "500 Internal Server Error");
+
     public static SessionState WithMenu() =>
         MonitorSession.OpenMenu(WithBuilds(), 2);
 
-    public static SessionState Folded() =>
-        MonitorSession.ToggleGroup(WithBuilds(), GitHub.Id);
-
+    /// <summary>
+    /// Nine rows in a body of six, with the last selected, so the first three scroll away.
+    /// </summary>
     public static SessionState Scrolled() =>
-        MonitorSession.SelectRow(MonitorSession.Resize(WithBuilds(), 120, 12), 8);
+        MonitorSession.SelectRow(MonitorSession.Resize(WithFailedGroup(), 120, 12), 8);
 
     public static SessionState Narrow() =>
         MonitorSession.Resize(WithBuilds(), 80, 30);

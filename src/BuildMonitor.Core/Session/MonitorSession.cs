@@ -82,13 +82,12 @@ static class MonitorSession
     }
 
     /// <summary>
-    /// Re-applies the selection to rows that changed. A poll re-sorts a group, running first, and
-    /// a fold, a filter or a removed connection takes rows out, so the row at the selected index
-    /// is often a different one afterwards. The selection keeps its row: the same pipeline on the
-    /// same branch, else the row that now holds that run, as when a build passes and joins its
-    /// project's shared row or a shared row splits, else the same pipeline when its latest run is
-    /// on another branch now, else the nearest row above it that is still shown, which in a folded
-    /// group is the header.
+    /// Re-applies the selection to rows that changed. A poll re-sorts the list, running first, and
+    /// a closed group, a filter or a removed connection takes rows out, so the row at the selected
+    /// index is often a different one afterwards. The selection keeps its row: the same pipeline on
+    /// the same branch, else the row that now holds that run, as when a build passes and joins its
+    /// project's closed group or a group splits, else the same pipeline when its latest run is on
+    /// another branch now, else the nearest row above it that is still shown.
     /// <para>
     /// The menu does not follow. Moved, it would put a different item under the pointer; left in
     /// place, it would sit beside another build. Unless its row is still where it was drawn, it
@@ -99,7 +98,7 @@ static class MonitorSession
     {
         var previous = RowProjection.Rows(before);
         var rows = RowProjection.Rows(after);
-        var indexes = new Dictionary<(RowKind, string), int>();
+        var indexes = new Dictionary<string, int>();
         for (var index = 0; index < rows.Length; index++)
         {
             indexes.TryAdd(Identity(rows[index]), index);
@@ -118,7 +117,7 @@ static class MonitorSession
         return followed;
     }
 
-    static int Locate(ImmutableArray<Row> previous, ImmutableArray<Row> rows, Dictionary<(RowKind, string), int> indexes, int selected)
+    static int Locate(ImmutableArray<Row> previous, ImmutableArray<Row> rows, Dictionary<string, int> indexes, int selected)
     {
         if (selected < 0 ||
             selected >= previous.Length)
@@ -132,6 +131,18 @@ static class MonitorSession
         }
 
         var builds = previous[selected].Builds;
+        // A row showing the run itself beats an open group's row, which stands for it too.
+        foreach (var build in builds)
+        {
+            for (var candidate = 0; candidate < rows.Length; candidate++)
+            {
+                if (rows[candidate].Build?.Key == build.Key)
+                {
+                    return candidate;
+                }
+            }
+        }
+
         foreach (var build in builds)
         {
             for (var candidate = 0; candidate < rows.Length; candidate++)
@@ -166,13 +177,13 @@ static class MonitorSession
     }
 
     /// <summary>
-    /// A shared row is its project, not its connection: a connection can hold several of them,
-    /// and they would otherwise all be the first.
+    /// A build is the same row whether it stands alone or under its open group, so a build joining
+    /// a group, or a group opening around the selection, keeps the selection on that build.
     /// </summary>
-    static (RowKind, string) Identity(Row row) =>
-        row.Kind == RowKind.Project
-            ? (row.Kind, row.Members[0].ProjectKey)
-            : (row.Kind, row.Build?.Key ?? row.Connection.Connection.Id);
+    static string Identity(Row row) =>
+        row.Build is { } build
+            ? $"build:{build.Key}"
+            : $"group:{row.Group!.Id}";
 
     public static Row? SelectedRow(SessionState state)
     {
@@ -189,32 +200,24 @@ static class MonitorSession
     public static Build? SelectedBuild(SessionState state) =>
         SelectedRow(state)?.Build;
 
-    // Folding
-
-    public static SessionState ToggleGroup(SessionState state, string connectionId)
-    {
-        var unfolded = state.FoldedGroups.Remove(connectionId);
-        var folded = ReferenceEquals(unfolded, state.FoldedGroups)
-            ? state.FoldedGroups.Add(connectionId)
-            : unfolded;
-        return Follow(state, state with { FoldedGroups = folded });
-    }
+    // Groups
 
     /// <summary>
-    /// Expands a project's shared row into its builds, or gathers them back. The selection follows
-    /// the project, since the rows under the cursor change either way.
+    /// Opens a group or closes it. The selection moves to the group's own row, since the rows
+    /// under the cursor change either way and a member row would vanish on closing.
     /// </summary>
-    public static SessionState ToggleProject(SessionState state, string projectKey)
+    public static SessionState ToggleGroup(SessionState state, GroupKey key)
     {
-        var removed = state.ExpandedProjects.Remove(projectKey);
-        var expanded = ReferenceEquals(removed, state.ExpandedProjects)
-            ? state.ExpandedProjects.Add(projectKey)
+        var removed = state.ToggledGroups.Remove(key.Id);
+        var toggled = ReferenceEquals(removed, state.ToggledGroups)
+            ? state.ToggledGroups.Add(key.Id)
             : removed;
-        var next = state with { ExpandedProjects = expanded };
+        var next = state with { ToggledGroups = toggled };
         var rows = RowProjection.Rows(next);
         for (var index = 0; index < rows.Length; index++)
         {
-            if (rows[index].Builds.Any(_ => _.Status == BuildStatus.Succeeded && _.ProjectKey == projectKey))
+            if (rows[index] is { Kind: RowKind.Group, Group: { } group } &&
+                group.Id == key.Id)
             {
                 return SelectRow(next, index);
             }
@@ -236,9 +239,9 @@ static class MonitorSession
 
         var items = ImmutableArray.CreateBuilder<MenuItem>();
         var target = rows[row];
-        if (target.Kind == RowKind.Project)
+        if (target.Kind == RowKind.Group)
         {
-            items.Add(new("Expand", CommandKind.ToggleProject));
+            items.Add(new(target.Expanded ? "Collapse" : "Expand", CommandKind.ToggleGroup));
             items.Add(new("Refresh", CommandKind.Refresh));
         }
         else if (target.Build is { } build)
@@ -265,21 +268,13 @@ static class MonitorSession
                 items.Add(new("Cancel build", CommandKind.Cancel));
             }
 
-            if (build.Status == BuildStatus.Succeeded &&
-                state.ExpandedProjects.Contains(build.ProjectKey) &&
-                RowProjection.Collapsible(RowProjection.Builds(state, build.ConnectionId)).Contains(build.ProjectKey))
+            if (target is { Kind: RowKind.Member, Group: { } group })
             {
-                items.Add(new($"Collapse {build.ShortRepoName()}", CommandKind.ToggleProject));
+                items.Add(new($"Collapse {group.Project}", CommandKind.ToggleGroup));
             }
 
             items.Add(new("Refresh", CommandKind.Refresh));
             items.Add(new($"Exclude {build.PipelineName}", CommandKind.ExcludePipeline));
-        }
-        else
-        {
-            items.Add(new(target.Folded ? "Unfold" : "Fold", CommandKind.ToggleGroup));
-            items.Add(new("Refresh", CommandKind.Refresh));
-            items.Add(new("Edit connection", CommandKind.EditConnection));
         }
 
         return SelectRow(state, row) with { Menu = new(row, items.ToImmutable()) };

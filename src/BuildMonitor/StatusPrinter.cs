@@ -19,12 +19,15 @@ static class StatusPrinter
         }
 
         builder.AppendLine();
+        // The repository leads, as it does in the window: a pipeline name such as a shared
+        // workflow repeats across repositories and tells the lines apart by nothing.
+        var repoWidth = Math.Min(30, builds.Max(_ => BuildExtensions.ShortRepoName(_.Repo).Length));
         var pipelineWidth = Math.Min(40, builds.Max(_ => _.Pipeline.Length));
         var branchWidth = Math.Min(30, builds.Max(_ => (_.Branch ?? "").Length));
         foreach (var build in builds)
         {
             var run = build.Run.Length == 0 ? "" : $"#{build.Run}";
-            builder.AppendLine($"  {Fit(build.Pipeline, pipelineWidth)}  {Fit(build.Branch ?? "", branchWidth)}  {run,-8} {build.Status,-10} {build.Timing,-12} {build.BuildUrl}");
+            builder.AppendLine($"  {Fit(BuildExtensions.ShortRepoName(build.Repo), repoWidth)}  {Fit(build.Pipeline, pipelineWidth)}  {Fit(build.Branch ?? "", branchWidth)}  {run,-8} {build.Status,-10} {build.Timing,-12} {build.BuildUrl}");
         }
 
         return builder.ToString();

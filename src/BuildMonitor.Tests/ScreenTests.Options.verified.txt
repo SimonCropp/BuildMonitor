@@ -29,14 +29,11 @@
 | [Save] [Cancel]                                                                                        Polled 5s ago |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Failed "BuildMonitor: 1 failing, 4 running"
-  (GitHub)
-  test.yml main #1234 running > Open build | Cancel
-  test.yml feature/inline #77 failed > Open build | Retry
-  (Jenkins)
-  Build all main #501 running > Open build | Cancel
-  Nightly #88 queued > Open build | Cancel
-  (Octopus)
+  build-all Build all main #501 running > Open build | Cancel
   Deploy Web #12 running > Open build | Cancel
+  DiffEngine test.yml main #1234 running > Open build | Cancel
+  Nightly #88 queued > Open build | Cancel
+  Verify test.yml feature/inline #77 failed > Open build | Retry
   ---
   Open
   Refresh

@@ -1,6 +1,6 @@
 /// <summary>
-/// The builds page, owner drawn: one row per <see cref="BuildRow"/> with a status square, the
-/// names, a progress bar and chips for the links and actions. Hit rectangles are recorded as
+/// The builds page, owner drawn: one row per <see cref="BuildRow"/> with a status square, a
+/// provider icon, the names, a progress bar and chips for the links and actions. Hit rectangles are recorded as
 /// the rows are drawn, so a click resolves against what was actually on screen.
 /// </summary>
 sealed class RowsCanvas : Control
@@ -9,14 +9,14 @@ sealed class RowsCanvas : Control
     const int padding = 10;
     const int chipPadding = 8;
     const int chipHeight = 20;
+    const int iconSize = 16;
+    const int spinnerSize = 18;
 
     BuildsPage? page;
     int menuShownForRow = -1;
     int hoverRow = -1;
     readonly List<(int Row, LinkKind Link, RowAction Action, Rectangle Bounds)> chips = [];
     readonly ContextMenuStrip contextMenu = new();
-    readonly ToolTip toolTip = new();
-    string? tooltipText;
     readonly Font bold;
 
     // Pending input, drained once per frame.
@@ -147,10 +147,20 @@ sealed class RowsCanvas : Control
 
         if (page.Rows.Count == 0)
         {
-            TextRenderer.DrawText(graphics, "Nothing to show yet.", Font, new Rectangle(padding, padding, Width - 2 * padding, RowHeight), Palette.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+            var x = padding;
+            if (page.Loading)
+            {
+                DrawSpinner(graphics, new(x, padding + (RowHeight - spinnerSize) / 2, spinnerSize, spinnerSize));
+                x += spinnerSize + padding;
+            }
+
+            TextRenderer.DrawText(graphics, page.Loading ? "Loading builds" : "Nothing to show yet.", Font, new Rectangle(x, padding, Width - x - padding, RowHeight), Palette.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
             return;
         }
 
+        // Reserved on every row once any row has an icon, so a group's row, which has none, keeps
+        // its name in line with the rows under it.
+        var iconWidth = page.Rows.Any(_ => _.Provider.Length > 0) ? iconSize + padding : 0;
         for (var index = 0; index < page.Rows.Count; index++)
         {
             var top = index * RowHeight;
@@ -169,29 +179,12 @@ sealed class RowsCanvas : Control
             {
                 graphics.FillRectangle(new SolidBrush(Palette.HoverRow), bounds);
             }
-            else if (row.Kind == RowKind.Header)
-            {
-                graphics.FillRectangle(new SolidBrush(Palette.HeaderRow), bounds);
-            }
 
-            if (row.Kind == RowKind.Header)
-            {
-                DrawHeader(graphics, row, bounds);
-            }
-            else
-            {
-                DrawBuild(graphics, row, bounds, index);
-            }
+            DrawRow(graphics, row, bounds, index, iconWidth);
         }
     }
 
-    void DrawHeader(Graphics graphics, BuildRow row, Rectangle bounds)
-    {
-        var marker = row.Folded ? "▸" : "▾";
-        TextRenderer.DrawText(graphics, $"{marker} {row.Pipeline}", bold, new Rectangle(padding, bounds.Top, bounds.Width - 2 * padding, bounds.Height), Palette.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-    }
-
-    void DrawBuild(Graphics graphics, BuildRow row, Rectangle bounds, int index)
+    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth)
     {
         // The full height of the row and flush with its neighbours, so a run of rows in one status
         // reads as one block rather than a column of dots.
@@ -212,13 +205,24 @@ sealed class RowsCanvas : Control
         var linksWidth = Measure("Build") + Measure("Branch") + Measure("PR 9999") + 3 * (2 * chipPadding + 6);
         var fixedWidth = runWidth + statusWidth + barWidth + timingWidth + linksWidth + actionsWidth + 6 * padding;
         var names = Math.Max(120, bounds.Width - x - fixedWidth);
-        var pipelineWidth = names * 9 / 20;
-        var repoWidth = names - pipelineWidth;
+        // The first name holds the repository and branch, the longer of the two.
+        var detailWidth = names * 9 / 20;
+        var nameWidth = names - detailWidth;
 
-        Draw(graphics, row.Pipeline, Font, x, bounds, pipelineWidth, Palette.Text);
-        x += pipelineWidth + padding;
-        Draw(graphics, row.RepoBranch, Font, x, bounds, repoWidth, Palette.Dim);
-        x += repoWidth + padding;
+        var group = row.Kind == RowKind.Group;
+        var name = group ? $"{(row.Expanded ? "▾" : "▸")} {row.Name}" : row.Name;
+        Draw(graphics, name, group ? bold : Font, x, bounds, nameWidth, Palette.Text);
+        x += nameWidth + padding;
+        // The logo leads the second cell, beside the pipeline it ran, so a group's members, whose
+        // first cell is empty, still show which service each one came from.
+        if (row.Provider.Length > 0 &&
+            Icons.Glyph($"provider-{row.Provider}") is { } icon)
+        {
+            graphics.DrawImage(icon, x, centreY - iconSize / 2, iconSize, iconSize);
+        }
+
+        Draw(graphics, row.Detail, Font,x + iconWidth, bounds, detailWidth - iconWidth, Palette.Dim);
+        x += detailWidth + padding;
         Draw(graphics, row.RunNumber, Font, x, bounds, runWidth, Palette.Dim);
         x += runWidth + padding;
         Draw(graphics, row.StatusText, Font, x, bounds, statusWidth, Palette.Status(row.Status));
@@ -251,6 +255,17 @@ sealed class RowsCanvas : Control
         {
             Chip(graphics, "Cancel", x, centreY, Palette.CancelChip, Palette.Text, index, LinkKind.None, RowAction.Cancel);
         }
+    }
+
+    /// <summary>
+    /// An arc turning once a second, driven by the clock rather than a timer: the frame loop
+    /// already repaints the canvas every frame.
+    /// </summary>
+    static void DrawSpinner(Graphics graphics, Rectangle bounds)
+    {
+        var angle = Environment.TickCount64 % 1000 * 360f / 1000;
+        using var pen = new Pen(Palette.Dim, 2.5f);
+        graphics.DrawArc(pen, bounds, angle, 270);
     }
 
     static IEnumerable<(LinkKind Kind, string Label)> Chips(BuildRow row)
@@ -322,13 +337,6 @@ sealed class RowsCanvas : Control
         if (row != hoverRow)
         {
             hoverRow = row;
-            var text = row >= 0 && page is not null ? page.Rows[row].Tooltip : "";
-            if (text != tooltipText)
-            {
-                tooltipText = text;
-                toolTip.SetToolTip(this, text);
-            }
-
             Invalidate();
         }
 
@@ -366,8 +374,11 @@ sealed class RowsCanvas : Control
                     clickedAction = chip.Action;
                 }
             }
-            else
+            else if (e.Clicks < 2 ||
+                     !IsGroup(row))
             {
+                // The second press of a double click on a group is dropped: the first already
+                // toggled it, and a second toggle would close what was just opened.
                 clickedRow = row;
             }
         }
@@ -375,10 +386,17 @@ sealed class RowsCanvas : Control
         base.OnMouseDown(e);
     }
 
+    bool IsGroup(int row) =>
+        row >= 0 &&
+        page is not null &&
+        page.Rows[row].Kind == RowKind.Group;
+
     protected override void OnMouseDoubleClick(MouseEventArgs e)
     {
+        var row = RowAt(e.Y);
         if (e.Button == MouseButtons.Left &&
-            RowAt(e.Y) >= 0 &&
+            row >= 0 &&
+            !IsGroup(row) &&
             !chips.Any(_ => _.Bounds.Contains(e.Location)))
         {
             Key = CommandKind.OpenBuild;
@@ -401,7 +419,6 @@ sealed class RowsCanvas : Control
         if (disposing)
         {
             contextMenu.Dispose();
-            toolTip.Dispose();
             bold.Dispose();
         }
 

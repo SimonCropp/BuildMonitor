@@ -20,7 +20,6 @@
       ProviderRef: web|42|||test|1,
       Key: gocd/web/main,
       PipelineKey: gocd/web,
-      ProjectKey: gocd/apps,
       IsActive: true,
       Ordering: DateTimeOffset_1
     },
@@ -45,7 +44,6 @@
       ProviderRef: web|41|test|2|test|2,
       Key: gocd/web/main,
       PipelineKey: gocd/web,
-      ProjectKey: gocd/apps,
       IsActive: false,
       Ordering: DateTimeOffset_2
     }

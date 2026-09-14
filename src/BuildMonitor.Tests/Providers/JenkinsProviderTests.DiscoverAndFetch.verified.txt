@@ -20,7 +20,6 @@
       ProviderRef: https://jenkins.example.com/job/build-all/|501,
       Key: jenkins/https://jenkins.example.com/job/build-all//main,
       PipelineKey: jenkins/https://jenkins.example.com/job/build-all/,
-      ProjectKey: jenkins/Build all,
       IsActive: true,
       Ordering: DateTimeOffset_1
     },
@@ -44,7 +43,6 @@
       ProviderRef: https://jenkins.example.com/job/build-all/|500,
       Key: jenkins/https://jenkins.example.com/job/build-all//,
       PipelineKey: jenkins/https://jenkins.example.com/job/build-all/,
-      ProjectKey: jenkins/Build all,
       IsActive: false,
       Ordering: DateTimeOffset_2
     },
@@ -64,7 +62,6 @@
       ProviderRef: https://jenkins.example.com/job/team/job/app/job/PR-12/|queue:77,
       Key: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12//PR-12,
       PipelineKey: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12/,
-      ProjectKey: jenkins/Team / App,
       IsActive: true,
       Ordering: DateTimeOffset_4
     },
@@ -90,7 +87,6 @@
       ProviderRef: https://jenkins.example.com/job/team/job/app/job/PR-12/|3,
       Key: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12//PR-12,
       PipelineKey: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12/,
-      ProjectKey: jenkins/Team / App,
       IsActive: false,
       Ordering: DateTimeOffset_5
     }

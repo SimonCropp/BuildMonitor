@@ -7,20 +7,20 @@ struct Frame {
     struct Row {
         let status: Int32
         let flags: Int32
-        let pipeline: String
-        let repoBranch: String
+        let name: String
+        let detail: String
+        let provider: String
         let runNumber: String
         let statusText: String
         let timing: String
-        let tooltip: String
         let buildLabel: String
         let branchLabel: String
         let pullRequestLabel: String
         let progress: Float
 
-        var isHeader: Bool { flags & Int32(BM_ROW_HEADER.rawValue) != 0 }
+        var isGroup: Bool { flags & Int32(BM_ROW_GROUP.rawValue) != 0 }
         var isSelected: Bool { flags & Int32(BM_ROW_SELECTED.rawValue) != 0 }
-        var isFolded: Bool { flags & Int32(BM_ROW_FOLDED.rawValue) != 0 }
+        var isExpanded: Bool { flags & Int32(BM_ROW_EXPANDED.rawValue) != 0 }
         var canRetry: Bool { flags & Int32(BM_ROW_CAN_RETRY.rawValue) != 0 }
         var canCancel: Bool { flags & Int32(BM_ROW_CAN_CANCEL.rawValue) != 0 }
     }
@@ -57,6 +57,7 @@ struct Frame {
     let scrollTop: Int32
     let totalRows: Int32
     let selectedRow: Int32
+    let loading: Bool
     let formTitle: String
     let fields: [Field]
     let buttons: [Button]
@@ -86,12 +87,12 @@ struct Frame {
             Row(
                 status: $0.status,
                 flags: $0.flags,
-                pipeline: text($0.pipeline),
-                repoBranch: text($0.repoBranch),
+                name: text($0.name),
+                detail: text($0.detail),
+                provider: text($0.provider),
                 runNumber: text($0.runNumber),
                 statusText: text($0.statusText),
                 timing: text($0.timing),
-                tooltip: text($0.tooltip),
                 buildLabel: text($0.buildLabel),
                 branchLabel: text($0.branchLabel),
                 pullRequestLabel: text($0.pullRequestLabel),
@@ -137,6 +138,7 @@ struct Frame {
             scrollTop: screen.scrollTop,
             totalRows: screen.totalRows,
             selectedRow: screen.selectedRow,
+            loading: screen.loading != 0,
             formTitle: text(screen.formTitle),
             fields: fields,
             buttons: buttons,

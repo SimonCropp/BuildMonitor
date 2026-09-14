@@ -21,7 +21,6 @@ enum CommandKind
     Cancel,
     Refresh,
     ToggleGroup,
-    ToggleProject,
     ExcludePipeline,
     OpenBuilds,
     OpenOptions,

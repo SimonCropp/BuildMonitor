@@ -10,6 +10,7 @@
 #include "rlgl.h"
 #include "imgui.h"
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <deque>
@@ -33,6 +34,7 @@ struct State {
     float fontPixels = 20.0f;
     std::vector<unsigned char> font;
     Texture2D fontTexture{};
+    std::unordered_map<std::string, Texture2D> rowIcons;
     BmInput input{};
     std::deque<Edit> edits;
     std::string changedValue;
@@ -314,13 +316,26 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
     }
 
     ImGuiTableFlags flags = ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadOuterX;
-    if (screen.rowCount == 0) {
+    if (screen.rowCount == 0 && screen.loading) {
+        // An arc turning once a second, from the clock: the window is drawn every frame anyway.
+        ImDrawList* spinner = ImGui::GetWindowDrawList();
+        ImVec2 at = ImGui::GetCursorScreenPos();
+        float radius = 8.0f;
+        float lineHeight = ImGui::GetTextLineHeight();
+        float start = static_cast<float>(std::fmod(GetTime(), 1.0)) * 2.0f * IM_PI;
+        spinner->PathArcTo(ImVec2(at.x + radius + 2.0f, at.y + lineHeight / 2.0f), radius, start, start + 1.5f * IM_PI, 24);
+        spinner->PathStroke(ImGui::GetColorU32(dim), ImDrawFlags_None, 2.5f);
+        ImGui::Dummy(ImVec2(2.0f * radius + 4.0f, lineHeight));
+        ImGui::SameLine();
+        ImGui::TextColored(dim, "Loading builds");
+    } else if (screen.rowCount == 0) {
         ImGui::TextColored(dim, "Nothing to show yet.");
     } else if (ImGui::BeginTable("rows", 8, flags)) {
-        // The pipeline cell starts with a status square a row height wide, so it takes the larger
-        // share; weighted as the repo column was, a ten character name no longer fit beside it.
-        ImGui::TableSetupColumn("pipeline", ImGuiTableColumnFlags_WidthStretch, 3.5f);
-        ImGui::TableSetupColumn("repo", ImGuiTableColumnFlags_WidthStretch, 3.4f);
+        // The name cell starts with a status square a row height wide, and holds
+        // the repository and branch, the longer of the two names, so it takes most of the stretch;
+        // the pipeline beside it is usually a short workflow name.
+        ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch, 4.2f);
+        ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthStretch, 2.7f);
         ImGui::TableSetupColumn("run", ImGuiTableColumnFlags_WidthFixed, 70.0f);
         ImGui::TableSetupColumn("status", ImGuiTableColumnFlags_WidthFixed, 90.0f);
         ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, 104.0f);
@@ -328,34 +343,28 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         ImGui::TableSetupColumn("links", ImGuiTableColumnFlags_WidthFixed, 210.0f);
         ImGui::TableSetupColumn("actions", ImGuiTableColumnFlags_WidthFixed, 80.0f);
 
+        // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
+        // name in line with the rows under it.
+        const float iconSize = 16.0f;
+        bool anyIcon = false;
+        for (int32_t i = 0; i < screen.rowCount; i++) {
+            anyIcon = anyIcon || screen.rows[i].provider.length > 0;
+        }
+
         for (int32_t i = 0; i < screen.rowCount; i++) {
             const BmRow& row = screen.rows[i];
-            bool header = (row.flags & BM_ROW_HEADER) != 0;
+            bool group = (row.flags & BM_ROW_GROUP) != 0;
             bool selected = (row.flags & BM_ROW_SELECTED) != 0;
             ImGui::PushID(i);
             ImGui::TableNextRow(ImGuiTableRowFlags_None, rowHeight);
             if (selected) {
                 ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(selectedRow));
-            } else if (header) {
-                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(headerRow));
             }
 
             ImGui::TableSetColumnIndex(0);
-            std::string pipeline = Str(screen, row.pipeline);
-            if (header) {
-                std::string label = std::string((row.flags & BM_ROW_FOLDED) ? "> " : "v ") + pipeline;
-                ImGui::PushStyleColor(ImGuiCol_Text, dim);
-                if (ImGui::Selectable(label.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap)) {
-                    g.input.clickedRow = i;
-                }
-
-                ImGui::PopStyleColor();
-                if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                    g.input.rightClickedRow = i;
-                }
-
-                ImGui::PopID();
-                continue;
+            std::string name = Str(screen, row.name);
+            if (group) {
+                name = std::string((row.flags & BM_ROW_EXPANDED) ? "v " : "> ") + name;
             }
 
             ImVec4 colour = StatusColour(row.status);
@@ -367,8 +376,11 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             float top = cursor.y - ImGui::GetStyle().CellPadding.y;
             draw->AddRectFilled(ImVec2(cursor.x, top), ImVec2(cursor.x + rowHeight, top + rowHeight), ImGui::GetColorU32(colour));
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + rowHeight + ImGui::GetStyle().ItemSpacing.x);
-            std::string selectableLabel = pipeline + "##row";
-            if (ImGui::Selectable(selectableLabel.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap)) {
+            std::string selectableLabel = name + "##row";
+            // A click on a group toggles it, so the second press of a double click is dropped, or it
+            // would close what the first opened.
+            if (ImGui::Selectable(selectableLabel.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap) &&
+                !(group && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))) {
                 g.input.clickedRow = i;
             }
 
@@ -376,12 +388,21 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                 g.input.rightClickedRow = i;
             }
 
-            if (row.tooltip.length > 0 && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
-                ImGui::SetTooltip("%s", Str(screen, row.tooltip).c_str());
+            ImGui::TableSetColumnIndex(1);
+            // The logo leads the detail cell, beside the pipeline it ran, so a group's members,
+            // whose first cell is empty, still show which service each came from.
+            if (anyIcon) {
+                auto icon = g.rowIcons.find(Str(screen, row.provider));
+                ImVec2 at = ImGui::GetCursorScreenPos();
+                if (row.provider.length > 0 && icon != g.rowIcons.end()) {
+                    float iconTop = top + (rowHeight - iconSize) / 2.0f;
+                    draw->AddImage(static_cast<ImTextureID>(icon->second.id), ImVec2(at.x, iconTop), ImVec2(at.x + iconSize, iconTop + iconSize));
+                }
+
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconSize + ImGui::GetStyle().ItemSpacing.x);
             }
 
-            ImGui::TableSetColumnIndex(1);
-            ImGui::TextColored(dim, "%s", Str(screen, row.repoBranch).c_str());
+            ImGui::TextColored(dim, "%s", Str(screen, row.detail).c_str());
             ImGui::TableSetColumnIndex(2);
             ImGui::TextColored(dim, "%s", Str(screen, row.runNumber).c_str());
             ImGui::TableSetColumnIndex(3);
@@ -887,6 +908,29 @@ BM_API void bm_tray_set_icon(int32_t kind, const uint8_t* png, int32_t length) {
 BM_API void bm_tray_set_menu_icon(const char* name, const uint8_t* png, int32_t length) {
 }
 
+BM_API void bm_set_row_icon(const char* name, const uint8_t* png, int32_t length) {
+    // A texture needs the GL context bm_init made.
+    if (!g.initialised || name == nullptr || png == nullptr || length <= 0) {
+        return;
+    }
+
+    Image image = LoadImageFromMemory(".png", png, length);
+    if (image.data == nullptr) {
+        return;
+    }
+
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    // The PNG is drawn at half its size, so filter rather than drop every other pixel.
+    SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+    auto existing = g.rowIcons.find(name);
+    if (existing != g.rowIcons.end()) {
+        UnloadTexture(existing->second);
+    }
+
+    g.rowIcons[name] = texture;
+}
+
 BM_API void bm_shutdown(void) {
     if (!g.initialised) {
         return;
@@ -896,6 +940,12 @@ BM_API void bm_shutdown(void) {
         UnloadTexture(g.fontTexture);
         g.fontTexture = Texture2D{};
     }
+
+    for (auto& icon : g.rowIcons) {
+        UnloadTexture(icon.second);
+    }
+
+    g.rowIcons.clear();
 
     ImGui::DestroyContext();
     CloseWindow();

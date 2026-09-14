@@ -4,7 +4,7 @@
 /// projects it into a frame. Nothing in here touches IO.
 /// <para>
 /// Rows are not stored: <see cref="RowProjection.Rows"/> derives them from the builds, the
-/// filters and the folds, so there is exactly one rule about what is shown and every reader of
+/// filters and the toggled groups, so there is exactly one rule about what is shown and every reader of
 /// <see cref="SelectedRow"/> agrees on what it indexes.
 /// </para>
 /// </summary>
@@ -22,10 +22,8 @@ record SessionState(
     int ScrollTop,
     int Columns,
     int Rows,
-    // Connection ids whose rows are folded away under their header.
-    ImmutableHashSet<string> FoldedGroups,
-    // Project keys whose shared green row the user expanded back into one row per build.
-    ImmutableHashSet<string> ExpandedProjects,
+    // Group ids the user opened or closed against their default. See RowProjection.IsExpanded.
+    ImmutableHashSet<string> ToggledGroups,
     // The last thing worth telling the user, shown on the status line until the next input.
     string Status,
     bool Hidden,
@@ -47,8 +45,7 @@ record SessionState(
             ScrollTop: 0,
             Columns: 120,
             Rows: 30,
-            FoldedGroups: [],
-            ExpandedProjects: [],
+            ToggledGroups: [],
             Status: "",
             Hidden: !settings.ShowWindowAtStart,
             Exit: false);

@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="IconifyBundle.Lucide" />
+    <PackageReference Include="IconifyBundle.SimpleIcons" />
     <PackageReference Include="Svg.Skia" />
     <PackageReference Include="SkiaSharp" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" />

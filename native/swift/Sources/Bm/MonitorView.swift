@@ -81,7 +81,10 @@ final class MonitorView: NSView {
             return
         }
 
-        if let index = renderer.rowRects.firstIndex(where: { $0.contains(point) }) {
+        // A click on a group toggles it, so the second press of a double click is dropped, or it
+        // would close what the first opened.
+        if let index = renderer.rowRects.firstIndex(where: { $0.contains(point) }),
+           !(event.clickCount > 1 && index < model.rows.count && model.rows[index].isGroup) {
             runtime.input.clickedRow = Int32(index)
         }
     }
@@ -137,16 +140,5 @@ final class MonitorView: NSView {
         }
 
         runtime.input.key = Int32(key.rawValue)
-    }
-
-    func refreshToolTips() {
-        removeAllToolTips()
-        guard let model, !model.isForm else {
-            return
-        }
-
-        for (index, rect) in renderer.rowRects.enumerated() where index < model.rows.count && !model.rows[index].tooltip.isEmpty {
-            addToolTip(rect, owner: model.rows[index].tooltip as NSString, userData: nil)
-        }
     }
 }

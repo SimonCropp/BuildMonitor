@@ -29,8 +29,9 @@ public class ApplyFetchTests
     [Test]
     public async Task TheSelectionStaysOnItsRow()
     {
-        // Row 2 is the failed Verify run. The DiffEngine run above it finishing sorts it up to row 1.
-        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 2);
+        // The DiffEngine run above the failed Verify run finishing sorts the failure up a row.
+        var builds = Fixtures.WithBuilds();
+        var state = MonitorSession.SelectRow(builds, Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline"));
         var finished = Fixtures.Build(Fixtures.GitHub.Id, "DiffEngine/test.yml", "test.yml", "VerifyTests/DiffEngine", "main", "1234", BuildStatus.Succeeded, started: Fixtures.Now - TimeSpan.FromMinutes(3), finished: Fixtures.Now);
         var next = MonitorSession.ApplyFetch(state, Fixtures.GitHub.Id, Outcome(pipelines, ["DiffEngine/test.yml"], [finished]), Fixtures.Now);
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/test.yml/feature/inline");

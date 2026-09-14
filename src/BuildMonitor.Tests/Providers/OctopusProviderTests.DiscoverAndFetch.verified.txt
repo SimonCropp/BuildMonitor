@@ -22,7 +22,6 @@
       ProviderRef: ServerTasks-100|Spaces-1/tasks/rerun/ServerTasks-100|Spaces-1/tasks/ServerTasks-100/cancel,
       Key: octopus/Projects-1/Production,
       PipelineKey: octopus/Projects-1,
-      ProjectKey: octopus/Default,
       IsActive: true,
       Ordering: DateTimeOffset_2
     },
@@ -45,7 +44,6 @@
       ProviderRef: ServerTasks-99|Spaces-1/tasks/rerun/ServerTasks-99|Spaces-1/tasks/ServerTasks-99/cancel,
       Key: octopus/Projects-1/Staging,
       PipelineKey: octopus/Projects-1,
-      ProjectKey: octopus/Default,
       IsActive: false,
       Ordering: DateTimeOffset_4
     }

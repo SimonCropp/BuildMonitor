@@ -15,5 +15,8 @@ static class BuildExtensions
     /// name is in the tooltip.
     /// </summary>
     public static string ShortRepoName(this Build build) =>
-        build.RepoName[(build.RepoName.LastIndexOf('/') + 1)..];
+        ShortRepoName(build.RepoName);
+
+    public static string ShortRepoName(string repoName) =>
+        repoName[(repoName.LastIndexOf('/') + 1)..];
 }

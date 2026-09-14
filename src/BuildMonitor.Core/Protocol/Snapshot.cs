@@ -3,30 +3,19 @@
 /// </summary>
 static class Snapshot
 {
+    /// <summary>
+    /// The builds, not the rows: an open group lists its members twice, once behind its own row and
+    /// once as member rows, and a closed one hides them.
+    /// </summary>
     public static List<BuildDto> Builds(SessionState state, DateTimeOffset now) =>
-        RowProjection.Rows(state)
-            .SelectMany(_ => _.Builds.Select(build => Build(state, _.Connection.Connection, build, now)))
+        RowProjection.Builds(state)
+            .Select(_ => Build(state, state.Connection(_.ConnectionId)!.Connection, _, now))
             .ToList();
 
-    /// <summary>
-    /// Searches the builds behind every row, not just the rows, so a build sharing a project's
-    /// green row can still be read and retried by key.
-    /// </summary>
-    public static BuildDto? Find(SessionState state, string key, DateTimeOffset now)
-    {
-        foreach (var row in RowProjection.Rows(state))
-        {
-            foreach (var build in row.Builds)
-            {
-                if (build.Key == key)
-                {
-                    return Build(state, row.Connection.Connection, build, now);
-                }
-            }
-        }
-
-        return null;
-    }
+    public static BuildDto? Find(SessionState state, string key, DateTimeOffset now) =>
+        RowProjection.Builds(state).FirstOrDefault(_ => _.Key == key) is { } build
+            ? Build(state, state.Connection(build.ConnectionId)!.Connection, build, now)
+            : null;
 
     static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now)
     {

@@ -55,22 +55,24 @@ sealed unsafe class ScreenPayload
             screen.ScrollTop = builds.ScrollTop;
             screen.TotalRows = builds.TotalRows;
             screen.SelectedRow = builds.SelectedRow;
+            screen.Loading = builds.Loading ? 1 : 0;
             foreach (var row in builds.Rows)
             {
                 rows.Add(new()
                 {
                     Status = (int) row.Status,
                     Flags = (row.Selected ? BmFlags.RowSelected : 0) |
-                            (row.Kind == RowKind.Header ? BmFlags.RowHeader : 0) |
-                            (row.Folded ? BmFlags.RowFolded : 0) |
+                            (row.Kind == RowKind.Group ? BmFlags.RowGroup : 0) |
+                            (row.Expanded ? BmFlags.RowExpanded : 0) |
+                            (row.Kind == RowKind.Member ? BmFlags.RowMember : 0) |
                             (row.CanRetry ? BmFlags.RowCanRetry : 0) |
                             (row.CanCancel ? BmFlags.RowCanCancel : 0),
-                    Pipeline = Add(row.Pipeline),
-                    RepoBranch = Add(row.RepoBranch),
+                    Name = Add(row.Name),
+                    Detail = Add(row.Detail),
+                    Provider = Add(row.Provider),
                     RunNumber = Add(row.RunNumber),
                     StatusText = Add(row.StatusText),
                     Timing = Add(row.Timing),
-                    Tooltip = Add(row.Tooltip),
                     BuildLabel = Add(row.Build?.Label ?? ""),
                     BranchLabel = Add(row.Branch?.Label ?? ""),
                     PullRequestLabel = Add(row.PullRequest?.Label ?? ""),
@@ -217,7 +219,7 @@ sealed unsafe class ScreenPayload
         string Text(BmString value) => Encoding.UTF8.GetString(blob, value.Offset, value.Length);
         foreach (var row in rows)
         {
-            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Pipeline)}' '{Text(row.RepoBranch)}' '{Text(row.RunNumber)}' '{Text(row.StatusText)}' '{Text(row.Timing)}' links='{Text(row.BuildLabel)}','{Text(row.BranchLabel)}','{Text(row.PullRequestLabel)}'");
+            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' '{Text(row.Detail)}' provider='{Text(row.Provider)}' '{Text(row.RunNumber)}' '{Text(row.StatusText)}' '{Text(row.Timing)}' links='{Text(row.BuildLabel)}','{Text(row.BranchLabel)}','{Text(row.PullRequestLabel)}'");
         }
 
         foreach (var field in fields)

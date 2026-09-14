@@ -33,24 +33,42 @@ public class ScreenTests
     }
 
     [Test]
-    public Task Folded() =>
-        Verify(Fixtures.Render(Fixtures.Folded()));
-
-    [Test]
-    public Task GreenProject() =>
+    public Task GreenGroup() =>
         Verify(Fixtures.Render(Fixtures.WithGreenProject()));
 
     [Test]
-    public Task GreenProjectExpanded() =>
-        Verify(Fixtures.Render(MonitorSession.ToggleProject(Fixtures.WithGreenProject(), Fixtures.VerifyProject)));
+    public Task GreenGroupExpanded() =>
+        Verify(Fixtures.Render(MonitorSession.ToggleGroup(Fixtures.WithGreenProject(), Fixtures.VerifyPassing)));
 
     [Test]
-    public Task GreenProjectMenuOpen() =>
-        Verify(Fixtures.Render(MonitorSession.OpenMenu(Fixtures.WithGreenProject(), 3)));
+    public Task GreenGroupMenuOpen()
+    {
+        var state = Fixtures.WithGreenProject();
+        return Verify(Fixtures.Render(MonitorSession.OpenMenu(state, Fixtures.RowOf(state, _ => _.Kind == RowKind.Group))));
+    }
 
     [Test]
-    public Task ExpandedProjectMemberMenuOpen() =>
-        Verify(Fixtures.Render(MonitorSession.OpenMenu(MonitorSession.ToggleProject(Fixtures.WithGreenProject(), Fixtures.VerifyProject), 3)));
+    public Task GroupMemberMenuOpen()
+    {
+        var state = MonitorSession.ToggleGroup(Fixtures.WithGreenProject(), Fixtures.VerifyPassing);
+        return Verify(Fixtures.Render(MonitorSession.OpenMenu(state, Fixtures.RowOf(state, _ => _.Kind == RowKind.Member))));
+    }
+
+    [Test]
+    public Task FailedGroup() =>
+        Verify(Fixtures.Render(Fixtures.WithFailedGroup()));
+
+    [Test]
+    public Task FailedGroupCollapsed() =>
+        Verify(Fixtures.Render(MonitorSession.ToggleGroup(Fixtures.WithFailedGroup(), Fixtures.VerifyFailing)));
+
+    [Test]
+    public Task SingleProvider() =>
+        Verify(Fixtures.Render(Fixtures.SingleProvider()));
+
+    [Test]
+    public Task ConnectionErrorsInFooter() =>
+        Verify(Fixtures.Render(Fixtures.ConnectionErrors()));
 
     [Test]
     public Task Scrolled() =>
@@ -58,26 +76,24 @@ public class ScreenTests
             .Snapshot(
                 """
                 +----------------------------------------------------------------------------------------------------------------------+
-                | BuildMonitor                                                                       6 pipelines, 1 failing, 4 running |
+                | BuildMonitor                                                                       9 pipelines, 2 failing, 4 running |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   + docs.yml            DiffEngine main           #300   succeeded            23h ago    Build Branch       [Retry]  |
-                |   [-] Jenkins                                                                                                        |
-                |   > Build all           build-all main            #501   running   [##------] 04:00 left Build              [Cancel] |
-                |   ? Nightly             nightly                   #88    queued               queued     Build              [Cancel] |
-                |   [-] Octopus                                                                                                        |
-                | > > Deploy Web          Deploy Web                #12    running   [###-----] 02:15 left Build              [Cancel] |
+                |   ? nightly              jenkins                  #88    queued               queued     Build              [Cancel] |
+                |   x [-] Verify                    2 failing              failed               25m ago                                |
+                |   x                      github   test.yml featu> #77    failed               25m ago    Build Branch PR 42 [Retry]  |
+                |   x                      github   release.yml ma> #9     failed               50m ago    Build Branch       [Retry]  |
+                |   + [+] Verify                    2 passing              succeeded            2h ago                                 |
+                | > + DiffEngine           github   docs.yml main   #300   succeeded            23h ago    Build Branch       [Retry]  |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+
-                tray: Failed "BuildMonitor: 1 failing, 4 running"
-                  (GitHub)
-                  test.yml main #1234 running > Open build | Cancel
-                  test.yml feature/inline #77 failed > Open build | Retry
-                  (Jenkins)
-                  Build all main #501 running > Open build | Cancel
-                  Nightly #88 queued > Open build | Cancel
-                  (Octopus)
+                tray: Failed "BuildMonitor: 2 failing, 4 running"
+                  build-all Build all main #501 running > Open build | Cancel
                   Deploy Web #12 running > Open build | Cancel
+                  DiffEngine test.yml main #1234 running > Open build | Cancel
+                  Nightly #88 queued > Open build | Cancel
+                  Verify test.yml feature/inline #77 failed > Open build | Retry
+                  Verify release.yml main #9 failed > Open build | Retry
                   ---
                   Open
                   Refresh
@@ -87,6 +103,7 @@ public class ScreenTests
                   Raise issue
                   Update
                   Exit
+                notify: "release.yml failed" "VerifyTests/Verify main #9"
                 """);
 
     [Test]
@@ -96,10 +113,6 @@ public class ScreenTests
     [Test]
     public Task MenuOpen() =>
         Verify(Fixtures.Render(Fixtures.WithMenu()));
-
-    [Test]
-    public Task HeaderMenuOpen() =>
-        Verify(Fixtures.Render(MonitorSession.OpenMenu(Fixtures.WithBuilds(), 0)));
 
     [Test]
     public Task DefaultBranchOnly()

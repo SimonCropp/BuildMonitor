@@ -8,16 +8,25 @@ public class ApplyTests
     public async Task ClickingALinkOpensIt()
     {
         var actions = new RecordingActions();
-        var state = Apply(Fixtures.WithBuilds(), new(ClickedLinkRow: 2, ClickedLink: LinkKind.PullRequest), actions);
+        var builds = Fixtures.WithBuilds();
+        var row = FailedRow(builds);
+        var state = Apply(builds, new(ClickedLinkRow: row, ClickedLink: LinkKind.PullRequest), actions);
         await Assert.That(actions.Calls).IsEquivalentTo(["OpenUrl https://github.com/VerifyTests/Verify/pull/42"]);
-        await Assert.That(state.SelectedRow).IsEqualTo(2);
+        await Assert.That(state.SelectedRow).IsEqualTo(row);
     }
+
+    static int FailedRow(SessionState state) =>
+        Fixtures.RowOf(state, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
+
+    static int RunningRow(SessionState state) =>
+        Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main");
 
     [Test]
     public async Task ClickingRetryAsksForARetry()
     {
         var actions = new RecordingActions();
-        var state = Apply(Fixtures.WithBuilds(), new(ClickedActionRow: 2, ClickedAction: RowAction.Retry), actions);
+        var builds = Fixtures.WithBuilds();
+        var state = Apply(builds, new(ClickedActionRow: FailedRow(builds), ClickedAction: RowAction.Retry), actions);
         await Assert.That(actions.Calls).IsEquivalentTo(["Retry gh/Verify/test.yml/feature/inline"]);
         await Assert.That(state.Status).IsEqualTo("Retrying test.yml #77");
     }
@@ -34,7 +43,8 @@ public class ApplyTests
     public async Task CancelFromTheMenu()
     {
         var actions = new RecordingActions();
-        var state = Apply(Fixtures.WithBuilds(), new(RightClickedRow: 1), actions);
+        var builds = Fixtures.WithBuilds();
+        var state = Apply(builds, new(RightClickedRow: RunningRow(builds)), actions);
         var cancelIndex = state.Menu!.Items.ToList().FindIndex(_ => _.Command == CommandKind.Cancel);
         state = Apply(state, new(ClickedMenuItem: cancelIndex), actions);
         await Assert.That(actions.Calls).IsEquivalentTo(["Cancel gh/DiffEngine/test.yml/main"]);
@@ -45,7 +55,8 @@ public class ApplyTests
     public async Task CopyBuildUrlUsesTheWindowClipboard()
     {
         var window = new FakeWindow();
-        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 1);
+        var builds = Fixtures.WithBuilds();
+        var state = MonitorSession.SelectRow(builds, RunningRow(builds));
         state = InputApplier.Apply(state, new(Key: CommandKind.CopyBuildUrl), new RecordingActions().Actions, window);
         await Assert.That(window.Calls).IsEquivalentTo(["SetClipboard https://example.com/gh/DiffEngine/test.yml/1234"]);
         await Assert.That(state.Status).IsEqualTo("Copied build URL");
@@ -183,20 +194,45 @@ public class ApplyTests
     }
 
     [Test]
-    public async Task RefreshOnAHeaderRefreshesThatConnection()
-    {
-        var actions = new RecordingActions();
-        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 0);
-        Apply(state, new(Key: CommandKind.Refresh), actions);
-        await Assert.That(actions.Calls).IsEquivalentTo(["Refresh gh"]);
-    }
-
-    [Test]
     public async Task InputClearsTheStatus()
     {
         var state = MonitorSession.SetStatus(Fixtures.WithBuilds(), "Done");
         state = Apply(state, new(Key: CommandKind.NextRow), new());
         await Assert.That(state.Status).IsEqualTo("");
+    }
+
+    [Test]
+    public async Task ClickingAGroupOpensAndClosesIt()
+    {
+        var green = Fixtures.WithGreenProject();
+        var row = Fixtures.RowOf(green, _ => _.Kind == RowKind.Group);
+        var opened = Apply(green, new(ClickedRow: row), new());
+        await Assert.That(RowProjection.Rows(opened).Count(_ => _.Kind == RowKind.Member)).IsEqualTo(2);
+        await Assert.That(MonitorSession.SelectedRow(opened)!.Kind).IsEqualTo(RowKind.Group);
+
+        var closed = Apply(opened, new(ClickedRow: row), new());
+        await Assert.That(RowProjection.Rows(closed).Any(_ => _.Kind == RowKind.Member)).IsFalse();
+    }
+
+    [Test]
+    public async Task ClickingABuildDoesNotToggleItsGroup()
+    {
+        var state = MonitorSession.ToggleGroup(Fixtures.WithGreenProject(), Fixtures.VerifyPassing);
+        var next = Apply(state, new(ClickedRow: Fixtures.RowOf(state, _ => _.Kind == RowKind.Member)), new());
+        await Assert.That(RowProjection.Rows(next).Count(_ => _.Kind == RowKind.Member)).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task EnterAndTheMenuOpenAGroup()
+    {
+        var green = Fixtures.WithGreenProject();
+        var row = Fixtures.RowOf(green, _ => _.Kind == RowKind.Group);
+        var entered = Apply(MonitorSession.SelectRow(green, row), new(Key: CommandKind.OpenBuild), new());
+        await Assert.That(RowProjection.Rows(entered).Count(_ => _.Kind == RowKind.Member)).IsEqualTo(2);
+
+        var menu = Apply(green, new(RightClickedRow: row), new());
+        var expanded = Apply(menu, new(ClickedMenuItem: 0), new());
+        await Assert.That(RowProjection.Rows(expanded).Count(_ => _.Kind == RowKind.Member)).IsEqualTo(2);
     }
 
     static SessionState Apply(SessionState state, MonitorInput input, RecordingActions actions) =>

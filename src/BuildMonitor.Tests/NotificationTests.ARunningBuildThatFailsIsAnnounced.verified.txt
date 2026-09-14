@@ -1,15 +1,15 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                                                       6 pipelines, 2 failing, 3 running |
 +----------------------------------------------------------------------------------------------------------------------+
-| > [-] GitHub                                                                                                         |
-|   x test.yml            DiffEngine main           #1234  failed               0s ago     Build Branch       [Cancel] |
-|   x test.yml            Verify feature/inline     #77    failed               25m ago    Build Branch PR 42 [Retry]  |
-|   + docs.yml            DiffEngine main           #300   succeeded            23h ago    Build Branch       [Retry]  |
-|   [-] Jenkins                                                                                                        |
-|   > Build all           build-all main            #501   running   [##------] 04:00 left Build              [Cancel] |
-|   ? Nightly             nightly                   #88    queued               queued     Build              [Cancel] |
-|   [-] Octopus                                                                                                        |
-|   > Deploy Web          Deploy Web                #12    running   [###-----] 02:15 left Build              [Cancel] |
+|   > build-all            jenkins  Build all main  #501   running   [##------] 04:00 left Build              [Cancel] |
+|   > Deploy Web           octopus                  #12    running   [###-----] 02:15 left Build              [Cancel] |
+|   ? nightly              jenkins                  #88    queued               queued     Build              [Cancel] |
+| > x DiffEngine           github   test.yml main   #1234  failed               0s ago     Build Branch       [Cancel] |
+|   x Verify               github   test.yml featu> #77    failed               25m ago    Build Branch PR 42 [Retry]  |
+|   + DiffEngine           github   docs.yml main   #300   succeeded            23h ago    Build Branch       [Retry]  |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
@@ -29,14 +29,11 @@
 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 0s ago |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Failed "BuildMonitor: 2 failing, 3 running"
-  (GitHub)
-  test.yml main #1234 failed > Open build | Cancel
-  test.yml feature/inline #77 failed > Open build | Retry
-  (Jenkins)
-  Build all main #501 running > Open build | Cancel
-  Nightly #88 queued > Open build | Cancel
-  (Octopus)
+  build-all Build all main #501 running > Open build | Cancel
   Deploy Web #12 running > Open build | Cancel
+  Nightly #88 queued > Open build | Cancel
+  DiffEngine test.yml main #1234 failed > Open build | Cancel
+  Verify test.yml feature/inline #77 failed > Open build | Retry
   ---
   Open
   Refresh

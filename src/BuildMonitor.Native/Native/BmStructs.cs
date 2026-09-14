@@ -13,12 +13,12 @@ struct BmRow
 {
     public int Status;
     public int Flags;
-    public BmString Pipeline;
-    public BmString RepoBranch;
+    public BmString Name;
+    public BmString Detail;
+    public BmString Provider;
     public BmString RunNumber;
     public BmString StatusText;
     public BmString Timing;
-    public BmString Tooltip;
     public BmString BuildLabel;
     public BmString BranchLabel;
     public BmString PullRequestLabel;
@@ -77,6 +77,7 @@ struct BmScreen
     public int ScrollTop;
     public int TotalRows;
     public int SelectedRow;
+    public int Loading;
 
     public BmString FormTitle;
     public BmField* Fields;
@@ -148,10 +149,11 @@ enum BmKey
 static class BmFlags
 {
     public const int RowSelected = 1 << 0;
-    public const int RowHeader = 1 << 1;
-    public const int RowFolded = 1 << 2;
+    public const int RowGroup = 1 << 1;
+    public const int RowExpanded = 1 << 2;
     public const int RowCanRetry = 1 << 3;
     public const int RowCanCancel = 1 << 4;
+    public const int RowMember = 1 << 5;
     public const int FieldEnabled = 1 << 0;
     public const int ButtonEnabled = 1 << 0;
     public const int TrayEnabled = 1 << 0;

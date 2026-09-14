@@ -15,29 +15,32 @@ BuildMonitor runs in the system tray. The icon shows the overall state:
  * red: a latest build failed
  * amber: a connection needs attention, because its credential was refused or polling failed
 
-Left click the icon to open the window. Right click it for the menu: every failing or running build with its own open, retry and cancel entries, then Open, Refresh, Options, Filters, Open logs, Raise issue, Update and Exit.
+Left click the icon to open the window. Right click it for the menu: every failing or running build, repository first, with its own open, retry and cancel entries, then Open, Refresh, Options, Filters, Open logs, Raise issue, Update and Exit. When the connections span more than one CI service, each build shows its provider's logo.
 
 
 ## The window
 
 <img src="../src/BuildMonitor.Windows.Tests/MonitorFormTests.Builds.verified.png">
 
-One row per pipeline, grouped by connection, showing the latest run on any branch. A branch with a queued or running build gets a row of its own beside the latest one, which is what makes a pull request build visible while it runs; turn that off in [Options](options.md).
+One list of pipelines across every connection, showing the latest run on any branch. A branch with a queued or running build gets a row of its own beside the latest one, which is what makes a pull request build visible while it runs; turn that off in [Options](options.md).
 
-Two or more green pipelines of one project, such as the passing workflows of one repository, share a single row; hover it to list them. A pipeline that fails or starts running leaves it for a row of its own. Double click the row, press Enter or right click it and choose Expand to see its pipelines one by one; right click one of them to collapse them again.
+Rows sort what is happening now to the top: running, then queued, then failed, then everything else by age.
 
-Rows sort what is happening now to the top of each group: running, then queued, then failed, then everything else by age.
+Two or more failed builds of one project share a group, and so do two or more that passed; a group never mixes the two. The group's row names the project and says how many builds it holds and how long since the latest. Failed groups start open, with each build on a row beneath, its project column left blank; passed groups start closed. Click a group, press Enter on it or right click it to open or close it; right click a build inside it to close it again. Projects are matched by repository name, so the same repository on two CI services is one group.
 
 Each row carries:
 
  * a status square and text; the squares of neighbouring rows touch, so a run of failures reads as one block
- * the pipeline, the repository and the branch
+ * the provider's logo, when the connections span more than one CI service
+ * the repository, then the pipeline and branch; the pipeline is left out when it is named after the repository, as an AppVeyor project is
  * the run number
  * a progress bar and a countdown while the build runs, from the provider's own estimate where it gives one and otherwise from the median of the pipeline's last ten successful runs. A build that runs past its estimate shows how far over it is. Without any estimate the elapsed time is shown
  * links: Build opens the run, Branch opens the branch in the repository, PR opens the pull request
  * Retry, for a finished run; Cancel, for a queued or running one
 
-Right click a row for the same actions plus copying the build URL and excluding the pipeline, which adds an exact match to the [filters](filters.md). Click a connection heading to fold its rows away.
+Right click a row for the same actions plus copying the build URL and excluding the pipeline, which adds an exact match to the [filters](filters.md).
+
+A connection that needs signing in again, is rate limited or failing to poll says so at the bottom right of the window, and the tray icon turns amber.
 
 Closing the window hides it; the tray keeps running. Exit is in the tray menu.
 

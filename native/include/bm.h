@@ -48,22 +48,28 @@ enum BmStatus {
 
 enum BmRowFlags {
     BM_ROW_SELECTED = 1 << 0,
-    /* A connection heading: dimmed, flush left, folds its group. Only pipeline is set. */
-    BM_ROW_HEADER = 1 << 1,
-    BM_ROW_FOLDED = 1 << 2,
+    /* A project's group: name is the project and detail its count. No links or actions. */
+    BM_ROW_GROUP = 1 << 1,
+    /* A group whose members follow it. */
+    BM_ROW_EXPANDED = 1 << 2,
     BM_ROW_CAN_RETRY = 1 << 3,
-    BM_ROW_CAN_CANCEL = 1 << 4
+    BM_ROW_CAN_CANCEL = 1 << 4,
+    /* A build under its open group. name is empty. */
+    BM_ROW_MEMBER = 1 << 5
 };
 
 typedef struct BmRow {
     int32_t status;
     int32_t flags;
-    BmString pipeline;
-    BmString repoBranch;
+    /* The first cell, drawn bright, and the second, drawn dimmed. Which string leads is decided
+       by the managed side, so no renderer composes its own. */
+    BmString name;
+    BmString detail;
+    /* A name given to bm_set_row_icon, drawn at the start of the detail cell, or empty for none. */
+    BmString provider;
     BmString runNumber;
     BmString statusText;
     BmString timing;
-    BmString tooltip;
     /* Link chips. A zero length label means no chip. */
     BmString buildLabel;
     BmString branchLabel;
@@ -165,6 +171,9 @@ typedef struct BmScreen {
     int32_t totalRows;
     /* Index into rows of the selected one, or -1 when it is scrolled out of view. */
     int32_t selectedRow;
+    /* 1 when there are no rows yet because a connection has not finished its first poll: draw a
+       spinner rather than an empty page. */
+    int32_t loading;
 
     /* The form page. */
     BmString formTitle;
@@ -269,7 +278,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 2
+#define BM_VERSION 3
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -314,6 +323,8 @@ BM_API int32_t bm_tray_init(void);
 BM_API void bm_tray_set_icon(int32_t kind, const uint8_t* png, int32_t length);
 
 BM_API void bm_tray_set_menu_icon(const char* name, const uint8_t* png, int32_t length);
+/* A PNG a row can name in BmRow.provider. Call after bm_init; a second call for a name replaces it. */
+BM_API void bm_set_row_icon(const char* name, const uint8_t* png, int32_t length);
 
 BM_API void bm_shutdown(void);
 

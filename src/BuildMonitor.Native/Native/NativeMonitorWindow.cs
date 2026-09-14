@@ -46,7 +46,29 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             return null;
         }
 
+        SetRowIcons();
         return new NativeMonitorWindow();
+    }
+
+    /// <summary>
+    /// Handed over once, after bm_init has made the context a texture needs, so a frame names an
+    /// icon rather than carrying its pixels every time it is presented.
+    /// </summary>
+    static void SetRowIcons()
+    {
+        foreach (var descriptor in ProviderDescriptors.All)
+        {
+            var bytes = Images.Glyph($"provider-{descriptor.Id}", 32);
+            if (bytes is null)
+            {
+                continue;
+            }
+
+            fixed (byte* pointer = bytes)
+            {
+                Bm.SetRowIcon(descriptor.Id, pointer, bytes.Length);
+            }
+        }
     }
 
     static bool Init(string title, int width, int height, bool hidden, byte[] font)

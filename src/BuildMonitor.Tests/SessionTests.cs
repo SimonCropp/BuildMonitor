@@ -1,88 +1,104 @@
 public class SessionTests
 {
     [Test]
-    public async Task RowsAreHeadersThenBuilds()
-    {
-        var rows = RowProjection.Rows(Fixtures.WithBuilds());
-        await Verify(rows.Select(_ => $"{_.Kind} {_.Connection.Connection.Name} {_.Build?.PipelineName} {_.Build?.Branch} {_.Build?.Status}"))
+    public Task RowsAreOneListAcrossConnections() =>
+        Verify(RowProjection.Rows(Fixtures.WithBuilds()).Select(_ => $"{_.Kind} {_.Connection?.Connection.Name} {_.Build?.PipelineName} {_.Build?.Branch} {_.Build?.Status}"))
             .Snapshot(
                 """
                 [
-                  Header GitHub   ,
-                  Build GitHub test.yml main Running,
-                  Build GitHub test.yml feature/inline Failed,
-                  Build GitHub docs.yml main Succeeded,
-                  Header Jenkins   ,
                   Build Jenkins Build all main Running,
+                  Build Octopus Deploy Web  Running,
+                  Build GitHub test.yml main Running,
                   Build Jenkins Nightly  Queued,
-                  Header Octopus   ,
-                  Build Octopus Deploy Web  Running
+                  Build GitHub test.yml feature/inline Failed,
+                  Build GitHub docs.yml main Succeeded
                 ]
                 """);
-    }
 
     [Test]
-    public async Task GreenPipelinesOfOneProjectShareARow()
+    public async Task GreenBuildsOfOneProjectShareAClosedGroup()
     {
         var rows = RowProjection.Rows(Fixtures.WithGreenProject());
-        var project = rows.Single(_ => _.Kind == RowKind.Project);
-        await Assert.That(string.Join(",", project.Members.Select(_ => _.PipelineName))).IsEqualTo("docs.yml,nuget.yml");
-        // The failing workflow of the same project keeps its own row.
-        await Assert.That(rows.Count(_ => _.Build?.RepoName == "VerifyTests/Verify")).IsEqualTo(1);
-        // A project with one green workflow has nothing to share a row with.
+        var group = rows.Single(_ => _.Kind == RowKind.Group);
+        await Assert.That(group.Group).IsEqualTo(Fixtures.VerifyPassing);
+        await Assert.That(group.Expanded).IsFalse();
+        await Assert.That(string.Join(",", group.Members.Select(_ => _.PipelineName))).IsEqualTo("docs.yml,nuget.yml");
+        await Assert.That(rows.Any(_ => _.Kind == RowKind.Member)).IsFalse();
+        // The failing workflow of the same project is not hidden in the green group.
+        await Assert.That(rows.Count(_ => _.Build is { RepoName: "VerifyTests/Verify", Status: BuildStatus.Failed })).IsEqualTo(1);
+        // A project with one green workflow has nothing to group with.
         await Assert.That(rows.Count(_ => _.Build is { RepoName: "VerifyTests/DiffEngine", PipelineName: "docs.yml" })).IsEqualTo(1);
     }
 
     [Test]
-    public async Task SingleGreenPipelineDoesNotCollapse() =>
-        await Assert.That(RowProjection.Rows(Fixtures.WithBuilds()).Any(_ => _.Kind == RowKind.Project)).IsFalse();
+    public async Task FailedBuildsOfOneProjectShareAnOpenGroup()
+    {
+        var rows = RowProjection.Rows(Fixtures.WithFailedGroup());
+        var failed = rows.Single(_ => _.Group == Fixtures.VerifyFailing && _.Kind == RowKind.Group);
+        await Assert.That(failed.Expanded).IsTrue();
+        await Assert.That(rows.Count(_ => _.Kind == RowKind.Member && _.Group == Fixtures.VerifyFailing)).IsEqualTo(2);
+        // Green and red of one project are two groups.
+        await Assert.That(rows.Count(_ => _.Kind == RowKind.Group)).IsEqualTo(2);
+    }
 
     [Test]
-    public async Task ToggleProjectTwiceRestores()
+    public async Task GroupsSpanConnections()
+    {
+        var state = Fixtures.WithFailedGroup();
+        var job = Fixtures.Build(Fixtures.Jenkins.Id, "verify", "verify", "Verify", "main", "9", BuildStatus.Failed, started: Fixtures.Now - TimeSpan.FromHours(2), finished: Fixtures.Now - TimeSpan.FromHours(2) + TimeSpan.FromMinutes(3));
+        var next = MonitorSession.ApplyPoll(state, Fixtures.Jenkins.Id, [], [..Fixtures.JenkinsBuilds(), job], Fixtures.Now);
+        var failed = RowProjection.Rows(next).Single(_ => _.Group == Fixtures.VerifyFailing && _.Kind == RowKind.Group);
+        await Assert.That(failed.Members.Select(_ => _.ConnectionId).Distinct().Count()).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task SingleGreenBuildIsNotGrouped() =>
+        await Assert.That(RowProjection.Rows(Fixtures.WithBuilds()).Any(_ => _.Kind == RowKind.Group)).IsFalse();
+
+    [Test]
+    public async Task ToggleGroupTwiceRestores()
     {
         var state = Fixtures.WithGreenProject();
-        var once = MonitorSession.ToggleProject(state, Fixtures.VerifyProject);
-        var twice = MonitorSession.ToggleProject(once, Fixtures.VerifyProject);
-        await Assert.That(RowProjection.Rows(once).Any(_ => _.Kind == RowKind.Project)).IsFalse();
-        await Assert.That(twice.ExpandedProjects).IsEmpty();
+        var once = MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing);
+        var twice = MonitorSession.ToggleGroup(once, Fixtures.VerifyPassing);
+        await Assert.That(RowProjection.Rows(once).Count(_ => _.Kind == RowKind.Member)).IsEqualTo(2);
+        await Assert.That(twice.ToggledGroups).IsEmpty();
         await Assert.That(RowProjection.Rows(twice).Length).IsEqualTo(RowProjection.Rows(state).Length);
     }
 
     [Test]
-    public async Task ToggleProjectKeepsSelectionOnProject()
+    public async Task ToggleGroupKeepsSelectionOnTheGroup()
     {
-        var state = MonitorSession.SelectRow(Fixtures.WithGreenProject(), 3);
-        await Assert.That(MonitorSession.SelectedRow(state)!.Kind).IsEqualTo(RowKind.Project);
+        var green = Fixtures.WithGreenProject();
+        var state = MonitorSession.SelectRow(green, Fixtures.RowOf(green, _ => _.Kind == RowKind.Group));
+        var expanded = MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing);
+        await Assert.That(MonitorSession.SelectedRow(expanded)!.Kind).IsEqualTo(RowKind.Group);
 
-        var expanded = MonitorSession.ToggleProject(state, Fixtures.VerifyProject);
-        var selected = MonitorSession.SelectedBuild(expanded)!;
-        await Assert.That(selected.ProjectKey).IsEqualTo(Fixtures.VerifyProject);
-        await Assert.That(selected.PipelineName).IsEqualTo("docs.yml");
+        var member = MonitorSession.SelectRow(expanded, expanded.SelectedRow + 1);
+        await Assert.That(MonitorSession.SelectedRow(member)!.Kind).IsEqualTo(RowKind.Member);
 
-        var collapsed = MonitorSession.ToggleProject(MonitorSession.SelectRow(expanded, 4), Fixtures.VerifyProject);
-        await Assert.That(MonitorSession.SelectedRow(collapsed)!.Kind).IsEqualTo(RowKind.Project);
+        var collapsed = MonitorSession.ToggleGroup(member, Fixtures.VerifyPassing);
+        await Assert.That(MonitorSession.SelectedRow(collapsed)!.Kind).IsEqualTo(RowKind.Group);
     }
 
     [Test]
-    public async Task ProjectLeavesCollapseWhenAMemberFails()
+    public async Task AGreenBuildThatFailsLeavesItsGreenGroup()
     {
         var state = Fixtures.WithGreenProject();
-        var builds = state.Builds
-            .Where(_ => _.ConnectionId == Fixtures.GitHub.Id)
-            .Select(_ => _.PipelineId == "Verify/nuget.yml" ? _ with { Status = BuildStatus.Failed } : _)
-            .ToImmutableArray();
-        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], WithStatus(state, "Verify/nuget.yml", BuildStatus.Failed), Fixtures.Now);
         var rows = RowProjection.Rows(next);
-        await Assert.That(rows.Any(_ => _.Kind == RowKind.Project)).IsFalse();
-        await Assert.That(rows.Count(_ => _.Build?.RepoName == "VerifyTests/Verify")).IsEqualTo(3);
+        await Assert.That(rows.Any(_ => _.Group == Fixtures.VerifyPassing)).IsFalse();
+        var failed = rows.Single(_ => _.Group == Fixtures.VerifyFailing && _.Kind == RowKind.Group);
+        await Assert.That(failed.Members.Any(_ => _.PipelineName == "nuget.yml")).IsTrue();
     }
 
     [Test]
-    public async Task OpenBuildOnProjectRowExpands()
+    public async Task OpenBuildOnGroupRowTogglesIt()
     {
-        var state = MonitorSession.SelectRow(Fixtures.WithGreenProject(), 3);
+        var green = Fixtures.WithGreenProject();
+        var state = MonitorSession.SelectRow(green, Fixtures.RowOf(green, _ => _.Kind == RowKind.Group));
         var next = InputApplier.Execute(state, CommandKind.OpenBuild, null, MonitorActions.None, null);
-        await Assert.That(next.ExpandedProjects).Contains(Fixtures.VerifyProject);
+        await Assert.That(next.ToggledGroups).Contains(Fixtures.VerifyPassing.Id);
     }
 
     [Test]
@@ -102,12 +118,12 @@ public class SessionTests
     [Test]
     public async Task SelectionScrollsIntoView()
     {
-        var state = MonitorSession.Resize(Fixtures.WithBuilds(), 120, 12);
+        var state = MonitorSession.Resize(Fixtures.WithBuilds(), 120, 10);
         var body = MonitorSession.BodyRows(state);
 
-        var last = MonitorSession.SelectRow(state, 8);
-        await Assert.That(last.SelectedRow).IsEqualTo(8);
-        await Assert.That(last.ScrollTop).IsEqualTo(8 - body + 1);
+        var last = MonitorSession.SelectRow(state, 5);
+        await Assert.That(last.SelectedRow).IsEqualTo(5);
+        await Assert.That(last.ScrollTop).IsEqualTo(5 - body + 1);
 
         var first = MonitorSession.SelectRow(last, 0);
         await Assert.That(first.ScrollTop).IsEqualTo(0);
@@ -116,18 +132,19 @@ public class SessionTests
     [Test]
     public async Task SelectionSurvivesFewerRows()
     {
-        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 8);
-        var folded = MonitorSession.ToggleGroup(state, Fixtures.GitHub.Id);
-        var total = RowProjection.Rows(folded).Length;
-        await Assert.That(folded.SelectedRow).IsEqualTo(total - 1);
+        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 5);
+        var fewer = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [], Fixtures.Now);
+        var total = RowProjection.Rows(fewer).Length;
+        await Assert.That(fewer.SelectedRow).IsLessThan(total);
     }
 
     [Test]
     public async Task SelectionFollowsItsPipelineToAnotherBranch()
     {
-        // Row 3 is docs.yml on main. A run starting on a branch takes over the pipeline's row and,
-        // being running, sorts to the top of the group.
-        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 3);
+        // A run of docs.yml starting on a branch takes over the pipeline's row and, being running,
+        // sorts to the top.
+        var builds = Fixtures.WithBuilds();
+        var state = MonitorSession.SelectRow(builds, DocsRow(builds));
         var run = Fixtures.Build(Fixtures.GitHub.Id, "DiffEngine/docs.yml", "docs.yml", "VerifyTests/DiffEngine", "feature/x", "301", BuildStatus.Running, started: Fixtures.Now);
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [..Fixtures.GitHubBuilds(), run], Fixtures.Now);
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/DiffEngine/docs.yml/feature/x");
@@ -136,25 +153,23 @@ public class SessionTests
     [Test]
     public async Task SelectionMovesUpWhenItsPipelineIsExcluded()
     {
-        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 3);
+        // docs.yml is the last row, under Verify's failure.
+        var builds = Fixtures.WithBuilds();
+        var state = MonitorSession.SelectRow(builds, DocsRow(builds));
         var next = MonitorSession.ExcludePipeline(state, MonitorSession.SelectedBuild(state)!);
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/test.yml/feature/inline");
     }
 
-    [Test]
-    public async Task FoldingMovesTheSelectionToTheHeader()
-    {
-        var state = MonitorSession.SelectRow(Fixtures.WithBuilds(), 2);
-        var folded = MonitorSession.ToggleGroup(state, Fixtures.GitHub.Id);
-        await Assert.That(folded.SelectedRow).IsEqualTo(0);
-    }
+    static int DocsRow(SessionState state) =>
+        Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/docs.yml/main");
 
     [Test]
     public async Task MenuClosesWhenAPollMovesItsRow()
     {
-        // Row 1 is the running DiffEngine build, which offers Cancel. A newer run sorts above it,
-        // so a menu left where it was drawn would sit on another build.
-        var state = MonitorSession.OpenMenu(Fixtures.WithBuilds(), 1);
+        // The running DiffEngine build offers Cancel. A newer run sorts above it, so a menu left
+        // where it was drawn would sit on another build.
+        var builds = Fixtures.WithBuilds();
+        var state = MonitorSession.OpenMenu(builds, Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main"));
         var rerun = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "feature/inline", "78", BuildStatus.Running, started: Fixtures.Now);
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [..Fixtures.GitHubBuilds(), rerun], Fixtures.Now);
         await Assert.That(next.Menu).IsNull();
@@ -165,41 +180,44 @@ public class SessionTests
     public async Task MenuStaysWhenAPollLeavesItsRow()
     {
         var state = MonitorSession.OpenMenu(Fixtures.WithBuilds(), 1);
-        var next = MonitorSession.ApplyPoll(state, Fixtures.Jenkins.Id, [], [], Fixtures.Now);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.Octopus.Id, [], Fixtures.OctopusBuilds(), Fixtures.Now - TimeSpan.FromSeconds(5));
         await Assert.That(next.Menu).IsEqualTo(state.Menu);
     }
 
     [Test]
-    public async Task PollKeepsTheSelectionOnItsProjectRow()
+    public async Task PollKeepsTheSelectionOnItsGroup()
     {
-        // With DiffEngine's test.yml green too, GitHub has two shared rows: DiffEngine's at row 2,
-        // then Verify's at row 3. Both belong to one connection, which must not make them one row.
+        // With DiffEngine's test.yml green too there are two green groups, DiffEngine's and
+        // Verify's, which must stay two.
         var green = Fixtures.WithGreenProject();
         var builds = WithStatus(green, "DiffEngine/test.yml", BuildStatus.Succeeded);
-        var state = MonitorSession.SelectRow(MonitorSession.ApplyPoll(green, Fixtures.GitHub.Id, [], builds, Fixtures.Now), 3);
-        await Assert.That(MonitorSession.SelectedRow(state)!.Members[0].ProjectKey).IsEqualTo(Fixtures.VerifyProject);
+        var polled = MonitorSession.ApplyPoll(green, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
+        var state = MonitorSession.SelectRow(polled, Fixtures.RowOf(polled, _ => _.Kind == RowKind.Group && _.Group == Fixtures.VerifyPassing));
 
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
-        await Assert.That(MonitorSession.SelectedRow(next)!.Members[0].ProjectKey).IsEqualTo(Fixtures.VerifyProject);
+        await Assert.That(MonitorSession.SelectedRow(next)!.Group).IsEqualTo(Fixtures.VerifyPassing);
+        await Assert.That(RowProjection.Rows(next).Count(_ => _.Kind == RowKind.Group)).IsEqualTo(2);
     }
 
     [Test]
-    public async Task SelectionFollowsABuildIntoItsProjectRow()
+    public async Task SelectionFollowsABuildIntoItsGroup()
     {
-        // Row 1 is DiffEngine's running test.yml. Once it passes it shares a row with docs.yml.
-        var state = MonitorSession.SelectRow(Fixtures.WithGreenProject(), 1);
+        // DiffEngine's running test.yml, once it passes, joins docs.yml in a closed group.
+        var green = Fixtures.WithGreenProject();
+        var state = MonitorSession.SelectRow(green, Fixtures.RowOf(green, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main"));
         var builds = WithStatus(state, "DiffEngine/test.yml", BuildStatus.Succeeded);
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
         var selected = MonitorSession.SelectedRow(next)!;
-        await Assert.That(selected.Kind).IsEqualTo(RowKind.Project);
-        await Assert.That(selected.Members[0].ProjectKey).IsEqualTo("gh/VerifyTests/DiffEngine");
+        await Assert.That(selected.Kind).IsEqualTo(RowKind.Group);
+        await Assert.That(selected.Group).IsEqualTo(new("DiffEngine", false));
     }
 
     [Test]
-    public async Task SelectionFollowsAProjectRowThatSplits()
+    public async Task SelectionFollowsAGroupThatSplits()
     {
-        // Row 3 is Verify's shared row. A failing nuget.yml leaves docs.yml on a row of its own.
-        var state = MonitorSession.SelectRow(Fixtures.WithGreenProject(), 3);
+        // A failing nuget.yml leaves docs.yml on a row of its own.
+        var green = Fixtures.WithGreenProject();
+        var state = MonitorSession.SelectRow(green, Fixtures.RowOf(green, _ => _.Kind == RowKind.Group));
         var builds = WithStatus(state, "Verify/nuget.yml", BuildStatus.Failed);
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/docs.yml/main");
@@ -211,16 +229,6 @@ public class SessionTests
             .Where(_ => _.ConnectionId == Fixtures.GitHub.Id)
             .Select(_ => _.PipelineId == pipelineId ? _ with { Status = status } : _)
     ];
-
-    [Test]
-    public async Task ToggleGroupTwiceRestores()
-    {
-        var state = Fixtures.WithBuilds();
-        var once = MonitorSession.ToggleGroup(state, Fixtures.GitHub.Id);
-        var twice = MonitorSession.ToggleGroup(once, Fixtures.GitHub.Id);
-        await Assert.That(once.FoldedGroups).Contains(Fixtures.GitHub.Id);
-        await Assert.That(twice.FoldedGroups).IsEmpty();
-    }
 
     [Test]
     public async Task MenuChoiceReturnsCommandAndCloses()

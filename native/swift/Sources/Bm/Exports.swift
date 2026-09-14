@@ -131,6 +131,17 @@ public func bmTraySetMenuIcon(_ name: UnsafePointer<CChar>?, _ png: UnsafePointe
     Runtime.shared.tray?.setMenuIcon(name: String(cString: name), png: Data(bytes: png, count: Int(length)))
 }
 
+@_cdecl("bm_set_row_icon")
+public func bmSetRowIcon(_ name: UnsafePointer<CChar>?, _ png: UnsafePointer<UInt8>?, _ length: Int32) {
+    guard let name, let png, length > 0,
+          let image = NSImage(data: Data(bytes: png, count: Int(length))) else {
+        return
+    }
+
+    image.size = NSSize(width: 16, height: 16)
+    RowIcons.images[String(cString: name)] = image
+}
+
 @_cdecl("bm_shutdown")
 public func bmShutdown() {
     Runtime.shared.shutdown()

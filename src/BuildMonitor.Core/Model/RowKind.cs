@@ -1,9 +1,9 @@
 enum RowKind
 {
     Build,
-    // A connection heading: drawn dimmed, flush left, folds its members.
-    Header,
-    // Two or more green pipelines of one project in one row. Drawn as a build, so no head needs to
-    // know about it; expands back into its pipelines.
-    Project
+    // Two or more finished builds of one project with one outcome. Carries no build of its own, so
+    // nothing that acts on one build can act on it; opens to show its members.
+    Group,
+    // A build shown under its open group. Its first cell is left empty: the group names the project.
+    Member
 }

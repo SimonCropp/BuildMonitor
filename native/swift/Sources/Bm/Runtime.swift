@@ -114,7 +114,6 @@ final class Runtime {
         view.model = frame
         view.needsDisplay = true
         view.displayIfNeeded()
-        view.refreshToolTips()
         position(frame)
         pump()
         popMenu(frame)
