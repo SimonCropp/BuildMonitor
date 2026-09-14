@@ -18,6 +18,16 @@ class FakeHttpHandler : HttpMessageHandler
     public FakeHttpHandler Get(string url, string body) =>
         Map("GET", url, body);
 
+    /// <summary>
+    /// An HTML page where JSON was expected, optionally arriving from another address, as a
+    /// response does once a real handler has followed a redirect to a sign in page.
+    /// </summary>
+    public FakeHttpHandler MapHtml(string method, string url, string body, HttpStatusCode status = HttpStatusCode.OK, string? landedOn = null)
+    {
+        responses[$"{method} {url}"] = new(status, body, [], "text/html", landedOn);
+        return this;
+    }
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, Cancel cancel)
     {
         var url = request.RequestUri!.ToString();
@@ -57,8 +67,8 @@ class FakeHttpHandler : HttpMessageHandler
 
         var message = new HttpResponseMessage(response.Status)
         {
-            RequestMessage = request,
-            Content = new StringContent(response.Body, Encoding.UTF8, "application/json")
+            RequestMessage = response.LandedOn is null ? request : new(request.Method, response.LandedOn),
+            Content = new StringContent(response.Body, Encoding.UTF8, response.MediaType)
         };
         foreach (var (name, value) in response.Headers)
         {
@@ -68,5 +78,5 @@ class FakeHttpHandler : HttpMessageHandler
         return message;
     }
 
-    record FakeResponse(HttpStatusCode Status, string Body, (string Name, string Value)[] Headers);
+    record FakeResponse(HttpStatusCode Status, string Body, (string Name, string Value)[] Headers, string MediaType = "application/json", string? LandedOn = null);
 }

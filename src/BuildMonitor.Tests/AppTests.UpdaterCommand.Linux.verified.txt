@@ -1,1 +1,0 @@
-﻿setsid sh -c 'sleep 2; dotnet tool update BuildMonitor --global --prerelease; nohup "home/buildmonitor" >/dev/null 2>&1 &'

@@ -56,11 +56,19 @@ public class AppTests
                 .UniqueForOSPlatform()
                 .Snapshot("Start-Sleep -Seconds 2; dotnet tool update BuildMonitor --global --prerelease; & 'home\\buildmonitor'");
         }
+        else if (OperatingSystem.IsMacOS())
+        {
+            await Assert.That(info.FileName).IsEqualTo("/bin/sh");
+            await Verify(info.ArgumentList.Last())
+                .UniqueForOSPlatform()
+                .Snapshot("sleep 2; dotnet tool update BuildMonitor --global --prerelease; nohup \"home/buildmonitor\" >/dev/null 2>&1 &");
+        }
         else
         {
             await Assert.That(info.FileName).IsEqualTo("/bin/sh");
             await Verify(info.ArgumentList.Last())
-                .UniqueForOSPlatform();
+                .UniqueForOSPlatform()
+                .Snapshot("setsid sh -c 'sleep 2; dotnet tool update BuildMonitor --global --prerelease; nohup \"home/buildmonitor\" >/dev/null 2>&1 &'");
         }
     }
 

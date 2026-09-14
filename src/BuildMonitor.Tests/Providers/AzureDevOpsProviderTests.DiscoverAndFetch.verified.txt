@@ -78,6 +78,6 @@
   Requests: [
     GET https://dev.azure.com/contoso/_apis/projects?api-version=7.1&$top=100,
     GET https://dev.azure.com/contoso/Web/_apis/pipelines?api-version=7.1,
-    GET https://dev.azure.com/contoso/Web/_apis/build/builds?definitions=1,2&$top=10&queryOrder=queueTimeDescending&api-version=7.1
+    GET https://dev.azure.com/contoso/Web/_apis/build/builds?definitions=1,2&maxBuildsPerDefinition=5&queryOrder=queueTimeDescending&api-version=7.1
   ]
 }

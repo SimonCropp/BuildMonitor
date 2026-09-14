@@ -22,7 +22,9 @@ static class ProviderDescriptors
         ],
         HasEstimate: false,
         HasBranches: true,
-        HasPullRequests: true);
+        HasPullRequests: true,
+        // No ETags: every probe is a full list, so once a minute rather than every poll interval.
+        ProbeInterval: TimeSpan.FromMinutes(1));
 
     public static readonly ProviderDescriptor Travis = new(
         Id: "travis",
@@ -75,7 +77,11 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
-        Notes: "A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.");
+        Notes: "A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.",
+        FetchUnit: FetchUnit.Repository,
+        FetchConcurrency: Concurrently.Limit,
+        // Half the secondary limit of 900 points a minute, which counts a 304 like any GET.
+        Quota: new(450, TimeSpan.FromMinutes(1), 450));
 
     public static readonly ProviderDescriptor AzureDevOps = new(
         Id: "azure-devops",
@@ -96,7 +102,10 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
-        Notes: "The token needs Build (Read & execute).");
+        Notes: "The token needs Build (Read & execute).",
+        FetchUnit: FetchUnit.Repository,
+        // Half the 200 throughput units a user may spend in any five minutes.
+        Quota: new(100, TimeSpan.FromMinutes(5), 100, ChargeByCost: true));
 
     public static readonly ProviderDescriptor TeamCity = new(
         Id: "teamcity",
@@ -116,7 +125,8 @@ static class ProviderDescriptors
         HasEstimate: true,
         HasBranches: true,
         HasPullRequests: false,
-        Notes: "Create the token under Profile, Access Tokens.");
+        Notes: "Create the token under Profile, Access Tokens.",
+        FetchUnit: FetchUnit.Connection);
 
     public static readonly ProviderDescriptor GitLab = new(
         Id: "gitlab",
@@ -137,7 +147,9 @@ static class ProviderDescriptors
         HasBranches: true,
         HasPullRequests: true,
         CustomClientId: true,
-        Notes: "The token needs the api scope to retry and cancel, or read_api to only watch.");
+        Notes: "The token needs the api scope to retry and cancel, or read_api to only watch.",
+        // One GraphQL request covers fifty projects.
+        FetchUnit: FetchUnit.Connection);
 
     public static readonly ProviderDescriptor GoCd = new(
         Id: "gocd",
@@ -174,7 +186,11 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
-        Notes: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.");
+        Notes: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.",
+        // A thousand requests an hour, or the scaled limit the workspace reports.
+        Quota: new(1000, TimeSpan.FromHours(1), 250, LearnLimit: true),
+        IdleCap: TimeSpan.FromMinutes(30),
+        ProbeInterval: TimeSpan.FromMinutes(1));
 
     public static readonly ProviderDescriptor Octopus = new(
         Id: "octopus",
@@ -193,7 +209,8 @@ static class ProviderDescriptors
         ],
         HasEstimate: true,
         HasBranches: false,
-        HasPullRequests: false);
+        HasPullRequests: false,
+        FetchUnit: FetchUnit.Connection);
 
     public static readonly IReadOnlyList<ProviderDescriptor> All =
     [

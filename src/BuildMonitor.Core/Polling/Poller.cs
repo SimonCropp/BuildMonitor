@@ -8,7 +8,8 @@ sealed class Poller(
     ISecretStore secrets,
     DurationHistory history,
     HttpMessageHandler handler,
-    TokenRefresher? refresher = null)
+    TokenRefresher? refresher = null,
+    Func<DateTimeOffset>? clock = null)
     : IAsyncDisposable
 {
     ConcurrentDictionary<string, ConnectionPoller> pollers = new();
@@ -35,13 +36,17 @@ sealed class Poller(
 
         foreach (var connection in settings.Connections)
         {
-            if (!pollers.ContainsKey(connection.Id))
+            if (pollers.TryGetValue(connection.Id, out var existing))
             {
-                var poller = new ConnectionPoller(connection.Id, host, secrets, history, handler, refresher);
-                if (pollers.TryAdd(connection.Id, poller))
-                {
-                    poller.Start(cancel.Token);
-                }
+                // A changed interval or filter applies from the next plan, not after the current sleep.
+                existing.Wake();
+                continue;
+            }
+
+            var poller = new ConnectionPoller(connection.Id, host, secrets, history, handler, refresher, clock);
+            if (pollers.TryAdd(connection.Id, poller))
+            {
+                poller.Start(cancel.Token);
             }
         }
     }
@@ -52,7 +57,7 @@ sealed class Poller(
         {
             foreach (var poller in pollers.Values)
             {
-                poller.Wake();
+                poller.Refresh();
             }
 
             return;
@@ -60,7 +65,20 @@ sealed class Poller(
 
         if (pollers.TryGetValue(connectionId, out var one))
         {
-            one.Wake();
+            one.Refresh();
+        }
+    }
+
+    /// <summary>
+    /// After a retry or a cancel only that build's group needs fetching, soon and for a few minutes
+    /// after; a refresh would fetch every group for one change. A poller that never started, as in
+    /// some tests, has nothing to nudge.
+    /// </summary>
+    void Nudge(Build build)
+    {
+        if (pollers.TryGetValue(build.ConnectionId, out var poller))
+        {
+            poller.Nudge(build.PipelineId);
         }
     }
 
@@ -71,14 +89,14 @@ sealed class Poller(
     {
         var connection = Connection(build.ConnectionId);
         await Providers.Get(connection.ProviderId).Retry(Context(connection), build, token);
-        Refresh(build.ConnectionId);
+        Nudge(build);
     }
 
     public async Task Cancel(Build build, Cancel token)
     {
         var connection = Connection(build.ConnectionId);
         await Providers.Get(connection.ProviderId).Cancel(Context(connection), build, token);
-        Refresh(build.ConnectionId);
+        Nudge(build);
     }
 
     public Task<ConnectionTest> Test(Connection connection, string? token, Cancel cancelToken) =>

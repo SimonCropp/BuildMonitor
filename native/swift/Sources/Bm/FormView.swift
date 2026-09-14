@@ -10,6 +10,9 @@ final class FormView: NSView {
     private var controls: [NSView] = []
     private var editing: String?
 
+    /// The height the laid out controls need, so the enclosing scroll view can reach the last one.
+    private(set) var contentHeight: CGFloat = 0
+
     init(runtime: Runtime) {
         self.runtime = runtime
         super.init(frame: .zero)
@@ -65,6 +68,8 @@ final class FormView: NSView {
             controls.append(control)
             y += height + 6
         }
+
+        contentHeight = y + 6
     }
 
     private func make(_ field: Frame.Field, index: Int) -> NSView {

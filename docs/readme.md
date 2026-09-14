@@ -14,7 +14,8 @@ To change this file edit the source file and then run MarkdownSnippets.
  * [MCP server](/docs/mcp.md)
  * [Linux](/docs/linux.md)
  * [macOS](/docs/macos.md)
- * [Troubleshooting](/docs/troubleshooting.md)<!-- endInclude -->
+ * [Troubleshooting](/docs/troubleshooting.md)
+ * [Provider APIs](/docs/providers/api-comparison.md)<!-- endInclude -->
 
 
 ## Providers

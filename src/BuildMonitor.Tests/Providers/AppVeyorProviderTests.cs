@@ -25,6 +25,24 @@ public class AppVeyorProviderTests
     }
 
     [Test]
+    public async Task RecentActivityTakesEachProjectsLatestBuild()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://ci.appveyor.com/api/projects",
+                """
+                [
+                  {"accountName":"simon","slug":"diffengine","name":"DiffEngine","builds":[{"buildId":100,"buildNumber":45,"version":"1.0.45","status":"running","updated":"2026-01-01T11:51:30+00:00"}]},
+                  {"accountName":"simon","slug":"unbuilt","name":"Unbuilt","builds":[]}
+                ]
+                """);
+        var context = ProviderTestHelpers.Context("appveyor", handler);
+        var activity = await ProviderTestHelpers.Provider("appveyor").RecentActivity(context, [], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(activity!.Count).IsEqualTo(1);
+        await Assert.That(activity["simon/diffengine"]).IsEqualTo("100|running|2026-01-01T11:51:30.0000000+00:00");
+    }
+
+    [Test]
     public async Task RetryAndCancel()
     {
         var handler = Handler()

@@ -14,7 +14,7 @@
       BuildUrl: https://gitlab.com/verify/diffengine/-/pipelines/5001,
       BranchUrl: https://gitlab.com/verify/diffengine/-/tree/main,
       CommitSha: abc123,
-      CommitMessage: Fix,
+      Author: Simon,
       CanRetry: false,
       CanCancel: true,
       ProviderRef: 77|5001,
@@ -33,12 +33,13 @@
       Status: Failed,
       StatusText: failed,
       Queued: DateTimeOffset_3,
-      Started: DateTimeOffset_3,
-      Finished: DateTimeOffset_4,
+      Started: DateTimeOffset_4,
+      Finished: DateTimeOffset_5,
       BuildUrl: https://gitlab.com/verify/diffengine/-/pipelines/5000,
       PullRequestNumber: 9,
       PullRequestUrl: https://gitlab.com/verify/diffengine/-/merge_requests/9,
       CommitSha: def456,
+      Author: Simon,
       CanRetry: true,
       CanCancel: false,
       ProviderRef: 77|5000,
@@ -46,12 +47,11 @@
       PipelineKey: gitlab/77,
       ProjectKey: gitlab/verify/diffengine,
       IsActive: false,
-      Ordering: DateTimeOffset_3
+      Ordering: DateTimeOffset_4
     }
   ],
   Requests: [
-    GET https://gitlab.com/api/v4/projects?membership=true&simple=true&archived=false&order_by=last_activity_at&per_page=100,
-    GET https://gitlab.com/api/v4/projects/77/pipelines?per_page=5,
-    GET https://gitlab.com/api/v4/projects/77/pipelines/5001
+    GET https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100,
+    GET https://gitlab.com/api/graphql?query={projects%28ids%3A%5B"gid%3A%2F%2Fgitlab%2FProject%2F77"%5D%2Cfirst%3A1%29{nodes{id pipelines%28first%3A5%29{nodes{id iid status ref sha createdAt updatedAt startedAt finishedAt user{name}}}}}}
   ]
 }

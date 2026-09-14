@@ -2,29 +2,23 @@ public class OctopusProviderTests
 {
     const string server = "https://octopus.example.com";
 
-    static FakeHttpHandler Handler() =>
+    static FakeHttpHandler Discovery() =>
         new FakeHttpHandler()
             .Get($"{server}/api/spaces?take=100", """{"Items":[{"Id":"Spaces-1","Name":"Default","IsDefault":true},{"Id":"Spaces-2","Name":"Other","IsDefault":false}]}""")
             .Get($"{server}/api/Spaces-1/projects?take=100", """{"Items":[{"Id":"Projects-1","Name":"Web","Links":{"Web":"/app#/Spaces-1/projects/web"}}]}""")
-            .Get($"{server}/api/Spaces-1/environments/all", """[{"Id":"Environments-1","Name":"Production"},{"Id":"Environments-2","Name":"Staging"}]""")
+            .Get($"{server}/api/Spaces-1/tasks/ServerTasks-100/details?verbose=false&tail=1", """{"Task":{"Id":"ServerTasks-100"},"Progress":{"ProgressPercentage":40,"EstimatedTimeRemaining":"00:02:15"}}""");
+
+    static FakeHttpHandler Handler() =>
+        Discovery()
             .Get(
-                $"{server}/api/Spaces-1/deployments?take=5",
+                $"{server}/api/Spaces-1/dashboard/dynamic",
                 """
                 {"Items":[
-                  {"Id":"Deployments-10","ProjectId":"Projects-1","EnvironmentId":"Environments-1","ReleaseId":"Releases-5","TaskId":"ServerTasks-100","Name":"Deploy to Production","Links":{"Web":"/app#/Spaces-1/deployments/Deployments-10"}},
-                  {"Id":"Deployments-9","ProjectId":"Projects-1","EnvironmentId":"Environments-2","ReleaseId":"Releases-5","TaskId":"ServerTasks-99","Name":"Deploy to Staging","Links":{"Web":"/app#/Spaces-1/deployments/Deployments-9"}},
-                  {"Id":"Deployments-8","ProjectId":"Projects-2","EnvironmentId":"Environments-2","ReleaseId":"Releases-1","TaskId":"ServerTasks-50"}
-                ]}
-                """)
-            .Get(
-                $"{server}/api/Spaces-1/tasks?take=5&name=Deploy",
-                """
-                {"Items":[
-                  {"Id":"ServerTasks-100","State":"Executing","Description":"Deploy Web release 1.2.3 to Production","QueueTime":"2026-01-01T11:57:00Z","StartTime":"2026-01-01T11:58:00Z","Links":{"Details":"/api/Spaces-1/tasks/ServerTasks-100/details","Cancel":"/api/Spaces-1/tasks/ServerTasks-100/cancel","Rerun":"/api/Spaces-1/tasks/rerun/ServerTasks-100","Web":"/app#/Spaces-1/tasks/ServerTasks-100"}}
-                ]}
-                """)
-            .Get($"{server}/api/tasks/ServerTasks-99", """{"Id":"ServerTasks-99","State":"Failed","Description":"Deploy Web release 1.2.3 to Staging","QueueTime":"2026-01-01T10:00:00Z","StartTime":"2026-01-01T10:00:10Z","CompletedTime":"2026-01-01T10:03:00Z","Links":{"Details":"/api/Spaces-1/tasks/ServerTasks-99/details","Cancel":"/api/Spaces-1/tasks/ServerTasks-99/cancel","Rerun":"/api/Spaces-1/tasks/rerun/ServerTasks-99","Web":"/app#/Spaces-1/tasks/ServerTasks-99"}}""")
-            .Get($"{server}/api/Spaces-1/tasks/ServerTasks-100/details", """{"Task":{"Id":"ServerTasks-100"},"Progress":{"ProgressPercentage":40,"EstimatedTimeRemaining":"00:02:15"}}""");
+                  {"ProjectId":"Projects-1","EnvironmentId":"Environments-1","DeploymentId":"Deployments-10","TaskId":"ServerTasks-100","ReleaseVersion":"1.2.3","State":"Executing","QueueTime":"2026-01-01T11:57:00Z","StartTime":"2026-01-01T11:58:00Z","IsCurrent":true},
+                  {"ProjectId":"Projects-1","EnvironmentId":"Environments-2","DeploymentId":"Deployments-9","TaskId":"ServerTasks-99","ReleaseVersion":"1.2.3","State":"Failed","QueueTime":"2026-01-01T10:00:00Z","StartTime":"2026-01-01T10:00:10Z","CompletedTime":"2026-01-01T10:03:00Z","IsCurrent":true},
+                  {"ProjectId":"Projects-2","EnvironmentId":"Environments-2","DeploymentId":"Deployments-8","TaskId":"ServerTasks-50","ReleaseVersion":"0.1","State":"Success"}
+                ],"Environments":[{"Id":"Environments-1","Name":"Production"},{"Id":"Environments-2","Name":"Staging"}]}
+                """);
 
     [Test]
     public async Task DiscoverAndFetch()
@@ -35,7 +29,32 @@ public class OctopusProviderTests
     }
 
     [Test]
-    public async Task RetryAndCancelUseTheTaskLinks()
+    public async Task AnExecutingDeploymentReadsItsProgress()
+    {
+        var handler = Handler();
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", ProviderTestHelpers.Context("octopus", handler, server));
+        await Assert.That(handler.Requests).Contains($"GET {server}/api/Spaces-1/tasks/ServerTasks-100/details?verbose=false&tail=1");
+        await Assert.That(builds.Single(_ => _.Branch == "Production").Estimate!.Remaining).IsEqualTo(TimeSpan.FromSeconds(135));
+    }
+
+    [Test]
+    public async Task ALimitedDashboardFallsBackToSeparateListings()
+    {
+        var handler = Discovery()
+            .Get($"{server}/api/Spaces-1/dashboard/dynamic", """{"Items":[],"Environments":[],"ProjectLimit":0}""")
+            .Get($"{server}/api/Spaces-1/environments/all", """[{"Id":"Environments-1","Name":"Production"}]""")
+            .Get($"{server}/api/Spaces-1/deployments?take=5", """{"Items":[{"Id":"Deployments-10","ProjectId":"Projects-1","EnvironmentId":"Environments-1","TaskId":"ServerTasks-100","Links":{"Web":"/app#/Spaces-1/deployments/Deployments-10"}}]}""")
+            .Get(
+                $"{server}/api/Spaces-1/tasks?take=5&name=Deploy",
+                """{"Items":[{"Id":"ServerTasks-100","State":"Executing","Description":"Deploy Web release 1.2.3 to Production","QueueTime":"2026-01-01T11:57:00Z","StartTime":"2026-01-01T11:58:00Z","Links":{"Details":"/api/Spaces-1/tasks/ServerTasks-100/details{?verbose,tail,ranges}","Cancel":"/api/Spaces-1/tasks/ServerTasks-100/cancel","Rerun":"/api/Spaces-1/tasks/rerun/ServerTasks-100"}}]}""");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", ProviderTestHelpers.Context("octopus", handler, server));
+        await Assert.That(builds.Single().RunNumber).IsEqualTo("1.2.3");
+        // The task's templated details link is requested without its template.
+        await Assert.That(handler.Requests).Contains($"GET {server}/api/Spaces-1/tasks/ServerTasks-100/details?verbose=false&tail=1");
+    }
+
+    [Test]
+    public async Task RetryAndCancelTheTask()
     {
         var handler = Handler()
             .Map("POST", $"{server}/api/Spaces-1/tasks/rerun/ServerTasks-99", "{}")

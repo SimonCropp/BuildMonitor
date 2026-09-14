@@ -22,3 +22,72 @@ One per project. Pull request builds link to the pull request on GitHub.
 ## Estimates
 
 The countdown comes from the median of the project's last ten successful builds.
+
+
+## Polling
+
+Each project is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). AppVeyor sends no ETags, so every request returns a full response. Once a minute the projects list is read, which carries each project's latest build, and a project whose latest build changed is fetched at once rather than when its schedule comes round. A build that starts on another branch while a newer one exists waits for the schedule.
+
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 400
+---
+flowchart TD
+    wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed projects in<br/>the last 10 minutes?"}
+    listed -- "no" --> discover["GET api/projects"]
+    listed -- "yes" --> probed{"Probed in the<br/>last minute?"}
+    probed -- "no" --> probe["GET api/projects again,<br/>which carries each<br/>project's latest build"]
+    probe --> moved{"A latest build changed<br/>its id, status or<br/>update time?"}
+    moved -- "yes" --> nudge["Fetch that project<br/>now, then every 30 s<br/>for 3 minutes"]
+    discover --> interval["Each project is polled<br/>as its latest builds need"]
+    probed -- "yes" --> interval
+    moved -- "no" --> interval
+    nudge --> interval
+    interval --> finishing["Running, past ¾ of its<br/>usual time or with no<br/>history: every 10 s"]
+    interval --> running["Running for less than<br/>that, or queued:<br/>every 30 s"]
+    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
+    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last build ÷ 120,<br/>30 s to 5 minutes"]
+    finishing --> due{"Due?"}
+    running --> due
+    quiet --> due
+    failed --> due
+    due -- "no" --> sleep(["Sleep until a project,<br/>the probe or the<br/>listing is due"])
+    due -- "yes, most urgent first" --> fetch["GET api/projects/<br/>{account}/{slug}/history,<br/>the last 5 builds"]
+    fetch -- "200" --> rows["Update its rows"]
+    fetch -- "failure" --> backoff["Back off that project,<br/>doubling up to 10 minutes"]
+    rows --> sleep
+    backoff --> sleep
+```
+
+
+## API notes
+
+Researched 2026-09-14. [live] means checked with anonymous requests against ci.appveyor.com; [docs] names the evidence. See [Provider APIs](api-comparison.md) for every provider side by side.
+
+
+### Rate limits
+
+None published, and no rate limit headers on project, history or 401 responses [live].
+
+
+### Conditional requests
+
+None. Responses send `Cache-Control: no-cache`, `Pragma: no-cache` and `Expires: -1`, with no ETag or Last-Modified [live]. A five build history is about 7.6 KB.
+
+
+### Change detection
+
+`GET /api/projects`, which needs a token, includes each project's latest build in `builds`: `buildId`, `version`, `status`, `started`, `finished`, `created`, `updated`, `branch`, `commitId` and `authorName` [docs]. The single project endpoint returns its build separately, as `build` [live].
+
+
+### Batching
+
+Only the latest build per project, through the projects list. History is per project.
+
+
+### Sources
+
+ * [Projects and builds API](https://www.appveyor.com/docs/api/projects-builds/)
+ * [API](https://www.appveyor.com/docs/api/)

@@ -61,8 +61,9 @@ static class MonitorSession
     }
 
     /// <summary>
-    /// Keeps the scroll top and the selection inside the rows that exist, which changes with
-    /// every poll and every fold.
+    /// Keeps the scroll top and the selection inside the rows that exist. Enough when only the
+    /// window, the scroll or the index changed; a transition that changes the rows goes through
+    /// <see cref="Follow"/>, or the selection lands on whichever row took its place.
     /// </summary>
     static SessionState Clamp(SessionState state)
     {
@@ -79,6 +80,80 @@ static class MonitorSession
 
         return state with { ScrollTop = top, SelectedRow = selected };
     }
+
+    /// <summary>
+    /// Re-applies the selection to rows that changed. A poll re-sorts a group, running first, and
+    /// a fold, a filter or a removed connection takes rows out, so the row at the selected index
+    /// is often a different one afterwards. The selection keeps its row: the same pipeline on the
+    /// same branch, else the same pipeline when its latest run is on another branch now, else the
+    /// nearest row above it that is still shown, which in a folded group is the header.
+    /// <para>
+    /// The menu does not follow. Moved, it would put a different item under the pointer; left in
+    /// place, it would sit beside another build. Unless its row is still where it was drawn, it
+    /// closes.
+    /// </para>
+    /// </summary>
+    static SessionState Follow(SessionState before, SessionState after)
+    {
+        var previous = RowProjection.Rows(before);
+        var rows = RowProjection.Rows(after);
+        var indexes = new Dictionary<(RowKind, string), int>();
+        for (var index = 0; index < rows.Length; index++)
+        {
+            indexes.TryAdd(Identity(rows[index]), index);
+        }
+
+        var followed = Clamp(after with { SelectedRow = Locate(previous, rows, indexes, before.SelectedRow) });
+        if (followed.Menu is { } menu &&
+            (followed.ScrollTop != before.ScrollTop ||
+             menu.Row >= previous.Length ||
+             !indexes.TryGetValue(Identity(previous[menu.Row]), out var row) ||
+             row != menu.Row))
+        {
+            return followed with { Menu = null };
+        }
+
+        return followed;
+    }
+
+    static int Locate(ImmutableArray<Row> previous, ImmutableArray<Row> rows, Dictionary<(RowKind, string), int> indexes, int selected)
+    {
+        if (selected < 0 ||
+            selected >= previous.Length)
+        {
+            return selected;
+        }
+
+        if (indexes.TryGetValue(Identity(previous[selected]), out var index))
+        {
+            return index;
+        }
+
+        if (previous[selected].Build is { } build)
+        {
+            var pipeline = build.PipelineKey;
+            for (var candidate = 0; candidate < rows.Length; candidate++)
+            {
+                if (rows[candidate].Build?.PipelineKey == pipeline)
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        for (var above = selected - 1; above >= 0; above--)
+        {
+            if (indexes.TryGetValue(Identity(previous[above]), out index))
+            {
+                return index;
+            }
+        }
+
+        return 0;
+    }
+
+    static (RowKind, string) Identity(Row row) =>
+        (row.Kind, row.Build?.Key ?? row.Connection.Connection.Id);
 
     public static Row? SelectedRow(SessionState state)
     {
@@ -103,7 +178,7 @@ static class MonitorSession
         var folded = ReferenceEquals(unfolded, state.FoldedGroups)
             ? state.FoldedGroups.Add(connectionId)
             : unfolded;
-        return Clamp(state with { FoldedGroups = folded });
+        return Follow(state, state with { FoldedGroups = folded });
     }
 
     /// <summary>
@@ -396,7 +471,7 @@ static class MonitorSession
             })
             .ToImmutableArray();
         var ids = settings.Connections.Select(_ => _.Id).ToHashSet();
-        return Clamp(state with
+        return Follow(state, state with
         {
             Settings = settings,
             Connections = connections,
@@ -519,12 +594,57 @@ static class MonitorSession
             notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, builds)) ?? notification;
         }
 
-        return Clamp(next with
+        return Follow(state, next with
         {
             Builds =
             [
                 ..next.Builds.Where(_ => _.ConnectionId != connectionId),
                 ..builds
+            ],
+            Notification = notification
+        });
+    }
+
+    /// <summary>
+    /// The result of one scheduled cycle, which fetched only the groups that were due. The fetched
+    /// pipelines' builds are replaced, builds of pipelines no longer discovered go, and the rest
+    /// stay. Replacing wholesale, as <see cref="ApplyPoll"/> does, would blank every row the cycle
+    /// did not fetch.
+    /// <para>
+    /// A pipeline fetched for the first time is not news. When the request quota defers groups
+    /// after a start, their first fetch would otherwise announce every red pipeline at once.
+    /// </para>
+    /// </summary>
+    public static SessionState ApplyFetch(SessionState state, string connectionId, FetchOutcome outcome, DateTimeOffset now)
+    {
+        var discovered = outcome.Pipelines.Select(_ => _.Id).ToHashSet();
+        var previous = state.Builds.Where(_ => _.ConnectionId == connectionId).ToImmutableArray();
+        var next = UpdateConnection(
+            state,
+            connectionId,
+            _ => _ with
+            {
+                Health = outcome.Health,
+                Error = outcome.Error,
+                RetryAfter = outcome.RetryAfter,
+                LastPolled = outcome.Fetched.Count > 0 ? now : _.LastPolled,
+                Pipelines = outcome.Pipelines,
+                Progress = null
+            });
+        var notification = state.Notification;
+        if (state.Settings.NotifyOnFailure)
+        {
+            var news = outcome.Builds.Where(_ => !outcome.FirstFetch.Contains(_.PipelineId)).ToImmutableArray();
+            notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, news)) ?? notification;
+        }
+
+        return Follow(state, next with
+        {
+            Builds =
+            [
+                ..next.Builds.Where(_ => _.ConnectionId != connectionId),
+                ..previous.Where(_ => discovered.Contains(_.PipelineId) && !outcome.Fetched.Contains(_.PipelineId)),
+                ..outcome.Builds
             ],
             Notification = notification
         });

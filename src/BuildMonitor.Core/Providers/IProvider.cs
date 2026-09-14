@@ -32,4 +32,12 @@ interface IProvider
     /// Proves the credential works, and says who it belongs to when the API tells.
     /// </summary>
     Task<ConnectionTest> Test(ProviderContext context, Cancel cancel);
+
+    /// <summary>
+    /// A cheap signal of recent activity: group key to a token that changes when the group has
+    /// news, from one call or a few. A quiet group waits minutes between fetches; without a signal a
+    /// push to it would too. Null when the provider has no such call. <paramref name="previous"/>
+    /// holds the tokens seen last time, for a provider that asks only for what came after them.
+    /// </summary>
+    Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel);
 }

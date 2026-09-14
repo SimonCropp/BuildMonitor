@@ -79,6 +79,6 @@
   ],
   Requests: [
     GET https://teamcity.example.com/app/rest/buildTypes?locator=affectedProject:(id:_Root)&fields=buildType(id,name,projectName,projectId,webUrl),
-    GET https://teamcity.example.com/app/rest/builds?locator=affectedProject:(id:_Root),branch:default:any,state:any,canceled:any,failedToStart:any,count:10&fields=build(id,number,status,state,branchName,defaultBranch,webUrl,statusText,queuedDate,startDate,finishDate,buildTypeId,canceledInfo(text),running-info(percentageComplete,elapsedSeconds,estimatedTotalSeconds,leftSeconds),triggered(user(username,name)),revisions(revision(version)))
+    GET https://teamcity.example.com/app/rest/buildTypes?locator=affectedProject:(id:_Root)&fields=buildType(id,builds($locator(branch:default:any,state:any,canceled:any,failedToStart:any,count:5),build(id,number,status,state,branchName,defaultBranch,webUrl,statusText,queuedDate,startDate,finishDate,buildTypeId,canceledInfo(text),running-info(percentageComplete,elapsedSeconds,estimatedTotalSeconds,leftSeconds),triggered(user(username,name)),revisions(revision(version)))))
   ]
 }

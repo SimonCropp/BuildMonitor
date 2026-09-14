@@ -44,6 +44,23 @@ sealed class BitbucketProvider : ProviderBase
         return builds;
     }
 
+    /// <summary>
+    /// The ten most recently updated repositories, with updated_on as the token. Bitbucket allows a
+    /// thousand requests an hour and charges one per repository fetched, so a quiet repository waits
+    /// up to thirty minutes; a push moves updated_on within seconds, and this one request a minute
+    /// fetches that repository at once. Pipelines started without a push wait for the schedule.
+    /// </summary>
+    public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
+    {
+        var page = await context.Http.Get(
+            $"repositories/{Encode(context.Scope("workspace"))}?role=member&sort=-updated_on&pagelen=10&fields=values.slug,values.updated_on",
+            BitbucketContext.Default.BitbucketPage,
+            cancel);
+        return page.Values
+            .Where(_ => _.UpdatedOn is not null)
+            .ToImmutableDictionary(_ => _.Slug, _ => _.UpdatedOn!.Value.ToString("O", CultureInfo.InvariantCulture));
+    }
+
     static Build Convert(string connectionId, Pipeline pipeline, BitbucketPipeline run)
     {
         var state = run.State?.Name;

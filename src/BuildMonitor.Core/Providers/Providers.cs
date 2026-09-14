@@ -24,10 +24,10 @@ static class Providers
     /// <summary>
     /// The client for one connection: base address and headers from the provider, credential
     /// from the secret store, transport from whoever is calling, which in tests is a fake. A
-    /// poller passes the <see cref="ETagCache"/> it keeps between polls; a one-off call such as
-    /// a retry or a connection test goes without and gets an empty one.
+    /// poller passes the <see cref="ETagCache"/> and <see cref="RateBudget"/> it keeps between
+    /// polls; a one-off call such as a retry or a connection test goes without.
     /// </summary>
-    public static ProviderContext Context(Connection connection, string? secret, HttpMessageHandler handler, ETagCache? cache = null)
+    public static ProviderContext Context(Connection connection, string? secret, HttpMessageHandler handler, ETagCache? cache = null, RateBudget? budget = null)
     {
         var provider = Get(connection.ProviderId);
         var http = new HttpJson(
@@ -37,7 +37,8 @@ static class Providers
             secret,
             connection.User,
             provider.Headers,
-            cache);
+            cache,
+            budget);
         return new(connection, http);
     }
 }

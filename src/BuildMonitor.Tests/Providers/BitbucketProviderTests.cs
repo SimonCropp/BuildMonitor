@@ -23,6 +23,19 @@ public class BitbucketProviderTests
     }
 
     [Test]
+    public async Task RecentActivityReadsTheMostRecentlyUpdatedRepositories()
+    {
+        const string url = "https://api.bitbucket.org/2.0/repositories/verify?role=member&sort=-updated_on&pagelen=10&fields=values.slug,values.updated_on";
+        var handler = new FakeHttpHandler()
+            .Get(url, """{"values":[{"slug":"diffengine","updated_on":"2026-01-01T11:59:40Z"},{"slug":"empty"}]}""");
+        var context = ProviderTestHelpers.Context("bitbucket", handler, user: "simon@example.com", scope: ("workspace", "verify"));
+        var activity = await ProviderTestHelpers.Provider("bitbucket").RecentActivity(context, [], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(activity!.Count).IsEqualTo(1);
+        await Assert.That(activity["diffengine"]).IsEqualTo("2026-01-01T11:59:40.0000000+00:00");
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {url}");
+    }
+
+    [Test]
     public async Task RetryStartsANewPipelineAndCancelStops()
     {
         var handler = Handler()

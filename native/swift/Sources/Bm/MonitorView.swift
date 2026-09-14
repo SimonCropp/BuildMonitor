@@ -9,14 +9,22 @@ final class MonitorView: NSView {
     var model: Frame?
     private weak var runtime: Runtime?
 
+    /// Holds the form, so a page with more fields than the body fits scrolls instead of hiding its
+    /// last controls behind the footer where they cannot be reached.
+    private let formScroll = NSScrollView()
+
     init(renderer: BuildsRenderer, runtime: Runtime, frame: NSRect) {
         self.renderer = renderer
         self.runtime = runtime
         form = FormView(runtime: runtime)
         super.init(frame: frame)
         wantsLayer = true
-        form.isHidden = true
-        addSubview(form)
+        formScroll.drawsBackground = false
+        formScroll.hasVerticalScroller = true
+        formScroll.autohidesScrollers = true
+        formScroll.documentView = form
+        formScroll.isHidden = true
+        addSubview(formScroll)
     }
 
     required init?(coder: NSCoder) {
@@ -37,10 +45,12 @@ final class MonitorView: NSView {
         }
 
         renderer.draw(model, in: context, size: bounds.size)
-        form.isHidden = !model.isForm
+        formScroll.isHidden = !model.isForm
         if model.isForm {
-            form.frame = renderer.bodyRect
+            formScroll.frame = renderer.bodyRect
             form.apply(model.fields)
+            let visible = formScroll.contentSize
+            form.frame.size = NSSize(width: visible.width, height: max(form.contentHeight, visible.height))
         }
     }
 

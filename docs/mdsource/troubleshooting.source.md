@@ -19,12 +19,19 @@ The tray menu's "Open logs" and the Options page open it without any of that. Te
 
 ## A connection says "sign in required"
 
-The credential was refused. Edit the connection and enter a new token, or sign in again. A GitHub fine grained token also expires; check its date.
+The credential was refused. Edit the connection and enter a new token, or sign in again. GitHub fine grained tokens and Azure DevOps personal access tokens also expire; check the date.
 
 
 ## A connection says "rate limited"
 
-The provider asked for a pause. The row says when polling resumes. Lengthen the poll interval in Options if it keeps happening.
+The provider asked for a pause. The row says when polling resumes, and Refresh waits for it, because retrying while limited risks the provider blocking the token. When the provider names no time, the pause starts at a minute and doubles while it keeps refusing, up to ten minutes.
+
+A GitHub limit is shared by every tool signed in as the same account, and GitHub also limits bursts of requests a minute, so another tool can use up the quota. Lengthen the poll interval in Options if it keeps happening.
+
+
+## A build on a quiet repository appears late
+
+A repository, project or pipeline that has not built for a while is checked less often, up to every five minutes, or thirty on Bitbucket. Refresh, or a retry from the tray, checks at once. See [Poll intervals](options.md#poll-intervals).
 
 
 ## Settings

@@ -69,6 +69,13 @@ sealed class RowsCanvas : Control
         if (overlay is null)
         {
             menuShownForRow = -1;
+            // The session closes a menu whose row a poll moved. The strip is a window of its own,
+            // not part of the frame, so it has to be closed too or it would stay up offering
+            // items that do nothing.
+            if (contextMenu.Visible)
+            {
+                contextMenu.Close();
+            }
         }
         else if (menuShownForRow != overlay.Row)
         {

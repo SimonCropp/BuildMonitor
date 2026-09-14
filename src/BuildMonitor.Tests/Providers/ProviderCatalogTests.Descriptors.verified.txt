@@ -19,7 +19,9 @@
     HasEstimate: false,
     HasBranches: true,
     HasPullRequests: true,
-    CustomClientId: false
+    CustomClientId: false,
+    FetchConcurrency: 1,
+    ProbeInterval: 00:01:00
   },
   {
     Id: azure-devops,
@@ -48,7 +50,16 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: false,
-    Notes: The token needs Build (Read & execute).
+    Notes: The token needs Build (Read & execute).,
+    FetchUnit: Repository,
+    FetchConcurrency: 1,
+    Quota: {
+      Requests: 100.0,
+      Per: 00:05:00,
+      Burst: 100.0,
+      LearnLimit: false,
+      ChargeByCost: true
+    }
   },
   {
     Id: bitbucket,
@@ -72,7 +83,17 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: false,
-    Notes: The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.
+    Notes: The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.,
+    FetchConcurrency: 1,
+    Quota: {
+      Requests: 1000.0,
+      Per: 01:00:00,
+      Burst: 250.0,
+      LearnLimit: true,
+      ChargeByCost: false
+    },
+    IdleCap: 00:30:00,
+    ProbeInterval: 00:01:00
   },
   {
     Id: github,
@@ -95,7 +116,16 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: false,
-    Notes: A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.
+    Notes: A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.,
+    FetchUnit: Repository,
+    FetchConcurrency: 8,
+    Quota: {
+      Requests: 450.0,
+      Per: 00:01:00,
+      Burst: 450.0,
+      LearnLimit: false,
+      ChargeByCost: false
+    }
   },
   {
     Id: gitlab,
@@ -119,7 +149,9 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: true,
-    Notes: The token needs the api scope to retry and cancel, or read_api to only watch.
+    Notes: The token needs the api scope to retry and cancel, or read_api to only watch.,
+    FetchUnit: Connection,
+    FetchConcurrency: 1
   },
   {
     Id: gocd,
@@ -133,7 +165,8 @@
     HasBranches: false,
     HasPullRequests: false,
     CustomClientId: false,
-    Notes: Create the token at {server}/go/access_tokens.
+    Notes: Create the token at {server}/go/access_tokens.,
+    FetchConcurrency: 1
   },
   {
     Id: jenkins,
@@ -149,7 +182,8 @@
     HasBranches: true,
     HasPullRequests: false,
     CustomClientId: false,
-    Notes: Create the token at {server}/me/security.
+    Notes: Create the token at {server}/me/security.,
+    FetchConcurrency: 1
   },
   {
     Id: octopus,
@@ -171,7 +205,9 @@
     HasEstimate: true,
     HasBranches: false,
     HasPullRequests: false,
-    CustomClientId: false
+    CustomClientId: false,
+    FetchUnit: Connection,
+    FetchConcurrency: 1
   },
   {
     Id: teamcity,
@@ -193,7 +229,9 @@
     HasBranches: true,
     HasPullRequests: false,
     CustomClientId: false,
-    Notes: Create the token under Profile, Access Tokens.
+    Notes: Create the token under Profile, Access Tokens.,
+    FetchUnit: Connection,
+    FetchConcurrency: 1
   },
   {
     Id: travis,
@@ -208,6 +246,7 @@
     HasEstimate: false,
     HasBranches: true,
     HasPullRequests: true,
-    CustomClientId: false
+    CustomClientId: false,
+    FetchConcurrency: 1
   }
 ]

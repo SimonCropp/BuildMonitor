@@ -52,7 +52,7 @@
   ],
   Requests: [
     GET https://gocd.example.com/go/api/dashboard,
-    GET https://gocd.example.com/go/api/pipelines/web/history?page_size=5,
-    GET https://gocd.example.com/go/api/pipelines/api/history?page_size=5
+    GET https://gocd.example.com/go/api/pipelines/web/history?page_size=10,
+    GET https://gocd.example.com/go/api/pipelines/api/history?page_size=10
   ]
 }
