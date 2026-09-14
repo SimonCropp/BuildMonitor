@@ -59,14 +59,14 @@ sealed class HttpJson : IDisposable
 
     public async Task<T> Get<T>(string path, JsonTypeInfo<T> info, Cancel cancel)
     {
-        var bytes = await GetBytes(path, cancel);
+        var bytes = await GetBytes(path, json: true, cancel);
         return Deserialize(bytes, info, path);
     }
 
     public async Task<string> GetText(string path, Cancel cancel) =>
-        Encoding.UTF8.GetString(await GetBytes(path, cancel));
+        Encoding.UTF8.GetString(await GetBytes(path, json: false, cancel));
 
-    async Task<byte[]> GetBytes(string path, Cancel cancel)
+    async Task<byte[]> GetBytes(string path, bool json, Cancel cancel)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         var requested = Resolve(path);
@@ -85,6 +85,11 @@ sealed class HttpJson : IDisposable
         }
 
         await Throw(response, requested, cancel);
+        if (json)
+        {
+            await ThrowIfHtml(response, cancel);
+        }
+
         var body = await response.Content.ReadAsByteArrayAsync(cancel);
         var etag = response.Headers.ETag?.ToString();
         if (etag is not null)
@@ -103,6 +108,7 @@ sealed class HttpJson : IDisposable
         };
         using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, cancel);
         await Throw(response, Resolve(path), cancel);
+        await ThrowIfHtml(response, cancel);
         var bytes = await response.Content.ReadAsByteArrayAsync(cancel);
         return Deserialize(bytes, info, path);
     }
@@ -241,6 +247,26 @@ sealed class HttpJson : IDisposable
     }
 
     /// <summary>
+    /// A server with no route for a path can answer it with a 200 carrying its web app, as
+    /// AppVeyor does for some api/account paths, and a server address that points at a web UI or
+    /// a proxy gets such a page for every path. Parsed as JSON, the page failed on its opening
+    /// angle bracket with an error naming neither the status nor what arrived, and a page sent
+    /// with an ETag was cached as a body to revalidate. The exception carries no status, as that
+    /// parse failure did, because GitLab reads a GraphQL request failing without one as a server
+    /// with no GraphQL and fetches over REST.
+    /// </summary>
+    static async Task ThrowIfHtml(HttpResponseMessage response, Cancel cancel)
+    {
+        if (response.Content.Headers.ContentType?.MediaType != "text/html")
+        {
+            return;
+        }
+
+        var text = await Text(response, cancel);
+        throw new HttpRequestException($"{(int) response.StatusCode} {response.ReasonPhrase} from {response.RequestMessage?.RequestUri}: text/html where JSON was expected{Snippet(text)}");
+    }
+
+    /// <summary>
     /// GitHub answers its secondary rate limits with a 403 that leaves the hourly quota untouched,
     /// so remaining is not 0. Read as a refused credential, one burst of requests put the
     /// connection into sign in required and stopped polling until the user acted.
@@ -288,14 +314,19 @@ sealed class HttpJson : IDisposable
         }
     }
 
+    /// <summary>
+    /// A body that is not JSON, most often an HTML page, runs over many indented lines, and the
+    /// message ends up in a connection's status on a single row.
+    /// </summary>
     static string Snippet(string text)
     {
-        if (text.Length == 0)
+        var flat = string.Join(' ', text.Split((char[]?) null, StringSplitOptions.RemoveEmptyEntries));
+        if (flat.Length == 0)
         {
             return "";
         }
 
-        return $": {(text.Length > 200 ? text[..200] : text)}";
+        return $": {(flat.Length > 200 ? flat[..200] : flat)}";
     }
 
     public void Dispose() =>

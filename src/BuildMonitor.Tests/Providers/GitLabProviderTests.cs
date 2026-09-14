@@ -48,6 +48,15 @@ public class GitLabProviderTests
     }
 
     [Test]
+    public async Task AGraphQLAnswerThatIsAWebPageFallsBackToRest()
+    {
+        var handler = Rest(Handler().MapHtml("GET", graph, "<html>GitLab</html>"));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
+        await Assert.That(builds.Select(_ => _.RunNumber)).IsEquivalentTo(["120", "119"]);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/pipelines?per_page=5"))).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task AProjectLeftOutOfTheGraphQLAnswerIsFetchedOverRest()
     {
         var handler = Rest(Handler().Get(graph, """{"data":{"projects":{"nodes":[]}}}"""));

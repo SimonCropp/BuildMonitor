@@ -34,6 +34,46 @@ public class HttpJsonTests
     }
 
     [Test]
+    public async Task ASignInPageWhereJsonWasExpectedIsStillAnAuthFailure()
+    {
+        var handler = new FakeHttpHandler()
+            .MapHtml("GET", "https://dev.azure.com/org/_apis/projects", "<html>Sign in</html>", landedOn: "https://spsprodcus4.vssps.visualstudio.com/_signin?realm=dev.azure.com");
+        using var client = AzureDevOps(handler);
+        await Assert.That(async () => await client.Get("_apis/projects", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, Cancel.None)).Throws<AuthException>();
+    }
+
+    [Test]
+    public async Task HtmlWhereJsonWasExpectedSaysWhatArrived()
+    {
+        var handler = new FakeHttpHandler()
+            .MapHtml("GET", "https://dev.azure.com/org/_apis/projects", "<html>\n  <title>Maintenance</title>\n</html>");
+        using var client = AzureDevOps(handler);
+        var exception = await Assert.That(async () => await client.Get("_apis/projects", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, Cancel.None)).Throws<HttpRequestException>();
+        await Assert.That(exception!.Message).IsEqualTo("200 OK from https://dev.azure.com/org/_apis/projects: text/html where JSON was expected: <html> <title>Maintenance</title> </html>");
+        await Assert.That(exception!.StatusCode).IsNull();
+    }
+
+    [Test]
+    public async Task HtmlWhereJsonWasExpectedIsNotCached()
+    {
+        var handler = new FakeHttpHandler()
+            .MapHtml("GET", "https://dev.azure.com/org/_apis/projects", "<html>Maintenance</html>", HttpStatusCode.OK, null, ("ETag", "\"abc\""));
+        using var client = AzureDevOps(handler);
+        await Assert.That(async () => await client.Get("_apis/projects", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, Cancel.None)).Throws<HttpRequestException>();
+        await Assert.That(client.IsCached("_apis/projects")).IsFalse();
+    }
+
+    [Test]
+    public async Task HtmlWhereJsonWasExpectedFromASendSaysWhatArrived()
+    {
+        var handler = new FakeHttpHandler()
+            .MapHtml("POST", "https://dev.azure.com/org/_apis/projects", "<html>Maintenance</html>");
+        using var client = AzureDevOps(handler);
+        var exception = await Assert.That(async () => await client.Send(HttpMethod.Post, "_apis/projects", null, AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, Cancel.None)).Throws<HttpRequestException>();
+        await Assert.That(exception!.Message).IsEqualTo("200 OK from https://dev.azure.com/org/_apis/projects: text/html where JSON was expected: <html>Maintenance</html>");
+    }
+
+    [Test]
     public async Task ABitbucketResetIsTheSecondsLeftInTheWindow()
     {
         var handler = new FakeHttpHandler()

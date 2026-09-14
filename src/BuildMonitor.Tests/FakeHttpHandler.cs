@@ -22,9 +22,9 @@ class FakeHttpHandler : HttpMessageHandler
     /// An HTML page where JSON was expected, optionally arriving from another address, as a
     /// response does once a real handler has followed a redirect to a sign in page.
     /// </summary>
-    public FakeHttpHandler MapHtml(string method, string url, string body, HttpStatusCode status = HttpStatusCode.OK, string? landedOn = null)
+    public FakeHttpHandler MapHtml(string method, string url, string body, HttpStatusCode status = HttpStatusCode.OK, string? landedOn = null, params (string Name, string Value)[] headers)
     {
-        responses[$"{method} {url}"] = new(status, body, [], "text/html", landedOn);
+        responses[$"{method} {url}"] = new(status, body, headers, "text/html", landedOn);
         return this;
     }
 
