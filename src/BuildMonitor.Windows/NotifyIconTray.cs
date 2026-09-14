@@ -14,7 +14,14 @@ sealed class NotifyIconTray : ITray
     NotifyIconTray()
     {
         MenuTheme.Apply(menu);
-        menu.Opening += (_, _) => Rebuild();
+        // An empty ContextMenuStrip marks Opening cancelled before raising it, and the menu is
+        // empty until the first Rebuild, so without clearing that the first right click shows
+        // nothing.
+        menu.Opening += (_, arguments) =>
+        {
+            Rebuild();
+            arguments.Cancel = menu.Items.Count == 0;
+        };
         icon = new()
         {
             Text = ScreenBuilder.Title,

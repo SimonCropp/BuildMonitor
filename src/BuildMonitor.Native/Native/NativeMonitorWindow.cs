@@ -75,7 +75,7 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     {
         fixed (byte* bytes = font)
         {
-            return Bm.Init(width, height, title, bytes, font.Length, 15f, hidden ? 1 : 0) == 1;
+            return Bm.Init(width, height, title, bytes, font.Length, 17f, hidden ? 1 : 0) == 1;
         }
     }
 

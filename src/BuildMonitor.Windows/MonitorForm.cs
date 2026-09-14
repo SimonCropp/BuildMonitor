@@ -24,18 +24,18 @@ sealed class MonitorForm : Form
         Icon = Icons.Window;
         BackColor = Palette.Background;
         ForeColor = Palette.Text;
-        ClientSize = new(width, height);
-        MinimumSize = new(560, 320);
+        ClientSize = LogicalToDeviceUnits(new Size(width, height));
+        MinimumSize = LogicalToDeviceUnits(new Size(560, 320));
         StartPosition = FormStartPosition.CenterScreen;
         DoubleBuffered = true;
         KeyPreview = true;
-        Font = new("Segoe UI", 9.5f);
+        Font = new("Segoe UI", 11f);
 
         header = new()
         {
             Dock = DockStyle.Top,
-            Height = 30,
-            Padding = new(10, 0, 10, 0),
+            Height = LogicalToDeviceUnits(34),
+            Padding = DpiScale.Spacing(this, 10, 0, 10, 0),
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Palette.Dim,
             BackColor = Palette.Surface

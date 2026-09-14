@@ -14,9 +14,9 @@ final class BuildsRenderer {
         var rect: CGRect
     }
 
-    let rowHeight: CGFloat = 30
-    let headerHeight: CGFloat = 28
-    let footerHeight: CGFloat = 44
+    let rowHeight: CGFloat = 34
+    let headerHeight: CGFloat = 32
+    let footerHeight: CGFloat = 48
     let padding: CGFloat = 12
     var rightInset: CGFloat = 0
 

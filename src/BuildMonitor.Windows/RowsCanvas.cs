@@ -5,10 +5,8 @@
 /// </summary>
 sealed class RowsCanvas : Control
 {
-    public const int RowHeight = 30;
     const int padding = 10;
     const int chipPadding = 8;
-    const int chipHeight = 20;
     const int iconSize = 16;
     const int spinnerSize = 18;
     const int minimumDetail = 120;
@@ -18,7 +16,7 @@ sealed class RowsCanvas : Control
     int hoverRow = -1;
     readonly List<(int Row, LinkKind Link, RowAction Action, Rectangle Bounds)> chips = [];
     readonly ContextMenuStrip contextMenu = new();
-    readonly Font bold;
+    Font bold;
 
     // Pending input, drained once per frame.
     int clickedRow = -1;
@@ -62,6 +60,26 @@ sealed class RowsCanvas : Control
         };
     }
 
+    /// <summary>
+    /// The canvas inherits the form's font only once it is parented, after the constructor, so a
+    /// bold made there alone would keep the default size and draw group names smaller than rows.
+    /// </summary>
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        bold.Dispose();
+        bold = new(Font, FontStyle.Bold);
+    }
+
+    /// <summary>
+    /// Taken from the font's line height rather than fixed pixels. The app is per monitor DPI
+    /// aware, so on a scaled display the font grows and a fixed chip would push its text out of
+    /// the bottom.
+    /// </summary>
+    public int RowHeight => Font.Height + LogicalToDeviceUnits(14);
+
+    int ChipHeight => Font.Height + LogicalToDeviceUnits(2);
+
     public int VisibleRows => Math.Max(1, Height / RowHeight);
 
     public void Apply(BuildsPage builds, MenuOverlay? overlay)
@@ -103,7 +121,7 @@ sealed class RowsCanvas : Control
         }
 
         var y = Math.Min(Height, (overlay.Row + 1) * RowHeight);
-        contextMenu.Show(this, new(padding + 20, y));
+        contextMenu.Show(this, new(LogicalToDeviceUnits(padding + 20), y));
     }
 
     public MonitorInput Drain()
@@ -148,20 +166,22 @@ sealed class RowsCanvas : Control
 
         if (page.Rows.Count == 0)
         {
-            var x = padding;
+            var gap = LogicalToDeviceUnits(padding);
+            var spinner = LogicalToDeviceUnits(spinnerSize);
+            var x = gap;
             if (page.Loading)
             {
-                DrawSpinner(graphics, new(x, padding + (RowHeight - spinnerSize) / 2, spinnerSize, spinnerSize));
-                x += spinnerSize + padding;
+                DrawSpinner(graphics, new(x, gap + (RowHeight - spinner) / 2, spinner, spinner));
+                x += spinner + gap;
             }
 
-            TextRenderer.DrawText(graphics, page.Loading ? "Loading builds" : "Nothing to show yet.", Font, new Rectangle(x, padding, Width - x - padding, RowHeight), Palette.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+            TextRenderer.DrawText(graphics, page.Loading ? "Loading builds" : "Nothing to show yet.", Font, new Rectangle(x, gap, Width - x - gap, RowHeight), Palette.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
             return;
         }
 
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps
         // its name in line with the rows under it.
-        var iconWidth = page.Rows.Any(_ => _.Provider.Length > 0) ? iconSize + padding : 0;
+        var iconWidth = page.Rows.Any(_ => _.Provider.Length > 0) ? LogicalToDeviceUnits(iconSize + padding) : 0;
         var nameColumn = page.Names
             .Select(_ => MeasureName(_, Font))
             .Concat(page.GroupNames.Select(_ => MeasureName($"▾ {_}", bold)))
@@ -209,58 +229,64 @@ sealed class RowsCanvas : Control
             graphics.FillRectangle(brush, bounds.Left, bounds.Top, bounds.Height, bounds.Height);
         }
 
-        var x = bounds.Height + padding;
+        var gap = LogicalToDeviceUnits(padding);
+        var x = bounds.Height + gap;
         var centreY = bounds.Top + bounds.Height / 2;
         // Widths: the two names share what the fixed cells leave.
-        const int runWidth = 60;
-        const int barWidth = 110;
-        const int timingWidth = 80;
+        var runWidth = LogicalToDeviceUnits(70);
+        var barWidth = LogicalToDeviceUnits(110);
+        var timingWidth = LogicalToDeviceUnits(90);
+        var chipGap = LogicalToDeviceUnits(6);
+        var chipInset = LogicalToDeviceUnits(chipPadding);
         // Reserved for the widest set of chips, so the columns line up whatever a row carries.
-        var actionsWidth = Measure("Cancel") + 2 * chipPadding + padding;
-        var linksWidth = Measure("Build") + Measure("Branch") + Measure("PR 9999") + 3 * (2 * chipPadding + 6);
-        var fixedWidth = runWidth + barWidth + timingWidth + linksWidth + actionsWidth + 5 * padding;
-        var names = Math.Max(120, bounds.Width - x - fixedWidth);
+        var actionsWidth = Measure("Cancel") + 2 * chipInset + gap;
+        var linksWidth = Measure("Build") + Measure("Branch") + Measure("PR 9999") + 3 * (2 * chipInset + chipGap);
+        var fixedWidth = runWidth + barWidth + timingWidth + linksWidth + actionsWidth + 5 * gap;
+        var names = Math.Max(LogicalToDeviceUnits(120), bounds.Width - x - fixedWidth);
         // As wide as the widest name, so a short project name leaves the pipeline room, but never
         // so wide that the pipeline cell drops below a readable width.
-        var nameWidth = Math.Clamp(nameColumn, 40, Math.Max(40, names - minimumDetail));
+        var narrowest = LogicalToDeviceUnits(40);
+        var nameWidth = Math.Clamp(nameColumn, narrowest, Math.Max(narrowest, names - LogicalToDeviceUnits(minimumDetail)));
         var detailWidth = names - nameWidth;
 
         Draw(graphics, DisplayName(row), NameFont(row), x, bounds, nameWidth, Palette.Text);
-        x += nameWidth + padding;
+        x += nameWidth + gap;
         // The logo leads the second cell, beside the pipeline it ran, so a group's members, whose
         // first cell is empty, still show which service each one came from.
         if (row.Provider.Length > 0 &&
             Icons.Glyph($"provider-{row.Provider}") is { } icon)
         {
-            graphics.DrawImage(icon, x, centreY - iconSize / 2, iconSize, iconSize);
+            var side = LogicalToDeviceUnits(iconSize);
+            graphics.DrawImage(icon, x, centreY - side / 2, side, side);
         }
 
         Draw(graphics, row.Detail, Font, x + iconWidth, bounds, detailWidth - iconWidth, Palette.Dim);
-        x += detailWidth + padding;
+        x += detailWidth + gap;
         Draw(graphics, row.RunNumber, Font, x, bounds, runWidth, Palette.Dim);
-        x += runWidth + padding;
+        x += runWidth + gap;
 
         if (row.Progress >= 0)
         {
-            var track = new Rectangle(x, centreY - 4, barWidth, 8);
+            var trackHeight = LogicalToDeviceUnits(8);
+            var track = new Rectangle(x, centreY - trackHeight / 2, barWidth, trackHeight);
             using var trackBrush = new SolidBrush(Palette.BarTrack);
             graphics.FillRectangle(trackBrush, track);
             using var fillBrush = new SolidBrush(Palette.Status(BuildStatus.Running));
             graphics.FillRectangle(fillBrush, new(track.Left, track.Top, (int) (track.Width * row.Progress), track.Height));
         }
 
-        x += barWidth + padding;
+        x += barWidth + gap;
         Draw(graphics, row.Timing, Font, x, bounds, timingWidth, Palette.Dim);
-        x += timingWidth + padding;
+        x += timingWidth + gap;
 
         foreach (var (kind, label) in Chips(row))
         {
-            x = Chip(graphics, label, x, centreY, Palette.Chip, Palette.ChipText, index, kind, RowAction.None) + 6;
+            x = Chip(graphics, label, x, centreY, Palette.Chip, Palette.ChipText, index, kind, RowAction.None) + chipGap;
         }
 
         if (row.CanRetry)
         {
-            x = Chip(graphics, "Retry", x, centreY, Palette.RetryChip, Palette.Text, index, LinkKind.None, RowAction.Retry) + 6;
+            x = Chip(graphics, "Retry", x, centreY, Palette.RetryChip, Palette.Text, index, LinkKind.None, RowAction.Retry) + chipGap;
         }
 
         if (row.CanCancel)
@@ -300,10 +326,10 @@ sealed class RowsCanvas : Control
 
     int Chip(Graphics graphics, string label, int x, int centreY, Color background, Color foreground, int row, LinkKind link, RowAction action)
     {
-        var width = Measure(label) + 2 * chipPadding;
-        var bounds = new Rectangle(x, centreY - chipHeight / 2, width, chipHeight);
+        var width = Measure(label) + 2 * LogicalToDeviceUnits(chipPadding);
+        var bounds = new Rectangle(x, centreY - ChipHeight / 2, width, ChipHeight);
         using (var brush = new SolidBrush(background))
-        using (var path = RoundedRectangle(bounds, 6))
+        using (var path = RoundedRectangle(bounds, LogicalToDeviceUnits(6)))
         {
             graphics.FillPath(brush, path);
         }

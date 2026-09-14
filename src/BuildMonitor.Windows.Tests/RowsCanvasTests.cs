@@ -14,11 +14,11 @@ public class RowsCanvasTests
         using var bitmap = new Bitmap(1000, 400);
         canvas.DrawToBitmap(bitmap, new(0, 0, 1000, 400));
 
-        Click(canvas, MouseButtons.Left, 300, RowsCanvas.RowHeight * 2 + 5);
+        Click(canvas, MouseButtons.Left, 300, canvas.RowHeight * 2 + 5);
         var input = canvas.Drain();
         await Assert.That(input.ClickedRow).IsEqualTo(2);
 
-        Click(canvas, MouseButtons.Right, 300, RowsCanvas.RowHeight + 5);
+        Click(canvas, MouseButtons.Right, 300, canvas.RowHeight + 5);
         input = canvas.Drain();
         await Assert.That(input.RightClickedRow).IsEqualTo(1);
         await Assert.That(input.ClickedRow).IsEqualTo(-1);
@@ -29,10 +29,8 @@ public class RowsCanvasTests
     [Test]
     public async Task VisibleRowsFollowsTheHeight()
     {
-        using var canvas = new RowsCanvas
-        {
-            Size = new(800, RowsCanvas.RowHeight * 7 + 3)
-        };
+        using var canvas = new RowsCanvas();
+        canvas.Size = new(800, canvas.RowHeight * 7 + 3);
         await Assert.That(canvas.VisibleRows).IsEqualTo(7);
     }
 

@@ -11,21 +11,21 @@ sealed class FooterPanel : Panel
 
     public FooterPanel()
     {
-        Height = 44;
+        Height = LogicalToDeviceUnits(48);
         BackColor = Palette.Surface;
         buttons = new()
         {
             Dock = DockStyle.Left,
             AutoSize = true,
             WrapContents = false,
-            Padding = new(6, 6, 0, 0),
+            Padding = DpiScale.Spacing(this, 6, 6, 0, 0),
             BackColor = Palette.Surface
         };
         status = new()
         {
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleRight,
-            Padding = new(0, 0, 12, 0),
+            Padding = DpiScale.Spacing(this, 0, 0, 12, 0),
             ForeColor = Palette.Dim,
             AutoEllipsis = true,
             UseMnemonic = false
@@ -52,8 +52,8 @@ sealed class FooterPanel : Panel
                     FlatStyle = FlatStyle.Flat,
                     ForeColor = Palette.Text,
                     BackColor = Palette.Chip,
-                    Margin = new(4, 2, 4, 2),
-                    MinimumSize = new(80, 28)
+                    Margin = DpiScale.Spacing(this, 4, 2, 4, 2),
+                    MinimumSize = LogicalToDeviceUnits(new Size(80, 30))
                 };
                 button.FlatAppearance.BorderColor = Palette.Border;
                 button.Click += (_, _) => clicked = index;

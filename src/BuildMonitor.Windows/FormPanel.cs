@@ -16,7 +16,7 @@ sealed class FormPanel : Panel
     {
         BackColor = Palette.Background;
         AutoScroll = true;
-        Padding = new(12);
+        Padding = DpiScale.Spacing(this, 12);
         table = new()
         {
             Dock = DockStyle.Top,
@@ -109,7 +109,7 @@ sealed class FormPanel : Panel
         {
             case FieldKind.Checkbox:
             {
-                var box = new CheckBox { Text = field.Label, AutoSize = true, ForeColor = Palette.Text, Margin = new(3, 6, 3, 6) };
+                var box = new CheckBox { Text = field.Label, AutoSize = true, ForeColor = Palette.Text, Margin = DpiScale.Spacing(this, 3, 6, 3, 6) };
                 box.CheckedChanged += (_, _) => Changed(field.Id, box.Checked ? "true" : "false");
                 return (null, box);
             }
@@ -119,13 +119,13 @@ sealed class FormPanel : Panel
             {
                 var text = new TextBox
                 {
-                    Width = field.Kind == FieldKind.Number ? 90 : 420,
+                    Width = LogicalToDeviceUnits(field.Kind == FieldKind.Number ? 90 : 420),
                     BackColor = Palette.Surface,
                     ForeColor = Palette.Text,
                     BorderStyle = BorderStyle.FixedSingle,
                     UseSystemPasswordChar = field.Kind == FieldKind.Password,
                     PlaceholderText = field.Hint ?? "",
-                    Margin = new(3, 4, 3, 4)
+                    Margin = DpiScale.Spacing(this, 3, 4, 3, 4)
                 };
                 text.TextChanged += (_, _) => Changed(field.Id, text.Text);
                 return (Label(field.Label), text);
@@ -135,7 +135,7 @@ sealed class FormPanel : Panel
                 var select = new SelectControl
                 {
                     Options = field.Options ?? [],
-                    Margin = new(3, 4, 3, 4)
+                    Margin = DpiScale.Spacing(this, 3, 4, 3, 4)
                 };
                 select.ValueChanged += (_, _) => Changed(field.Id, select.Value);
                 return (Label(field.Label), select);
@@ -149,7 +149,7 @@ sealed class FormPanel : Panel
                     FlatStyle = FlatStyle.Flat,
                     ForeColor = Palette.Text,
                     BackColor = Palette.Chip,
-                    Margin = new(3, 8, 3, 8)
+                    Margin = DpiScale.Spacing(this, 3, 8, 3, 8)
                 };
                 button.FlatAppearance.BorderColor = Palette.Border;
                 button.Click += (_, _) => clickedField = field.Id;
@@ -163,21 +163,21 @@ sealed class FormPanel : Panel
                     AutoSize = true,
                     LinkColor = Palette.ChipText,
                     ActiveLinkColor = Palette.Text,
-                    Margin = new(3, 6, 3, 6)
+                    Margin = DpiScale.Spacing(this, 3, 6, 3, 6)
                 };
                 link.LinkClicked += (_, _) => clickedField = field.Id;
                 return (null, link);
             }
             case FieldKind.ListRow:
             {
-                var panel = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new(3, 2, 3, 2), BackColor = Palette.Background };
-                var text = new FormsLabel { AutoSize = true, ForeColor = Palette.Text, Margin = new(0, 6, 8, 0) };
+                var panel = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = DpiScale.Spacing(this, 3, 2, 3, 2), BackColor = Palette.Background };
+                var text = new FormsLabel { AutoSize = true, ForeColor = Palette.Text, Margin = DpiScale.Spacing(this, 0, 6, 8, 0) };
                 var remove = new FormsButton
                 {
                     Text = "✕",
                     AutoSize = false,
-                    Size = new(24, 22),
-                    Margin = new(0, 2, 0, 0),
+                    Size = LogicalToDeviceUnits(new Size(28, 26)),
+                    Margin = DpiScale.Spacing(this, 0, 2, 0, 0),
                     FlatStyle = FlatStyle.Flat,
                     ForeColor = Palette.Dim,
                     BackColor = Palette.Background,
@@ -194,22 +194,22 @@ sealed class FormPanel : Panel
                 var label = new FormsLabel
                 {
                     AutoSize = true,
-                    MaximumSize = new(900, 0),
+                    MaximumSize = new(LogicalToDeviceUnits(900), 0),
                     ForeColor = field.Id == "error" ? Palette.Error : Palette.Text,
-                    Margin = new(3, 6, 3, 6)
+                    Margin = DpiScale.Spacing(this, 3, 6, 3, 6)
                 };
                 return (null, label);
             }
         }
     }
 
-    static FormsLabel Label(string text) =>
+    FormsLabel Label(string text) =>
         new()
         {
             Text = text,
             AutoSize = true,
             ForeColor = Palette.Dim,
-            Margin = new(3, 8, 12, 3),
+            Margin = DpiScale.Spacing(this, 3, 8, 12, 3),
             Anchor = AnchorStyles.Left
         };
 

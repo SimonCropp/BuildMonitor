@@ -16,7 +16,7 @@ sealed class SelectControl : Control
         BackColor = Palette.Surface;
         ForeColor = Palette.Text;
         Cursor = Cursors.Hand;
-        Size = new(260, 24);
+        Size = LogicalToDeviceUnits(new Size(260, 28));
         MenuTheme.Apply(menu);
         menu.ItemClicked += (_, arguments) =>
         {
@@ -75,9 +75,9 @@ sealed class SelectControl : Control
             graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         }
 
-        var textBounds = new Rectangle(6, 0, Width - 30, Height);
+        var textBounds = new Rectangle(LogicalToDeviceUnits(6), 0, Width - LogicalToDeviceUnits(30), Height);
         TextRenderer.DrawText(graphics, value, Font, textBounds, Enabled ? Palette.Text : Palette.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(graphics, "▾", Font, new Rectangle(Width - 22, 0, 18, Height), Palette.Dim, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        TextRenderer.DrawText(graphics, "▾", Font, new Rectangle(Width - LogicalToDeviceUnits(22), 0, LogicalToDeviceUnits(18), Height), Palette.Dim, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
