@@ -19,9 +19,12 @@ sealed class ProtocolClient(int port) : IProtocolClient
             await stream.WriteAsync(Encoding.UTF8.GetBytes(message.Build()), timeout.Token);
             await stream.FlushAsync(timeout.Token);
             var text = await LocalServer.ReadMessage(stream, timeout.Token);
-            return Response.TryParse(text, out var response)
-                ? response
-                : Response.Error("Unreadable response");
+            if (Response.TryParse(text, out var response))
+            {
+                return response;
+            }
+
+            return Response.Error("Unreadable response");
         }
         catch (Exception exception) when (exception is SocketException or IOException or OperationCanceledException)
         {

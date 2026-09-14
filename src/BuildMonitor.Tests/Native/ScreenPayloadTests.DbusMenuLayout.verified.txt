@@ -6,7 +6,6 @@
     Enabled: true,
     Separator: false,
     Icon: open,
-    Children: [],
     Properties: [
       label,
       enabled,
@@ -21,7 +20,6 @@
     Enabled: true,
     Separator: false,
     Icon: refresh,
-    Children: [],
     Properties: [
       label,
       enabled,
@@ -36,7 +34,6 @@
     Enabled: true,
     Separator: false,
     Icon: options,
-    Children: [],
     Properties: [
       label,
       enabled,
@@ -51,7 +48,6 @@
     Enabled: true,
     Separator: false,
     Icon: filters,
-    Children: [],
     Properties: [
       label,
       enabled,
@@ -66,7 +62,6 @@
     Enabled: true,
     Separator: false,
     Icon: logs,
-    Children: [],
     Properties: [
       label,
       enabled,
@@ -81,7 +76,6 @@
     Enabled: true,
     Separator: false,
     Icon: issue,
-    Children: [],
     Properties: [
       label,
       enabled,
@@ -96,7 +90,6 @@
     Enabled: true,
     Separator: false,
     Icon: update,
-    Children: [],
     Properties: [
       label,
       enabled,
@@ -111,7 +104,6 @@
     Enabled: true,
     Separator: false,
     Icon: exit,
-    Children: [],
     Properties: [
       label,
       enabled,

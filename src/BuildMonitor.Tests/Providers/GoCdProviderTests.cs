@@ -28,7 +28,7 @@ public class GoCdProviderTests
     [Test]
     public async Task HistoryAsksForTheSmallestPageGoCdAcceptsAndKeepsFive()
     {
-        var instances = string.Join(",", Enumerable.Range(1, 10).Select(_ => $$"""{"name":"web","counter":{{_}},"stages":[]}"""));
+        var instances = string.Join(',', Enumerable.Range(1, 10).Select(_ => $$"""{"name":"web","counter":{{_}},"stages":[]}"""));
         var handler = new FakeHttpHandler()
             .Get($"{server}/go/api/pipelines/web/history?page_size=10", $$"""{"pipelines":[{{instances}}]}""");
         var context = ProviderTestHelpers.Context("gocd", handler, server);

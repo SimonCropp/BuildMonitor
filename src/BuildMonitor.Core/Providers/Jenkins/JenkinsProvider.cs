@@ -247,9 +247,12 @@ sealed class JenkinsProvider : ProviderBase
     static Task<HttpStatusCode> Post(ProviderContext context, string path, JenkinsCrumb? crumb, Cancel cancel)
     {
         var content = new StringContent("");
-        return crumb is null
-            ? context.Http.TrySend(HttpMethod.Post, path, content, cancel)
-            : context.Http.TrySend(HttpMethod.Post, path, content, cancel, [new(crumb.CrumbRequestField, crumb.Crumb)]);
+        if (crumb is null)
+        {
+            return context.Http.TrySend(HttpMethod.Post, path, content, cancel);
+        }
+
+        return context.Http.TrySend(HttpMethod.Post, path, content, cancel, [new(crumb.CrumbRequestField, crumb.Crumb)]);
     }
 
     /// <summary>

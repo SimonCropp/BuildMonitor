@@ -19,14 +19,14 @@ public class ScreenPayloadTests
                 button flags=1 'Options'
                 button flags=1 'Filters'
                 button flags=1 'Hide'
-                tray depth=0 flags=1 'open' 'Open' icon='open'
-                tray depth=0 flags=1 'refresh' 'Refresh' icon='refresh'
-                tray depth=0 flags=1 'options' 'Options' icon='options'
-                tray depth=0 flags=1 'filters' 'Filters' icon='filters'
-                tray depth=0 flags=1 'logs' 'Open logs' icon='logs'
-                tray depth=0 flags=1 'issue' 'Raise issue' icon='issue'
-                tray depth=0 flags=1 'update' 'Update' icon='update'
-                tray depth=0 flags=1 'exit' 'Exit' icon='exit'
+                tray flags=1 'open' 'Open' icon='open'
+                tray flags=1 'refresh' 'Refresh' icon='refresh'
+                tray flags=1 'options' 'Options' icon='options'
+                tray flags=1 'filters' 'Filters' icon='filters'
+                tray flags=1 'logs' 'Open logs' icon='logs'
+                tray flags=1 'issue' 'Raise issue' icon='issue'
+                tray flags=1 'update' 'Update' icon='update'
+                tray flags=1 'exit' 'Exit' icon='exit'
 
                 """);
     }
@@ -49,14 +49,14 @@ public class ScreenPayloadTests
                 button flags=1 'Test'
                 button flags=1 'Save'
                 button flags=1 'Cancel'
-                tray depth=0 flags=1 'open' 'Open' icon='open'
-                tray depth=0 flags=1 'refresh' 'Refresh' icon='refresh'
-                tray depth=0 flags=1 'options' 'Options' icon='options'
-                tray depth=0 flags=1 'filters' 'Filters' icon='filters'
-                tray depth=0 flags=1 'logs' 'Open logs' icon='logs'
-                tray depth=0 flags=1 'issue' 'Raise issue' icon='issue'
-                tray depth=0 flags=1 'update' 'Update' icon='update'
-                tray depth=0 flags=1 'exit' 'Exit' icon='exit'
+                tray flags=1 'open' 'Open' icon='open'
+                tray flags=1 'refresh' 'Refresh' icon='refresh'
+                tray flags=1 'options' 'Options' icon='options'
+                tray flags=1 'filters' 'Filters' icon='filters'
+                tray flags=1 'logs' 'Open logs' icon='logs'
+                tray flags=1 'issue' 'Raise issue' icon='issue'
+                tray flags=1 'update' 'Update' icon='update'
+                tray flags=1 'exit' 'Exit' icon='exit'
 
                 """);
     }
@@ -75,6 +75,6 @@ public class ScreenPayloadTests
     {
         var tray = ScreenBuilder.Tray(Fixtures.WithBuilds());
         var layout = global::DbusMenuLayout.Build(tray.Items);
-        return Verify(layout.All.Select(_ => new { _.Id, _.ItemId, _.Label, _.Enabled, _.Separator, _.Icon, Children = _.Children.Select(child => child.Id), Properties = _.PropertyNames }));
+        return Verify(layout.All.Select(_ => new { _.Id, _.ItemId, _.Label, _.Enabled, _.Separator, _.Icon, Properties = _.PropertyNames }));
     }
 }

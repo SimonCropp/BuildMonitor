@@ -100,16 +100,6 @@ sealed class NotifyIconTray : ITray
             Image = item.IconName is null ? null : Icons.Glyph(item.IconName),
             Tag = item.Id
         };
-        if (item.Children is { Count: > 0 })
-        {
-            foreach (var child in item.Children)
-            {
-                menuItem.DropDownItems.Add(Create(child));
-            }
-
-            MenuTheme.Apply(menuItem.DropDown);
-        }
-
         menuItem.Click += (_, _) => clicked = item.Id;
         return menuItem;
     }

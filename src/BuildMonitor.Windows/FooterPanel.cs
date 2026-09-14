@@ -37,7 +37,7 @@ sealed class FooterPanel : Panel
     public void Apply(IReadOnlyList<Button> model, string statusText)
     {
         status.Text = statusText;
-        var next = string.Join("|", model.Select(_ => _.Label));
+        var next = string.Join('|', model.Select(_ => _.Label));
         if (next != signature)
         {
             signature = next;

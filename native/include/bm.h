@@ -136,15 +136,14 @@ enum BmTrayFlags {
 };
 
 /*
- * The tray menu, flattened depth first: an item's children follow it with depth + 1. icon names
- * one of the glyphs handed over through bm_tray_set_menu_icon, or is empty.
+ * One tray menu entry, in menu order. icon names one of the glyphs handed over through
+ * bm_tray_set_menu_icon, or is empty.
  */
 typedef struct BmTrayItem {
     BmString id;
     BmString label;
     BmString icon;
     int32_t flags;
-    int32_t depth;
 } BmTrayItem;
 
 /* Keep in sync with Theme.cs. System is resolved by the implementation, which can ask the platform. */

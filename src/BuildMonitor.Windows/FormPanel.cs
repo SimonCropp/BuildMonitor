@@ -32,7 +32,7 @@ sealed class FormPanel : Panel
 
     public void Apply(FormPage form)
     {
-        var next = string.Join("|", form.Fields.Select(_ => $"{_.Id}:{_.Kind}"));
+        var next = string.Join('|', form.Fields.Select(_ => $"{_.Id}:{_.Kind}"));
         applying = true;
         try
         {

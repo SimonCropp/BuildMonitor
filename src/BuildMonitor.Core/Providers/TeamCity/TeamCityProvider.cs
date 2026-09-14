@@ -20,7 +20,12 @@ sealed class TeamCityProvider : ProviderBase
     static string Project(ProviderContext context)
     {
         var project = context.Scope("project");
-        return project.Length == 0 ? "_Root" : project;
+        if (project.Length == 0)
+        {
+            return "_Root";
+        }
+
+        return project;
     }
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)

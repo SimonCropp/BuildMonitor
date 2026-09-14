@@ -300,7 +300,7 @@ static class AsciiRenderer
         }
 
         Write(top + 1 + menu.Labels.Count, border);
-        return string.Join("\n", lines.Select(_ => new string(_)));
+        return string.Join('\n', lines.Select(_ => new string(_)));
     }
 
     /// <summary>
@@ -321,11 +321,6 @@ static class AsciiRenderer
 
             builder.Append("  ");
             builder.Append(item.Enabled ? item.Label : $"({item.Label})");
-            if (item.Children is { Count: > 0 })
-            {
-                builder.Append(" > ");
-                builder.Append(string.Join(" | ", item.Children.Select(_ => _.Label)));
-            }
         }
 
         return builder.ToString();

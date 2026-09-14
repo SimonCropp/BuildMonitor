@@ -42,7 +42,7 @@ public class TeamCityProviderTests
     [Test]
     public async Task AQueueDoesNotHideAQuietConfiguration()
     {
-        var queued = string.Join(",", Enumerable.Range(1, 5).Select(_ => $$"""{"id":{{_}},"state":"queued","buildTypeId":"Verify_Build","queuedDate":"20260101T115900+0000"}"""));
+        var queued = string.Join(',', Enumerable.Range(1, 5).Select(_ => $$"""{"id":{{_}},"state":"queued","buildTypeId":"Verify_Build","queuedDate":"20260101T115900+0000"}"""));
         var handler = new FakeHttpHandler()
             .Get(
                 $"{server}/app/rest/buildTypes",

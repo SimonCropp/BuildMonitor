@@ -45,7 +45,6 @@ struct Frame {
         let icon: String
         let enabled: Bool
         let separator: Bool
-        let depth: Int
     }
 
     let page: Int32
@@ -125,8 +124,7 @@ struct Frame {
                 label: text($0.label),
                 icon: text($0.icon),
                 enabled: $0.flags & Int32(BM_TRAY_ENABLED.rawValue) != 0,
-                separator: $0.flags & Int32(BM_TRAY_SEPARATOR.rawValue) != 0,
-                depth: Int($0.depth))
+                separator: $0.flags & Int32(BM_TRAY_SEPARATOR.rawValue) != 0)
         }
 
         let allNames = UnsafeBufferPointer(start: screen.names, count: Int(screen.nameCount + screen.groupNameCount)).map(text)

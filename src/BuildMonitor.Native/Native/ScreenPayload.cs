@@ -137,29 +137,14 @@ sealed unsafe class ScreenPayload
 
         foreach (var item in source.Tray.Items)
         {
-            AddTrayItem(item, 0);
-        }
-    }
-
-    void AddTrayItem(TrayMenuItem item, int depth)
-    {
-        TrayItemIds.Add(item.Id);
-        trayItems.Add(new()
-        {
-            Id = Add(item.Id),
-            Label = Add(item.Label),
-            Icon = Add(item.IconName ?? ""),
-            Flags = (item.Enabled ? BmFlags.TrayEnabled : 0) | (item.Separator ? BmFlags.TraySeparator : 0),
-            Depth = depth
-        });
-        if (item.Children is null)
-        {
-            return;
-        }
-
-        foreach (var child in item.Children)
-        {
-            AddTrayItem(child, depth + 1);
+            TrayItemIds.Add(item.Id);
+            trayItems.Add(new()
+            {
+                Id = Add(item.Id),
+                Label = Add(item.Label),
+                Icon = Add(item.IconName ?? ""),
+                Flags = (item.Enabled ? BmFlags.TrayEnabled : 0) | (item.Separator ? BmFlags.TraySeparator : 0)
+            });
         }
     }
 
@@ -244,7 +229,7 @@ sealed unsafe class ScreenPayload
 
         foreach (var item in trayItems)
         {
-            builder.AppendLine($"tray depth={item.Depth} flags={item.Flags} '{Text(item.Id)}' '{Text(item.Label)}' icon='{Text(item.Icon)}'");
+            builder.AppendLine($"tray flags={item.Flags} '{Text(item.Id)}' '{Text(item.Label)}' icon='{Text(item.Icon)}'");
         }
 
         return builder.ToString();

@@ -64,7 +64,7 @@ final class Tray: NSObject, NSMenuDelegate {
 
     private func same(_ left: [Frame.TrayItem], _ right: [Frame.TrayItem]) -> Bool {
         left.count == right.count && zip(left, right).allSatisfy {
-            $0.id == $1.id && $0.label == $1.label && $0.enabled == $1.enabled && $0.depth == $1.depth
+            $0.id == $1.id && $0.label == $1.label && $0.enabled == $1.enabled
         }
     }
 
@@ -80,15 +80,9 @@ final class Tray: NSObject, NSMenuDelegate {
     }
 
     private func build() -> NSMenu {
-        let root = NSMenu()
-        root.autoenablesItems = false
-        var stack: [(depth: Int, menu: NSMenu)] = [(0, root)]
+        let menu = NSMenu()
+        menu.autoenablesItems = false
         for (index, entry) in lastItems.enumerated() {
-            while stack.count > 1 && stack.last!.depth > entry.depth {
-                stack.removeLast()
-            }
-
-            let menu = stack.last!.menu
             if entry.separator {
                 menu.addItem(.separator())
                 continue
@@ -100,17 +94,9 @@ final class Tray: NSObject, NSMenuDelegate {
             menuItem.isEnabled = entry.enabled
             menuItem.image = menuIcons[entry.icon]
             menu.addItem(menuItem)
-
-            let hasChildren = index + 1 < lastItems.count && lastItems[index + 1].depth > entry.depth
-            if hasChildren {
-                let submenu = NSMenu()
-                submenu.autoenablesItems = false
-                menuItem.submenu = submenu
-                stack.append((entry.depth + 1, submenu))
-            }
         }
 
-        return root
+        return menu
     }
 
     @objc private func chose(_ sender: NSMenuItem) {

@@ -22,7 +22,7 @@ public class SessionTests
         var group = rows.Single(_ => _.Kind == RowKind.Group);
         await Assert.That(group.Group).IsEqualTo(Fixtures.VerifyPassing);
         await Assert.That(group.Expanded).IsFalse();
-        await Assert.That(string.Join(",", group.Members.Select(_ => _.PipelineName))).IsEqualTo("docs.yml,nuget.yml");
+        await Assert.That(string.Join(',', group.Members.Select(_ => _.PipelineName))).IsEqualTo("docs.yml,nuget.yml");
         await Assert.That(rows.Any(_ => _.Kind == RowKind.Member)).IsFalse();
         // The failing workflow of the same project is not hidden in the green group.
         await Assert.That(rows.Count(_ => _.Build is { RepoName: "VerifyTests/Verify", Status: BuildStatus.Failed })).IsEqualTo(1);

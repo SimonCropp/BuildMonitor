@@ -57,7 +57,6 @@ struct BmTrayItem
     public BmString Label;
     public BmString Icon;
     public int Flags;
-    public int Depth;
 }
 
 [StructLayout(LayoutKind.Sequential)]

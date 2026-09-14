@@ -96,9 +96,12 @@ sealed class GitHubProvider : ProviderBase
             return [$"orgs/{Encode(owner)}/repos?per_page=100&sort=pushed&type=all", $"users/{Encode(owner)}/repos?per_page=100&sort=pushed"];
         }
 
-        return context.ShowForksAndCollaborations
-            ? ["user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member"]
-            : ["user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member"];
+        if (context.ShowForksAndCollaborations)
+        {
+            return ["user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member"];
+        }
+
+        return ["user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member"];
     }
 
     static async Task<List<GitHubRepository>> Repositories(ProviderContext context, Cancel cancel)

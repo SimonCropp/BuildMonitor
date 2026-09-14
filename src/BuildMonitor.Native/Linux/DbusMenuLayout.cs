@@ -10,7 +10,7 @@ sealed class DbusMenuLayout
     {
         Root = root;
         All = all;
-        Signature = string.Join("\n", all.Select(_ => $"{_.Id}|{_.ItemId}|{_.Label}|{_.Enabled}|{_.Separator}|{_.Icon}|{_.Children.Count}"));
+        Signature = string.Join('\n', all.Select(_ => $"{_.Id}|{_.ItemId}|{_.Label}|{_.Enabled}|{_.Separator}|{_.Icon}|{_.Children.Count}"));
     }
 
     public DbusMenuNode Root { get; }
@@ -29,26 +29,13 @@ sealed class DbusMenuLayout
     {
         var all = new List<DbusMenuNode>();
         var next = 1;
-        var children = items.Select(_ => Convert(_, all, ref next)).ToList();
-        var root = new DbusMenuNode(0, null, "", true, false, null, children);
-        return new(root, all);
-    }
-
-    static DbusMenuNode Convert(TrayMenuItem item, List<DbusMenuNode> all, ref int next)
-    {
-        var id = next++;
-        var children = new List<DbusMenuNode>();
-        if (item.Children is not null)
+        foreach (var item in items)
         {
-            foreach (var child in item.Children)
-            {
-                children.Add(Convert(child, all, ref next));
-            }
+            all.Add(new(next++, item.Separator ? null : item.Id, item.Label, item.Enabled, item.Separator, item.IconName, []));
         }
 
-        var node = new DbusMenuNode(id, item.Separator ? null : item.Id, item.Label, item.Enabled, item.Separator, item.IconName, children);
-        all.Add(node);
-        return node;
+        var root = new DbusMenuNode(0, null, "", true, false, null, all);
+        return new(root, all);
     }
 }
 
