@@ -1,261 +1,6 @@
 ﻿[
   {
-    Id: 2,
-    ItemId: build:open:jenkins/build-all/main,
-    Label: Open build,
-    Enabled: true,
-    Separator: false,
-    Icon: build,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
-    Id: 3,
-    ItemId: build:cancel:jenkins/build-all/main,
-    Label: Cancel,
-    Enabled: true,
-    Separator: false,
-    Icon: cancel,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
     Id: 1,
-    ItemId: build:open:jenkins/build-all/main,
-    Label: build-all Build all main #501 running,
-    Enabled: true,
-    Separator: false,
-    Icon: provider-jenkins,
-    Children: [
-      2,
-      3
-    ],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data,
-      children-display
-    ]
-  },
-  {
-    Id: 5,
-    ItemId: build:open:octo/Projects-1/,
-    Label: Open build,
-    Enabled: true,
-    Separator: false,
-    Icon: build,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
-    Id: 6,
-    ItemId: build:cancel:octo/Projects-1/,
-    Label: Cancel,
-    Enabled: true,
-    Separator: false,
-    Icon: cancel,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
-    Id: 4,
-    ItemId: build:open:octo/Projects-1/,
-    Label: Deploy Web #12 running,
-    Enabled: true,
-    Separator: false,
-    Icon: provider-octopus,
-    Children: [
-      5,
-      6
-    ],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data,
-      children-display
-    ]
-  },
-  {
-    Id: 8,
-    ItemId: build:open:gh/DiffEngine/test.yml/main,
-    Label: Open build,
-    Enabled: true,
-    Separator: false,
-    Icon: build,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
-    Id: 9,
-    ItemId: build:cancel:gh/DiffEngine/test.yml/main,
-    Label: Cancel,
-    Enabled: true,
-    Separator: false,
-    Icon: cancel,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
-    Id: 7,
-    ItemId: build:open:gh/DiffEngine/test.yml/main,
-    Label: DiffEngine test.yml main #1234 running,
-    Enabled: true,
-    Separator: false,
-    Icon: provider-github,
-    Children: [
-      8,
-      9
-    ],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data,
-      children-display
-    ]
-  },
-  {
-    Id: 11,
-    ItemId: build:open:jenkins/nightly/,
-    Label: Open build,
-    Enabled: true,
-    Separator: false,
-    Icon: build,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
-    Id: 12,
-    ItemId: build:cancel:jenkins/nightly/,
-    Label: Cancel,
-    Enabled: true,
-    Separator: false,
-    Icon: cancel,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
-    Id: 10,
-    ItemId: build:open:jenkins/nightly/,
-    Label: Nightly #88 queued,
-    Enabled: true,
-    Separator: false,
-    Icon: provider-jenkins,
-    Children: [
-      11,
-      12
-    ],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data,
-      children-display
-    ]
-  },
-  {
-    Id: 14,
-    ItemId: build:open:gh/Verify/test.yml/feature/inline,
-    Label: Open build,
-    Enabled: true,
-    Separator: false,
-    Icon: build,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
-    Id: 15,
-    ItemId: build:retry:gh/Verify/test.yml/feature/inline,
-    Label: Retry,
-    Enabled: true,
-    Separator: false,
-    Icon: retry,
-    Children: [],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data
-    ]
-  },
-  {
-    Id: 13,
-    ItemId: build:open:gh/Verify/test.yml/feature/inline,
-    Label: Verify test.yml feature/inline #77 failed,
-    Enabled: true,
-    Separator: false,
-    Icon: provider-github,
-    Children: [
-      14,
-      15
-    ],
-    Properties: [
-      label,
-      enabled,
-      visible,
-      icon-data,
-      children-display
-    ]
-  },
-  {
-    Id: 16,
-    Label: ,
-    Enabled: true,
-    Separator: true,
-    Children: [],
-    Properties: [
-      type
-    ]
-  },
-  {
-    Id: 17,
     ItemId: open,
     Label: Open,
     Enabled: true,
@@ -270,7 +15,7 @@
     ]
   },
   {
-    Id: 18,
+    Id: 2,
     ItemId: refresh,
     Label: Refresh,
     Enabled: true,
@@ -285,7 +30,7 @@
     ]
   },
   {
-    Id: 19,
+    Id: 3,
     ItemId: options,
     Label: Options,
     Enabled: true,
@@ -300,7 +45,7 @@
     ]
   },
   {
-    Id: 20,
+    Id: 4,
     ItemId: filters,
     Label: Filters,
     Enabled: true,
@@ -315,7 +60,7 @@
     ]
   },
   {
-    Id: 21,
+    Id: 5,
     ItemId: logs,
     Label: Open logs,
     Enabled: true,
@@ -330,7 +75,7 @@
     ]
   },
   {
-    Id: 22,
+    Id: 6,
     ItemId: issue,
     Label: Raise issue,
     Enabled: true,
@@ -345,7 +90,7 @@
     ]
   },
   {
-    Id: 23,
+    Id: 7,
     ItemId: update,
     Label: Update,
     Enabled: true,
@@ -360,7 +105,7 @@
     ]
   },
   {
-    Id: 24,
+    Id: 8,
     ItemId: exit,
     Label: Exit,
     Enabled: true,

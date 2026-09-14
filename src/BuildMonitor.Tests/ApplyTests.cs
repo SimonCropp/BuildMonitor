@@ -89,20 +89,6 @@ public class ApplyTests
     }
 
     [Test]
-    public async Task TrayBuildItemsAct()
-    {
-        var actions = new RecordingActions();
-        var failed = Fixtures.WithBuilds().Builds.First(_ => _.Status == BuildStatus.Failed);
-        Apply(Fixtures.WithBuilds(), new(TrayItem: TrayMenu.BuildItem(failed, TrayMenu.RetryAction)), actions);
-        Apply(Fixtures.WithBuilds(), new(TrayItem: TrayMenu.BuildItem(failed, TrayMenu.OpenAction)), actions);
-        await Assert.That(actions.Calls).IsEquivalentTo(
-        [
-            "Retry gh/Verify/test.yml/feature/inline",
-            "OpenUrl https://example.com/gh/Verify/test.yml/77"
-        ]);
-    }
-
-    [Test]
     public async Task TrayOptionsOpensTheWindowOnOptions()
     {
         var window = new FakeWindow();

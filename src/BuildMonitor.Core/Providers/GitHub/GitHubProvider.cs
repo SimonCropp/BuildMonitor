@@ -55,8 +55,12 @@ sealed class GitHubProvider : ProviderBase
                     $"repos/{repository.FullName}/actions/workflows?per_page=100",
                     GitHubContext.Default.GitHubWorkflows,
                     token);
+                // GitHub-managed workflows (Copilot code review and coding agent, Dependabot, Pages)
+                // live under dynamic/. They stay active after a single run, so a PR reviewed months
+                // ago would sit on the screen as a red row the repository never defined.
                 return workflows.Workflows
-                    .Where(_ => _.State == "active")
+                    .Where(_ => _.State == "active" &&
+                                !_.Path.StartsWith("dynamic/", StringComparison.Ordinal))
                     .Select(_ => new Pipeline(
                         $"{repository.FullName}/{_.Id}",
                         _.Name,

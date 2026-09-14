@@ -88,13 +88,6 @@ public class ScreenTests
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+
                 tray: Failed "BuildMonitor: 2 failing, 4 running"
-                  build-all Build all main #501 running > Open build | Cancel
-                  Deploy Web #12 running > Open build | Cancel
-                  DiffEngine test.yml main #1234 running > Open build | Cancel
-                  Nightly #88 queued > Open build | Cancel
-                  Verify test.yml feature/inline #77 failed > Open build | Retry
-                  Verify release.yml main #9 failed > Open build | Retry
-                  ---
                   Open
                   Refresh
                   Options

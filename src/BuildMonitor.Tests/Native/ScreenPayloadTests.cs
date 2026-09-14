@@ -5,7 +5,30 @@ public class ScreenPayloadTests
     {
         var payload = new ScreenPayload();
         payload.Build(ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now));
-        return Verify(payload.Describe());
+        return Verify(payload.Describe())
+            .Snapshot(
+                """
+                page: 0 rows: 6 fields: 0 options: 0 buttons: 4 menu: 0 tray: 8 strings: 581 bytes
+                row status=1 flags=16 progress=0.20 'build-all' 'Build all main' provider='jenkins' '#501''04:00 left' links='Build','',''
+                row status=1 flags=16 progress=0.40 'Deploy Web' '' provider='octopus' '#12''02:15 left' links='Build','',''
+                row status=1 flags=17 progress=0.50 'DiffEngine' 'test.yml main' provider='github' '#1234''03:00 left' links='Build','Branch',''
+                row status=0 flags=16 progress=-1.00 'nightly' '' provider='jenkins' '#88''queued' links='Build','',''
+                row status=3 flags=8 progress=-1.00 'Verify' 'test.yml feature/inline' provider='github' '#77''25m ago' links='Build','Branch','PR 42'
+                row status=2 flags=0 progress=-1.00 'DiffEngine' 'docs.yml main' provider='github' '#300''23h ago' links='Build','Branch',''
+                button flags=1 'Refresh'
+                button flags=1 'Options'
+                button flags=1 'Filters'
+                button flags=1 'Hide'
+                tray depth=0 flags=1 'open' 'Open' icon='open'
+                tray depth=0 flags=1 'refresh' 'Refresh' icon='refresh'
+                tray depth=0 flags=1 'options' 'Options' icon='options'
+                tray depth=0 flags=1 'filters' 'Filters' icon='filters'
+                tray depth=0 flags=1 'logs' 'Open logs' icon='logs'
+                tray depth=0 flags=1 'issue' 'Raise issue' icon='issue'
+                tray depth=0 flags=1 'update' 'Update' icon='update'
+                tray depth=0 flags=1 'exit' 'Exit' icon='exit'
+
+                """);
     }
 
     [Test]
@@ -13,7 +36,29 @@ public class ScreenPayloadTests
     {
         var payload = new ScreenPayload();
         payload.Build(ScreenBuilder.Build(Fixtures.ConnectionNew(), Fixtures.Now));
-        return Verify(payload.Describe());
+        return Verify(payload.Describe())
+            .Snapshot(
+                """
+                page: 1 rows: 0 fields: 5 options: 10 buttons: 4 menu: 0 tray: 8 strings: 529 bytes
+                field kind=5 flags=1 'provider' 'Provider' 'AppVeyor' options=0+10
+                field kind=2 flags=1 'name' 'Name' '' options=10+0
+                field kind=2 flags=1 'scope:account' 'Account (optional)' '' options=10+0
+                field kind=3 flags=1 'token' 'API token' '' options=10+0
+                field kind=7 flags=1 'tokenHelp' 'How to get an API token' 'https://ci.appveyor.com/api-keys' options=10+0
+                button flags=0 'Sign in'
+                button flags=1 'Test'
+                button flags=1 'Save'
+                button flags=1 'Cancel'
+                tray depth=0 flags=1 'open' 'Open' icon='open'
+                tray depth=0 flags=1 'refresh' 'Refresh' icon='refresh'
+                tray depth=0 flags=1 'options' 'Options' icon='options'
+                tray depth=0 flags=1 'filters' 'Filters' icon='filters'
+                tray depth=0 flags=1 'logs' 'Open logs' icon='logs'
+                tray depth=0 flags=1 'issue' 'Raise issue' icon='issue'
+                tray depth=0 flags=1 'update' 'Update' icon='update'
+                tray depth=0 flags=1 'exit' 'Exit' icon='exit'
+
+                """);
     }
 
     [Test]
@@ -22,7 +67,7 @@ public class ScreenPayloadTests
         var payload = new ScreenPayload();
         payload.Build(ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now));
         await Assert.That(payload.TrayItemIds.Last()).IsEqualTo(TrayMenu.Exit);
-        await Assert.That(payload.TrayItemIds.Count(_ => _.StartsWith("build:", StringComparison.Ordinal))).IsGreaterThan(0);
+        await Assert.That(payload.TrayItemIds.First()).IsEqualTo(TrayMenu.Open);
     }
 
     [Test]

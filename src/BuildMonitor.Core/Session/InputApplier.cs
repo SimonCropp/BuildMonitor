@@ -179,29 +179,8 @@ static class InputApplier
         }
     }
 
-    static SessionState TrayItem(SessionState state, string id, MonitorActions actions, IMonitorWindow window)
-    {
-        if (TrayMenu.TryParseBuildItem(id, out var action, out var key))
-        {
-            var build = state.Builds.FirstOrDefault(_ => _.Key == key);
-            if (build is null)
-            {
-                return state;
-            }
-
-            switch (action)
-            {
-                case TrayMenu.RetryAction:
-                    return Retry(state, build, actions);
-                case TrayMenu.CancelAction:
-                    return Cancel(state, build, actions);
-                default:
-                    actions.OpenUrl(build.BuildUrl);
-                    return state;
-            }
-        }
-
-        return id switch
+    static SessionState TrayItem(SessionState state, string id, MonitorActions actions, IMonitorWindow window) =>
+        id switch
         {
             TrayMenu.Open => Show(state, window),
             TrayMenu.Refresh => Execute(state, CommandKind.Refresh, null, actions, window),
@@ -213,7 +192,6 @@ static class InputApplier
             TrayMenu.Exit => Execute(state, CommandKind.Quit, null, actions, window),
             _ => state
         };
-    }
 
     static SessionState Show(SessionState state, IMonitorWindow? window)
     {

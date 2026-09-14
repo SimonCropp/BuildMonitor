@@ -448,70 +448,18 @@ static class ScreenBuilder
             ? "BuildMonitor: no connections"
             : $"BuildMonitor: {failing} failing, {running} running";
 
-        var provider = ShowProvider(state);
-        var items = new List<TrayMenuItem>();
-        var interesting = builds
-            .Where(_ => _.Status == BuildStatus.Failed || _.IsActive)
-            .ToList();
-        foreach (var build in interesting.Take(TrayMenu.MaxBuilds))
-        {
-            var children = new List<TrayMenuItem>
-            {
-                new(TrayMenu.BuildItem(build, TrayMenu.OpenAction), "Open build", IconName: "build")
-            };
-            if (build.Retryable())
-            {
-                children.Add(new(TrayMenu.BuildItem(build, TrayMenu.RetryAction), "Retry", IconName: "retry"));
-            }
-
-            if (build.CanCancel)
-            {
-                children.Add(new(TrayMenu.BuildItem(build, TrayMenu.CancelAction), "Cancel", IconName: "cancel"));
-            }
-
-            var iconName = provider
-                ? $"provider-{state.Connection(build.ConnectionId)!.Connection.ProviderId}"
-                : build.Status.ToString().ToLowerInvariant();
-            items.Add(new(TrayMenu.BuildItem(build, TrayMenu.OpenAction), TrayLabel(build), IconName: iconName, Children: children));
-        }
-
-        if (interesting.Count > TrayMenu.MaxBuilds)
-        {
-            items.Add(new(TrayMenu.Overflow, $"Only {TrayMenu.MaxBuilds} builds shown", Enabled: false));
-        }
-
-        if (items.Count > 0)
-        {
-            items.Add(new("separator", "", Separator: true));
-        }
-
-        items.Add(new(TrayMenu.Open, "Open", IconName: "open"));
-        items.Add(new(TrayMenu.Refresh, "Refresh", Enabled: state.Connections.Length > 0, IconName: "refresh"));
-        items.Add(new(TrayMenu.Options, "Options", IconName: "options"));
-        items.Add(new(TrayMenu.Filters, "Filters", IconName: "filters"));
-        items.Add(new(TrayMenu.Logs, "Open logs", IconName: "logs"));
-        items.Add(new(TrayMenu.Issue, "Raise issue", IconName: "issue"));
-        items.Add(new(TrayMenu.Update, "Update", IconName: "update"));
-        items.Add(new(TrayMenu.Exit, "Exit", IconName: "exit"));
-        return new(icon, tooltip, items);
-    }
-
-    /// <summary>
-    /// A menu item has no columns, so the repository leads, and is left out when the pipeline has
-    /// the same name, as a Jenkins job or an Octopus project often does, rather than read twice.
-    /// </summary>
-    static string TrayLabel(Build build)
-    {
-        var repo = build.ShortRepoName();
-        List<string> parts =
+        List<TrayMenuItem> items =
         [
-            string.Equals(repo, build.PipelineName, StringComparison.OrdinalIgnoreCase) ? "" : repo,
-            build.PipelineName,
-            build.Branch ?? "",
-            build.RunNumberLabel(),
-            build.Status.ToString().ToLowerInvariant()
+            new(TrayMenu.Open, "Open", IconName: "open"),
+            new(TrayMenu.Refresh, "Refresh", Enabled: state.Connections.Length > 0, IconName: "refresh"),
+            new(TrayMenu.Options, "Options", IconName: "options"),
+            new(TrayMenu.Filters, "Filters", IconName: "filters"),
+            new(TrayMenu.Logs, "Open logs", IconName: "logs"),
+            new(TrayMenu.Issue, "Raise issue", IconName: "issue"),
+            new(TrayMenu.Update, "Update", IconName: "update"),
+            new(TrayMenu.Exit, "Exit", IconName: "exit")
         ];
-        return string.Join(' ', parts.Where(_ => _.Length > 0));
+        return new(icon, tooltip, items);
     }
 
     static TrayIconKind Icon(SessionState state, ImmutableArray<Build> builds)
