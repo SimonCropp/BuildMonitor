@@ -39,6 +39,43 @@ Builds are fetched a project at a time, each on its own schedule (see [Poll inte
 
 Each project asks for the last five builds of every definition, so a busy definition cannot push a quiet one out of the list. Each poll interval, each project is also asked only for builds queued since the newest one seen, which costs a small fraction of a fetch, so a new build on a quiet project shows within about thirty seconds. A retry started outside the tray reuses its build, and may wait for the schedule.
 
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 400
+---
+flowchart TD
+    wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed pipelines in<br/>the last 10 minutes?"}
+    listed -- "no" --> discover["GET _apis/projects, unless<br/>one is named, then each<br/>project's _apis/pipelines"]
+    listed -- "yes" --> probed{"Probed in the<br/>last 30 seconds?"}
+    probed -- "no" --> probe["For each project, GET<br/>_apis/build/builds queued<br/>since the newest one seen,<br/>about 0.002 throughput<br/>units when there are none"]
+    probe --> moved{"A newer build?"}
+    moved -- "yes" --> nudge["Fetch that project<br/>now, then every 30 s<br/>for 3 minutes"]
+    discover --> interval["Each project is polled<br/>as its busiest pipeline needs"]
+    probed -- "yes" --> interval
+    moved -- "no" --> interval
+    nudge --> interval
+    interval --> finishing["Running, past ¾ of its<br/>usual time or with no<br/>history: every 10 s"]
+    interval --> running["Running for less than<br/>that, or queued:<br/>every 30 s"]
+    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
+    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last build ÷ 120,<br/>30 s to 5 minutes"]
+    finishing --> stretch["Up to 8 times longer while<br/>under a quarter of<br/>the limit is left"]
+    running --> stretch
+    quiet --> stretch
+    failed --> stretch
+    stretch --> due{"Due, and within 100<br/>throughput units<br/>in 5 minutes?"}
+    due -- "no" --> sleep(["Sleep until a project,<br/>the probe or the<br/>listing is due"])
+    due -- "yes, most urgent first" --> fetch["GET {project}/_apis/build/builds,<br/>the last 5 builds<br/>of each definition"]
+    fetch -- "200" --> rows["Update its rows"]
+    rows -- "Retry-After on the answer" --> pause["Pause the connection<br/>for Retry-After"]
+    fetch -- "429" --> pause
+    fetch -- "other failure" --> backoff["Back off that project,<br/>doubling up to 10 minutes"]
+    rows --> sleep
+    pause --> sleep
+    backoff --> sleep
+```
+
 
 ## API notes
 

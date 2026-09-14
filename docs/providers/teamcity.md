@@ -35,6 +35,31 @@ TeamCity reports the percentage complete and the seconds left of a running build
 
 One request fetches the latest builds of every configuration, so a server with hundreds of configurations costs one call a poll, and a long build queue cannot push a quiet configuration out of the list.
 
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 400
+---
+flowchart TD
+    wake(["Wake: the connection is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed configurations<br/>in the last 10 minutes?"}
+    listed -- "no" --> discover["GET buildTypes?locator=<br/>affectedProject:(id:…),<br/>every configuration<br/>under the project"]
+    listed -- "yes" --> interval["One schedule for every<br/>configuration, set<br/>by the busiest"]
+    discover --> interval
+    interval --> finishing["A build running with<br/>90 s or less left, or<br/>no estimate: every 10 s"]
+    interval --> running["Any other running<br/>or queued build:<br/>every 30 s"]
+    interval --> quiet["Otherwise the shortest of<br/>each configuration's time<br/>since its last build ÷ 30,<br/>or ÷ 120 when that failed,<br/>30 s to 5 minutes"]
+    finishing --> due{"Due?"}
+    running --> due
+    quiet --> due
+    due -- "no" --> sleep(["Sleep until the connection<br/>or the listing is due"])
+    due -- "yes" --> fetch["GET buildTypes with the<br/>last 5 builds of every<br/>configuration, in one request"]
+    fetch -- "200" --> rows["Update the rows"]
+    fetch -- "failure" --> backoff["Back off the connection,<br/>doubling up to 10 minutes"]
+    rows --> sleep
+    backoff --> sleep
+```
+
 
 ## API notes
 

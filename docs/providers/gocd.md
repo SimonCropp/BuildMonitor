@@ -35,6 +35,39 @@ The countdown comes from the median of the pipeline's last ten successful instan
 
 Each pipeline's history is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)), and history carries no ETag, so each request returns a full response. Each poll interval the dashboard is read instead, with a conditional request that answers 304 while nothing visible changed. A pipeline whose instance counter or stage statuses moved is fetched at once. Progress inside a running job does not change the dashboard, and waits for the schedule.
 
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 400
+---
+flowchart TD
+    wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed pipelines in<br/>the last 10 minutes?"}
+    listed -- "no" --> discover["GET dashboard, keeping<br/>the known pipelines<br/>while it answers 202"]
+    listed -- "yes" --> probed{"Probed in the<br/>last 30 seconds?"}
+    probed -- "no" --> probe["GET dashboard with<br/>If-None-Match, a 304 while<br/>nothing visible changed"]
+    probe --> moved{"A pipeline's counter<br/>or stage statuses moved?"}
+    moved -- "yes" --> nudge["Fetch that pipeline<br/>now, then every 30 s<br/>for 3 minutes"]
+    discover --> interval["Each pipeline is polled<br/>as its latest instances need"]
+    probed -- "yes" --> interval
+    moved -- "no" --> interval
+    nudge --> interval
+    interval --> finishing["Building, past ¾ of its<br/>usual time or with no<br/>history: every 10 s"]
+    interval --> running["Building for less than<br/>that, or scheduled:<br/>every 30 s"]
+    interval --> quiet["Quiet: the time since<br/>the last instance ÷ 30,<br/>30 s to 5 minutes"]
+    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last instance ÷ 120,<br/>30 s to 5 minutes"]
+    finishing --> due{"Due?"}
+    running --> due
+    quiet --> due
+    failed --> due
+    due -- "no" --> sleep(["Sleep until a pipeline,<br/>the probe or the<br/>listing is due"])
+    due -- "yes, most urgent first" --> fetch["GET pipelines/{name}/history<br/>?page_size=10,<br/>keeping the newest 5"]
+    fetch -- "200" --> rows["Update its rows"]
+    fetch -- "failure" --> backoff["Back off that pipeline,<br/>doubling up to 10 minutes"]
+    rows --> sleep
+    backoff --> sleep
+```
+
 
 ## API notes
 

@@ -37,6 +37,42 @@ Bitbucket allows a thousand requests an hour, or the larger limit a workspace re
 
 Once a minute the ten most recently updated repositories are read, which a push moves to the top within seconds, so a pushed repository is fetched at once rather than when its schedule comes round. Pipelines started without a push, such as scheduled and manual runs, wait for the schedule.
 
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 400
+---
+flowchart TD
+    wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed repositories in<br/>the last 10 minutes?"}
+    listed -- "no" --> discover["GET repositories/{workspace}<br/>as a member, up to 5 pages"]
+    listed -- "yes" --> probed{"Probed in the<br/>last minute?"}
+    probed -- "no" --> probe["GET the 10 most recently<br/>updated repositories,<br/>sort=-updated_on"]
+    probe --> moved{"A repository's<br/>updated_on moved?"}
+    moved -- "yes" --> nudge["Fetch that repository<br/>now, then every 30 s<br/>for 3 minutes"]
+    discover --> interval["Each repository is polled<br/>as its latest pipelines need"]
+    probed -- "yes" --> interval
+    moved -- "no" --> interval
+    nudge --> interval
+    interval --> finishing["Running, past ¾ of its<br/>usual time or with no<br/>history: every 10 s"]
+    interval --> running["Running for less than<br/>that, or pending:<br/>every 30 s"]
+    interval --> quiet["Quiet: the time since<br/>the last pipeline ÷ 30,<br/>30 s to 30 minutes"]
+    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last pipeline ÷ 120,<br/>30 s to 30 minutes"]
+    finishing --> stretch["Up to 8 times longer while<br/>under a quarter of the<br/>hourly limit is left"]
+    running --> stretch
+    quiet --> stretch
+    failed --> stretch
+    stretch --> due{"Due, and within<br/>1,000 requests an hour,<br/>or the workspace's limit?"}
+    due -- "no" --> sleep(["Sleep until a repository,<br/>the probe or the<br/>listing is due"])
+    due -- "yes, most urgent first" --> fetch["GET repositories/<br/>{workspace}/{slug}/pipelines,<br/>newest 5, with If-None-Match"]
+    fetch -- "200 or 304" --> rows["Update its rows"]
+    fetch -- "429" --> pause["Pause the connection<br/>until the limit resets, or<br/>from a minute, doubling"]
+    fetch -- "other failure" --> backoff["Back off that repository,<br/>doubling up to 10 minutes"]
+    rows --> sleep
+    pause --> sleep
+    backoff --> sleep
+```
+
 
 ## API notes
 

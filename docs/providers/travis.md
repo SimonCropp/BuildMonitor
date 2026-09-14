@@ -31,6 +31,40 @@ One per repository. Pull request builds link to the pull request on GitHub.
 The countdown comes from the median of the repository's last ten successful builds.
 
 
+## Polling
+
+Each repository is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). Travis sends no ETags, so every request returns a full response, and no rate limit headers, so a limit is only seen when a request is refused; the pause then starts at a minute and doubles. Nothing cheap says which repositories have new builds, so a build on a quiet repository shows when its schedule comes round: within five minutes.
+
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 400
+---
+flowchart TD
+    wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed repositories in<br/>the last 10 minutes?"}
+    listed -- "no" --> discover["GET repos?repository.active=true,<br/>up to 100"]
+    listed -- "yes" --> interval["Each repository is polled<br/>as its latest builds need"]
+    discover --> interval
+    interval --> finishing["Started, past ¾ of its<br/>usual time or with no<br/>history: every 10 s"]
+    interval --> running["Started for less than<br/>that, or created or<br/>queued: every 30 s"]
+    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
+    interval --> failed["Quiet after a failed or<br/>errored build: the time<br/>since it ÷ 120,<br/>30 s to 5 minutes"]
+    finishing --> due{"Due?"}
+    running --> due
+    quiet --> due
+    failed --> due
+    due -- "no" --> sleep(["Sleep until a repository<br/>or the listing is due"])
+    due -- "yes, most urgent first" --> fetch["GET repo/{slug}/builds,<br/>the last 5 with<br/>their commits"]
+    fetch -- "200" --> rows["Update its rows"]
+    fetch -- "429" --> pause["Pause the connection<br/>for Retry-After, or from<br/>a minute, doubling"]
+    fetch -- "other failure" --> backoff["Back off that repository,<br/>doubling up to 10 minutes"]
+    rows --> sleep
+    pause --> sleep
+    backoff --> sleep
+```
+
+
 ## API notes
 
 Researched 2026-09-14. [live] means checked with anonymous requests against api.travis-ci.com; [docs] and [source] name the evidence. See [Provider APIs](api-comparison.md) for every provider side by side.

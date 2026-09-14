@@ -28,6 +28,37 @@ The countdown comes from the median of the project's last ten successful pipelin
 
 The pipelines of fifty projects at a time come from one GraphQL request, instead of a request per project and another per running pipeline, so the whole connection is fetched on one schedule (see [Poll intervals](../options.md#poll-intervals)). A project GraphQL leaves out of its answer is fetched over REST. GitLab.com allows 2,000 authenticated requests a minute, and counts a 304 as one.
 
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 400
+---
+flowchart TD
+    wake(["Wake: the connection is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed projects in<br/>the last 10 minutes?"}
+    listed -- "no" --> discover["GET projects with Reporter<br/>access or above, or the<br/>group's, subgroups included"]
+    listed -- "yes" --> interval["One schedule for every<br/>project, set by the busiest"]
+    discover --> interval
+    interval --> finishing["A pipeline running past ¾<br/>of its usual time or with<br/>no history: every 10 s"]
+    interval --> running["Any other running<br/>or pending pipeline:<br/>every 30 s"]
+    interval --> quiet["Otherwise the shortest of<br/>each project's time since<br/>its last pipeline ÷ 30,<br/>or ÷ 120 when that failed,<br/>30 s to 5 minutes"]
+    finishing --> due{"Due?"}
+    running --> due
+    quiet --> due
+    due -- "no" --> sleep(["Sleep until the connection<br/>or the listing is due"])
+    due -- "yes" --> query["GET graphql: the last<br/>5 pipelines of up to<br/>50 projects a request,<br/>with If-None-Match"]
+    query -- "200 or 304" --> missing{"GraphQL failed, or<br/>left a project out?"}
+    missing -- "yes" --> rest["GET projects/{id}/pipelines<br/>for each, and each running<br/>one for its times"]
+    missing -- "no" --> rows["Update the rows"]
+    rest --> rows
+    query -- "429" --> pause["Pause the connection<br/>for Retry-After"]
+    query -- "other failure" --> backoff["Back off the connection,<br/>doubling up to 10 minutes"]
+    rest -- "failure" --> backoff
+    rows --> sleep
+    pause --> sleep
+    backoff --> sleep
+```
+
 
 ## API notes
 

@@ -39,6 +39,42 @@ Runs are fetched a repository at a time, each on its own schedule (see [Poll int
 
 Each poll interval, page 1 of the repository list is read again, most recently pushed first, with the same conditional request discovery uses, so it costs nothing while nothing is pushed. A repository whose last push moved is fetched at once rather than when its schedule comes round. Runs that start without a push, such as scheduled runs, manual dispatches, re-runs started on the web and pull requests from forks, wait for the schedule: up to five minutes on a quiet repository.
 
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 400
+---
+flowchart TD
+    wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed repositories in<br/>the last 10 minutes?"}
+    listed -- "no" --> discover["GET user/repos?sort=pushed<br/>or the owner's, up to 5 pages,<br/>then the workflows of each<br/>repository pushed in 90 days"]
+    listed -- "yes" --> probed{"Probed in the<br/>last 30 seconds?"}
+    probed -- "no" --> probe["GET page 1 of the same list,<br/>a free 304 while<br/>nothing was pushed"]
+    probe --> moved{"A repository's<br/>pushed_at moved?"}
+    moved -- "yes" --> nudge["Fetch that repository<br/>now, then every 30 s<br/>for 3 minutes"]
+    discover --> interval["Each repository is polled<br/>as its busiest workflow needs"]
+    probed -- "yes" --> interval
+    moved -- "no" --> interval
+    nudge --> interval
+    interval --> finishing["Running, past ¾ of its<br/>usual time or with no<br/>history: every 10 s"]
+    interval --> running["Running for less than<br/>that, or queued:<br/>every 30 s"]
+    interval --> quiet["Quiet: the time since<br/>the last run ÷ 30,<br/>30 s to 5 minutes"]
+    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last run ÷ 120,<br/>30 s to 5 minutes"]
+    finishing --> stretch["Up to 8 times longer while<br/>under a quarter of the<br/>hourly limit is left"]
+    running --> stretch
+    quiet --> stretch
+    failed --> stretch
+    stretch --> due{"Due, and within<br/>450 requests a minute?"}
+    due -- "no" --> sleep(["Sleep until a repository,<br/>the probe or the<br/>listing is due"])
+    due -- "yes, most urgent first" --> fetch["GET repos/{owner}/{repo}/actions/runs<br/>with If-None-Match,<br/>8 at a time"]
+    fetch -- "200 or 304" --> rows["Update its rows"]
+    fetch -- "429, or 403 from<br/>a secondary limit" --> pause["Pause the connection<br/>as long as GitHub asks,<br/>or from a minute, doubling"]
+    fetch -- "other failure" --> backoff["Back off that repository,<br/>doubling up to 10 minutes"]
+    rows --> sleep
+    pause --> sleep
+    backoff --> sleep
+```
+
 
 ## API notes
 
