@@ -100,7 +100,8 @@ sealed class OctopusProvider : ProviderBase
                 null,
                 CanRetry: status is not (BuildStatus.Running or BuildStatus.Queued),
                 CanCancel: status is BuildStatus.Running or BuildStatus.Queued,
-                Join(item.TaskId, $"{spaceId}/tasks/rerun/{item.TaskId}", $"{spaceId}/tasks/{item.TaskId}/cancel")));
+                Join(item.TaskId, $"{spaceId}/tasks/rerun/{item.TaskId}", $"{spaceId}/tasks/{item.TaskId}/cancel"),
+                pipeline.Url));
         }
 
         return builds;
@@ -221,7 +222,8 @@ sealed class OctopusProvider : ProviderBase
             null,
             CanRetry: rerun is not null && status is not (BuildStatus.Running or BuildStatus.Queued),
             CanCancel: cancel is not null && status is BuildStatus.Running or BuildStatus.Queued,
-            Join(task.Id, rerun, cancel));
+            Join(task.Id, rerun, cancel),
+            pipeline.Url);
     }
 
     /// <summary>

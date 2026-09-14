@@ -232,7 +232,9 @@ enum BmLink {
     BM_LINK_NONE = 0,
     BM_LINK_BUILD = 1,
     BM_LINK_BRANCH = 2,
-    BM_LINK_PULL_REQUEST = 3
+    BM_LINK_PULL_REQUEST = 3,
+    /* The provider icon: the repository or project page. */
+    BM_LINK_PROJECT = 4
 };
 
 enum BmAction {

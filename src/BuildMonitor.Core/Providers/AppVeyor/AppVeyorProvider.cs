@@ -101,7 +101,8 @@ sealed class AppVeyorProvider : ProviderBase
             build.AuthorName,
             CanRetry: status is BuildStatus.Failed or BuildStatus.Cancelled or BuildStatus.Succeeded,
             CanCancel: status is BuildStatus.Queued or BuildStatus.Running,
-            Join(build.BuildId.ToString(), build.Version));
+            Join(build.BuildId.ToString(), build.Version),
+            github ? $"https://github.com/{pipeline.RepoName}" : pipeline.Url);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

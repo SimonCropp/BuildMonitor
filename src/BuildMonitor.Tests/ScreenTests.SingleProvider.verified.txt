@@ -1,9 +1,9 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                                                       3 pipelines, 1 failing, 1 running |
 +----------------------------------------------------------------------------------------------------------------------+
-| > > DiffEngine test.yml main                                #1234             03:00      Build Branch       [Cancel] |
-|   x Verify     test.yml feature/inline                      #77               25m ago    Build Branch PR 42 [Retry]  |
-|   + DiffEngine docs.yml main                                #300              23h ago    Build Branch                |
+| > > DiffEngine github   test.yml main                       #1234             03:00      Build Branch       [Cancel] |
+|   x Verify     github   test.yml feature/inline             #77               25m ago    Build Branch PR 42 [Retry]  |
+|   + DiffEngine github   docs.yml main                       #300              23h ago    Build Branch                |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

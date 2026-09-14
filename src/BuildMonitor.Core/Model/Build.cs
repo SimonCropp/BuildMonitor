@@ -6,6 +6,10 @@
 /// Whatever the provider needs to retry or cancel this run: a numeric build id, a task link, a
 /// stage locator. Opaque to everything but the provider that wrote it.
 /// </param>
+/// <param name="ProjectUrl">
+/// The repository or project page the provider icon opens. Null when the provider has no page
+/// above the build, and then clicking the icon does nothing.
+/// </param>
 record Build(
     string ConnectionId,
     string PipelineId,
@@ -28,7 +32,8 @@ record Build(
     string? Author,
     bool CanRetry,
     bool CanCancel,
-    string ProviderRef)
+    string ProviderRef,
+    string? ProjectUrl = null)
 {
     /// <summary>
     /// What a row is: a pipeline on a branch. Stable across polls so the selection survives a

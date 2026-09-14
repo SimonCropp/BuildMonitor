@@ -123,7 +123,8 @@ sealed class JenkinsProvider : ProviderBase
                     null,
                     CanRetry: false,
                     CanCancel: true,
-                    Join(pipeline.Url, $"queue:{queued.Id}")));
+                    Join(pipeline.Url, $"queue:{queued.Id}"),
+                    pipeline.Url));
             }
 
             builds.AddRange(job.Builds.Select(_ => Convert(context.Connection.Id, pipeline, _)));
@@ -173,7 +174,8 @@ sealed class JenkinsProvider : ProviderBase
             null,
             CanRetry: !build.Building,
             CanCancel: build.Building,
-            Join(pipeline.Url, build.Number.ToString()));
+            Join(pipeline.Url, build.Number.ToString()),
+            pipeline.Url);
     }
 
     /// <summary>

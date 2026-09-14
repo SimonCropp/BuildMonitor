@@ -6,5 +6,6 @@ enum LinkKind
     None = 0,
     Build = 1,
     Branch = 2,
-    PullRequest = 3
+    PullRequest = 3,
+    Project = 4
 }

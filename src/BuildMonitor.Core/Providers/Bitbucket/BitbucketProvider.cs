@@ -103,7 +103,8 @@ sealed class BitbucketProvider : ProviderBase
             run.Creator?.DisplayName,
             CanRetry: state == "COMPLETED" && run.Target?.Commit?.Hash is not null,
             CanCancel: state is "PENDING" or "IN_PROGRESS",
-            Join(run.Uuid, run.Target?.RefType, run.Target?.RefName, run.Target?.Commit?.Hash));
+            Join(run.Uuid, run.Target?.RefType, run.Target?.RefName, run.Target?.Commit?.Hash),
+            web);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

@@ -89,6 +89,16 @@ public class ApplyTests
     }
 
     [Test]
+    public async Task ProjectLinkOpensTheProjectPage()
+    {
+        var actions = new RecordingActions();
+        var state = Fixtures.WithBuilds();
+        state = state with { Builds = [..state.Builds.Select(_ => _ with { ProjectUrl = "https://example.com/project" })] };
+        Apply(state, new(ClickedLinkRow: 0, ClickedLink: LinkKind.Project), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["OpenUrl https://example.com/project"]);
+    }
+
+    [Test]
     public async Task TrayOptionsOpensTheWindowOnOptions()
     {
         var window = new FakeWindow();

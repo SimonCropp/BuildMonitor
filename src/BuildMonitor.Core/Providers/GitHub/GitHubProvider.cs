@@ -236,7 +236,8 @@ sealed class GitHubProvider : ProviderBase
             run.Actor?.Login,
             CanRetry: run.Status == "completed",
             CanCancel: run.Status != "completed",
-            Join(repository, run.Id.ToString(), run.Conclusion));
+            Join(repository, run.Id.ToString(), run.Conclusion),
+            web);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

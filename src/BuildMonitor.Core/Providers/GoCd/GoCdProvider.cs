@@ -156,7 +156,8 @@ sealed class GoCdProvider : ProviderBase
             modification?.UserName,
             CanRetry: status is not (BuildStatus.Running or BuildStatus.Queued),
             CanCancel: status == BuildStatus.Running,
-            Join(pipeline.Id, instance.Counter.ToString(), failed?.Name, failed?.Counter, last?.Name, last?.Counter));
+            Join(pipeline.Id, instance.Counter.ToString(), failed?.Name, failed?.Counter, last?.Name, last?.Counter),
+            pipeline.Url);
     }
 
     /// <summary>

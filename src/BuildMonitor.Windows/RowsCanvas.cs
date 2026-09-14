@@ -257,7 +257,11 @@ sealed class RowsCanvas : Control
             Icons.Glyph($"provider-{row.Provider}") is { } icon)
         {
             var side = LogicalToDeviceUnits(iconSize);
-            graphics.DrawImage(icon, x, centreY - side / 2, side, side);
+            var iconBounds = new Rectangle(x, centreY - side / 2, side, side);
+            graphics.DrawImage(icon, iconBounds);
+            // Hit tested like a chip, so the icon shows the hand and opens the project page
+            // rather than selecting the row.
+            chips.Add((index, LinkKind.Project, RowAction.None, iconBounds));
         }
 
         Draw(graphics, row.Detail, Font, x + iconWidth, bounds, detailWidth - iconWidth, Palette.Dim);

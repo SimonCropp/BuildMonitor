@@ -7,8 +7,8 @@
 /// for a build under its group, whose row above already names the project.</param>
 /// <param name="Detail">The second cell, drawn dimmed: the pipeline and branch, or a group's
 /// count.</param>
-/// <param name="Provider">The provider whose icon leads the second cell, or empty when every
-/// connection is one provider and an icon would tell rows apart by nothing.</param>
+/// <param name="Provider">The provider whose icon leads the second cell, and opens the project
+/// when clicked, or empty for a group's own row.</param>
 /// <param name="Progress">0 to 1 while a bar should be drawn, -1 when there is nothing to
 /// estimate against.</param>
 /// <param name="Timing">The countdown, over-run, elapsed or age text beside the bar.</param>

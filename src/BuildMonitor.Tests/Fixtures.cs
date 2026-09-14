@@ -282,7 +282,7 @@ static class Fixtures
     }
 
     /// <summary>
-    /// Only GitHub, so no row needs a provider icon to tell it apart.
+    /// Only GitHub. Rows still carry the provider icon, since it is also the link to the project.
     /// </summary>
     public static SessionState SingleProvider()
     {

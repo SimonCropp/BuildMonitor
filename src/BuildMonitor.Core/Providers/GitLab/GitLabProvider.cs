@@ -189,7 +189,8 @@ sealed class GitLabProvider : ProviderBase
             author,
             CanRetry: status is BuildStatus.Failed or BuildStatus.Cancelled,
             CanCancel: status is BuildStatus.Queued or BuildStatus.Running,
-            Join(pipeline.Id, run.Id.ToString()));
+            Join(pipeline.Id, run.Id.ToString()),
+            web);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

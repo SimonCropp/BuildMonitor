@@ -412,6 +412,17 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                 if (row.provider.length > 0 && icon != g.rowIcons.end()) {
                     float iconTop = top + (rowHeight - iconSize) / 2.0f;
                     draw->AddImage(static_cast<ImTextureID>(icon->second.id), ImVec2(at.x, iconTop), ImVec2(at.x + iconSize, iconTop + iconSize));
+                    // Over the row's selectable, which allows overlap, so the icon opens the
+                    // project page rather than selecting the row. The cursor goes back after.
+                    ImGui::SetCursorScreenPos(ImVec2(at.x, iconTop));
+                    ImGui::PushID(i);
+                    if (ImGui::InvisibleButton("##project", ImVec2(iconSize, iconSize))) {
+                        g.input.clickedLinkRow = i;
+                        g.input.clickedLink = BM_LINK_PROJECT;
+                    }
+
+                    ImGui::PopID();
+                    ImGui::SetCursorScreenPos(at);
                 }
 
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconSize + ImGui::GetStyle().ItemSpacing.x);

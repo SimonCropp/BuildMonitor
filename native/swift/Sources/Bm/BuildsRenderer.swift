@@ -149,6 +149,7 @@ final class BuildsRenderer {
             if let icon = RowIcons.images[row.provider] {
                 let iconRect = CGRect(x: x, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize)
                 icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                chips.append(Hit(row: index, link: Int32(BM_LINK_PROJECT.rawValue), action: Int32(BM_ACTION_NONE.rawValue), rect: iconRect))
             }
 
             drawText(row.detail, at: CGPoint(x: x + iconWidth, y: textY), font: font, colour: Palette.dim, width: detailWidth - iconWidth - 8)

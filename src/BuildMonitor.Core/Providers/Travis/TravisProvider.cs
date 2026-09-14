@@ -83,7 +83,8 @@ sealed class TravisProvider : ProviderBase
             build.Commit?.Author?.Name,
             CanRetry: status is BuildStatus.Succeeded or BuildStatus.Failed or BuildStatus.Cancelled,
             CanCancel: status is BuildStatus.Queued or BuildStatus.Running,
-            build.Id.ToString());
+            build.Id.ToString(),
+            $"https://github.com/{pipeline.RepoName}");
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel) =>

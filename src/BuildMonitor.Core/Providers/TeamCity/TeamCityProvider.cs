@@ -106,7 +106,8 @@ sealed class TeamCityProvider : ProviderBase
             build.Triggered?.User?.Name ?? build.Triggered?.User?.Username,
             CanRetry: build.State == "finished",
             CanCancel: build.State is "queued" or "running",
-            Join(build.State, build.Id.ToString(), build.BuildTypeId, build.BranchName));
+            Join(build.State, build.Id.ToString(), build.BuildTypeId, build.BranchName),
+            pipeline.Url);
     }
 
     /// <summary>

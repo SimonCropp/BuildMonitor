@@ -173,7 +173,8 @@ sealed class AzureDevOpsProvider : ProviderBase
             build.RequestedFor?.DisplayName,
             CanRetry: build.Status == "completed",
             CanCancel: build.Status is "inProgress" or "notStarted" or "postponed",
-            Join(project, build.Id.ToString()));
+            Join(project, build.Id.ToString()),
+            $"{context.Http.BaseAddress}{Encode(project)}");
     }
 
     static (string? Branch, string? PullRequest) RepositoryLinks(ProviderContext context, string project, AzureDevOpsRepository? repository, string? branch, string? pullRequest)

@@ -131,6 +131,7 @@ static class InputApplier
             LinkKind.Build => build.BuildUrl,
             LinkKind.Branch => build.BranchUrl,
             LinkKind.PullRequest => build.PullRequestUrl,
+            LinkKind.Project => build.ProjectUrl,
             _ => null
         };
         if (url is not null)

@@ -29,11 +29,10 @@ static class ScreenBuilder
         var body = MonitorSession.BodyRows(state);
         var top = Math.Clamp(state.ScrollTop, 0, Math.Max(0, rows.Length - body));
         var visible = rows.Skip(top).Take(body).ToList();
-        var provider = ShowProvider(state);
         var composed = new List<BuildRow>(visible.Count);
         for (var index = 0; index < visible.Count; index++)
         {
-            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, provider, now));
+            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now));
         }
 
         var builds = RowProjection.Builds(state);
@@ -101,7 +100,7 @@ static class ScreenBuilder
         return $"{Plural(pipelines, "pipeline")}, {failing} failing, {running} running";
     }
 
-    static BuildRow Compose(SessionState state, Row row, bool selected, bool provider, DateTimeOffset now)
+    static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now)
     {
         if (row.Build is not { } build)
         {
@@ -123,7 +122,7 @@ static class ScreenBuilder
             build.Status,
             NameOf(row),
             string.Join(' ', detail.Where(_ => _.Length > 0)),
-            provider ? row.Connection!.Connection.ProviderId : "",
+            row.Connection!.Connection.ProviderId,
             build.RunNumber.Length == 0 ? "" : $"#{build.RunNumber}",
             fraction,
             timing,
@@ -167,16 +166,6 @@ static class ScreenBuilder
             false);
     }
 
-    /// <summary>
-    /// A provider icon on every row only earns its width when the connections span more than one
-    /// provider. Two GitHub connections are still one kind of build.
-    /// </summary>
-    public static bool ShowProvider(SessionState state) =>
-        state.Connections
-            .Select(_ => _.Connection.ProviderId)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Skip(1)
-            .Any();
 
     public static IReadOnlyList<Button> Buttons(SessionState state) =>
         state.Page switch
