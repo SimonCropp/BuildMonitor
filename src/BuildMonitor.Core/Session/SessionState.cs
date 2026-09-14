@@ -34,9 +34,9 @@ record SessionState(
     public static SessionState Start(Settings settings) =>
         new(
             Settings: settings,
-            Connections: [..settings.Connections.Select(_ => ConnectionState.Start(_))],
+            Connections: [..settings.Connections.Select(ConnectionState.Start)],
             Builds: [],
-            Medians: ImmutableDictionary<string, TimeSpan>.Empty,
+            Medians: [],
             Page: Page.Builds,
             Form: null,
             SignIn: null,
