@@ -8,14 +8,14 @@ public class GoCdProviderTests
                 $"{server}/go/api/dashboard",
                 """{"_embedded":{"pipeline_groups":[{"name":"apps","pipelines":["web","api"]}],"pipelines":[]}}""")
             .Get(
-                $"{server}/go/api/pipelines/web/history?page_size=5",
+                $"{server}/go/api/pipelines/web/history?page_size=10",
                 """
                 {"pipelines":[
                   {"name":"web","counter":42,"label":"42","scheduled_date":1767268500000,"build_cause":{"trigger_message":"modified by Simon","material_revisions":[{"material":{"type":"Git","description":"URL: https://github.com/x/web, Branch: main"},"modifications":[{"revision":"abc123","comment":"Fix","user_name":"Simon <simon@example.com>"}]}]},"stages":[{"name":"build","counter":"1","status":"Passed","result":"Passed","scheduled":true,"jobs":[{"name":"compile","state":"Completed","result":"Passed","scheduled_date":1767268500000}]},{"name":"test","counter":"1","status":"Building","result":"Unknown","scheduled":true,"jobs":[{"name":"unit","state":"Building","result":"Unknown","scheduled_date":1767268800000}]}]},
                   {"name":"web","counter":41,"label":"41","scheduled_date":1767261300000,"build_cause":{"material_revisions":[{"material":{"type":"Git","description":"URL: https://github.com/x/web, Branch: main"},"modifications":[{"revision":"def456","comment":"Break","user_name":"Simon"}]}]},"stages":[{"name":"build","counter":"1","status":"Passed","result":"Passed","scheduled":true,"jobs":[{"name":"compile","state":"Completed","result":"Passed","scheduled_date":1767261300000}]},{"name":"test","counter":"2","status":"Failed","result":"Failed","scheduled":true,"jobs":[{"name":"unit","state":"Completed","result":"Failed","scheduled_date":1767261600000}]}]}
                 ]}
                 """)
-            .Get($"{server}/go/api/pipelines/api/history?page_size=5", """{"pipelines":[]}""");
+            .Get($"{server}/go/api/pipelines/api/history?page_size=10", """{"pipelines":[]}""");
 
     [Test]
     public async Task DiscoverAndFetch()
@@ -23,6 +23,46 @@ public class GoCdProviderTests
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("gocd", ProviderTestHelpers.Context("gocd", handler, server));
         await Verify(new { builds, handler.Requests });
+    }
+
+    [Test]
+    public async Task HistoryAsksForTheSmallestPageGoCdAcceptsAndKeepsFive()
+    {
+        var instances = string.Join(",", Enumerable.Range(1, 10).Select(_ => $$"""{"name":"web","counter":{{_}},"stages":[]}"""));
+        var handler = new FakeHttpHandler()
+            .Get($"{server}/go/api/pipelines/web/history?page_size=10", $$"""{"pipelines":[{{instances}}]}""");
+        var context = ProviderTestHelpers.Context("gocd", handler, server);
+        var pipeline = new Pipeline("web", "web", "apps", "apps", $"{server}/go/pipeline/activity/web");
+        var builds = await ProviderTestHelpers.Provider("gocd").FetchBuilds(context, [pipeline], 5, Cancel.None);
+        await Assert.That(builds.Count).IsEqualTo(5);
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/go/api/pipelines/web/history?page_size=10");
+    }
+
+    [Test]
+    public async Task RecentActivityReadsCountersAndStageStatusesFromTheDashboard()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                $"{server}/go/api/dashboard",
+                """
+                {"_embedded":{"pipeline_groups":[{"name":"apps","pipelines":["web","api"]}],"pipelines":[
+                  {"name":"web","last_updated_timestamp":1767268800000,"_embedded":{"instances":[{"label":"42","counter":42,"scheduled_at":"2026-01-01T11:55:00Z","_embedded":{"stages":[{"name":"build","counter":"1","status":"Passed"},{"name":"test","counter":"1","status":"Building"}]}}]}},
+                  {"name":"api","last_updated_timestamp":1767268800000,"_embedded":{"instances":[]}}
+                ]}}
+                """);
+        var context = ProviderTestHelpers.Context("gocd", handler, server);
+        var activity = await ProviderTestHelpers.Provider("gocd").RecentActivity(context, [], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(activity!["web"]).IsEqualTo("42:build=Passed,test=Building");
+        await Assert.That(activity["api"]).IsEqualTo("");
+    }
+
+    [Test]
+    public async Task ADashboardStillLoadingFailsThePollRatherThanEmptyingIt()
+    {
+        var handler = new FakeHttpHandler()
+            .Map("GET", $"{server}/go/api/dashboard", """{"message":"Dashboard is being processed, this may take a few seconds. Please check back later."}""", HttpStatusCode.Accepted);
+        var context = ProviderTestHelpers.Context("gocd", handler, server);
+        await Assert.That(async () => await ProviderTestHelpers.Provider("gocd").DiscoverPipelines(context, Cancel.None)).Throws<HttpRequestException>();
     }
 
     [Test]

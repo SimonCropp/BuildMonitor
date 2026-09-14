@@ -12,6 +12,12 @@ sealed class GoCdProvider : ProviderBase
 
     static readonly KeyValuePair<string, string> confirm = new("X-GoCD-Confirm", "true");
 
+    /// <summary>
+    /// GoCD rejects a history page_size outside 10 to 100 with a 400, so asking for just the five
+    /// builds a row needs failed every poll. It asks for at least this many and keeps the newest.
+    /// </summary>
+    const int minimumPageSize = 10;
+
     public override Uri BaseAddress(Connection connection) =>
         new(base.BaseAddress(connection), "go/api/");
 
@@ -22,15 +28,47 @@ sealed class GoCdProvider : ProviderBase
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
-        var dashboard = await context.Http.Get("dashboard", GoCdContext.Default.GoCdDashboard, cancel);
+        var dashboard = await Dashboard(context, cancel);
         var pipelines = new List<Pipeline>();
         var server = Server(context);
-        foreach (var group in dashboard.Embedded?.PipelineGroups ?? [])
+        foreach (var group in dashboard.PipelineGroups)
         {
             pipelines.AddRange(group.Pipelines.Select(_ => new Pipeline(_, _, group.Name, group.Name, $"{server}/go/pipeline/activity/{Encode(_)}")));
         }
 
         return pipelines;
+    }
+
+    /// <summary>
+    /// Until its cache has loaded after a restart, GoCD answers the dashboard with a 202 and a
+    /// message in place of pipelines. Read as an empty server, every row vanished for a poll;
+    /// failing the poll instead keeps the rows until the dashboard is ready.
+    /// </summary>
+    static async Task<GoCdDashboardEmbedded> Dashboard(ProviderContext context, Cancel cancel)
+    {
+        var dashboard = await context.Http.Get("dashboard", GoCdContext.Default.GoCdDashboard, cancel);
+        return dashboard.Embedded ?? throw new HttpRequestException("GoCD is still loading its dashboard");
+    }
+
+    /// <summary>
+    /// The dashboard discovery reads, with each pipeline's instance counters and stage statuses
+    /// as its token. Its ETag changes only when something visible does, so an unchanged dashboard is
+    /// a 304, where fetching history for every pipeline returns a full response each time. Last
+    /// updated times are not used: a configuration change bumps them on every pipeline. Progress
+    /// inside a job does not change the dashboard, which the schedule covers.
+    /// </summary>
+    public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
+    {
+        var dashboard = await Dashboard(context, cancel);
+        var tokens = ImmutableDictionary.CreateBuilder<string, string>();
+        foreach (var pipeline in dashboard.Pipelines)
+        {
+            var instances = (pipeline.Embedded?.Instances ?? [])
+                .Select(_ => $"{_.Counter}:{string.Join(',', (_.Embedded?.Stages ?? []).Select(stage => $"{stage.Name}={stage.Status}"))}");
+            tokens[pipeline.Name] = string.Join(';', instances);
+        }
+
+        return tokens.ToImmutable();
     }
 
     static string Server(ProviderContext context) =>
@@ -40,10 +78,11 @@ sealed class GoCdProvider : ProviderBase
     {
         var builds = new List<Build>();
         var server = Server(context);
+        var pageSize = Math.Clamp(perPipeline, minimumPageSize, 100);
         foreach (var pipeline in pipelines)
         {
-            var history = await context.Http.Get($"pipelines/{Encode(pipeline.Id)}/history?page_size={perPipeline}", GoCdContext.Default.GoCdHistory, cancel);
-            builds.AddRange(history.Pipelines.Select(_ => Convert(context.Connection.Id, server, pipeline, _)));
+            var history = await context.Http.Get($"pipelines/{Encode(pipeline.Id)}/history?page_size={pageSize}", GoCdContext.Default.GoCdHistory, cancel);
+            builds.AddRange(history.Pipelines.Take(perPipeline).Select(_ => Convert(context.Connection.Id, server, pipeline, _)));
         }
 
         return builds;

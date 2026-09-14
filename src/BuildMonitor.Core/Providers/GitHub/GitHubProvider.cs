@@ -74,22 +74,44 @@ sealed class GitHubProvider : ProviderBase
         return pipelines;
     }
 
+    /// <summary>
+    /// The repository listings discovery reads, most recently pushed first: every repository the
+    /// token can see, or with an owner named, an organization, or a user when no organization of
+    /// that name is found.
+    /// </summary>
+    static string[] Listings(string owner) =>
+        owner.Length == 0
+            ? ["user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member"]
+            : [$"orgs/{Encode(owner)}/repos?per_page=100&sort=pushed&type=all", $"users/{Encode(owner)}/repos?per_page=100&sort=pushed"];
+
     static async Task<List<GitHubRepository>> Repositories(ProviderContext context, Cancel cancel)
     {
-        var owner = context.Scope("owner");
-        if (owner.Length == 0)
-        {
-            return await Pages(context, "user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member", cancel);
-        }
-
+        var listings = Listings(context.Scope("owner"));
         try
         {
-            return await Pages(context, $"orgs/{Encode(owner)}/repos?per_page=100&sort=pushed&type=all", cancel);
+            return await Pages(context, listings[0], cancel);
         }
-        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        catch (HttpRequestException exception) when (listings.Length > 1 &&
+                                                     exception.StatusCode == HttpStatusCode.NotFound)
         {
-            return await Pages(context, $"users/{Encode(owner)}/repos?per_page=100&sort=pushed", cancel);
+            return await Pages(context, listings[1], cancel);
         }
+    }
+
+    /// <summary>
+    /// Page 1 of the listing discovery reads, most recently pushed first, with each repository's
+    /// pushed_at as its token. It shares discovery's ETag, so while nothing is pushed it is a 304
+    /// that costs nothing against the hourly limit, and a repository pushed to is fetched at once
+    /// rather than at its idle cap.
+    /// </summary>
+    public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
+    {
+        var listings = Listings(context.Scope("owner"));
+        // With an owner named, the cached listing is the one discovery settled on; asking the
+        // organization first every time would pay its 404 on every probe of a user.
+        var listing = listings.FirstOrDefault(_ => context.Http.IsCached($"{_}&page=1")) ?? listings[0];
+        var repositories = await context.Http.Get($"{listing}&page=1", GitHubContext.Default.ListGitHubRepository, cancel);
+        return repositories.ToImmutableDictionary(_ => _.FullName, _ => $"{_.PushedAt:O}");
     }
 
     static async Task<List<GitHubRepository>> Pages(ProviderContext context, string path, Cancel cancel)
@@ -146,7 +168,8 @@ sealed class GitHubProvider : ProviderBase
             cancel,
             context.Progress);
         var all = perRepository.SelectMany(_ => _).ToList();
-        Log.Information(
+        // The poller fetches a repository at a time and logs each cycle; this is only for detail.
+        Log.Debug(
             "GitHub fetch: {Repositories} repositories, {Builds} runs, {Elapsed:0.0}s",
             repositories.Count,
             all.Count,

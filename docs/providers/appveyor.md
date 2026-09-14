@@ -29,3 +29,39 @@ One per project. Pull request builds link to the pull request on GitHub.
 ## Estimates
 
 The countdown comes from the median of the project's last ten successful builds.
+
+
+## Polling
+
+Each project is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). AppVeyor sends no ETags, so every request returns a full response. Once a minute the projects list is read, which carries each project's latest build, and a project whose latest build changed is fetched at once rather than when its schedule comes round. A build that starts on another branch while a newer one exists waits for the schedule.
+
+
+## API notes
+
+Researched 2026-09-14. [live] means checked with anonymous requests against ci.appveyor.com; [docs] names the evidence. See [Provider APIs](api-comparison.md) for every provider side by side.
+
+
+### Rate limits
+
+None published, and no rate limit headers on project, history or 401 responses [live].
+
+
+### Conditional requests
+
+None. Responses send `Cache-Control: no-cache`, `Pragma: no-cache` and `Expires: -1`, with no ETag or Last-Modified [live]. A five build history is about 7.6 KB.
+
+
+### Change detection
+
+`GET /api/projects`, which needs a token, includes each project's latest build in `builds`: `buildId`, `version`, `status`, `started`, `finished`, `created`, `updated`, `branch`, `commitId` and `authorName` [docs]. The single project endpoint returns its build separately, as `build` [live].
+
+
+### Batching
+
+Only the latest build per project, through the projects list. History is per project.
+
+
+### Sources
+
+ * [Projects and builds API](https://www.appveyor.com/docs/api/projects-builds/)
+ * [API](https://www.appveyor.com/docs/api/)

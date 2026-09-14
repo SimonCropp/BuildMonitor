@@ -1,10 +1,23 @@
 public class GitLabProviderTests
 {
+    const string graph = "https://gitlab.com/api/graphql";
+
     static FakeHttpHandler Handler() =>
         new FakeHttpHandler()
             .Get(
-                "https://gitlab.com/api/v4/projects?membership=true&simple=true&archived=false&order_by=last_activity_at&per_page=100",
+                "https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100",
                 """[{"id":77,"path_with_namespace":"verify/diffengine","web_url":"https://gitlab.com/verify/diffengine"}]""")
+            .Get(
+                graph,
+                """
+                {"data":{"projects":{"nodes":[{"id":"gid://gitlab/Project/77","pipelines":{"nodes":[
+                  {"id":"gid://gitlab/Ci::Pipeline/5001","iid":"120","status":"RUNNING","ref":"main","sha":"abc123","createdAt":"2026-01-01T11:55:00Z","updatedAt":"2026-01-01T11:56:00Z","startedAt":"2026-01-01T11:55:30Z","finishedAt":null,"user":{"name":"Simon"}},
+                  {"id":"gid://gitlab/Ci::Pipeline/5000","iid":"119","status":"FAILED","ref":"refs/merge-requests/9/head","sha":"def456","createdAt":"2026-01-01T10:00:00Z","updatedAt":"2026-01-01T10:08:00Z","startedAt":"2026-01-01T10:00:20Z","finishedAt":"2026-01-01T10:08:00Z","user":{"name":"Simon"}}
+                ]}}]}}}
+                """);
+
+    static FakeHttpHandler Rest(FakeHttpHandler handler) =>
+        handler
             .Get(
                 "https://gitlab.com/api/v4/projects/77/pipelines?per_page=5",
                 """
@@ -23,6 +36,38 @@ public class GitLabProviderTests
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
         await Verify(new { builds, handler.Requests });
+    }
+
+    [Test]
+    public async Task GraphQLErrorsFallBackToRest()
+    {
+        var handler = Rest(Handler().Get(graph, """{"errors":[{"message":"Field 'startedAt' doesn't exist on type 'Pipeline'"}]}"""));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
+        await Assert.That(builds.Select(_ => _.RunNumber)).IsEquivalentTo(new[] { "120", "119" });
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/pipelines?per_page=5"))).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AProjectLeftOutOfTheGraphQLAnswerIsFetchedOverRest()
+    {
+        var handler = Rest(Handler().Get(graph, """{"data":{"projects":{"nodes":[]}}}"""));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
+        await Assert.That(builds.Count).IsEqualTo(2);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/pipelines?per_page=5"))).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task ProjectsAreAskedForFiftyAtATime()
+    {
+        var pipelines = Enumerable.Range(1, 51)
+            .Select(_ => new Pipeline(_.ToString(), $"verify/p{_}", $"verify/p{_}", null, $"https://gitlab.com/verify/p{_}/-/pipelines"))
+            .ToList();
+        var nodes = string.Join(',', pipelines.Select(_ => $$$"""{"id":"gid://gitlab/Project/{{{_.Id}}}","pipelines":{"nodes":[]}}"""));
+        var handler = new FakeHttpHandler().Get(graph, $$$$"""{"data":{"projects":{"nodes":[{{{{nodes}}}}]}}}""");
+        var context = ProviderTestHelpers.Context("gitlab", handler);
+        await ProviderTestHelpers.Provider("gitlab").FetchBuilds(context, pipelines, 5, Cancel.None);
+        await Assert.That(handler.Requests.Count).IsEqualTo(2);
+        await Assert.That(handler.Requests.All(_ => _.StartsWith($"GET {graph}?query=", StringComparison.Ordinal))).IsTrue();
     }
 
     [Test]
@@ -51,14 +96,14 @@ public class GitLabProviderTests
     public async Task GroupScopeAndSelfHosted()
     {
         var handler = new FakeHttpHandler()
-            .Get("https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&simple=true&archived=false&order_by=last_activity_at&per_page=100", "[]");
+            .Get("https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100", "[]");
         var context = ProviderTestHelpers.Context("gitlab", handler, "https://gitlab.example.com/", scope: ("group", "verify"));
         await ProviderTestHelpers.Provider("gitlab").DiscoverPipelines(context, Cancel.None);
         await Verify(handler.Requests)
             .Snapshot(
                 """
                 [
-                  GET https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&simple=true&archived=false&order_by=last_activity_at&per_page=100
+                  GET https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100
                 ]
                 """);
     }

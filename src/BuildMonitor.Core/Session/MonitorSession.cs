@@ -495,6 +495,51 @@ static class MonitorSession
         });
     }
 
+    /// <summary>
+    /// The result of one scheduled cycle, which fetched only the groups that were due. The fetched
+    /// pipelines' builds are replaced, builds of pipelines no longer discovered go, and the rest
+    /// stay. Replacing wholesale, as <see cref="ApplyPoll"/> does, would blank every row the cycle
+    /// did not fetch.
+    /// <para>
+    /// A pipeline fetched for the first time is not news. When the request quota defers groups
+    /// after a start, their first fetch would otherwise announce every red pipeline at once.
+    /// </para>
+    /// </summary>
+    public static SessionState ApplyFetch(SessionState state, string connectionId, FetchOutcome outcome, DateTimeOffset now)
+    {
+        var discovered = outcome.Pipelines.Select(_ => _.Id).ToHashSet();
+        var previous = state.Builds.Where(_ => _.ConnectionId == connectionId).ToImmutableArray();
+        var next = UpdateConnection(
+            state,
+            connectionId,
+            _ => _ with
+            {
+                Health = outcome.Health,
+                Error = outcome.Error,
+                RetryAfter = outcome.RetryAfter,
+                LastPolled = outcome.Fetched.Count > 0 ? now : _.LastPolled,
+                Pipelines = outcome.Pipelines,
+                Progress = null
+            });
+        var notification = state.Notification;
+        if (state.Settings.NotifyOnFailure)
+        {
+            var news = outcome.Builds.Where(_ => !outcome.FirstFetch.Contains(_.PipelineId)).ToImmutableArray();
+            notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, news)) ?? notification;
+        }
+
+        return Clamp(next with
+        {
+            Builds =
+            [
+                ..next.Builds.Where(_ => _.ConnectionId != connectionId),
+                ..previous.Where(_ => discovered.Contains(_.PipelineId) && !outcome.Fetched.Contains(_.PipelineId)),
+                ..outcome.Builds
+            ],
+            Notification = notification
+        });
+    }
+
     public static SessionState ClearNotification(SessionState state) =>
         state with { Notification = null };
 

@@ -11,7 +11,7 @@ public class AzureDevOpsProviderTests
                 $"{organization}/Web/_apis/pipelines?api-version=7.1",
                 """{"count":2,"value":[{"id":1,"name":"CI","folder":"\\","_links":{"web":{"href":"https://dev.azure.com/contoso/Web/_build?definitionId=1"}}},{"id":2,"name":"Nightly","folder":"\\ops"}]}""")
             .Get(
-                $"{organization}/Web/_apis/build/builds?definitions=1,2&$top=10&queryOrder=queueTimeDescending&api-version=7.1",
+                $"{organization}/Web/_apis/build/builds?definitions=1,2&maxBuildsPerDefinition=5&queryOrder=queueTimeDescending&api-version=7.1",
                 """
                 {"count":3,"value":[
                   {"id":301,"buildNumber":"20260101.3","status":"inProgress","result":null,"queueTime":"2026-01-01T11:50:00Z","startTime":"2026-01-01T11:51:00Z","sourceBranch":"refs/heads/main","sourceVersion":"abc123","reason":"individualCI","requestedFor":{"displayName":"Simon"},"definition":{"id":1,"name":"CI"},"repository":{"id":"r1","type":"TfsGit","name":"Web"},"triggerInfo":{"ci.message":"Fix"},"_links":{"web":{"href":"https://dev.azure.com/contoso/Web/_build/results?buildId=301"}}},
@@ -26,6 +26,42 @@ public class AzureDevOpsProviderTests
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso")));
         await Verify(new { builds, handler.Requests });
+    }
+
+    static PollGroup Web() =>
+        new("Web", [new("Web/1", "CI", "Web", "Web", "https://dev.azure.com/contoso/Web"), new("Web/2", "Nightly", "Web", "Web", "https://dev.azure.com/contoso/Web")]);
+
+    [Test]
+    public async Task TheFirstProbeAsksForTheNewestBuild()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{organization}/Web/_apis/build/builds", """{"count":1,"value":[{"id":301,"queueTime":"2026-01-01T11:50:00Z","definition":{"id":1}}]}""");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var activity = await ProviderTestHelpers.Provider("azure-devops").RecentActivity(context, [Web()], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(activity!["Web"]).IsEqualTo("2026-01-01T11:50:00.0000000+00:00");
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {organization}/Web/_apis/build/builds?definitions=1,2&$top=1&queryOrder=queueTimeDescending&api-version=7.1");
+    }
+
+    [Test]
+    public async Task ALaterProbeAsksOnlyForBuildsQueuedSince()
+    {
+        const string seen = "2026-01-01T11:50:00.0000000+00:00";
+        var handler = new FakeHttpHandler()
+            .Get($"{organization}/Web/_apis/build/builds", """{"count":0,"value":[]}""");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var activity = await ProviderTestHelpers.Provider("azure-devops").RecentActivity(context, [Web()], ImmutableDictionary<string, string>.Empty.Add("Web", seen), Cancel.None);
+        await Assert.That(activity!["Web"]).IsEqualTo(seen);
+        await Assert.That(handler.Requests.Single()).Contains("&minTime=2026-01-01T11");
+    }
+
+    [Test]
+    public async Task ABuildQueuedSinceMovesTheToken()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{organization}/Web/_apis/build/builds", """{"count":1,"value":[{"id":302,"queueTime":"2026-01-01T11:58:00Z","definition":{"id":2}}]}""");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var activity = await ProviderTestHelpers.Provider("azure-devops").RecentActivity(context, [Web()], ImmutableDictionary<string, string>.Empty.Add("Web", "2026-01-01T11:50:00.0000000+00:00"), Cancel.None);
+        await Assert.That(activity!["Web"]).IsEqualTo("2026-01-01T11:58:00.0000000+00:00");
     }
 
     [Test]

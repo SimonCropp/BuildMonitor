@@ -2,10 +2,12 @@ public class TeamCityProviderTests
 {
     const string server = "https://teamcity.example.com";
 
+    // Discovery and fetch both read buildTypes, so discovery is mapped by its full URL and the
+    // fetch falls back to the URL without its query.
     static FakeHttpHandler Handler() =>
         new FakeHttpHandler()
             .Get(
-                $"{server}/app/rest/buildTypes",
+                $"{server}/app/rest/buildTypes?locator=affectedProject:(id:_Root)&fields=buildType(id,name,projectName,projectId,webUrl)",
                 """
                 {"buildType":[
                   {"id":"Verify_Build","name":"Build","projectName":"Verify","projectId":"Verify","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build"},
@@ -13,13 +15,19 @@ public class TeamCityProviderTests
                 ]}
                 """)
             .Get(
-                $"{server}/app/rest/builds",
+                $"{server}/app/rest/buildTypes",
                 """
-                {"build":[
-                  {"id":9001,"number":"120","status":"SUCCESS","state":"running","branchName":"pull/15","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9001","statusText":"Step 2 of 4","queuedDate":"20260101T115000+0000","startDate":"20260101T115100+0000","buildTypeId":"Verify_Build","running-info":{"percentageComplete":40,"elapsedSeconds":120,"estimatedTotalSeconds":300,"leftSeconds":180},"triggered":{"user":{"username":"simon","name":"Simon"}},"revisions":{"revision":[{"version":"abc123"}]}},
-                  {"id":9000,"number":"119","status":"FAILURE","state":"finished","branchName":"main","defaultBranch":true,"webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9000","statusText":"Tests failed: 1","queuedDate":"20260101T100000+0000","startDate":"20260101T100100+0000","finishDate":"20260101T100600+0000","buildTypeId":"Verify_Build"},
-                  {"id":8999,"number":"50","status":"UNKNOWN","state":"finished","branchName":"main","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Docs/8999","statusText":"Canceled","queuedDate":"20260101T090000+0000","startDate":"20260101T090100+0000","finishDate":"20260101T090200+0000","buildTypeId":"Verify_Docs","canceledInfo":{"text":"stopped"}},
-                  {"id":8998,"number":"3","status":"SUCCESS","state":"queued","webUrl":"https://teamcity.example.com/buildConfiguration/Other/8998","queuedDate":"20260101T115900+0000","buildTypeId":"Other_Config"}
+                {"buildType":[
+                  {"id":"Verify_Build","builds":{"build":[
+                    {"id":9001,"number":"120","status":"SUCCESS","state":"running","branchName":"pull/15","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9001","statusText":"Step 2 of 4","queuedDate":"20260101T115000+0000","startDate":"20260101T115100+0000","buildTypeId":"Verify_Build","running-info":{"percentageComplete":40,"elapsedSeconds":120,"estimatedTotalSeconds":300,"leftSeconds":180},"triggered":{"user":{"username":"simon","name":"Simon"}},"revisions":{"revision":[{"version":"abc123"}]}},
+                    {"id":9000,"number":"119","status":"FAILURE","state":"finished","branchName":"main","defaultBranch":true,"webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9000","statusText":"Tests failed: 1","queuedDate":"20260101T100000+0000","startDate":"20260101T100100+0000","finishDate":"20260101T100600+0000","buildTypeId":"Verify_Build"}
+                  ]}},
+                  {"id":"Verify_Docs","builds":{"build":[
+                    {"id":8999,"number":"50","status":"UNKNOWN","state":"finished","branchName":"main","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Docs/8999","statusText":"Canceled","queuedDate":"20260101T090000+0000","startDate":"20260101T090100+0000","finishDate":"20260101T090200+0000","buildTypeId":"Verify_Docs","canceledInfo":{"text":"stopped"}}
+                  ]}},
+                  {"id":"Other_Config","builds":{"build":[
+                    {"id":8998,"number":"3","status":"SUCCESS","state":"queued","webUrl":"https://teamcity.example.com/buildConfiguration/Other/8998","queuedDate":"20260101T115900+0000","buildTypeId":"Other_Config"}
+                  ]}}
                 ]}
                 """);
 
@@ -29,6 +37,30 @@ public class TeamCityProviderTests
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("teamcity", ProviderTestHelpers.Context("teamcity", handler, server));
         await Verify(new { builds, handler.Requests });
+    }
+
+    [Test]
+    public async Task AQueueDoesNotHideAQuietConfiguration()
+    {
+        var queued = string.Join(",", Enumerable.Range(1, 5).Select(_ => $$"""{"id":{{_}},"state":"queued","buildTypeId":"Verify_Build","queuedDate":"20260101T115900+0000"}"""));
+        var handler = new FakeHttpHandler()
+            .Get(
+                $"{server}/app/rest/buildTypes",
+                $$$"""
+                {"buildType":[
+                  {"id":"Verify_Build","builds":{"build":[{{{queued}}}]}},
+                  {"id":"Verify_Docs","builds":{"build":[{"id":100,"number":"7","status":"SUCCESS","state":"finished","buildTypeId":"Verify_Docs","queuedDate":"20240101T100000+0000","startDate":"20240101T100100+0000","finishDate":"20240101T100500+0000"}]}}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        Pipeline[] pipelines =
+        [
+            new("Verify_Build", "Verify / Build", "Verify", "Verify", $"{server}/buildConfiguration/Verify_Build"),
+            new("Verify_Docs", "Verify / Docs", "Verify", "Verify", $"{server}/buildConfiguration/Verify_Docs")
+        ];
+        var builds = await ProviderTestHelpers.Provider("teamcity").FetchBuilds(context, pipelines, 5, Cancel.None);
+        await Assert.That(builds.Count(_ => _.PipelineId == "Verify_Build")).IsEqualTo(5);
+        await Assert.That(builds.Single(_ => _.PipelineId == "Verify_Docs").RunNumber).IsEqualTo("7");
     }
 
     [Test]

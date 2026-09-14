@@ -6,3 +6,4 @@
  * [Linux](/docs/linux.md)
  * [macOS](/docs/macos.md)
  * [Troubleshooting](/docs/troubleshooting.md)
+ * [Provider APIs](/docs/providers/api-comparison.md)

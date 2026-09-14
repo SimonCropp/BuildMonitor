@@ -1,9 +1,11 @@
 /// <summary>
 /// https://www.jetbrains.com/help/teamcity/rest/teamcity-rest-api-documentation.html
 /// <para>
-/// One request lists recent builds across every configuration, rather than one per
+/// One request fetches the latest builds of every configuration, rather than one request per
 /// configuration: a server with a few hundred build configurations would otherwise cost a few
-/// hundred calls a poll.
+/// hundred calls a poll. The builds are asked for per configuration inside that request. A flat
+/// list of recent builds puts queued builds first, so a long queue filled it and hid every
+/// configuration that had not built lately.
 /// </para>
 /// </summary>
 sealed class TeamCityProvider : ProviderBase
@@ -35,29 +37,19 @@ sealed class TeamCityProvider : ProviderBase
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
     {
         var byType = pipelines.ToDictionary(_ => _.Id);
-        var count = Math.Min(500, perPipeline * pipelines.Count);
         var response = await context.Http.Get(
-            $"builds?locator=affectedProject:(id:{Encode(Project(context))}),branch:default:any,state:any,canceled:any,failedToStart:any,count:{count}&fields={buildFields}",
-            TeamCityContext.Default.TeamCityBuilds,
+            $"buildTypes?locator=affectedProject:(id:{Encode(Project(context))})&fields=buildType(id,builds($locator(branch:default:any,state:any,canceled:any,failedToStart:any,count:{perPipeline}),{buildFields}))",
+            TeamCityContext.Default.TeamCityBuildTypes,
             cancel);
         var builds = new List<Build>();
-        var taken = new Dictionary<string, int>();
-        foreach (var build in response.Build)
+        foreach (var type in response.BuildType)
         {
-            if (build.BuildTypeId is null ||
-                !byType.TryGetValue(build.BuildTypeId, out var pipeline))
+            if (!byType.TryGetValue(type.Id, out var pipeline))
             {
                 continue;
             }
 
-            taken.TryGetValue(build.BuildTypeId, out var soFar);
-            if (soFar >= perPipeline)
-            {
-                continue;
-            }
-
-            taken[build.BuildTypeId] = soFar + 1;
-            builds.Add(Convert(context.Connection.Id, pipeline, build));
+            builds.AddRange((type.Builds?.Build ?? []).Take(perPipeline).Select(_ => Convert(context.Connection.Id, pipeline, _)));
         }
 
         return builds;

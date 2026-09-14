@@ -59,6 +59,38 @@ sealed class JenkinsProvider : ProviderBase
         jenkinsClass is not null &&
         jenkinsClass.Contains("MultiBranchProject", StringComparison.Ordinal);
 
+    const string probeFields = "url,_class,nextBuildNumber,inQueue";
+
+    /// <summary>
+    /// The job tree again, as deep as discovery's first request, with each job's next build
+    /// number and whether a build is queued as its token; neither reads a build record. Jenkins
+    /// sends no ETags and fetching a job reads its last builds from disk, so without this every
+    /// quiet job cost that each time its schedule came round. Jobs deeper than the tree reaches
+    /// have no token and wait for the schedule.
+    /// </summary>
+    public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
+    {
+        var root = await context.Http.Get($"api/json?tree=jobs[{probeFields},jobs[{probeFields},jobs[{probeFields}]]]", JenkinsContext.Default.JenkinsNode, cancel);
+        var tokens = ImmutableDictionary.CreateBuilder<string, string>();
+        Collect(root, tokens);
+        return tokens.ToImmutable();
+    }
+
+    static void Collect(JenkinsNode node, ImmutableDictionary<string, string>.Builder tokens)
+    {
+        foreach (var job in node.Jobs ?? [])
+        {
+            if (IsContainer(job.Class))
+            {
+                Collect(job, tokens);
+            }
+            else if (job.NextBuildNumber is { } next)
+            {
+                tokens[job.Url] = $"{next}|{job.InQueue}";
+            }
+        }
+    }
+
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
     {
         var builds = new List<Build>();

@@ -7,6 +7,12 @@
 /// or Bitbucket; null when the token stands alone.</param>
 /// <param name="CustomClientId">Whether a user may supply their own OAuth client id, which a self
 /// hosted instance with its own application registration needs.</param>
+/// <param name="FetchUnit">What one fetch covers, which the poller schedules as one group.</param>
+/// <param name="FetchConcurrency">How many groups are fetched at once.</param>
+/// <param name="Quota">A request budget the service enforces, or null when its headers are enough.</param>
+/// <param name="IdleCap">The longest a quiet group waits between fetches; null for the default.</param>
+/// <param name="ProbeInterval">How often <see cref="IProvider.RecentActivity"/> is asked; null for
+/// the poll interval.</param>
 record ProviderDescriptor(
     string Id,
     string Name,
@@ -23,7 +29,12 @@ record ProviderDescriptor(
     bool HasBranches,
     bool HasPullRequests,
     bool CustomClientId = false,
-    string? Notes = null)
+    string? Notes = null,
+    FetchUnit FetchUnit = FetchUnit.Pipeline,
+    int FetchConcurrency = 1,
+    RequestQuota? Quota = null,
+    TimeSpan? IdleCap = null,
+    TimeSpan? ProbeInterval = null)
 {
     public IEnumerable<AuthMethod> AuthMethods()
     {

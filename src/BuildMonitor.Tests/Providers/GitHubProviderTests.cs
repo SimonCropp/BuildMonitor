@@ -143,6 +143,43 @@ public class GitHubProviderTests
     }
 
     [Test]
+    public async Task RecentActivityReadsTheFirstPageOfTheListing()
+    {
+        var handler = Handler();
+        var context = ProviderTestHelpers.Context("github", handler);
+        var activity = await ProviderTestHelpers.Provider("github").RecentActivity(context, [], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(activity!["VerifyTests/DiffEngine"]).IsEqualTo("2099-01-01T00:00:00.0000000+00:00");
+        await Assert.That(handler.Requests.Single()).IsEqualTo("GET https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1");
+    }
+
+    [Test]
+    public async Task RecentActivitySharesTheDiscoveryETag()
+    {
+        const string listing = "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1";
+        var handler = new FakeHttpHandler().Map("GET", listing, "[]", HttpStatusCode.OK, ("ETag", "\"repos\""));
+        var context = ProviderTestHelpers.Context("github", handler);
+        var provider = ProviderTestHelpers.Provider("github");
+        await provider.DiscoverPipelines(context, Cancel.None);
+        handler.Map("GET", listing, "", HttpStatusCode.NotModified);
+        await provider.RecentActivity(context, [], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(handler.Requests[^1]).IsEqualTo($"GET {listing}\n  If-None-Match: \"repos\"");
+    }
+
+    [Test]
+    public async Task RecentActivityUsesTheUserListingOnceDiscoveryFoundIt()
+    {
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/orgs/SimonCropp/repos?per_page=100&sort=pushed&type=all&page=1", "{}", HttpStatusCode.NotFound)
+            .Map("GET", "https://api.github.com/users/SimonCropp/repos?per_page=100&sort=pushed&page=1", "[]", HttpStatusCode.OK, ("ETag", "\"user\""));
+        var context = ProviderTestHelpers.Context("github", handler, scope: ("owner", "SimonCropp"));
+        var provider = ProviderTestHelpers.Provider("github");
+        await provider.DiscoverPipelines(context, Cancel.None);
+        handler.Requests.Clear();
+        await provider.RecentActivity(context, [], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(handler.Requests.Single()).StartsWith("GET https://api.github.com/users/SimonCropp/repos");
+    }
+
+    [Test]
     public async Task NotModifiedComesFromTheCache()
     {
         var handler = new FakeHttpHandler()

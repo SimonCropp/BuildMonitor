@@ -42,6 +42,28 @@ sealed class AppVeyorProvider : ProviderBase
         return builds;
     }
 
+    /// <summary>
+    /// The projects list, which carries each project's latest build, with that build's id, status
+    /// and last update as the token. AppVeyor sends no ETags, so without this every quiet project
+    /// would cost a full history request each time its schedule came round just to find nothing
+    /// new; one list a minute finds the projects that changed. Builds on other branches that start
+    /// while a newer one exists wait for the schedule.
+    /// </summary>
+    public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
+    {
+        var projects = await context.Http.Get($"{Prefix(context)}/projects", AppVeyorContext.Default.ListAppVeyorProject, cancel);
+        var tokens = ImmutableDictionary.CreateBuilder<string, string>();
+        foreach (var project in projects)
+        {
+            if (project.Builds.FirstOrDefault() is { } build)
+            {
+                tokens[$"{project.AccountName}/{project.Slug}"] = $"{build.BuildId}|{build.Status}|{build.Updated?.ToString("O", CultureInfo.InvariantCulture)}";
+            }
+        }
+
+        return tokens.ToImmutable();
+    }
+
     static Build Convert(string connectionId, Pipeline pipeline, AppVeyorBuild build)
     {
         var status = build.Status switch

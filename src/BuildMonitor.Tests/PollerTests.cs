@@ -112,6 +112,24 @@ public class PollerTests
     }
 
     [Test]
+    [Arguments(1, 60)]
+    [Arguments(2, 120)]
+    [Arguments(3, 240)]
+    public async Task ARateLimitWithoutATimeBacksOffFromAMinute(int times, int seconds)
+    {
+        var (host, secrets, history) = Setup();
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/user/repos", "{}", HttpStatusCode.TooManyRequests);
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => Fixtures.Now);
+        for (var attempt = 0; attempt < times; attempt++)
+        {
+            await poller.PollOnce(Cancel.None);
+        }
+
+        await Assert.That(host.State.Connection(Fixtures.GitHub.Id)!.RetryAfter).IsEqualTo(Fixtures.Now.AddSeconds(seconds));
+    }
+
+    [Test]
     public async Task AnyOtherFailureIsAnError()
     {
         var (host, secrets, history) = Setup();
@@ -167,6 +185,224 @@ public class PollerTests
     [Arguments(20, 600)]
     public async Task BackoffDoublesToTenMinutes(int failures, int seconds) =>
         await Assert.That(Backoff.Next(TimeSpan.FromSeconds(30), failures)).IsEqualTo(TimeSpan.FromSeconds(seconds));
+
+    const string busyRuns = "https://api.github.com/repos/VerifyTests/Busy/actions/runs?per_page=5";
+    const string quietRuns = "https://api.github.com/repos/VerifyTests/Quiet/actions/runs?per_page=5";
+
+    // Busy has a run a minute in with no estimate, so it is finishing and due every ten seconds.
+    // Quiet last built a day before, so it waits the five minute idle cap.
+    static FakeHttpHandler TwoRepositories() =>
+        new FakeHttpHandler()
+            .Get("https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1",
+                """
+                [
+                  {"full_name":"VerifyTests/Busy","html_url":"https://github.com/VerifyTests/Busy","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"},
+                  {"full_name":"VerifyTests/Quiet","html_url":"https://github.com/VerifyTests/Quiet","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"}
+                ]
+                """)
+            .Get("https://api.github.com/repos/VerifyTests/Busy/actions/workflows?per_page=100",
+                """{"total_count":1,"workflows":[{"id":1,"name":"Busy","path":".github/workflows/busy.yml","state":"active"}]}""")
+            .Get("https://api.github.com/repos/VerifyTests/Quiet/actions/workflows?per_page=100",
+                """{"total_count":1,"workflows":[{"id":2,"name":"Quiet","path":".github/workflows/quiet.yml","state":"active"}]}""")
+            .Get(busyRuns,
+                """{"total_count":1,"workflow_runs":[{"id":10,"workflow_id":1,"run_number":5,"status":"in_progress","head_branch":"main","html_url":"https://github.com/x/10","created_at":"2026-01-01T11:59:00Z","updated_at":"2026-01-01T11:59:30Z","run_started_at":"2026-01-01T11:59:00Z","pull_requests":[]}]}""")
+            .Get(quietRuns,
+                """{"total_count":1,"workflow_runs":[{"id":20,"workflow_id":2,"run_number":3,"status":"completed","conclusion":"success","head_branch":"main","html_url":"https://github.com/x/20","created_at":"2025-12-31T12:00:00Z","updated_at":"2025-12-31T12:05:00Z","run_started_at":"2025-12-31T12:00:00Z","pull_requests":[]}]}""");
+
+    static int Fetches(FakeHttpHandler handler, string url) =>
+        handler.Requests.Count(_ => _.StartsWith($"GET {url}", StringComparison.Ordinal));
+
+    [Test]
+    public async Task OnlyDueRepositoriesAreFetched()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        await Assert.That(poller.WakeAt!.Value - now).IsBetween(TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(12));
+        handler.Requests.Clear();
+
+        now = now.AddSeconds(40);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(Fetches(handler, busyRuns)).IsEqualTo(1);
+        await Assert.That(Fetches(handler, quietRuns)).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task AFailingRepositoryDoesNotHideTheOthers()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories().Map("GET", quietRuns, "boom", HttpStatusCode.InternalServerError);
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => Fixtures.Now);
+
+        var health = await poller.PollOnce(Cancel.None);
+
+        await Assert.That(health).IsEqualTo(ConnectionHealth.Error);
+        await Assert.That(host.State.Builds.Select(_ => _.RunNumber)).IsEquivalentTo(new[] { "5" });
+        await Assert.That(host.State.Connection(Fixtures.GitHub.Id)!.Error).StartsWith("1 of 2 failed: 500");
+    }
+
+    [Test]
+    public async Task AFailingRepositoryBacksOffAlone()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories().Map("GET", quietRuns, "boom", HttpStatusCode.InternalServerError);
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+
+        // First failure: retried after about thirty seconds, alongside the busy repository.
+        now = now.AddSeconds(40);
+        handler.Requests.Clear();
+        await poller.PollDue(Cancel.None);
+        await Assert.That(Fetches(handler, quietRuns)).IsEqualTo(1);
+
+        // Second failure: about a minute, while the busy repository keeps its ten seconds.
+        now = now.AddSeconds(20);
+        handler.Requests.Clear();
+        await poller.PollDue(Cancel.None);
+        await Assert.That(Fetches(handler, busyRuns)).IsEqualTo(1);
+        await Assert.That(Fetches(handler, quietRuns)).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ANudgeFetchesOnlyThatRepository()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Requests.Clear();
+
+        now = now.AddSeconds(3);
+        poller.Nudge("VerifyTests/Quiet/2");
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(Fetches(handler, quietRuns)).IsEqualTo(1);
+        await Assert.That(Fetches(handler, busyRuns)).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ARefreshFetchesEveryRepository()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Requests.Clear();
+
+        now = now.AddSeconds(3);
+        poller.Refresh();
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(Fetches(handler, quietRuns)).IsEqualTo(1);
+        await Assert.That(Fetches(handler, busyRuns)).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task NothingIsRequestedDuringARateLimitPauseEvenOnRefresh()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/user/repos", "{}", HttpStatusCode.TooManyRequests, ("Retry-After", "600"));
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Requests.Clear();
+
+        now = now.AddSeconds(30);
+        poller.Refresh();
+        var health = await poller.PollDue(Cancel.None);
+
+        await Assert.That(handler.Requests).IsEmpty();
+        await Assert.That(health).IsEqualTo(ConnectionHealth.RateLimited);
+    }
+
+    [Test]
+    public async Task AFilterAddedLaterStopsFetchingAtOnce()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        host.Mutate(_ => MonitorSession.ApplySettings(_, _.Settings with { Filters = [new(FilterKind.Exact, FilterTarget.Pipeline, "Quiet")] }));
+        handler.Requests.Clear();
+
+        now = now.AddSeconds(3);
+        await poller.PollOnce(Cancel.None);
+
+        await Assert.That(Fetches(handler, quietRuns)).IsEqualTo(0);
+        await Assert.That(Fetches(handler, busyRuns)).IsEqualTo(1);
+    }
+
+    const string listing = "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=1";
+
+    [Test]
+    public async Task TheFirstProbeOnlyRecords()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Requests.Clear();
+
+        // The first cycle discovered, which counts as the probe's turn; the next comes an interval later.
+        now = now.AddSeconds(31);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(Fetches(handler, listing)).IsEqualTo(1);
+        await Assert.That(Fetches(handler, quietRuns)).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task APushNudgesItsRepository()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        // The first probe records what it sees.
+        now = now.AddSeconds(31);
+        await poller.PollDue(Cancel.None);
+
+        handler.Get(
+            listing,
+            """
+            [
+              {"full_name":"VerifyTests/Busy","html_url":"https://github.com/VerifyTests/Busy","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"},
+              {"full_name":"VerifyTests/Quiet","html_url":"https://github.com/VerifyTests/Quiet","archived":false,"disabled":false,"pushed_at":"2099-01-02T00:00:00Z"}
+            ]
+            """);
+        handler.Requests.Clear();
+        now = now.AddSeconds(31);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(Fetches(handler, quietRuns)).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AFailingProbeDoesNotFailTheConnection()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Map("GET", listing, "boom", HttpStatusCode.InternalServerError);
+
+        now = now.AddSeconds(31);
+        var health = await poller.PollDue(Cancel.None);
+
+        await Assert.That(health).IsEqualTo(ConnectionHealth.Ok);
+        await Assert.That(host.State.Connection(Fixtures.GitHub.Id)!.Error).IsNull();
+    }
 
     static async Task WaitFor(Func<bool> condition)
     {

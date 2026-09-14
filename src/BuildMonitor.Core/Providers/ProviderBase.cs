@@ -24,6 +24,9 @@ abstract class ProviderBase : IProvider
 
     public abstract Task<ConnectionTest> Test(ProviderContext context, Cancel cancel);
 
+    public virtual Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel) =>
+        Task.FromResult<ImmutableDictionary<string, string>?>(null);
+
     protected static string Encode(string value) =>
         Uri.EscapeDataString(value);
 

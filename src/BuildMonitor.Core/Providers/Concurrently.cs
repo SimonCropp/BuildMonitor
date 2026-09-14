@@ -43,4 +43,50 @@ static class Concurrently
             progress?.Invoke(new(Interlocked.Increment(ref done), items.Count));
         }
     }
+
+    /// <summary>
+    /// Like <see cref="Map{TItem,TResult}"/>, but an item that throws does not fail the others.
+    /// With Map, one repository the token could not see discarded the whole poll and backed every
+    /// repository off; here each item reports its own outcome. Cancellation still ends everything.
+    /// </summary>
+    public static async Task<List<Settled<TResult>>> Settle<TItem, TResult>(
+        IReadOnlyList<TItem> items,
+        int limit,
+        Func<TItem, Cancel, Task<TResult>> work,
+        Cancel cancel,
+        Action<PollProgress>? progress = null)
+    {
+        var results = new Settled<TResult>[items.Count];
+        using var gate = new SemaphoreSlim(Math.Max(1, limit));
+        var tasks = new Task[items.Count];
+        var done = 0;
+        progress?.Invoke(new(0, items.Count));
+        for (var index = 0; index < items.Count; index++)
+        {
+            var slot = index;
+            tasks[index] = Run(slot);
+        }
+
+        await Task.WhenAll(tasks);
+        return [..results];
+
+        async Task Run(int slot)
+        {
+            await gate.WaitAsync(cancel);
+            try
+            {
+                results[slot] = new(await work(items[slot], cancel), null);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException || !cancel.IsCancellationRequested)
+            {
+                results[slot] = new(default, exception);
+            }
+            finally
+            {
+                gate.Release();
+            }
+
+            progress?.Invoke(new(Interlocked.Increment(ref done), items.Count));
+        }
+    }
 }

@@ -41,6 +41,30 @@ public class JenkinsProviderTests
     }
 
     [Test]
+    public async Task RecentActivityReadsNextBuildNumbersFromTheTree()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                $"{server}/api/json",
+                """
+                {"jobs":[
+                  {"_class":"hudson.model.FreeStyleProject","url":"https://jenkins.example.com/job/build-all/","nextBuildNumber":502,"inQueue":false},
+                  {"_class":"com.cloudbees.hudson.plugins.folder.Folder","url":"https://jenkins.example.com/job/team/","jobs":[
+                    {"_class":"org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject","url":"https://jenkins.example.com/job/team/job/app/","jobs":[
+                      {"_class":"org.jenkinsci.plugins.workflow.job.WorkflowJob","url":"https://jenkins.example.com/job/team/job/app/job/PR-12/","nextBuildNumber":4,"inQueue":true}
+                    ]}
+                  ]}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("jenkins", handler, server, "simon");
+        var activity = await ProviderTestHelpers.Provider("jenkins").RecentActivity(context, [], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(activity!.Count).IsEqualTo(2);
+        await Assert.That(activity["https://jenkins.example.com/job/build-all/"]).IsEqualTo("502|False");
+        await Assert.That(activity["https://jenkins.example.com/job/team/job/app/job/PR-12/"]).IsEqualTo("4|True");
+        await Assert.That(handler.Requests.Single()).StartsWith($"GET {server}/api/json?tree=jobs[url,_class,nextBuildNumber,inQueue,jobs[");
+    }
+
+    [Test]
     public async Task RetryFallsBackToParameters()
     {
         var handler = Handler()

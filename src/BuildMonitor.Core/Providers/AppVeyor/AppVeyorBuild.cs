@@ -1,4 +1,4 @@
-﻿class AppVeyorBuild
+class AppVeyorBuild
 {
     public long BuildId { get; set; }
     public long BuildNumber { get; set; }
@@ -12,4 +12,5 @@
     public DateTimeOffset? Created { get; set; }
     public DateTimeOffset? Started { get; set; }
     public DateTimeOffset? Finished { get; set; }
+    public DateTimeOffset? Updated { get; set; }
 }

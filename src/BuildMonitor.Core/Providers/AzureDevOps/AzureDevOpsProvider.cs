@@ -50,9 +50,10 @@ sealed class AzureDevOpsProvider : ProviderBase
         foreach (var project in pipelines.GroupBy(_ => _.RepoName))
         {
             var byDefinition = project.ToDictionary(_ => long.Parse(_.Id[(_.Id.LastIndexOf('/') + 1)..]));
-            var top = Math.Min(200, perPipeline * byDefinition.Count);
+            // Per definition rather than a total: $top filled with the busiest definitions and hid
+            // the quiet ones of a project with more than a few dozen.
             var response = await context.Http.Get(
-                $"{Encode(project.Key)}/_apis/build/builds?definitions={string.Join(',', byDefinition.Keys)}&$top={top}&queryOrder=queueTimeDescending&{apiVersion}",
+                $"{Encode(project.Key)}/_apis/build/builds?definitions={string.Join(',', byDefinition.Keys)}&maxBuildsPerDefinition={perPipeline}&queryOrder=queueTimeDescending&{apiVersion}",
                 AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsBuild,
                 cancel);
             var taken = new Dictionary<long, int>();
@@ -76,6 +77,44 @@ sealed class AzureDevOpsProvider : ProviderBase
         }
 
         return builds;
+    }
+
+    /// <summary>
+    /// Per project, the builds queued since the newest one seen, with that queue time as the
+    /// token. Azure DevOps sends no ETags, so every check is billed; asked this way an unchanged
+    /// project answers empty for about 0.002 throughput units, where a fetch costs about 0.07. The
+    /// first probe asks for the single newest build, to have a time to ask after.
+    /// </summary>
+    public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
+    {
+        var tokens = ImmutableDictionary.CreateBuilder<string, string>();
+        foreach (var group in groups)
+        {
+            var definitions = string.Join(',', group.Pipelines.Select(_ => _.Id[(_.Id.LastIndexOf('/') + 1)..]));
+            var since = previous.GetValueOrDefault(group.Key);
+            var filter = since is null ? "$top=1" : $"minTime={Encode(since)}&$top=50";
+            var response = await context.Http.Get(
+                $"{Encode(group.Key)}/_apis/build/builds?definitions={definitions}&{filter}&queryOrder=queueTimeDescending&{apiVersion}",
+                AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsBuild,
+                cancel);
+            DateTimeOffset? newest = since is null ? null : DateTimeOffset.Parse(since, CultureInfo.InvariantCulture);
+            foreach (var build in response.Value)
+            {
+                var queued = (DateTimeOffset?) build.QueueTime;
+                if (newest is null ||
+                    queued > newest)
+                {
+                    newest = queued ?? newest;
+                }
+            }
+
+            if (newest is { } value)
+            {
+                tokens[group.Key] = value.ToString("O", CultureInfo.InvariantCulture);
+            }
+        }
+
+        return tokens.ToImmutable();
     }
 
     static Build Convert(ProviderContext context, string project, Pipeline pipeline, AzureDevOpsBuild build)

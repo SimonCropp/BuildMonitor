@@ -19,7 +19,7 @@
       CommitMessage: Deploy Web release 1.2.3 to Production,
       CanRetry: false,
       CanCancel: true,
-      ProviderRef: ServerTasks-100|/api/Spaces-1/tasks/rerun/ServerTasks-100|/api/Spaces-1/tasks/ServerTasks-100/cancel,
+      ProviderRef: ServerTasks-100|Spaces-1/tasks/rerun/ServerTasks-100|Spaces-1/tasks/ServerTasks-100/cancel,
       Key: octopus/Projects-1/Production,
       PipelineKey: octopus/Projects-1,
       IsActive: true,
@@ -41,7 +41,7 @@
       CommitMessage: Deploy Web release 1.2.3 to Staging,
       CanRetry: true,
       CanCancel: false,
-      ProviderRef: ServerTasks-99|/api/Spaces-1/tasks/rerun/ServerTasks-99|/api/Spaces-1/tasks/ServerTasks-99/cancel,
+      ProviderRef: ServerTasks-99|Spaces-1/tasks/rerun/ServerTasks-99|Spaces-1/tasks/ServerTasks-99/cancel,
       Key: octopus/Projects-1/Staging,
       PipelineKey: octopus/Projects-1,
       IsActive: false,
@@ -51,10 +51,7 @@
   Requests: [
     GET https://octopus.example.com/api/spaces?take=100,
     GET https://octopus.example.com/api/Spaces-1/projects?take=100,
-    GET https://octopus.example.com/api/Spaces-1/environments/all,
-    GET https://octopus.example.com/api/Spaces-1/deployments?take=5,
-    GET https://octopus.example.com/api/Spaces-1/tasks?take=5&name=Deploy,
-    GET https://octopus.example.com/api/Spaces-1/tasks/ServerTasks-100/details,
-    GET https://octopus.example.com/api/tasks/ServerTasks-99
+    GET https://octopus.example.com/api/Spaces-1/dashboard/dynamic?projects=Projects-1&includePrevious=true,
+    GET https://octopus.example.com/api/Spaces-1/tasks/ServerTasks-100/details?verbose=false&tail=1
   ]
 }
