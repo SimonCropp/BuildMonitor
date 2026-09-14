@@ -24,6 +24,8 @@ record SessionState(
     int Rows,
     // Connection ids whose rows are folded away under their header.
     ImmutableHashSet<string> FoldedGroups,
+    // Project keys whose shared green row the user expanded back into one row per build.
+    ImmutableHashSet<string> ExpandedProjects,
     // The last thing worth telling the user, shown on the status line until the next input.
     string Status,
     bool Hidden,
@@ -46,6 +48,7 @@ record SessionState(
             Columns: 120,
             Rows: 30,
             FoldedGroups: [],
+            ExpandedProjects: [],
             Status: "",
             Hidden: !settings.ShowWindowAtStart,
             Exit: false);

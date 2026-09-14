@@ -35,7 +35,7 @@ static class ScreenBuilder
             composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now));
         }
 
-        var builds = rows.Where(_ => _.Build is not null).Select(_ => _.Build!).ToList();
+        var builds = rows.SelectMany(_ => _.Builds).ToList();
         var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
         var running = builds.Count(_ => _.IsActive);
         var selected = state.SelectedRow >= top && state.SelectedRow < top + visible.Count
@@ -77,6 +77,11 @@ static class ScreenBuilder
     static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now)
     {
         var connection = row.Connection;
+        if (row.Kind == RowKind.Project)
+        {
+            return ComposeProject(row, selected, now);
+        }
+
         if (row.Build is not { } build)
         {
             var health = connection.Describe(now);
@@ -103,9 +108,7 @@ static class ScreenBuilder
 
         var estimate = Estimator.Estimate(build, state.Medians);
         var (fraction, timing) = Progress.Compute(build, estimate, now);
-        // The last segment only: the owner is the same for most of a connection's rows and the
-        // full name is in the tooltip.
-        var repo = build.RepoName[(build.RepoName.LastIndexOf('/') + 1)..];
+        var repo = build.ShortRepoName();
         var repoBranch = build.Branch is null
             ? repo
             : $"{repo} {build.Branch}";
@@ -129,6 +132,48 @@ static class ScreenBuilder
             build.CanCancel,
             Tooltip(build, now),
             connection.Connection.Name);
+    }
+
+    /// <summary>
+    /// A project's green builds as one line. No links and no actions: which build they would act
+    /// on is ambiguous, so the row is expanded first. The tooltip names every member.
+    /// </summary>
+    static BuildRow ComposeProject(Row row, bool selected, DateTimeOffset now)
+    {
+        var members = row.Members;
+        var first = members[0];
+        var branch = members.Select(_ => _.Branch).Distinct().ToList() is [{ } shared] ? shared : null;
+        var latest = members.MaxBy(_ => _.Finished ?? _.Started ?? _.Queued ?? DateTimeOffset.MinValue)!;
+        var (_, timing) = Progress.Compute(latest, null, now);
+        var lines = new List<string>
+        {
+            branch is null ? first.RepoName : $"{first.RepoName} {branch}"
+        };
+        foreach (var member in members)
+        {
+            var (_, age) = Progress.Compute(member, null, now);
+            List<string> parts = [member.PipelineName, member.RunNumberLabel(), age];
+            lines.Add(string.Join(' ', parts.Where(_ => _.Length > 0)));
+        }
+
+        return new(
+            RowKind.Project,
+            BuildStatus.Succeeded,
+            $"{members.Length} pipelines",
+            branch is null ? first.ShortRepoName() : $"{first.ShortRepoName()} {branch}",
+            "",
+            "succeeded",
+            -1,
+            timing,
+            selected,
+            false,
+            null,
+            null,
+            null,
+            false,
+            false,
+            string.Join("\n", lines),
+            row.Connection.Connection.Name);
     }
 
     /// <summary>

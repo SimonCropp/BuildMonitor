@@ -37,6 +37,22 @@ public class ScreenTests
         Verify(Fixtures.Render(Fixtures.Folded()));
 
     [Test]
+    public Task GreenProject() =>
+        Verify(Fixtures.Render(Fixtures.WithGreenProject()));
+
+    [Test]
+    public Task GreenProjectExpanded() =>
+        Verify(Fixtures.Render(MonitorSession.ToggleProject(Fixtures.WithGreenProject(), Fixtures.VerifyProject)));
+
+    [Test]
+    public Task GreenProjectMenuOpen() =>
+        Verify(Fixtures.Render(MonitorSession.OpenMenu(Fixtures.WithGreenProject(), 3)));
+
+    [Test]
+    public Task ExpandedProjectMemberMenuOpen() =>
+        Verify(Fixtures.Render(MonitorSession.OpenMenu(MonitorSession.ToggleProject(Fixtures.WithGreenProject(), Fixtures.VerifyProject), 3)));
+
+    [Test]
     public Task Scrolled() =>
         Verify(Fixtures.Render(Fixtures.Scrolled()))
             .Snapshot(

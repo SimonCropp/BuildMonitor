@@ -17,6 +17,8 @@ Left click the icon to open the window. Right click it for the menu: every faili
 
 One row per pipeline, grouped by connection, showing the latest run on any branch. A branch with a queued or running build gets a row of its own beside the latest one, which is what makes a pull request build visible while it runs; turn that off in [Options](options.md).
 
+Two or more green pipelines of one project, such as the passing workflows of one repository, share a single row; hover it to list them. A pipeline that fails or starts running leaves it for a row of its own. Double click the row, press Enter or right click it and choose Expand to see its pipelines one by one; right click one of them to collapse them again.
+
 Rows sort what is happening now to the top of each group: running, then queued, then failed, then everything else by age.
 
 Each row carries:
@@ -36,7 +38,7 @@ Closing the window hides it; the tray keeps running. Exit is in the tray menu.
 ## Keyboard
 
  * Up and Down move the selection, PageUp, PageDown, Home and End scroll
- * Enter opens the selected build, R retries it, Ctrl+C copies its URL
+ * Enter opens the selected build, or expands a shared green row, R retries it, Ctrl+C copies its URL
  * F5 refreshes
  * Escape hides the window, or cancels a form
  * Ctrl+Q exits

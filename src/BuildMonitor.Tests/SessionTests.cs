@@ -22,6 +22,70 @@ public class SessionTests
     }
 
     [Test]
+    public async Task GreenPipelinesOfOneProjectShareARow()
+    {
+        var rows = RowProjection.Rows(Fixtures.WithGreenProject());
+        var project = rows.Single(_ => _.Kind == RowKind.Project);
+        await Assert.That(string.Join(",", project.Members.Select(_ => _.PipelineName))).IsEqualTo("docs.yml,nuget.yml");
+        // The failing workflow of the same project keeps its own row.
+        await Assert.That(rows.Count(_ => _.Build?.RepoName == "VerifyTests/Verify")).IsEqualTo(1);
+        // A project with one green workflow has nothing to share a row with.
+        await Assert.That(rows.Count(_ => _.Build is { RepoName: "VerifyTests/DiffEngine", PipelineName: "docs.yml" })).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SingleGreenPipelineDoesNotCollapse() =>
+        await Assert.That(RowProjection.Rows(Fixtures.WithBuilds()).Any(_ => _.Kind == RowKind.Project)).IsFalse();
+
+    [Test]
+    public async Task ToggleProjectTwiceRestores()
+    {
+        var state = Fixtures.WithGreenProject();
+        var once = MonitorSession.ToggleProject(state, Fixtures.VerifyProject);
+        var twice = MonitorSession.ToggleProject(once, Fixtures.VerifyProject);
+        await Assert.That(RowProjection.Rows(once).Any(_ => _.Kind == RowKind.Project)).IsFalse();
+        await Assert.That(twice.ExpandedProjects).IsEmpty();
+        await Assert.That(RowProjection.Rows(twice).Length).IsEqualTo(RowProjection.Rows(state).Length);
+    }
+
+    [Test]
+    public async Task ToggleProjectKeepsSelectionOnProject()
+    {
+        var state = MonitorSession.SelectRow(Fixtures.WithGreenProject(), 3);
+        await Assert.That(MonitorSession.SelectedRow(state)!.Kind).IsEqualTo(RowKind.Project);
+
+        var expanded = MonitorSession.ToggleProject(state, Fixtures.VerifyProject);
+        var selected = MonitorSession.SelectedBuild(expanded)!;
+        await Assert.That(selected.ProjectKey).IsEqualTo(Fixtures.VerifyProject);
+        await Assert.That(selected.PipelineName).IsEqualTo("docs.yml");
+
+        var collapsed = MonitorSession.ToggleProject(MonitorSession.SelectRow(expanded, 4), Fixtures.VerifyProject);
+        await Assert.That(MonitorSession.SelectedRow(collapsed)!.Kind).IsEqualTo(RowKind.Project);
+    }
+
+    [Test]
+    public async Task ProjectLeavesCollapseWhenAMemberFails()
+    {
+        var state = Fixtures.WithGreenProject();
+        var builds = state.Builds
+            .Where(_ => _.ConnectionId == Fixtures.GitHub.Id)
+            .Select(_ => _.PipelineId == "Verify/nuget.yml" ? _ with { Status = BuildStatus.Failed } : _)
+            .ToImmutableArray();
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
+        var rows = RowProjection.Rows(next);
+        await Assert.That(rows.Any(_ => _.Kind == RowKind.Project)).IsFalse();
+        await Assert.That(rows.Count(_ => _.Build?.RepoName == "VerifyTests/Verify")).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task OpenBuildOnProjectRowExpands()
+    {
+        var state = MonitorSession.SelectRow(Fixtures.WithGreenProject(), 3);
+        var next = InputApplier.Execute(state, CommandKind.OpenBuild, null, MonitorActions.None, null);
+        await Assert.That(next.ExpandedProjects).Contains(Fixtures.VerifyProject);
+    }
+
+    [Test]
     public async Task ScrollClampsToRows()
     {
         var state = MonitorSession.Resize(Fixtures.WithBuilds(), 120, 12);

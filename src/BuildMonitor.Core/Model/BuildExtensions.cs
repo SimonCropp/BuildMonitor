@@ -9,4 +9,11 @@ static class BuildExtensions
 
         return $"#{build.RunNumber}";
     }
+
+    /// <summary>
+    /// The last segment only: the owner is the same for most of a connection's rows and the full
+    /// name is in the tooltip.
+    /// </summary>
+    public static string ShortRepoName(this Build build) =>
+        build.RepoName[(build.RepoName.LastIndexOf('/') + 1)..];
 }

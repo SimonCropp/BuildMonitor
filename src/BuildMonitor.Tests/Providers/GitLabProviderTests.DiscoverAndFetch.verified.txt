@@ -20,6 +20,7 @@
       ProviderRef: 77|5001,
       Key: gitlab/77/main,
       PipelineKey: gitlab/77,
+      ProjectKey: gitlab/verify/diffengine,
       IsActive: true,
       Ordering: DateTimeOffset_2
     },
@@ -43,6 +44,7 @@
       ProviderRef: 77|5000,
       Key: gitlab/77/,
       PipelineKey: gitlab/77,
+      ProjectKey: gitlab/verify/diffengine,
       IsActive: false,
       Ordering: DateTimeOffset_3
     }

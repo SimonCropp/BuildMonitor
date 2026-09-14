@@ -21,6 +21,7 @@
       ProviderRef: 100|1.0.45,
       Key: appveyor/simon/diffengine/main,
       PipelineKey: appveyor/simon/diffengine,
+      ProjectKey: appveyor/VerifyTests/DiffEngine,
       IsActive: true,
       Ordering: DateTimeOffset_2
     },
@@ -48,6 +49,7 @@
       ProviderRef: 99|1.0.44,
       Key: appveyor/simon/diffengine/feature,
       PipelineKey: appveyor/simon/diffengine,
+      ProjectKey: appveyor/VerifyTests/DiffEngine,
       IsActive: false,
       Ordering: DateTimeOffset_4
     }

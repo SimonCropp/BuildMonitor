@@ -21,6 +21,7 @@
       ProviderRef: Web|301,
       Key: azure-devops/Web/1/main,
       PipelineKey: azure-devops/Web/1,
+      ProjectKey: azure-devops/Web,
       IsActive: true,
       Ordering: DateTimeOffset_2
     },
@@ -45,6 +46,7 @@
       ProviderRef: Web|300,
       Key: azure-devops/Web/1/,
       PipelineKey: azure-devops/Web/1,
+      ProjectKey: azure-devops/VerifyTests/DiffEngine,
       IsActive: false,
       Ordering: DateTimeOffset_4
     },
@@ -68,6 +70,7 @@
       ProviderRef: Web|290,
       Key: azure-devops/Web/2/main,
       PipelineKey: azure-devops/Web/2,
+      ProjectKey: azure-devops/Web,
       IsActive: false,
       Ordering: DateTimeOffset_7
     }

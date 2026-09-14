@@ -106,6 +106,29 @@ static class MonitorSession
         return Clamp(state with { FoldedGroups = folded });
     }
 
+    /// <summary>
+    /// Expands a project's shared row into its builds, or gathers them back. The selection follows
+    /// the project, since the rows under the cursor change either way.
+    /// </summary>
+    public static SessionState ToggleProject(SessionState state, string projectKey)
+    {
+        var removed = state.ExpandedProjects.Remove(projectKey);
+        var expanded = ReferenceEquals(removed, state.ExpandedProjects)
+            ? state.ExpandedProjects.Add(projectKey)
+            : removed;
+        var next = state with { ExpandedProjects = expanded };
+        var rows = RowProjection.Rows(next);
+        for (var index = 0; index < rows.Length; index++)
+        {
+            if (rows[index].Builds.Any(_ => _.Status == BuildStatus.Succeeded && _.ProjectKey == projectKey))
+            {
+                return SelectRow(next, index);
+            }
+        }
+
+        return Clamp(next);
+    }
+
     // Context menu
 
     public static SessionState OpenMenu(SessionState state, int row)
@@ -119,7 +142,12 @@ static class MonitorSession
 
         var items = ImmutableArray.CreateBuilder<MenuItem>();
         var target = rows[row];
-        if (target.Build is { } build)
+        if (target.Kind == RowKind.Project)
+        {
+            items.Add(new("Expand", CommandKind.ToggleProject));
+            items.Add(new("Refresh", CommandKind.Refresh));
+        }
+        else if (target.Build is { } build)
         {
             items.Add(new("Open build", CommandKind.OpenBuild));
             if (build.BranchUrl is not null)
@@ -141,6 +169,13 @@ static class MonitorSession
             if (build.CanCancel)
             {
                 items.Add(new("Cancel build", CommandKind.Cancel));
+            }
+
+            if (build.Status == BuildStatus.Succeeded &&
+                state.ExpandedProjects.Contains(build.ProjectKey) &&
+                RowProjection.Collapsible(RowProjection.Builds(state, build.ConnectionId)).Contains(build.ProjectKey))
+            {
+                items.Add(new($"Collapse {build.ShortRepoName()}", CommandKind.ToggleProject));
             }
 
             items.Add(new("Refresh", CommandKind.Refresh));

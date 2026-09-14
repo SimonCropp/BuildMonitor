@@ -20,6 +20,7 @@
       ProviderRef: {u1}|branch|main|abc123,
       Key: bitbucket/diffengine/main,
       PipelineKey: bitbucket/diffengine,
+      ProjectKey: bitbucket/verify/diffengine,
       IsActive: true,
       Ordering: DateTimeOffset_1
     },
@@ -44,6 +45,7 @@
       ProviderRef: {u2}|branch|feature|def456,
       Key: bitbucket/diffengine/feature,
       PipelineKey: bitbucket/diffengine,
+      ProjectKey: bitbucket/verify/diffengine,
       IsActive: false,
       Ordering: DateTimeOffset_2
     }

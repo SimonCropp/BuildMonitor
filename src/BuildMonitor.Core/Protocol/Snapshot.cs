@@ -5,19 +5,27 @@ static class Snapshot
 {
     public static List<BuildDto> Builds(SessionState state, DateTimeOffset now) =>
         RowProjection.Rows(state)
-            .Where(_ => _.Build is not null)
-            .Select(_ => Build(state, _.Connection.Connection, _.Build!, now))
+            .SelectMany(_ => _.Builds.Select(build => Build(state, _.Connection.Connection, build, now)))
             .ToList();
 
+    /// <summary>
+    /// Searches the builds behind every row, not just the rows, so a build sharing a project's
+    /// green row can still be read and retried by key.
+    /// </summary>
     public static BuildDto? Find(SessionState state, string key, DateTimeOffset now)
     {
-        var row = RowProjection.Rows(state).FirstOrDefault(_ => _.Build?.Key == key);
-        if (row is null)
+        foreach (var row in RowProjection.Rows(state))
         {
-            return null;
+            foreach (var build in row.Builds)
+            {
+                if (build.Key == key)
+                {
+                    return Build(state, row.Connection.Connection, build, now);
+                }
+            }
         }
 
-        return Build(state, row.Connection.Connection, row.Build!, now);
+        return null;
     }
 
     static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now)

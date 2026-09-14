@@ -117,4 +117,13 @@ public class AppTests
             summary = Snapshot.Summary(state, Fixtures.Now)
         });
     }
+
+    [Test]
+    public async Task SnapshotListsCollapsedPipelines()
+    {
+        var state = Fixtures.WithGreenProject();
+        await Assert.That(Snapshot.Builds(state, Fixtures.Now).Count).IsEqualTo(8);
+        var member = state.Builds.First(_ => _.PipelineId == "Verify/nuget.yml");
+        await Assert.That(Snapshot.Find(state, member.Key, Fixtures.Now)).IsNotNull();
+    }
 }

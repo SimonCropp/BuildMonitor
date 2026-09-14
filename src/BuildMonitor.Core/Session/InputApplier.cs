@@ -243,6 +243,13 @@ static class InputApplier
             case CommandKind.OpenBranch:
             case CommandKind.OpenPullRequest:
             {
+                // A shared row has no one build to open, so Enter or a double click expands it.
+                if (command == CommandKind.OpenBuild &&
+                    MonitorSession.SelectedRow(state) is { Kind: RowKind.Project } project)
+                {
+                    return MonitorSession.ToggleProject(state, project.Members[0].ProjectKey);
+                }
+
                 if (MonitorSession.SelectedBuild(state) is not { } build)
                 {
                     return state;
@@ -289,6 +296,10 @@ static class InputApplier
             case CommandKind.ToggleGroup:
                 return MonitorSession.SelectedRow(state) is { } row
                     ? MonitorSession.ToggleGroup(state, row.Connection.Connection.Id)
+                    : state;
+            case CommandKind.ToggleProject:
+                return MonitorSession.SelectedRow(state)?.Builds.FirstOrDefault() is { } member
+                    ? MonitorSession.ToggleProject(state, member.ProjectKey)
                     : state;
             case CommandKind.ExcludePipeline:
             {

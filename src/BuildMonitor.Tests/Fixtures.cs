@@ -199,6 +199,44 @@ static class Fixtures
             status is BuildStatus.Queued or BuildStatus.Running && canCancel,
             run);
 
+    public const string VerifyProject = "gh/VerifyTests/Verify";
+
+    /// <summary>
+    /// Verify gains two green workflows beside its failing one, so the green pair shares a row
+    /// while DiffEngine's single green workflow keeps its own.
+    /// </summary>
+    public static SessionState WithGreenProject() =>
+        MonitorSession.ApplyPoll(
+            WithBuilds(),
+            GitHub.Id,
+            [],
+            [
+                ..GitHubBuilds(),
+                Build(
+                    GitHub.Id,
+                    "Verify/docs.yml",
+                    "docs.yml",
+                    "VerifyTests/Verify",
+                    "main",
+                    "40",
+                    BuildStatus.Succeeded,
+                    started: Now - TimeSpan.FromHours(3),
+                    finished: Now - TimeSpan.FromHours(3) + TimeSpan.FromMinutes(2),
+                    branchUrl: "https://github.com/VerifyTests/Verify/tree/main"),
+                Build(
+                    GitHub.Id,
+                    "Verify/nuget.yml",
+                    "nuget.yml",
+                    "VerifyTests/Verify",
+                    "main",
+                    "12",
+                    BuildStatus.Succeeded,
+                    started: Now - TimeSpan.FromHours(5),
+                    finished: Now - TimeSpan.FromHours(5) + TimeSpan.FromMinutes(4),
+                    branchUrl: "https://github.com/VerifyTests/Verify/tree/main")
+            ],
+            Now - TimeSpan.FromSeconds(12));
+
     public static SessionState WithMenu() =>
         MonitorSession.OpenMenu(WithBuilds(), 2);
 

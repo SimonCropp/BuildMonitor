@@ -1,6 +1,11 @@
 /// <summary>
 /// The one rule about which builds are rows and in what order. Every reader of a row index
 /// goes through here, so the selection, the menu, the tray and the screen agree.
+/// <para>
+/// The green builds of one project share a row, where its first member would have been, unless
+/// the user expanded it. A repository with a handful of passing workflows otherwise buries the
+/// red and running rows under ones that need nothing.
+/// </para>
 /// </summary>
 static class RowProjection
 {
@@ -10,20 +15,51 @@ static class RowProjection
         foreach (var connection in state.Connections.OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase))
         {
             var folded = state.FoldedGroups.Contains(connection.Connection.Id);
-            rows.Add(new(RowKind.Header, connection, null, folded));
+            rows.Add(new(RowKind.Header, connection, null, folded, []));
             if (folded)
             {
                 continue;
             }
 
-            foreach (var build in Builds(state, connection.Connection.Id))
+            var builds = Builds(state, connection.Connection.Id);
+            var collapsed = Collapsible(builds).Except(state.ExpandedProjects);
+            var added = new HashSet<string>();
+            foreach (var build in builds)
             {
-                rows.Add(new(RowKind.Build, connection, build, false));
+                if (build.Status != BuildStatus.Succeeded ||
+                    !collapsed.Contains(build.ProjectKey))
+                {
+                    rows.Add(new(RowKind.Build, connection, build, false, []));
+                    continue;
+                }
+
+                if (added.Add(build.ProjectKey))
+                {
+                    rows.Add(new(
+                        RowKind.Project,
+                        connection,
+                        null,
+                        false,
+                        [..builds.Where(_ => _.Status == BuildStatus.Succeeded && _.ProjectKey == build.ProjectKey)]));
+                }
             }
         }
 
         return rows.ToImmutable();
     }
+
+    /// <summary>
+    /// The projects whose green builds share one row: two or more of them, since a row standing
+    /// for a single build saves nothing and hides that build's links.
+    /// </summary>
+    public static ImmutableHashSet<string> Collapsible(IEnumerable<Build> builds) =>
+    [
+        ..builds
+            .Where(_ => _.Status == BuildStatus.Succeeded)
+            .GroupBy(_ => _.ProjectKey)
+            .Where(_ => _.Count() > 1)
+            .Select(_ => _.Key)
+    ];
 
     /// <summary>
     /// A connection's rows: filtered, reduced to the runs worth a row, and sorted so what is
