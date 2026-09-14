@@ -213,7 +213,7 @@ public class PollScheduleTests
         // One request every ten seconds, and none saved.
         var quota = new RequestQuota(6, TimeSpan.FromMinutes(1), 1);
         var plan = PollSchedule.Plan(Input([group], [], quota: quota, bucket: new RequestBucket(0, now)));
-        await Assert.That(plan.Deferred).IsEquivalentTo(new[] { group.Key });
+        await Assert.That(plan.Deferred).IsEquivalentTo([group.Key]);
         await Assert.That(plan.WakeAt).IsEqualTo(now.AddSeconds(10));
     }
 

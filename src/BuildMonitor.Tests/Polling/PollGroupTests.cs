@@ -17,5 +17,5 @@ public class PollGroupTests
     [Test]
     public async Task ARepositoryGroupHoldsEveryWorkflowInIt() =>
         await Assert.That(PollGroup.Of(FetchUnit.Repository, pipelines)[0].Pipelines.Select(_ => _.Id))
-            .IsEquivalentTo(new[] { "VerifyTests/Verify/2", "VerifyTests/Verify/1" });
+            .IsEquivalentTo(["VerifyTests/Verify/2", "VerifyTests/Verify/1"]);
 }

@@ -85,8 +85,10 @@ static class MonitorSession
     /// Re-applies the selection to rows that changed. A poll re-sorts a group, running first, and
     /// a fold, a filter or a removed connection takes rows out, so the row at the selected index
     /// is often a different one afterwards. The selection keeps its row: the same pipeline on the
-    /// same branch, else the same pipeline when its latest run is on another branch now, else the
-    /// nearest row above it that is still shown, which in a folded group is the header.
+    /// same branch, else the row that now holds that run, as when a build passes and joins its
+    /// project's shared row or a shared row splits, else the same pipeline when its latest run is
+    /// on another branch now, else the nearest row above it that is still shown, which in a folded
+    /// group is the header.
     /// <para>
     /// The menu does not follow. Moved, it would put a different item under the pointer; left in
     /// place, it would sit beside another build. Unless its row is still where it was drawn, it
@@ -129,12 +131,23 @@ static class MonitorSession
             return index;
         }
 
-        if (previous[selected].Build is { } build)
+        var builds = previous[selected].Builds;
+        foreach (var build in builds)
         {
-            var pipeline = build.PipelineKey;
             for (var candidate = 0; candidate < rows.Length; candidate++)
             {
-                if (rows[candidate].Build?.PipelineKey == pipeline)
+                if (rows[candidate].Builds.Any(_ => _.Key == build.Key))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        foreach (var build in builds)
+        {
+            for (var candidate = 0; candidate < rows.Length; candidate++)
+            {
+                if (rows[candidate].Builds.Any(_ => _.PipelineKey == build.PipelineKey))
                 {
                     return candidate;
                 }
@@ -152,8 +165,14 @@ static class MonitorSession
         return 0;
     }
 
+    /// <summary>
+    /// A shared row is its project, not its connection: a connection can hold several of them,
+    /// and they would otherwise all be the first.
+    /// </summary>
     static (RowKind, string) Identity(Row row) =>
-        (row.Kind, row.Build?.Key ?? row.Connection.Connection.Id);
+        row.Kind == RowKind.Project
+            ? (row.Kind, row.Members[0].ProjectKey)
+            : (row.Kind, row.Build?.Key ?? row.Connection.Connection.Id);
 
     public static Row? SelectedRow(SessionState state)
     {

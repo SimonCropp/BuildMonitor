@@ -131,8 +131,11 @@ static class PollSchedule
         var (reason, interval) = GroupInterval(input, group, byPipeline);
         // A group that has never fetched has no builds to judge by; read as quiet, a failure on its
         // first fetch would leave its rows empty for the whole idle cap. It retries on backoff.
-        if (memory.Failures > 0 &&
-            memory.FetchedPipelines.IsEmpty)
+        if (memory is
+            {
+                Failures: > 0,
+                FetchedPipelines.IsEmpty: true
+            })
         {
             (reason, interval) = (ScheduleReason.Backoff, Backoff.Next(input.Interval, memory.Failures));
         }
@@ -328,11 +331,25 @@ static class PollSchedule
         return builder.ToString();
     }
 
-    static RequestQuota? Effective(ScheduleInput input) =>
-        input.Quota is { LearnLimit: true } quota &&
-        input.Rate.Limit is > 0 and var limit
-            ? quota with { Requests = limit }
-            : input.Quota;
+    static RequestQuota? Effective(ScheduleInput input)
+    {
+        if (input is
+            {
+                Quota:
+                {
+                    LearnLimit: true
+                } quota,
+                Rate.Limit: > 0 and var limit
+            })
+        {
+            return quota with
+            {
+                Requests = limit
+            };
+        }
+
+        return input.Quota;
+    }
 
     static string Span(TimeSpan span)
     {

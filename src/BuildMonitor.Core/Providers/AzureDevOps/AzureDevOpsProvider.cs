@@ -100,7 +100,7 @@ sealed class AzureDevOpsProvider : ProviderBase
             DateTimeOffset? newest = since is null ? null : DateTimeOffset.Parse(since, CultureInfo.InvariantCulture);
             foreach (var build in response.Value)
             {
-                var queued = (DateTimeOffset?) build.QueueTime;
+                var queued = build.QueueTime;
                 if (newest is null ||
                     queued > newest)
                 {

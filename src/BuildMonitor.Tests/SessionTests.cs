@@ -170,6 +170,49 @@ public class SessionTests
     }
 
     [Test]
+    public async Task PollKeepsTheSelectionOnItsProjectRow()
+    {
+        // With DiffEngine's test.yml green too, GitHub has two shared rows: DiffEngine's at row 2,
+        // then Verify's at row 3. Both belong to one connection, which must not make them one row.
+        var green = Fixtures.WithGreenProject();
+        var builds = WithStatus(green, "DiffEngine/test.yml", BuildStatus.Succeeded);
+        var state = MonitorSession.SelectRow(MonitorSession.ApplyPoll(green, Fixtures.GitHub.Id, [], builds, Fixtures.Now), 3);
+        await Assert.That(MonitorSession.SelectedRow(state)!.Members[0].ProjectKey).IsEqualTo(Fixtures.VerifyProject);
+
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
+        await Assert.That(MonitorSession.SelectedRow(next)!.Members[0].ProjectKey).IsEqualTo(Fixtures.VerifyProject);
+    }
+
+    [Test]
+    public async Task SelectionFollowsABuildIntoItsProjectRow()
+    {
+        // Row 1 is DiffEngine's running test.yml. Once it passes it shares a row with docs.yml.
+        var state = MonitorSession.SelectRow(Fixtures.WithGreenProject(), 1);
+        var builds = WithStatus(state, "DiffEngine/test.yml", BuildStatus.Succeeded);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
+        var selected = MonitorSession.SelectedRow(next)!;
+        await Assert.That(selected.Kind).IsEqualTo(RowKind.Project);
+        await Assert.That(selected.Members[0].ProjectKey).IsEqualTo("gh/VerifyTests/DiffEngine");
+    }
+
+    [Test]
+    public async Task SelectionFollowsAProjectRowThatSplits()
+    {
+        // Row 3 is Verify's shared row. A failing nuget.yml leaves docs.yml on a row of its own.
+        var state = MonitorSession.SelectRow(Fixtures.WithGreenProject(), 3);
+        var builds = WithStatus(state, "Verify/nuget.yml", BuildStatus.Failed);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
+        await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/docs.yml/main");
+    }
+
+    static ImmutableArray<Build> WithStatus(SessionState state, string pipelineId, BuildStatus status) =>
+    [
+        ..state.Builds
+            .Where(_ => _.ConnectionId == Fixtures.GitHub.Id)
+            .Select(_ => _.PipelineId == pipelineId ? _ with { Status = status } : _)
+    ];
+
+    [Test]
     public async Task ToggleGroupTwiceRestores()
     {
         var state = Fixtures.WithBuilds();

@@ -43,7 +43,7 @@ public class GitLabProviderTests
     {
         var handler = Rest(Handler().Get(graph, """{"errors":[{"message":"Field 'startedAt' doesn't exist on type 'Pipeline'"}]}"""));
         var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
-        await Assert.That(builds.Select(_ => _.RunNumber)).IsEquivalentTo(new[] { "120", "119" });
+        await Assert.That(builds.Select(_ => _.RunNumber)).IsEquivalentTo(["120", "119"]);
         await Assert.That(handler.Requests.Count(_ => _.Contains("/pipelines?per_page=5"))).IsEqualTo(1);
     }
 

@@ -4,9 +4,9 @@ public class ConcurrentlyTests
     public async Task OneFailingItemDoesNotFailTheOthers()
     {
         var results = await Concurrently.Settle(
-            new[] { 1, 2, 3 },
+            [1, 2, 3],
             2,
-            async (item, token) =>
+            async (item, _) =>
             {
                 await Task.Yield();
                 return item == 2 ? throw new HttpRequestException("boom") : item * 10;
@@ -21,7 +21,7 @@ public class ConcurrentlyTests
     {
         using var source = new CancelSource();
         await source.CancelAsync();
-        await Assert.That(async () => await Concurrently.Settle(new[] { 1 }, 1, (item, token) => Task.FromResult(item), source.Token))
+        await Assert.That(async () => await Concurrently.Settle([1], 1, (item, _) => Task.FromResult(item), source.Token))
             .Throws<OperationCanceledException>();
     }
 }

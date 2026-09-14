@@ -240,7 +240,7 @@ public class PollerTests
         var health = await poller.PollOnce(Cancel.None);
 
         await Assert.That(health).IsEqualTo(ConnectionHealth.Error);
-        await Assert.That(host.State.Builds.Select(_ => _.RunNumber)).IsEquivalentTo(new[] { "5" });
+        await Assert.That(host.State.Builds.Select(_ => _.RunNumber)).IsEquivalentTo(["5"]);
         await Assert.That(host.State.Connection(Fixtures.GitHub.Id)!.Error).StartsWith("1 of 2 failed: 500");
     }
 

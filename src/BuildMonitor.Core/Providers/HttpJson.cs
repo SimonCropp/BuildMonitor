@@ -232,8 +232,11 @@ sealed class HttpJson : IDisposable
             return true;
         }
 
-        return response.IsSuccessStatusCode &&
-               response.RequestMessage?.RequestUri is { } landed &&
+        return response is
+               {
+                   IsSuccessStatusCode: true,
+                   RequestMessage.RequestUri: { } landed
+               } &&
                !string.Equals(landed.Host, requested.Host, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -260,8 +263,11 @@ sealed class HttpJson : IDisposable
             return retryAfter;
         }
 
-        if (observation.Remaining == 0 &&
-            observation.Reset is { } reset &&
+        if (observation is
+            {
+                Remaining: 0,
+                Reset: { } reset
+            } &&
             reset > now)
         {
             return reset - now;
