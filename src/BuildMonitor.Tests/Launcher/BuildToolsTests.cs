@@ -5,11 +5,12 @@ using ModelContextProtocol.Server;
 /// </summary>
 public class BuildToolsTests
 {
+    MethodInfo[] methods = typeof(BuildTools).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
     [Test]
     public Task ToolSurface()
     {
-        var tools = typeof(BuildTools)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        var tools = methods
             .Select(_ => new
             {
                 _.GetCustomAttribute<McpServerToolAttribute>()!.Name,
@@ -30,7 +31,6 @@ public class BuildToolsTests
     [Test]
     public async Task EveryToolIsDescribed()
     {
-        var methods = typeof(BuildTools).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
         await Assert.That(methods.All(_ => _.GetCustomAttribute<DescriptionAttribute>() is not null)).IsTrue();
         await Assert.That(methods.Length).IsEqualTo(9);
     }
