@@ -34,10 +34,7 @@ static class Progress
 
         if (build.Estimate?.Remaining is { } remaining)
         {
-            var fraction = build.Estimate.Percent is { } percent
-                ? percent / 100
-                : 1 - remaining / (elapsed + remaining);
-            return (Cap(fraction), Countdown(remaining));
+            return (Cap(RemainingFraction(build.Estimate.Percent, elapsed, remaining)), Countdown(remaining));
         }
 
         if (build.Estimate?.Percent is { } onlyPercent)
@@ -52,6 +49,27 @@ static class Progress
         }
 
         return (Cap(elapsed / estimate.Value), Countdown(estimate.Value - elapsed));
+    }
+
+    /// <summary>
+    /// The provider's percent when it gives one, otherwise the share of elapsed plus remaining that
+    /// has gone. Nothing left, or an overrun, is as full as a running bar gets: worked out, a build
+    /// with nothing elapsed and nothing left is 0/0, which is NaN rather than an error and passes
+    /// through the clamp, and an overrun on a short run went negative and emptied the bar.
+    /// </summary>
+    static double RemainingFraction(double? percent, TimeSpan elapsed, TimeSpan remaining)
+    {
+        if (percent is { } value)
+        {
+            return value / 100;
+        }
+
+        if (remaining <= TimeSpan.Zero)
+        {
+            return runningCap;
+        }
+
+        return 1 - remaining / (elapsed + remaining);
     }
 
     static double Cap(double fraction) =>
