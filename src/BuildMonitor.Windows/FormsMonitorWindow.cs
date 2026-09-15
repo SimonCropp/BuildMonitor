@@ -7,7 +7,7 @@
 /// </summary>
 sealed class FormsMonitorWindow : IMonitorWindow
 {
-    readonly MonitorForm form;
+    MonitorForm form;
     bool disposed;
 
     FormsMonitorWindow(MonitorForm form) =>

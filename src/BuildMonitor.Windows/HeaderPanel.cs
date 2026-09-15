@@ -8,8 +8,8 @@ sealed class HeaderPanel : Panel
 {
     const int gap = 10;
     const int boxWidth = 240;
-    readonly FormsLabel text;
-    readonly TextBox search;
+    FormsLabel text;
+    TextBox search;
     bool searchShown = true;
     bool applying;
     bool searchChanged;

@@ -5,14 +5,18 @@
 /// </summary>
 sealed class SelectControl : Control
 {
-    readonly ContextMenuStrip menu = new();
+    ContextMenuStrip menu = new();
     string value = "";
 
     public event EventHandler? ValueChanged;
 
     public SelectControl()
     {
-        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.Selectable, true);
+        SetStyle(ControlStyles.AllPaintingInWmPaint |
+                 ControlStyles.OptimizedDoubleBuffer |
+                 ControlStyles.UserPaint |
+                 ControlStyles.Selectable,
+            true);
         BackColor = Palette.Surface;
         ForeColor = Palette.Text;
         Cursor = Cursors.Hand;
@@ -58,17 +62,18 @@ sealed class SelectControl : Control
             menu.Items.Clear();
             foreach (var option in field)
             {
-                menu.Items.Add(new ToolStripMenuItem(option)
-                {
-                    ForeColor = Palette.Text
-                });
+                menu.Items.Add(
+                    new ToolStripMenuItem(option)
+                    {
+                        ForeColor = Palette.Text
+                    });
             }
         }
     } = [];
 
-    protected override void OnPaint(PaintEventArgs e)
+    protected override void OnPaint(PaintEventArgs args)
     {
-        var graphics = e.Graphics;
+        var graphics = args.Graphics;
         graphics.Clear(Enabled ? Palette.Surface : Palette.Background);
         using (var pen = new Pen(Palette.Border))
         {
@@ -80,28 +85,28 @@ sealed class SelectControl : Control
         TextRenderer.DrawText(graphics, "▾", Font, new Rectangle(Width - LogicalToDeviceUnits(22), 0, LogicalToDeviceUnits(18), Height), Palette.Dim, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
     }
 
-    protected override void OnMouseDown(MouseEventArgs e)
+    protected override void OnMouseDown(MouseEventArgs args)
     {
         Focus();
         if (Enabled &&
-            e.Button == MouseButtons.Left)
+            args.Button == MouseButtons.Left)
         {
             ShowMenu();
         }
 
-        base.OnMouseDown(e);
+        base.OnMouseDown(args);
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+    protected override void OnKeyDown(KeyEventArgs args)
     {
         if (Enabled &&
-            e.KeyCode is Keys.Space or Keys.Enter or Keys.Down)
+            args.KeyCode is Keys.Space or Keys.Enter or Keys.Down)
         {
             ShowMenu();
-            e.Handled = true;
+            args.Handled = true;
         }
 
-        base.OnKeyDown(e);
+        base.OnKeyDown(args);
     }
 
     void ShowMenu()

@@ -1,14 +1,14 @@
 ﻿sealed class MenuRenderer() : ToolStripProfessionalRenderer(new MenuColours())
 {
-    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs args)
     {
-        e.TextColor = e.Item.Enabled ? Palette.Text : Palette.Dim;
-        base.OnRenderItemText(e);
+        args.TextColor = args.Item.Enabled ? Palette.Text : Palette.Dim;
+        base.OnRenderItemText(args);
     }
 
-    protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
+    protected override void OnRenderArrow(ToolStripArrowRenderEventArgs args)
     {
-        e.ArrowColor = Palette.Text;
-        base.OnRenderArrow(e);
+        args.ArrowColor = Palette.Text;
+        base.OnRenderArrow(args);
     }
 }

@@ -4,9 +4,9 @@
 /// </summary>
 sealed class FooterPanel : Panel
 {
-    readonly FlowLayoutPanel buttons;
-    readonly FormsLabel status;
-    readonly List<FormsButton> pool = [];
+    FlowLayoutPanel buttons;
+    FormsLabel status;
+    List<FormsButton> pool = [];
     string signature = "";
     int clicked = -1;
     bool statusClicked;

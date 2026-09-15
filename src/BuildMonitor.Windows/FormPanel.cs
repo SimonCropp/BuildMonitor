@@ -5,9 +5,9 @@
 /// </summary>
 sealed class FormPanel : Panel
 {
-    readonly TableLayoutPanel table;
-    readonly Dictionary<string, Control> controls = new();
-    readonly List<FieldChange> changes = [];
+    TableLayoutPanel table;
+    Dictionary<string, Control> controls = new();
+    List<FieldChange> changes = [];
     string? clickedField;
     string signature = "";
     bool applying;
@@ -109,7 +109,13 @@ sealed class FormPanel : Panel
         {
             case FieldKind.Checkbox:
             {
-                var box = new CheckBox { Text = field.Label, AutoSize = true, ForeColor = Palette.Text, Margin = DpiScale.Spacing(this, 3, 6, 3, 6) };
+                var box = new CheckBox
+                {
+                    Text = field.Label,
+                    AutoSize = true,
+                    ForeColor = Palette.Text,
+                    Margin = DpiScale.Spacing(this, 3, 6, 3, 6)
+                };
                 box.CheckedChanged += (_, _) => Changed(field.Id, box.Checked ? "true" : "false");
                 return (null, box);
             }
@@ -170,8 +176,19 @@ sealed class FormPanel : Panel
             }
             case FieldKind.ListRow:
             {
-                var panel = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = DpiScale.Spacing(this, 3, 2, 3, 2), BackColor = Palette.Background };
-                var text = new FormsLabel { AutoSize = true, ForeColor = Palette.Text, Margin = DpiScale.Spacing(this, 0, 6, 8, 0) };
+                var panel = new FlowLayoutPanel
+                {
+                    AutoSize = true,
+                    WrapContents = false,
+                    Margin = DpiScale.Spacing(this, 3, 2, 3, 2),
+                    BackColor = Palette.Background
+                };
+                var text = new FormsLabel
+                {
+                    AutoSize = true,
+                    ForeColor = Palette.Text,
+                    Margin = DpiScale.Spacing(this, 0, 6, 8, 0)
+                };
                 var remove = new FormsButton
                 {
                     Text = "✕",

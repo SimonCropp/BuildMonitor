@@ -146,7 +146,12 @@ sealed class RowsCanvas : Control
         contextMenu.Items.Clear();
         for (var index = 0; index < overlay.Labels.Count; index++)
         {
-            contextMenu.Items.Add(new ToolStripMenuItem(overlay.Labels[index]) { Tag = index, ForeColor = Palette.Text });
+            contextMenu.Items.Add(
+                new ToolStripMenuItem(overlay.Labels[index])
+                {
+                    Tag = index,
+                    ForeColor = Palette.Text
+                });
         }
 
         // A drop down hangs under the overflow chip that opened it, a context menu under its row.
@@ -290,14 +295,28 @@ sealed class RowsCanvas : Control
         return (nameWidth, names - nameWidth, barWidth, authorWidth, chipsWidth);
     }
 
-    static string DisplayName(BuildRow row) =>
-        row.Kind == RowKind.Group ? $"{(row.Expanded ? "▾" : "▸")} {row.Name}" : row.Name;
+    static string DisplayName(BuildRow row)
+    {
+        if (row.Kind == RowKind.Group)
+        {
+            return $"{(row.Expanded ? "▾" : "▸")} {row.Name}";
+        }
+
+        return row.Name;
+    }
 
     static int MeasureName(string text, Font font) =>
         TextRenderer.MeasureText(text, font, Size.Empty, TextFormatFlags.NoPrefix).Width;
 
-    Font NameFont(BuildRow row) =>
-        row.Kind == RowKind.Group ? bold : Font;
+    Font NameFont(BuildRow row)
+    {
+        if (row.Kind == RowKind.Group)
+        {
+            return bold;
+        }
+
+        return Font;
+    }
 
     void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, (int Name, int Detail, int Bar, int Author, int Chips) layout)
     {
@@ -466,7 +485,10 @@ sealed class RowsCanvas : Control
             graphics.FillPath(brush, path);
         }
 
-        TextRenderer.DrawText(graphics, label, Font, bounds, foreground, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        const TextFormatFlags textFormatFlags = TextFormatFlags.HorizontalCenter |
+                                                TextFormatFlags.VerticalCenter |
+                                                TextFormatFlags.NoPadding;
+        TextRenderer.DrawText(graphics, label, Font, bounds, foreground, textFormatFlags);
         chips.Add((row, kind, overflow, bounds));
         return bounds.Right;
     }
@@ -486,8 +508,15 @@ sealed class RowsCanvas : Control
         return path;
     }
 
-    int Measure(string text) =>
-        text.Length == 0 ? 0 : TextRenderer.MeasureText(text, Font, Size.Empty, TextFormatFlags.NoPadding).Width;
+    int Measure(string text)
+    {
+        if (text.Length == 0)
+        {
+            return 0;
+        }
+
+        return TextRenderer.MeasureText(text, Font, Size.Empty, TextFormatFlags.NoPadding).Width;
+    }
 
     static void Draw(Graphics graphics, string text, Font font, int x, Rectangle bounds, int width, Color colour) =>
         TextRenderer.DrawText(graphics, text, font, new Rectangle(x, bounds.Top, width, bounds.Height), colour, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
@@ -500,13 +529,18 @@ sealed class RowsCanvas : Control
         }
 
         var row = y / RowHeight;
-        return row >= 0 && row < page.Rows.Count ? row : -1;
+        if (row >= 0 && row < page.Rows.Count)
+        {
+            return row;
+        }
+
+        return -1;
     }
 
-    protected override void OnMouseMove(MouseEventArgs e)
+    protected override void OnMouseMove(MouseEventArgs args)
     {
-        var row = RowAt(e.Y);
-        var hit = chips.FirstOrDefault(_ => _.Bounds.Contains(e.Location));
+        var row = RowAt(args.Y);
+        var hit = chips.FirstOrDefault(_ => _.Bounds.Contains(args.Location));
         Cursor = hit.Bounds == Rectangle.Empty ? Cursors.Default : Cursors.Hand;
         var link = hit is { Overflow: false, Chip: ChipKind.Build or ChipKind.Branch } ? hit.Bounds : Rectangle.Empty;
         if (row != hoverRow ||
@@ -517,28 +551,28 @@ sealed class RowsCanvas : Control
             Invalidate();
         }
 
-        base.OnMouseMove(e);
+        base.OnMouseMove(args);
     }
 
-    protected override void OnMouseLeave(EventArgs e)
+    protected override void OnMouseLeave(EventArgs args)
     {
         hoverRow = -1;
         hoverLink = Rectangle.Empty;
         Invalidate();
-        base.OnMouseLeave(e);
+        base.OnMouseLeave(args);
     }
 
-    protected override void OnMouseDown(MouseEventArgs e)
+    protected override void OnMouseDown(MouseEventArgs args)
     {
         Focus();
-        var row = RowAt(e.Y);
-        if (e.Button == MouseButtons.Right)
+        var row = RowAt(args.Y);
+        if (args.Button == MouseButtons.Right)
         {
             rightClickedRow = row;
         }
-        else if (e.Button == MouseButtons.Left)
+        else if (args.Button == MouseButtons.Left)
         {
-            var chip = chips.FirstOrDefault(_ => _.Bounds.Contains(e.Location));
+            var chip = chips.FirstOrDefault(_ => _.Bounds.Contains(args.Location));
             if (chip.Bounds != Rectangle.Empty)
             {
                 if (chip.Overflow)
@@ -552,7 +586,7 @@ sealed class RowsCanvas : Control
                     clickedChip = chip.Chip;
                 }
             }
-            else if (e.Clicks < 2 ||
+            else if (args.Clicks < 2 ||
                      !IsGroup(row))
             {
                 // The second press of a double click on a group is dropped: the first already
@@ -561,7 +595,7 @@ sealed class RowsCanvas : Control
             }
         }
 
-        base.OnMouseDown(e);
+        base.OnMouseDown(args);
     }
 
     bool IsGroup(int row) =>
@@ -569,28 +603,36 @@ sealed class RowsCanvas : Control
         page is not null &&
         page.Rows[row].Kind == RowKind.Group;
 
-    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    protected override void OnMouseDoubleClick(MouseEventArgs args)
     {
-        var row = RowAt(e.Y);
-        if (e.Button == MouseButtons.Left &&
+        var row = RowAt(args.Y);
+        if (args.Button == MouseButtons.Left &&
             row >= 0 &&
             !IsGroup(row) &&
-            !chips.Any(_ => _.Bounds.Contains(e.Location)))
+            !chips.Any(_ => _.Bounds.Contains(args.Location)))
         {
             Key = CommandKind.OpenBuild;
         }
 
-        base.OnMouseDoubleClick(e);
+        base.OnMouseDoubleClick(args);
     }
 
-    protected override void OnMouseWheel(MouseEventArgs e)
+    protected override void OnMouseWheel(MouseEventArgs args)
     {
-        scrollDelta -= e.Delta / 40;
-        base.OnMouseWheel(e);
+        scrollDelta -= args.Delta / 40;
+        base.OnMouseWheel(args);
     }
 
     protected override bool IsInputKey(Keys keyData) =>
-        keyData is Keys.Up or Keys.Down or Keys.Home or Keys.End or Keys.PageUp or Keys.PageDown or Keys.Enter || base.IsInputKey(keyData);
+        keyData is
+            Keys.Up or
+            Keys.Down or
+            Keys.Home or
+            Keys.End or
+            Keys.PageUp or
+            Keys.PageDown or
+            Keys.Enter ||
+        base.IsInputKey(keyData);
 
     protected override void Dispose(bool disposing)
     {

@@ -4,33 +4,49 @@
 /// </summary>
 static class Icons
 {
-    static readonly ConcurrentDictionary<string, Icon?> icons = new();
-    static readonly ConcurrentDictionary<string, Bitmap?> bitmaps = new();
+    static ConcurrentDictionary<string, Icon?> icons = new();
+    static ConcurrentDictionary<string, Bitmap?> bitmaps = new();
 
     public static Icon? Tray(TrayIconKind kind) =>
-        icons.GetOrAdd($"tray-{Images.TrayName(kind)}", _ =>
-        {
-            using var stream = Images.Open($"{_}.ico");
-            return stream is null ? null : new Icon(stream, SystemInformation.SmallIconSize);
-        });
+        icons.GetOrAdd(
+            $"tray-{Images.TrayName(kind)}",
+            _ =>
+            {
+                using var stream = Images.Open($"{_}.ico");
+                if (stream is null)
+                {
+                    return null;
+                }
+
+                return new(stream, SystemInformation.SmallIconSize);
+            });
 
     public static Icon? Window =>
-        icons.GetOrAdd("window", _ =>
-        {
-            using var stream = Images.Open("tray-idle.ico");
-            return stream is null ? null : new Icon(stream);
-        });
+        icons.GetOrAdd(
+            "window",
+            _ =>
+            {
+                using var stream = Images.Open("tray-idle.ico");
+                if (stream is null)
+                {
+                    return null;
+                }
+
+                return new(stream);
+            });
 
     public static Bitmap? Glyph(string name, int size = 16) =>
-        bitmaps.GetOrAdd($"{name}-{size}", _ =>
-        {
-            var bytes = Images.Glyph(name, size);
-            if (bytes is null)
+        bitmaps.GetOrAdd(
+            $"{name}-{size}",
+            _ =>
             {
-                return null;
-            }
+                var bytes = Images.Glyph(name, size);
+                if (bytes is null)
+                {
+                    return null;
+                }
 
-            using var stream = new MemoryStream(bytes);
-            return new(stream);
-        });
+                using var stream = new MemoryStream(bytes);
+                return new(stream);
+            });
 }

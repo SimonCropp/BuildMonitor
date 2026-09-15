@@ -29,7 +29,6 @@ static class Palette
 
     public static Color Background => Pick(Color.FromArgb(24, 24, 24), Color.FromArgb(250, 250, 250));
     public static Color Surface => Pick(Color.FromArgb(32, 32, 32), Color.FromArgb(240, 240, 240));
-    public static Color HeaderRow => Pick(Color.FromArgb(38, 38, 38), Color.FromArgb(232, 232, 232));
     public static Color SelectedRow => Pick(Color.FromArgb(44, 50, 66), Color.FromArgb(204, 222, 245));
     public static Color HoverRow => Pick(Color.FromArgb(36, 36, 40), Color.FromArgb(236, 238, 244));
     public static Color Text => Pick(Color.FromArgb(212, 212, 212), Color.FromArgb(32, 32, 32));
@@ -53,6 +52,13 @@ static class Palette
             _ => Pick(Color.FromArgb(120, 120, 120), Color.FromArgb(140, 140, 140))
         };
 
-    static Color Pick(Color dark, Color light) =>
-        Light ? light : dark;
+    static Color Pick(Color dark, Color light)
+    {
+        if (Light)
+        {
+            return light;
+        }
+
+        return dark;
+    }
 }

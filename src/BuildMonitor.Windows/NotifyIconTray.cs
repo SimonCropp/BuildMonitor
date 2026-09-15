@@ -4,8 +4,8 @@
 /// </summary>
 sealed class NotifyIconTray : ITray
 {
-    readonly NotifyIcon icon;
-    readonly ContextMenuStrip menu = new();
+    NotifyIcon icon;
+    ContextMenuStrip menu = new();
     TrayModel? model;
     TrayIconKind? shown;
     string? clicked;
