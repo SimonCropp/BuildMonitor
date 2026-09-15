@@ -45,7 +45,7 @@ jobs:
             os: macos-14
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install build dependencies
         if: runner.os == 'Linux'
@@ -130,7 +130,7 @@ jobs:
           ls -lhR artifacts
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.rid }}
           path: artifacts/
@@ -155,10 +155,10 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: native-*
           merge-multiple: true
@@ -172,7 +172,7 @@ jobs:
       # A PR rather than a direct push: these are binaries, so the diff is not reviewable and the
       # change deserves an explicit approval.
       - name: Open pull request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: native-binaries-${{ github.ref_name }}
           title: 'Rebuild native UI binaries'

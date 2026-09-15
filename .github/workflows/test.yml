@@ -23,10 +23,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -41,7 +41,7 @@ jobs:
 
       - name: Upload received on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: received-windows
           path: '**/*.received.*'
@@ -50,7 +50,7 @@ jobs:
 
       - name: Upload packages
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nupkgs
           path: nugets/*.nupkg
@@ -69,10 +69,10 @@ jobs:
         os: [ubuntu-latest, macos-14]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -92,7 +92,7 @@ jobs:
       # Keyed on the shim's own sources, which is what actually changes.
       - name: Cache native build
         if: runner.os == 'Linux' && hashFiles('native/CMakeLists.txt') != ''
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: native/build
           key: native-linux-x64-${{ hashFiles('native/CMakeLists.txt', 'native/src/**', 'native/include/**') }}
@@ -150,7 +150,7 @@ jobs:
 
       - name: Upload received on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: received-${{ matrix.os }}
           path: '**/*.received.*'
@@ -180,10 +180,10 @@ jobs:
             os: ubuntu-24.04-arm
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -218,7 +218,7 @@ jobs:
 
       - name: Upload received on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: received-${{ matrix.rid }}
           path: '**/*.received.*'
