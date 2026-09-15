@@ -37,20 +37,60 @@ public class OctopusProviderTests
         await Assert.That(builds.Single(_ => _.Branch == "Production").Estimate!.Remaining).IsEqualTo(TimeSpan.FromSeconds(135));
     }
 
-    [Test]
-    public async Task ALimitedDashboardFallsBackToSeparateListings()
-    {
-        var handler = Discovery()
+    static FakeHttpHandler Limited() =>
+        Discovery()
             .Get($"{server}/api/Spaces-1/dashboard/dynamic", """{"Items":[],"Environments":[],"ProjectLimit":0}""")
-            .Get($"{server}/api/Spaces-1/environments/all", """[{"Id":"Environments-1","Name":"Production"}]""")
+            .Get($"{server}/api/Spaces-1/environments/all", """[{"Id":"Environments-1","Name":"Production"},{"Id":"Environments-2","Name":"Staging"}]""")
             .Get($"{server}/api/Spaces-1/deployments?take=5", """{"Items":[{"Id":"Deployments-10","ProjectId":"Projects-1","EnvironmentId":"Environments-1","TaskId":"ServerTasks-100","Links":{"Web":"/app#/Spaces-1/deployments/Deployments-10"}}]}""")
             .Get(
                 $"{server}/api/Spaces-1/tasks?take=5&name=Deploy",
                 """{"Items":[{"Id":"ServerTasks-100","State":"Executing","Description":"Deploy Web release 1.2.3 to Production","QueueTime":"2026-01-01T11:57:00Z","StartTime":"2026-01-01T11:58:00Z","Links":{"Details":"/api/Spaces-1/tasks/ServerTasks-100/details{?verbose,tail,ranges}","Cancel":"/api/Spaces-1/tasks/ServerTasks-100/cancel","Rerun":"/api/Spaces-1/tasks/rerun/ServerTasks-100"}}]}""");
+
+    [Test]
+    public async Task ALimitedDashboardFallsBackToSeparateListings()
+    {
+        var handler = Limited();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", ProviderTestHelpers.Context("octopus", handler, server));
         await Assert.That(builds.Single().RunNumber).IsEqualTo("1.2.3");
         // The task's templated details link is requested without its template.
         await Assert.That(handler.Requests).Contains($"GET {server}/api/Spaces-1/tasks/ServerTasks-100/details?verbose=false&tail=1");
+    }
+
+    [Test]
+    public async Task ALimitedDashboardIsRememberedUntilTheProjectsAreListedAgain()
+    {
+        // Asked every poll, the dashboard was downloaded only to be thrown away, and the environments
+        // were read again beside it.
+        var handler = Limited();
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        var provider = ProviderTestHelpers.Provider("octopus");
+        var pipelines = await provider.DiscoverPipelines(context, Cancel.None);
+        await provider.FetchBuilds(context, pipelines, 5, Cancel.None);
+        await provider.FetchBuilds(context, pipelines, 5, Cancel.None);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/dashboard/dynamic"))).IsEqualTo(1);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/environments/all"))).IsEqualTo(1);
+
+        await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/dashboard/dynamic"))).IsEqualTo(2);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/environments/all"))).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task TasksMissingFromThePageAreFetchedTogetherFromTheirSpace()
+    {
+        // Each was a request of its own, and its route left out the space, which reads the default
+        // space only.
+        var handler = Limited()
+            .Get(
+                $"{server}/api/Spaces-1/deployments?take=5",
+                """{"Items":[{"Id":"Deployments-10","ProjectId":"Projects-1","EnvironmentId":"Environments-1","TaskId":"ServerTasks-100"},{"Id":"Deployments-9","ProjectId":"Projects-1","EnvironmentId":"Environments-2","TaskId":"ServerTasks-99"}]}""")
+            .Get($"{server}/api/Spaces-1/tasks?take=5&name=Deploy", """{"Items":[]}""")
+            .Get(
+                $"{server}/api/Spaces-1/tasks?ids=ServerTasks-100,ServerTasks-99&take=2",
+                """{"Items":[{"Id":"ServerTasks-100","State":"Success","Description":"Deploy Web release 1.2.3 to Production"},{"Id":"ServerTasks-99","State":"Failed","Description":"Deploy Web release 1.2.2 to Staging"}]}""");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", ProviderTestHelpers.Context("octopus", handler, server));
+        await Assert.That(builds.Select(_ => $"{_.Branch} {_.RunNumber}")).IsEquivalentTo(["Production 1.2.3", "Staging 1.2.2"]);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/tasks?ids="))).IsEqualTo(1);
     }
 
     [Test]

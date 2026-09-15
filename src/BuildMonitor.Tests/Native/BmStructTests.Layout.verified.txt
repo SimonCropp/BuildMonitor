@@ -1,6 +1,6 @@
 ﻿{
   PointerSize: 8,
-  Screen: 272,
+  Screen: 280,
   Input: 88,
   ScreenOffsets: [
     Strings@0,
@@ -43,7 +43,8 @@
     TrayTooltip@248,
     TrayItems@256,
     TrayItemCount@264,
-    Theme@268
+    Theme@268,
+    Generation@272
   ],
   InputOffsets: [
     Key@0,
@@ -87,5 +88,5 @@
     Quit=16,
     CopyStatus=17
   ],
-  Version: 6
+  Version: 7
 }

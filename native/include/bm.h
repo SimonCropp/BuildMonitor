@@ -266,6 +266,12 @@ typedef struct BmScreen {
 
     /* A BmTheme. */
     int32_t theme;
+
+    /* Bumped by the managed side each time it builds a new screen, and unchanged while it presents
+       the same one again. With an unchanged generation, no input and nothing animating, an
+       implementation only pumps events: drawing the same screen sixty times a second cost a whole
+       frame of layout and drawing each time. */
+    int32_t generation;
 } BmScreen;
 
 /* Keep in sync with NativeMonitorWindow.Key */
@@ -343,7 +349,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 6
+#define BM_VERSION 7
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -361,7 +367,11 @@ BM_API int32_t bm_init(
     float fontSize,
     int32_t hidden);
 
-/* Draws one frame, or pumps events for one frame while hidden. Returns 0 once the window is gone for good. */
+/*
+ * Draws one frame, or pumps events for one frame while hidden, or while the generation, the input
+ * and anything animating are all as they were for the last frame drawn. Returns 0 once the window is
+ * gone for good.
+ */
 BM_API int32_t bm_present(const BmScreen* screen);
 
 BM_API void bm_poll_input(BmInput* input);

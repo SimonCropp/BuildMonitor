@@ -34,7 +34,7 @@ The countdown comes from the median of the project's last ten successful builds.
 
 ## Polling
 
-Each project is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). AppVeyor sends no ETags, so every request returns a full response. Once a minute the projects list is read, which carries each project's latest build, and a project whose latest build changed is fetched at once rather than when its schedule comes round. A build that starts on another branch while a newer one exists waits for the schedule.
+Each project is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). AppVeyor sends no ETags, so every request returns a full response. Once a minute the projects list is read, which carries each project's latest build, and a project whose latest build changed is fetched at once rather than when its schedule comes round. A build that starts on another branch while a newer one exists waits for the schedule, which on a quiet project is up to thirty minutes.
 
 ```mermaid
 ---
@@ -55,9 +55,9 @@ flowchart TD
     nudge --> interval
     interval --> finishing["Running, from its fastest<br/>recent build to 90 s past<br/>its slowest, or with no<br/>history: every 10 s"]
     interval --> running["Running for less than its<br/>fastest recent build, or<br/>queued: every 30 s, and<br/>again when it reaches that"]
-    interval --> overrun["Running over 90 s past<br/>its slowest recent build:<br/>the time beyond that ÷ 10,<br/>30 s to 5 minutes"]
-    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
-    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last build ÷ 120,<br/>30 s to 5 minutes"]
+    interval --> overrun["Running over 90 s past<br/>its slowest recent build:<br/>the time beyond that ÷ 10,<br/>30 s to 30 minutes"]
+    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 30 minutes"]
+    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last build ÷ 120,<br/>30 s to 30 minutes"]
     finishing --> due{"Due?"}
     running --> due
     overrun --> due

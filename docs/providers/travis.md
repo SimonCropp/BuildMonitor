@@ -34,7 +34,7 @@ The countdown comes from the median of the repository's last ten successful buil
 
 ## Polling
 
-Each repository is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). Travis sends no ETags, so every request returns a full response, and no rate limit headers, so a limit is only seen when a request is refused; the pause then starts at a minute and doubles. Nothing cheap says which repositories have new builds, so a build on a quiet repository shows when its schedule comes round: within five minutes.
+Each repository is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). Travis sends no ETags, so every request returns a full response, and no rate limit headers, so a limit is only seen when a request is refused; the pause then starts at a minute and doubles. Once a minute the repositories are listed with the newest builds first, each with its last started build, and a repository whose last started build changed is fetched at once rather than when its schedule comes round, which for a quiet repository is up to thirty minutes. A build created but not yet started shows once it starts.
 
 ```mermaid
 ---
@@ -45,20 +45,26 @@ config:
 flowchart TD
     wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed repositories in<br/>the last 10 minutes?"}
     listed -- "no" --> discover["GET repos?repository.active=true,<br/>up to 100"]
-    listed -- "yes" --> interval["Each repository is polled<br/>as its latest builds need"]
-    discover --> interval
+    listed -- "yes" --> probed{"Probed in the<br/>last minute?"}
+    probed -- "no" --> probe["GET repos, newest builds<br/>first, with each one's<br/>last started build"]
+    probe --> moved{"A last started build<br/>changed its id<br/>or state?"}
+    moved -- "yes" --> nudge["Fetch that repository<br/>now, then every 30 s<br/>for 3 minutes"]
+    discover --> interval["Each repository is polled<br/>as its latest builds need"]
+    probed -- "yes" --> interval
+    moved -- "no" --> interval
+    nudge --> interval
     interval --> finishing["Started, from its fastest<br/>recent build to 90 s past<br/>its slowest, or with no<br/>history: every 10 s"]
     interval --> running["Started for less than its<br/>fastest recent build, or<br/>created or queued: every<br/>30 s, and again when it<br/>reaches that"]
-    interval --> overrun["Started over 90 s past<br/>its slowest recent build:<br/>the time beyond that ÷ 10,<br/>30 s to 5 minutes"]
-    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
-    interval --> failed["Quiet after a failed or<br/>errored build: the time<br/>since it ÷ 120,<br/>30 s to 5 minutes"]
+    interval --> overrun["Started over 90 s past<br/>its slowest recent build:<br/>the time beyond that ÷ 10,<br/>30 s to 30 minutes"]
+    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 30 minutes"]
+    interval --> failed["Quiet after a failed or<br/>errored build: the time<br/>since it ÷ 120,<br/>30 s to 30 minutes"]
     finishing --> due{"Due?"}
     running --> due
     overrun --> due
     quiet --> due
     failed --> due
-    due -- "no" --> sleep(["Sleep until a repository<br/>or the listing is due"])
-    due -- "yes, most urgent first" --> fetch["GET repo/{slug}/builds,<br/>the last 5 with<br/>their commits"]
+    due -- "no" --> sleep(["Sleep until a repository,<br/>the probe or the<br/>listing is due"])
+    due -- "yes, most urgent first,<br/>up to 8 at a time" --> fetch["GET repo/{slug}/builds,<br/>the last 5 with<br/>their commits"]
     fetch -- "200" --> rows["Update its rows"]
     fetch -- "429" --> pause["Pause the connection<br/>for Retry-After, or from<br/>a minute, doubling"]
     fetch -- "other failure" --> backoff["Back off that repository,<br/>doubling up to 10 minutes"]

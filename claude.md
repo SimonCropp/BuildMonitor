@@ -25,6 +25,9 @@ dotnet test --project src/BuildMonitor.Tests/BuildMonitor.Tests.csproj --configu
 
 # Or run the test project directly, which is the fastest loop and takes the same filter
 src/BuildMonitor.Tests/bin/Debug/net10.0/BuildMonitor.Tests.exe --treenode-filter "/*/*/ClassName/*"
+
+# Benchmarks, on demand and Windows only. Not in the solution, so neither CI nor dotnet test runs them
+dotnet run --configuration Release --project src/BuildMonitor.Benchmarks -- --filter "*"
 ```
 
 **Test runner:** TUnit runs on Microsoft.Testing.Platform rather than VSTest. Filters are treenode paths given after `--`, as `/Assembly/Namespace/Class/Test` with `*` for any segment; VSTest's `--filter "FullyQualifiedName~ClassName"` matches nothing and exits 5. `--nologo` makes any run report "Zero tests ran" and exit 5, so leave it off.

@@ -28,6 +28,10 @@ final class Runtime {
     var input = BmInput()
     var initialised = false
 
+    /// The generation of the screen last presented, so one presented again is not decoded or drawn
+    /// again. Nil before the first, and after a show, which may have made the window it goes in.
+    var presentedGeneration: Int32?
+
     private init() {
         resetInput()
     }
@@ -118,6 +122,18 @@ final class Runtime {
         pump()
         popMenu(frame)
         measure()
+    }
+
+    /// A frame with the generation last presented: nothing to decode, lay out or draw again, only
+    /// events to pump. The spinner is the exception: it is drawn from the clock, so it turns only
+    /// while the view is drawn.
+    func pumpUnchanged() {
+        if let view, let model = view.model, !model.isForm, model.rows.isEmpty, model.loading {
+            view.needsDisplay = true
+            view.displayIfNeeded()
+        }
+
+        pump()
     }
 
     /// The drawn parts read the palette every frame; this is for what AppKit holds on to: the
@@ -240,6 +256,7 @@ final class Runtime {
 
     func show() {
         makeWindow()
+        presentedGeneration = nil
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -259,6 +276,7 @@ final class Runtime {
         scroller = nil
         tray = nil
         menuShown = false
+        presentedGeneration = nil
         initialised = false
     }
 

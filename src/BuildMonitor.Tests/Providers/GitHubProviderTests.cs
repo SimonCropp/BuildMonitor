@@ -39,6 +39,26 @@ public class GitHubProviderTests
     }
 
     [Test]
+    public async Task DiscoveryListsWorkflowsOnlyForARepositoryPushedSince()
+    {
+        // Listing every repository's workflows each discovery cost a request a repository, which the
+        // secondary limit counts even as a 304.
+        const string listing = "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1";
+        const string workflows = "GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows?per_page=100";
+        var handler = Handler();
+        var context = ProviderTestHelpers.Context("github", handler);
+        var provider = ProviderTestHelpers.Provider("github");
+        await provider.DiscoverPipelines(context, Cancel.None);
+        var again = await provider.DiscoverPipelines(context, Cancel.None);
+        await Assert.That(again.Single().Name).IsEqualTo("Test");
+        await Assert.That(handler.Requests.Count(_ => _.StartsWith(workflows, StringComparison.Ordinal))).IsEqualTo(1);
+
+        handler.Get(listing, """[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-02T00:00:00Z"}]""");
+        await provider.DiscoverPipelines(context, Cancel.None);
+        await Assert.That(handler.Requests.Count(_ => _.StartsWith(workflows, StringComparison.Ordinal))).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task HistoryLimitIsNotSentAsCreated()
     {
         // A run keeps its created_at through a re-run, so filtering on it would hide a run from

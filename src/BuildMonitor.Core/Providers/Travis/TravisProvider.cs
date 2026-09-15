@@ -48,6 +48,23 @@ sealed class TravisProvider : ProviderBase
         return builds;
     }
 
+    /// <summary>
+    /// The repositories with the newest builds first, each with its last started build's id and
+    /// state as its token, which a new build or a finished one moves. Travis sends no ETags, so
+    /// without this every quiet repository cost a full response each time its schedule came round.
+    /// A build created but not yet started is not in the listing, and moves the token once it starts.
+    /// </summary>
+    public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
+    {
+        var repositories = await context.Http.Get(
+            "repos?repository.active=true&limit=100&sort_by=current_build:desc&include=repository.last_started_build",
+            TravisContext.Default.TravisRepositories,
+            cancel);
+        return repositories.Repositories
+            .Where(_ => _.LastStartedBuild is not null)
+            .ToImmutableDictionary(_ => _.Slug, _ => $"{_.LastStartedBuild!.Id}|{_.LastStartedBuild.State}");
+    }
+
     static Build Convert(ProviderContext context, Pipeline pipeline, TravisBuild build)
     {
         var status = build.State switch

@@ -55,7 +55,7 @@ static class MonitorProgram
     static int RunOwned(string[] args, Settings settings, LocalServer server, OpenWindow openWindow, OpenTray openTray)
     {
         var host = new SessionHost(SessionState.Start(settings));
-        var secrets = SecretStores.ForPlatform(AppPaths.Secrets);
+        var secrets = new CachingSecretStore(SecretStores.ForPlatform(AppPaths.Secrets));
         var history = DurationHistory.Load(AppPaths.History);
         var handler = new SocketsHttpHandler
         {

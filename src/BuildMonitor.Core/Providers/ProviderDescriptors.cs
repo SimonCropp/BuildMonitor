@@ -23,6 +23,10 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        FetchConcurrency: Concurrently.Limit,
+        // The probe fetches a project whose latest build changed at once, so a quiet one need not be
+        // fetched every five minutes, a full response each time.
+        IdleCap: TimeSpan.FromMinutes(30),
         // No ETags: every probe is a full list, so once a minute rather than every poll interval.
         ProbeInterval: TimeSpan.FromMinutes(1));
 
@@ -40,7 +44,13 @@ static class ProviderDescriptors
         Scopes: [],
         HasEstimate: false,
         HasBranches: true,
-        HasPullRequests: true);
+        HasPullRequests: true,
+        FetchConcurrency: Concurrently.Limit,
+        // The probe fetches a repository whose last started build changed at once, so a quiet one
+        // need not be fetched every five minutes, a full response each time.
+        IdleCap: TimeSpan.FromMinutes(30),
+        // No ETags: every probe is a full list, so once a minute rather than every poll interval.
+        ProbeInterval: TimeSpan.FromMinutes(1));
 
     public static readonly ProviderDescriptor Jenkins = new(
         Id: "jenkins",
@@ -57,7 +67,12 @@ static class ProviderDescriptors
         HasEstimate: true,
         HasBranches: true,
         HasPullRequests: false,
-        Notes: "Create the token at {server}/me/security.");
+        Notes: "Create the token at {server}/me/security.",
+        // Fewer than the hosted services get: a self hosted server may be a small one.
+        FetchConcurrency: 4,
+        // The probe reads every discovered job's next build number in one request, so a quiet job
+        // need not be fetched every five minutes, which reads its last builds from disk.
+        IdleCap: TimeSpan.FromMinutes(30));
 
     public static readonly ProviderDescriptor GitHub = new(
         Id: "github",
@@ -105,8 +120,12 @@ static class ProviderDescriptors
         HasPullRequests: true,
         Notes: "The token needs Build (Read & execute).",
         FetchUnit: FetchUnit.Repository,
+        FetchConcurrency: Concurrently.Limit,
         // Half the 200 throughput units a user may spend in any five minutes.
         Quota: new(100, TimeSpan.FromMinutes(5), 100, ChargeByCost: true),
+        // The probe asks each project for builds queued since the newest one seen, so a quiet
+        // project need not be fetched every five minutes.
+        IdleCap: TimeSpan.FromMinutes(30),
         ActionPermission: "Build (Read & execute)");
 
     public static readonly ProviderDescriptor TeamCity = new(
@@ -128,7 +147,12 @@ static class ProviderDescriptors
         HasBranches: true,
         HasPullRequests: false,
         Notes: "Create the token under Profile, Access Tokens.",
-        FetchUnit: FetchUnit.Connection);
+        FetchUnit: FetchUnit.Group,
+        // Fewer than the hosted services get: a self hosted server may be a small one.
+        FetchConcurrency: 4,
+        // The probe asks for the builds queued since the newest one seen, so a quiet project need
+        // not be fetched every five minutes.
+        IdleCap: TimeSpan.FromMinutes(30));
 
     public static readonly ProviderDescriptor GitLab = new(
         Id: "gitlab",
@@ -169,7 +193,12 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: false,
         HasPullRequests: false,
-        Notes: "Create the token at {server}/go/access_tokens.");
+        Notes: "Create the token at {server}/go/access_tokens.",
+        // Fewer than the hosted services get: a self hosted server may be a small one.
+        FetchConcurrency: 4,
+        // The probe reads the dashboard, where a new instance moves the counter, so a quiet pipeline
+        // need not be fetched every five minutes.
+        IdleCap: TimeSpan.FromMinutes(30));
 
     public static readonly ProviderDescriptor Bitbucket = new(
         Id: "bitbucket",
@@ -190,6 +219,7 @@ static class ProviderDescriptors
         HasBranches: true,
         HasPullRequests: true,
         Notes: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.",
+        FetchConcurrency: Concurrently.Limit,
         // A thousand requests an hour, or the scaled limit the workspace reports.
         Quota: new(1000, TimeSpan.FromHours(1), 250, LearnLimit: true),
         IdleCap: TimeSpan.FromMinutes(30),

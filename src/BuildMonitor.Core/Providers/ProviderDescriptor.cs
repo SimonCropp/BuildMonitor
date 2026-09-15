@@ -10,7 +10,9 @@
 /// <param name="ActionPermission">What a credential needs to retry and cancel, named in the
 /// status when one is refused; null when the provider does not document it.</param>
 /// <param name="FetchUnit">What one fetch covers, which the poller schedules as one group.</param>
-/// <param name="FetchConcurrency">How many groups are fetched at once.</param>
+/// <param name="FetchConcurrency">How many groups are fetched at once. A cycle applies its rows only
+/// once every due group is back, so one at a time left a first poll of a few hundred jobs showing
+/// nothing for most of a minute, and a Refresh showing stale rows for as long.</param>
 /// <param name="Quota">A request budget the service enforces, or null when its headers are enough.</param>
 /// <param name="IdleCap">The longest a quiet group waits between fetches; null for the default.</param>
 /// <param name="ProbeInterval">How often <see cref="IProvider.RecentActivity"/> is asked; null for

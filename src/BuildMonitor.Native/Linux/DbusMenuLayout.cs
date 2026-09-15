@@ -4,7 +4,7 @@
 /// </summary>
 sealed class DbusMenuLayout
 {
-    public static readonly DbusMenuLayout Empty = new(new(0, null, "", true, false, null, []), []);
+    public static DbusMenuLayout Empty = new(new(0, null, "", true, false, null, []), []);
 
     DbusMenuLayout(DbusMenuNode root, List<DbusMenuNode> all)
     {

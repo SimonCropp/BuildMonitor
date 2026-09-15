@@ -8,10 +8,10 @@ public class JenkinsProviderTests
                 $"{server}/api/json",
                 """
                 {"jobs":[
-                  {"_class":"hudson.model.FreeStyleProject","name":"build-all","displayName":"Build all","url":"https://jenkins.example.com/job/build-all/","color":"blue_anime"},
+                  {"_class":"hudson.model.FreeStyleProject","name":"build-all","displayName":"Build all","url":"https://jenkins.example.com/job/build-all/"},
                   {"_class":"com.cloudbees.hudson.plugins.folder.Folder","name":"team","displayName":"Team","url":"https://jenkins.example.com/job/team/","jobs":[
                     {"_class":"org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject","name":"app","displayName":"App","url":"https://jenkins.example.com/job/team/job/app/","jobs":[
-                      {"_class":"org.jenkinsci.plugins.workflow.job.WorkflowJob","name":"PR-12","displayName":"PR-12","url":"https://jenkins.example.com/job/team/job/app/job/PR-12/","color":"red"}
+                      {"_class":"org.jenkinsci.plugins.workflow.job.WorkflowJob","name":"PR-12","displayName":"PR-12","url":"https://jenkins.example.com/job/team/job/app/job/PR-12/"}
                     ]}
                   ]}
                 ]}
@@ -20,16 +20,16 @@ public class JenkinsProviderTests
                 $"{server}/job/build-all/api/json",
                 """
                 {"builds":[
-                  {"number":501,"url":"https://jenkins.example.com/job/build-all/501/","result":null,"building":true,"timestamp":1767268500000,"duration":0,"estimatedDuration":300000,"actions":[{},{"lastBuiltRevision":{"branch":[{"name":"refs/remotes/origin/main"}]}}]},
-                  {"number":500,"url":"https://jenkins.example.com/job/build-all/500/","result":"SUCCESS","building":false,"timestamp":1767264900000,"duration":290000,"estimatedDuration":300000,"actions":[]}
-                ],"inQueue":false,"queueItem":null}
+                  {"number":501,"url":"https://jenkins.example.com/job/build-all/501/","result":null,"building":true,"timestamp":1767268500000,"duration":0,"actions":[{},{"lastBuiltRevision":{"branch":[{"name":"refs/remotes/origin/main"}]}}]},
+                  {"number":500,"url":"https://jenkins.example.com/job/build-all/500/","result":"SUCCESS","building":false,"timestamp":1767264900000,"duration":290000,"actions":[]}
+                ],"lastBuild":{"number":501,"estimatedDuration":300000},"inQueue":false,"queueItem":null}
                 """)
             .Get(
                 $"{server}/job/team/job/app/job/PR-12/api/json",
                 """
                 {"builds":[
-                  {"number":3,"url":"https://jenkins.example.com/job/team/job/app/job/PR-12/3/","result":"FAILURE","building":false,"timestamp":1767261300000,"duration":60000,"estimatedDuration":65000,"actions":[]}
-                ],"inQueue":true,"queueItem":{"id":77,"inQueueSince":1767268740000}}
+                  {"number":3,"url":"https://jenkins.example.com/job/team/job/app/job/PR-12/3/","result":"FAILURE","building":false,"timestamp":1767261300000,"duration":60000}
+                ],"lastBuild":{"number":3,"estimatedDuration":65000},"inQueue":true,"queueItem":{"id":77,"inQueueSince":1767268740000}}
                 """);
 
     [Test]
@@ -38,6 +38,27 @@ public class JenkinsProviderTests
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("jenkins", ProviderTestHelpers.Context("jenkins", handler, server, "simon"));
         await Verify(new { builds, handler.Requests });
+    }
+
+    [Test]
+    public async Task OnlyTheLastBuildCarriesTheEstimate()
+    {
+        // Asked of every build, estimatedDuration walked up to six earlier builds each, and only a
+        // running build, which is the last, reads it.
+        var handler = Handler();
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("jenkins", ProviderTestHelpers.Context("jenkins", handler, server, "simon"));
+        await Assert.That(builds.Single(_ => _.RunNumber == "501").Estimate?.Duration).IsEqualTo(TimeSpan.FromMinutes(5));
+        await Assert.That(builds.Single(_ => _.RunNumber == "500").Estimate).IsNull();
+    }
+
+    [Test]
+    public async Task DiscoveryReadsSixLevelsOfFoldersInOneRequest()
+    {
+        // Each folder deeper than the request reached cost a request of its own.
+        var handler = new FakeHttpHandler().Get($"{server}/api/json", """{"jobs":[]}""");
+        var context = ProviderTestHelpers.Context("jenkins", handler, server, "simon");
+        await ProviderTestHelpers.Provider("jenkins").DiscoverPipelines(context, Cancel.None);
+        await Assert.That(Levels(handler.Requests.Single())).IsEqualTo(6);
     }
 
     [Test]
@@ -63,6 +84,22 @@ public class JenkinsProviderTests
         await Assert.That(activity["https://jenkins.example.com/job/team/job/app/job/PR-12/"]).IsEqualTo("4|True");
         await Assert.That(handler.Requests.Single()).StartsWith($"GET {server}/api/json?tree=jobs[url,_class,nextBuildNumber,inQueue,jobs[");
     }
+
+    [Test]
+    public async Task RecentActivityReachesTheDeepestJobDiscovered()
+    {
+        // Discovery reaches a deeper folder with a request of its own. A job below the probe's tree
+        // had no token, so it waited for its schedule whatever happened to it.
+        const string deep = "https://jenkins.example.com/job/a/job/b/job/c/job/d/job/e/job/f/job/g/job/h/";
+        var handler = new FakeHttpHandler().Get($"{server}/api/json", """{"jobs":[]}""");
+        var context = ProviderTestHelpers.Context("jenkins", handler, server, "simon");
+        var group = new PollGroup(deep, [new(deep, "a / b / c / d / e / f / g / h", "a / b / c / d / e / f / g / h", null, deep)]);
+        await ProviderTestHelpers.Provider("jenkins").RecentActivity(context, [group], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(Levels(handler.Requests.Single())).IsEqualTo(8);
+    }
+
+    static int Levels(string request) =>
+        request.Split("jobs[").Length - 1;
 
     [Test]
     public async Task RetryFallsBackToParameters()

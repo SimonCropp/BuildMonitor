@@ -37,18 +37,48 @@ sealed class GitHubProvider : ProviderBase
         return address;
     }
 
+    /// <summary>
+    /// How often every active repository's workflows are listed, however long since it was pushed
+    /// to: enabling or disabling a workflow probably does not move pushed_at.
+    /// </summary>
+    static readonly TimeSpan listEverything = TimeSpan.FromHours(1);
+
+    // Each repository's workflows as last listed, with its pushed_at then, and when every active
+    // repository's were last listed.
+    const string listedWorkflows = "github.workflows";
+    const string listedEverything = "github.listed-everything";
+
+    /// <summary>
+    /// The workflows of every repository pushed to lately. A repository's are listed again only
+    /// once it has been pushed to since, and every repository's each hour: listing all of them each
+    /// discovery cost a request a repository, which the secondary limit counts even as a 304, so 168
+    /// repositories spent over a third of a minute's quota at once and deferred the groups due.
+    /// </summary>
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
         var started = Stopwatch.GetTimestamp();
         var repositories = await Repositories(context, cancel);
-        var cutoff = DateTimeOffset.UtcNow - activeWindow;
+        var now = DateTimeOffset.UtcNow;
+        var cutoff = now - activeWindow;
         var active = repositories
             .Where(_ => _ is {Archived: false, Disabled: false} &&
                         _.PushedAt > cutoff &&
                         (context.ShowForksAndCollaborations || !_.Fork))
             .ToList();
+        var everything = !context.Memory.TryGet<DateTimeOffset>(listedEverything, out var listedAt) ||
+                         now - listedAt >= listEverything;
+        var known = ImmutableDictionary<string, (string Pushed, List<Pipeline> Pipelines)>.Empty;
+        if (!everything &&
+            context.Memory.TryGet<ImmutableDictionary<string, (string Pushed, List<Pipeline> Pipelines)>>(listedWorkflows, out var remembered))
+        {
+            known = remembered;
+        }
+
+        var stale = active
+            .Where(_ => !known.TryGetValue(_.FullName, out var entry) || entry.Pushed != Pushed(_))
+            .ToList();
         var perRepository = await Concurrently.Map(
-            active,
+            stale,
             async (repository, token) =>
             {
                 var workflows = await context.Http.Get(
@@ -71,16 +101,44 @@ sealed class GitHubProvider : ProviderBase
             },
             cancel,
             context.Progress);
-        var pipelines = perRepository.SelectMany(_ => _).ToList();
+        var next = ImmutableDictionary.CreateBuilder<string, (string Pushed, List<Pipeline> Pipelines)>();
+        for (var index = 0; index < stale.Count; index++)
+        {
+            next[stale[index].FullName] = (Pushed(stale[index]), perRepository[index]);
+        }
+
+        // In the listing's order, most recently pushed first, whether listed now or remembered.
+        var pipelines = new List<Pipeline>();
+        foreach (var repository in active)
+        {
+            if (!next.TryGetValue(repository.FullName, out var listed))
+            {
+                listed = known[repository.FullName];
+                next[repository.FullName] = listed;
+            }
+
+            pipelines.AddRange(listed.Pipelines);
+        }
+
+        context.Memory.Set(listedWorkflows, next.ToImmutable());
+        if (everything)
+        {
+            context.Memory.Set(listedEverything, now);
+        }
+
         Log.Information(
-            "GitHub discovery: {Repositories} repositories, {Active} pushed in the last {Days} days, {Pipelines} workflows, {Elapsed:0.0}s",
+            "GitHub discovery: {Repositories} repositories, {Active} pushed in the last {Days} days, {Listed} of those listed, {Pipelines} workflows, {Elapsed:0.0}s",
             repositories.Count,
             active.Count,
             activeWindow.TotalDays,
+            stale.Count,
             pipelines.Count,
             Stopwatch.GetElapsedTime(started).TotalSeconds);
         return pipelines;
     }
+
+    static string Pushed(GitHubRepository repository) =>
+        $"{repository.PushedAt:O}";
 
     /// <summary>
     /// The repository listings discovery reads, most recently pushed first: the repositories the

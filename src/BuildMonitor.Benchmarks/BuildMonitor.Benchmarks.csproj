@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+  On demand, and left out of BuildMonitor.slnx so neither dotnet test nor CI builds or runs it: the
+  runners are too noisy to gate on. claude.md has the command that runs it. Windows only, for the
+  rows canvas. It references the Windows head and not the native one, since both build an assembly
+  named BuildMonitor.Tray.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <NoWarn>$(NoWarn);CA1416;NU1902;WFO1000</NoWarn>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="BenchmarkDotNet.Attributes" />
+    <Using Include="System.Collections.Immutable" />
+    <Using Include="System.Drawing" />
+    <Using Include="System.Windows.Forms" />
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
+    <ProjectReference Include="..\BuildMonitor.Windows\BuildMonitor.Windows.csproj" />
+  </ItemGroup>
+</Project>

@@ -10,12 +10,20 @@ sealed class JenkinsProvider : ProviderBase
 {
     public override ProviderDescriptor Descriptor => ProviderDescriptors.Jenkins;
 
-    const string jobFields = "name,displayName,url,color,_class";
-    const string buildFields = "number,url,result,building,timestamp,duration,estimatedDuration,actions[lastBuiltRevision[branch[name]]]";
+    const string jobFields = "name,displayName,url,_class";
+    const string buildFields = "number,url,result,building,timestamp,duration";
+    // What the git plugin recorded, the only branch a job outside a multibranch project has.
+    const string revisionFields = "actions[lastBuiltRevision[branch[name]]]";
+
+    /// <summary>
+    /// How many levels of folders one request reads. A level no folder reaches costs nothing, where
+    /// each folder deeper than three levels cost a request of its own, one after another.
+    /// </summary>
+    const int treeDepth = 6;
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
-        var root = await context.Http.Get($"api/json?tree=jobs[{jobFields},jobs[{jobFields},jobs[{jobFields}]]]", JenkinsContext.Default.JenkinsNode, cancel);
+        var root = await context.Http.Get($"api/json?tree={Tree(jobFields, treeDepth)}", JenkinsContext.Default.JenkinsNode, cancel);
         var pipelines = new List<Pipeline>();
         await Walk(context, root, [], null, pipelines, cancel);
         return pipelines;
@@ -29,14 +37,11 @@ sealed class JenkinsProvider : ProviderBase
             var container = IsContainer(job.Class);
             if (container)
             {
-                if (job.Jobs is null)
-                {
-                    // Deeper than the one request reached; ask the folder itself.
-                    var fetched = await context.Http.Get($"{job.Url}api/json?tree=jobs[{jobFields},jobs[{jobFields},jobs[{jobFields}]]]", JenkinsContext.Default.JenkinsNode, cancel);
-                    job.Jobs = fetched.Jobs;
-                }
-
-                await Walk(context, job, [..path, name], IsMultibranch(job.Class) ? job : null, pipelines, cancel);
+                // Deeper than the one request reached; ask the folder itself.
+                var children = job.Jobs is null
+                    ? await context.Http.Get($"{job.Url}api/json?tree={Tree(jobFields, treeDepth)}", JenkinsContext.Default.JenkinsNode, cancel)
+                    : job;
+                await Walk(context, children, [..path, name], IsMultibranch(job.Class) ? job : null, pipelines, cancel);
                 continue;
             }
 
@@ -48,6 +53,20 @@ sealed class JenkinsProvider : ProviderBase
                 multibranch is null ? null : name,
                 job.Url));
         }
+    }
+
+    /// <summary>
+    /// jobs[fields,jobs[fields,…]], <paramref name="depth"/> levels deep.
+    /// </summary>
+    static string Tree(string fields, int depth)
+    {
+        var tree = $"jobs[{fields}]";
+        for (var level = 1; level < depth; level++)
+        {
+            tree = $"jobs[{fields},{tree}]";
+        }
+
+        return tree;
     }
 
     static bool IsContainer(string? jenkinsClass) =>
@@ -62,18 +81,36 @@ sealed class JenkinsProvider : ProviderBase
     const string probeFields = "url,_class,nextBuildNumber,inQueue";
 
     /// <summary>
-    /// The job tree again, as deep as discovery's first request, with each job's next build
-    /// number and whether a build is queued as its token; neither reads a build record. Jenkins
-    /// sends no ETags and fetching a job reads its last builds from disk, so without this every
-    /// quiet job cost that each time its schedule came round. Jobs deeper than the tree reaches
-    /// have no token and wait for the schedule.
+    /// The job tree again, with each job's next build number and whether a build is queued as its
+    /// token; neither reads a build record. Jenkins sends no ETags and fetching a job reads its last
+    /// builds from disk, so without this every quiet job cost that each time its schedule came round.
+    /// As deep as the deepest job discovered, which discovery may have reached through a folder of
+    /// its own: a job below the tree had no token and waited for its schedule.
     /// </summary>
     public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
     {
-        var root = await context.Http.Get($"api/json?tree=jobs[{probeFields},jobs[{probeFields},jobs[{probeFields}]]]", JenkinsContext.Default.JenkinsNode, cancel);
+        var depth = groups
+            .SelectMany(_ => _.Pipelines)
+            .Select(_ => Depth(_.Url))
+            .Append(treeDepth)
+            .Max();
+        var root = await context.Http.Get($"api/json?tree={Tree(probeFields, depth)}", JenkinsContext.Default.JenkinsNode, cancel);
         var tokens = ImmutableDictionary.CreateBuilder<string, string>();
         Collect(root, tokens);
         return tokens.ToImmutable();
+    }
+
+    /// <summary>
+    /// How many folders deep a job is, from its URL, where each level adds a job/ segment.
+    /// </summary>
+    static int Depth(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return 0;
+        }
+
+        return uri.Segments.Count(_ => _ == "job/");
     }
 
     static void Collect(JenkinsNode node, ImmutableDictionary<string, string>.Builder tokens)
@@ -96,7 +133,10 @@ sealed class JenkinsProvider : ProviderBase
         var builds = new List<Build>();
         foreach (var pipeline in pipelines)
         {
-            var job = await context.Http.Get($"{pipeline.Url}api/json?tree=builds[{buildFields}]{{0,{perPipeline}}},inQueue,queueItem[id,inQueueSince]", JenkinsContext.Default.JenkinsJob, cancel);
+            // A branch of a multibranch project is named for its branch, so it does not ask what the
+            // git plugin recorded.
+            var fields = pipeline.Group is null ? $"{buildFields},{revisionFields}" : buildFields;
+            var job = await context.Http.Get($"{pipeline.Url}api/json?tree=builds[{fields}]{{0,{perPipeline}}},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince]", JenkinsContext.Default.JenkinsJob, cancel);
             if (job.InQueue &&
                 job.QueueItem is { } queued)
             {
@@ -127,13 +167,28 @@ sealed class JenkinsProvider : ProviderBase
                     pipeline.Url));
             }
 
-            builds.AddRange(job.Builds.Select(_ => Convert(context.Connection.Id, pipeline, _)));
+            builds.AddRange(job.Builds.Select(_ => Convert(context.Connection.Id, pipeline, _, Estimate(job, _))));
         }
 
         return builds;
     }
 
-    static Build Convert(string connectionId, Pipeline pipeline, JenkinsBuild build)
+    /// <summary>
+    /// Jenkins' estimate, for the job's last build alone, which is the one that can be running.
+    /// Asked of every build, each walked up to six earlier builds for an estimate nothing read.
+    /// </summary>
+    static ProviderEstimate? Estimate(JenkinsJob job, JenkinsBuild build)
+    {
+        if (job.LastBuild is not { EstimatedDuration: long milliseconds and > 0 } last ||
+            last.Number != build.Number)
+        {
+            return null;
+        }
+
+        return new(TimeSpan.FromMilliseconds(milliseconds), null, null);
+    }
+
+    static Build Convert(string connectionId, Pipeline pipeline, JenkinsBuild build, ProviderEstimate? estimate)
     {
         var status = build.Building
             ? BuildStatus.Running
@@ -164,7 +219,7 @@ sealed class JenkinsProvider : ProviderBase
             started,
             started,
             finished,
-            build.EstimatedDuration is > 0 ? new(TimeSpan.FromMilliseconds(build.EstimatedDuration.Value), null, null) : null,
+            estimate,
             build.Url,
             null,
             PullRequest(pipeline),

@@ -35,16 +35,29 @@ sealed class GitLabProvider : ProviderBase
             .ToList();
     }
 
+    /// <summary>
+    /// How long a server whose GraphQL failed is fetched over REST before GraphQL is asked again.
+    /// Asked every poll, a server without it paid a failed request before the REST ones each time.
+    /// </summary>
+    static readonly TimeSpan graphRetry = TimeSpan.FromHours(1);
+
+    const string graphFailed = "gitlab.graph-failed";
+
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
     {
         var builds = new List<Build>();
-        foreach (var chunk in pipelines.Chunk(chunkSize))
+        // In id order rather than discovery's, most recently active first, so a rediscovery that
+        // reorders the projects keeps each request's URL, and the ETag cached for it.
+        foreach (var chunk in pipelines.OrderBy(_ => long.Parse(_.Id, CultureInfo.InvariantCulture)).Chunk(chunkSize))
         {
             var covered = await Graph(context, chunk, perPipeline, builds, cancel);
-            foreach (var pipeline in chunk.Where(_ => !covered.Contains(_.Id)))
-            {
-                builds.AddRange(await Rest(context, pipeline, perPipeline, cancel));
-            }
+            // Concurrently, as the whole connection is one group, and a project at a time cost a
+            // request per project in turn every ten to thirty seconds while anything ran.
+            var perProject = await Concurrently.Map(
+                chunk.Where(_ => !covered.Contains(_.Id)).ToList(),
+                (pipeline, token) => Rest(context, pipeline, perPipeline, token),
+                cancel);
+            builds.AddRange(perProject.SelectMany(_ => _));
         }
 
         return builds;
@@ -59,6 +72,12 @@ sealed class GitLabProvider : ProviderBase
     /// </summary>
     static async Task<HashSet<string>> Graph(ProviderContext context, Pipeline[] chunk, int perPipeline, List<Build> builds, Cancel cancel)
     {
+        if (context.Memory.TryGet<DateTimeOffset>(graphFailed, out var failed) &&
+            DateTimeOffset.UtcNow - failed < graphRetry)
+        {
+            return [];
+        }
+
         var byGlobalId = chunk.ToDictionary(_ => $"gid://gitlab/Project/{_.Id}");
         var ids = string.Join(',', byGlobalId.Keys.Select(_ => $"\"{_}\""));
         var query = string.Concat(
@@ -79,13 +98,15 @@ sealed class GitLabProvider : ProviderBase
         }
         catch (HttpRequestException exception) when (exception.StatusCode is null or HttpStatusCode.NotFound)
         {
-            Log.Warning(exception, "GitLab GraphQL is unavailable; fetching over REST");
+            Log.Warning(exception, "GitLab GraphQL is unavailable; fetching over REST for an hour");
+            context.Memory.Set(graphFailed, DateTimeOffset.UtcNow);
             return [];
         }
 
         if (response.Errors is { Count: > 0 } errors)
         {
-            Log.Warning("GitLab GraphQL answered with an error; fetching over REST: {Error}", errors[0].Message);
+            Log.Warning("GitLab GraphQL answered with an error; fetching over REST for an hour: {Error}", errors[0].Message);
+            context.Memory.Set(graphFailed, DateTimeOffset.UtcNow);
             return [];
         }
 
@@ -121,15 +142,20 @@ sealed class GitLabProvider : ProviderBase
         var runs = await context.Http.Get($"projects/{pipeline.Id}/pipelines?per_page={perPipeline}{updated}", GitLabContext.Default.ListGitLabPipeline, cancel);
         foreach (var run in runs)
         {
-            // The listing carries no timings; only a live run is worth the second call.
+            // The listing carries no timings; only a live run is worth the second call. They go on a
+            // copy, as a listing answered with a 304 hands back the runs parsed for an earlier poll.
+            var timed = run;
             if (run.Status is "running" or "pending")
             {
                 var detail = await context.Http.Get($"projects/{pipeline.Id}/pipelines/{run.Id}", GitLabContext.Default.GitLabPipeline, cancel);
-                run.StartedAt = detail.StartedAt;
-                run.FinishedAt = detail.FinishedAt;
+                timed = run with
+                {
+                    StartedAt = detail.StartedAt,
+                    FinishedAt = detail.FinishedAt
+                };
             }
 
-            builds.Add(Convert(context.Connection.Id, pipeline, run, null));
+            builds.Add(Convert(context.Connection.Id, pipeline, timed, null));
         }
 
         return builds;

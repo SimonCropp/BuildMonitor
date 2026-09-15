@@ -92,10 +92,13 @@ sealed class RowsCanvas : Control
     /// <summary>
     /// The canvas inherits the form's font only once it is parented, after the constructor, so a
     /// bold made there alone would keep the default size and draw group names smaller than rows.
+    /// The widths go for the same reason: kept, they would size the columns for the default font,
+    /// and after a move to a scaled display, for the display before.
     /// </summary>
     protected override void OnFontChanged(EventArgs e)
     {
         base.OnFontChanged(e);
+        widths.Clear();
         bold.Dispose();
         bold = new(Font, FontStyle.Bold);
         underline.Dispose();
@@ -229,6 +232,16 @@ sealed class RowsCanvas : Control
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps
         // its name in line with the rows under it.
         var iconWidth = page.Rows.Any(_ => _.Provider.Length > 0) ? LogicalToDeviceUnits(iconSize + padding) : 0;
+        // A detail's runs are measured as the text so far, which differs by row, so the widths would
+        // grow without end as builds come and go. Emptied once they hold several times what the
+        // columns measure, which leaves room for every row's runs, and here rather than as they
+        // fill, so a paint never throws away a width it is about to read again.
+        var measured = page.Names.Count + page.GroupNames.Count + page.Details.Count + (page.Authors?.Count ?? 0);
+        if (widths.Count > 4 * measured + 1000)
+        {
+            widths.Clear();
+        }
+
         var layout = ColumnWidths(page, iconWidth);
         for (var index = 0; index < page.Rows.Count; index++)
         {
@@ -242,11 +255,13 @@ sealed class RowsCanvas : Control
             var bounds = new Rectangle(0, top, Width, RowHeight);
             if (row.Selected)
             {
-                graphics.FillRectangle(new SolidBrush(Palette.SelectedRow), bounds);
+                using var brush = new SolidBrush(Palette.SelectedRow);
+                graphics.FillRectangle(brush, bounds);
             }
             else if (index == hoverRow)
             {
-                graphics.FillRectangle(new SolidBrush(Palette.HoverRow), bounds);
+                using var brush = new SolidBrush(Palette.HoverRow);
+                graphics.FillRectangle(brush, bounds);
             }
 
             DrawRow(graphics, row, bounds, index, iconWidth, layout);
@@ -309,8 +324,8 @@ sealed class RowsCanvas : Control
         return row.Name;
     }
 
-    static int MeasureName(string text, Font font) =>
-        TextRenderer.MeasureText(text, font, Size.Empty, TextFormatFlags.NoPrefix).Width;
+    int MeasureName(string text, Font font) =>
+        TextWidth(text, font, TextFormatFlags.NoPrefix);
 
     Font NameFont(BuildRow row)
     {
@@ -470,8 +485,8 @@ sealed class RowsCanvas : Control
         };
 
     /// <summary>
-    /// An arc turning once a second, driven by the clock rather than a timer: the frame loop
-    /// already repaints the canvas every frame.
+    /// An arc turning once a second, driven by the clock rather than a timer: while the page is
+    /// loading, the screen is rebuilt, and the canvas repainted, four times a second.
     /// </summary>
     static void DrawSpinner(Graphics graphics, Rectangle bounds)
     {
@@ -519,7 +534,20 @@ sealed class RowsCanvas : Control
             return 0;
         }
 
-        return TextRenderer.MeasureText(text, Font, Size.Empty, TextFormatFlags.NoPadding).Width;
+        return TextWidth(text, Font, TextFormatFlags.NoPadding);
+    }
+
+    int TextWidth(string text, Font font, TextFormatFlags flags)
+    {
+        var key = (text, font.Style, flags);
+        if (widths.TryGetValue(key, out var width))
+        {
+            return width;
+        }
+
+        width = TextRenderer.MeasureText(text, font, Size.Empty, flags).Width;
+        widths[key] = width;
+        return width;
     }
 
     static void Draw(Graphics graphics, string text, Font font, int x, Rectangle bounds, int width, Color colour) =>

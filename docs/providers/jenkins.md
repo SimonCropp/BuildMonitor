@@ -29,12 +29,12 @@ One per job. A job with a queued build shows a queued row until it starts.
 
 ## Estimates
 
-Jenkins reports an estimated duration for every build, from its own history, and that drives the countdown.
+Jenkins estimates how long a job's latest build will take from its own history, and that drives the countdown.
 
 
 ## Polling
 
-Each job is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). Jenkins sends no ETags, and fetching a job reads its last builds from disk, so each poll interval one request reads the job tree instead, with each job's next build number and whether a build is queued. A job with a new or queued build is fetched at once; the rest wait for their schedule. Jobs nested deeper than three folders are not in that request, so they wait for the schedule too.
+Each job is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)), up to four at a time. Jenkins sends no ETags, and fetching a job reads its last builds from disk, so each poll interval one request reads the job tree instead, as deep as the deepest job, with each job's next build number and whether a build is queued. A job with a new or queued build is fetched at once; the rest wait for their schedule, which for a quiet job is up to thirty minutes.
 
 ```mermaid
 ---
@@ -44,9 +44,9 @@ config:
 ---
 flowchart TD
     wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed jobs in<br/>the last 10 minutes?"}
-    listed -- "no" --> discover["GET api/json?tree=jobs[…]<br/>three levels deep, then<br/>each deeper folder"]
+    listed -- "no" --> discover["GET api/json?tree=jobs[…]<br/>six levels deep, then<br/>each deeper folder"]
     listed -- "yes" --> probed{"Probed in the<br/>last 30 seconds?"}
-    probed -- "no" --> probe["GET api/json?tree=jobs[url,<br/>nextBuildNumber,inQueue,…]<br/>three levels deep,<br/>reading no builds"]
+    probed -- "no" --> probe["GET api/json?tree=jobs[url,<br/>nextBuildNumber,inQueue,…]<br/>as deep as the deepest job,<br/>reading no builds"]
     probe --> moved{"A job's next build<br/>number or queue<br/>state moved?"}
     moved -- "yes" --> nudge["Fetch that job<br/>now, then every 30 s<br/>for 3 minutes"]
     discover --> interval["Each job is polled<br/>as its latest builds need"]
@@ -55,16 +55,16 @@ flowchart TD
     nudge --> interval
     interval --> finishing["Building, from ¾ of<br/>Jenkins' estimate to 90 s<br/>past it, or with none:<br/>every 10 s"]
     interval --> running["Building for less than<br/>¾ of the estimate, or<br/>queued: every 30 s, and<br/>again when it reaches that"]
-    interval --> overrun["Building over 90 s<br/>past the estimate:<br/>the time beyond that ÷ 10,<br/>30 s to 5 minutes"]
-    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
-    interval --> failed["Quiet after a failed or<br/>unstable build: the time<br/>since it ÷ 120,<br/>30 s to 5 minutes"]
+    interval --> overrun["Building over 90 s<br/>past the estimate:<br/>the time beyond that ÷ 10,<br/>30 s to 30 minutes"]
+    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 30 minutes"]
+    interval --> failed["Quiet after a failed or<br/>unstable build: the time<br/>since it ÷ 120,<br/>30 s to 30 minutes"]
     finishing --> due{"Due?"}
     running --> due
     overrun --> due
     quiet --> due
     failed --> due
     due -- "no" --> sleep(["Sleep until a job,<br/>the probe or the<br/>listing is due"])
-    due -- "yes, most urgent first" --> fetch["GET {job}/api/json<br/>?tree=builds[…]{0,5},inQueue"]
+    due -- "yes, most urgent first,<br/>up to 4 at a time" --> fetch["GET {job}/api/json<br/>?tree=builds[…]{0,5},<br/>lastBuild[number,<br/>estimatedDuration],inQueue"]
     fetch -- "200" --> rows["Update its rows"]
     fetch -- "failure" --> backoff["Back off that job,<br/>doubling up to 10 minutes"]
     rows --> sleep

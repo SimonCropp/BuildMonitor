@@ -1,11 +1,13 @@
 /// <summary>
 /// https://www.jetbrains.com/help/teamcity/rest/teamcity-rest-api-documentation.html
 /// <para>
-/// One request fetches the latest builds of every configuration, rather than one request per
-/// configuration: a server with a few hundred build configurations would otherwise cost a few
-/// hundred calls a poll. The builds are asked for per configuration inside that request. A flat
-/// list of recent builds puts queued builds first, so a long queue filled it and hid every
-/// configuration that had not built lately.
+/// One request fetches the latest builds of every configuration in a project, rather than one
+/// request per configuration: a server with a few hundred build configurations would otherwise cost
+/// a few hundred calls a poll. The builds are asked for per configuration inside that request. A
+/// flat list of recent builds puts queued builds first, so a long queue filled it and hid every
+/// configuration that had not built lately. A project at a time rather than the whole server, which
+/// while anything on it ran was about a megabyte every ten to thirty seconds on a server of five
+/// hundred configurations.
 /// </para>
 /// </summary>
 sealed class TeamCityProvider : ProviderBase
@@ -13,6 +15,9 @@ sealed class TeamCityProvider : ProviderBase
     public override ProviderDescriptor Descriptor => ProviderDescriptors.TeamCity;
 
     const string buildFields = "build(id,number,status,state,branchName,defaultBranch,webUrl,statusText,queuedDate,startDate,finishDate,buildTypeId,canceledInfo(text),running-info(percentageComplete,elapsedSeconds,estimatedTotalSeconds,leftSeconds),triggered(user(username,name)),revisions(revision(version)))";
+
+    // The newest build id the probe has seen, which the next probe asks for the builds after.
+    const string newestBuild = "teamcity.newest-build";
 
     public override Uri BaseAddress(Connection connection) =>
         new(base.BaseAddress(connection), "app/rest/");
@@ -41,25 +46,82 @@ sealed class TeamCityProvider : ProviderBase
 
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
     {
-        var byType = pipelines.ToDictionary(_ => _.Id);
-        // No queuedDate for the history limit: a build queued before the cutoff and still queued or
-        // running would never be returned. count bounds the response instead.
-        var response = await context.Http.Get(
-            $"buildTypes?locator=affectedProject:(id:{Encode(Project(context))})&fields=buildType(id,builds($locator(branch:default:any,state:any,canceled:any,failedToStart:any,count:{perPipeline}),{buildFields}))",
-            TeamCityContext.Default.TeamCityBuildTypes,
-            cancel);
         var builds = new List<Build>();
-        foreach (var type in response.BuildType)
+        // The group is the project's id, as its name need not be unique.
+        foreach (var project in pipelines.GroupBy(_ => _.Group))
         {
-            if (!byType.TryGetValue(type.Id, out var pipeline))
+            var byType = project.ToDictionary(_ => _.Id);
+            var locator = project.Key is null
+                ? $"affectedProject:(id:{Encode(Project(context))})"
+                : $"project:(id:{Encode(project.Key)})";
+            // No queuedDate for the history limit: a build queued before the cutoff and still queued or
+            // running would never be returned. count bounds the response instead.
+            var response = await context.Http.Get(
+                $"buildTypes?locator={locator}&fields=buildType(id,builds($locator(branch:default:any,state:any,canceled:any,failedToStart:any,count:{perPipeline}),{buildFields}))",
+                TeamCityContext.Default.TeamCityBuildTypes,
+                cancel);
+            foreach (var type in response.BuildType)
+            {
+                if (!byType.TryGetValue(type.Id, out var pipeline))
+                {
+                    continue;
+                }
+
+                builds.AddRange((type.Builds?.Build ?? []).Take(perPipeline).Select(_ => Convert(context.Connection.Id, pipeline, _)));
+            }
+        }
+
+        return builds;
+    }
+
+    /// <summary>
+    /// The builds queued since the newest one seen, anywhere under the project, with the newest
+    /// build of each project as its token. TeamCity sends no ETags, so without this a quiet project
+    /// was fetched whole each time its schedule came round. The first probe asks for the single
+    /// newest build, to have an id to ask after. A change to an older build, such as a running one
+    /// finishing, is not in the answer, and waits for the schedule.
+    /// </summary>
+    public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
+    {
+        var projectOf = new Dictionary<string, string>();
+        foreach (var group in groups)
+        {
+            foreach (var pipeline in group.Pipelines)
+            {
+                projectOf[pipeline.Id] = group.Key;
+            }
+        }
+
+        var filter = context.Memory.TryGet<long>(newestBuild, out var newest)
+            ? $"sinceBuild:(id:{newest}),count:1000"
+            : "count:1";
+        var response = await context.Http.Get(
+            $"builds?locator=affectedProject:(id:{Encode(Project(context))}),branch:default:any,state:any,canceled:any,failedToStart:any,{filter}&fields=build(id,buildTypeId)",
+            TeamCityContext.Default.TeamCityBuilds,
+            cancel);
+        var tokens = previous.ToBuilder();
+        foreach (var build in response.Build)
+        {
+            newest = Math.Max(newest, build.Id);
+            if (build.BuildTypeId is null ||
+                !projectOf.TryGetValue(build.BuildTypeId, out var project))
             {
                 continue;
             }
 
-            builds.AddRange((type.Builds?.Build ?? []).Take(perPipeline).Select(_ => Convert(context.Connection.Id, pipeline, _)));
+            if (!tokens.TryGetValue(project, out var token) ||
+                build.Id > long.Parse(token, CultureInfo.InvariantCulture))
+            {
+                tokens[project] = build.Id.ToString(CultureInfo.InvariantCulture);
+            }
         }
 
-        return builds;
+        if (response.Build.Count > 0)
+        {
+            context.Memory.Set(newestBuild, newest);
+        }
+
+        return tokens.ToImmutable();
     }
 
     static Build Convert(string connectionId, Pipeline pipeline, TeamCityBuild build)

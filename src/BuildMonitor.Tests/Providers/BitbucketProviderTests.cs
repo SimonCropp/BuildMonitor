@@ -3,10 +3,10 @@ public class BitbucketProviderTests
     static FakeHttpHandler Handler() =>
         new FakeHttpHandler()
             .Get(
-                "https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on",
+                "https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on&fields=next,values.slug,values.full_name,values.links.html.href",
                 """{"values":[{"slug":"diffengine","full_name":"verify/diffengine","links":{"html":{"href":"https://bitbucket.org/verify/diffengine"}}}]}""")
             .Get(
-                "https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5",
+                "https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields=values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.display_name,values.created_on,values.completed_on",
                 """
                 {"values":[
                   {"uuid":"{u1}","build_number":88,"state":{"name":"IN_PROGRESS","stage":{"name":"RUNNING"}},"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"main","commit":{"hash":"abc123"}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T11:55:00Z","completed_on":null},

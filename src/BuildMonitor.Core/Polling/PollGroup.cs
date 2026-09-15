@@ -9,6 +9,7 @@ record PollGroup(string Key, ImmutableArray<Pipeline> Pipelines)
         unit switch
         {
             FetchUnit.Repository => pipeline.RepoName,
+            FetchUnit.Group => pipeline.Group ?? "",
             FetchUnit.Connection => "",
             _ => pipeline.Id
         };

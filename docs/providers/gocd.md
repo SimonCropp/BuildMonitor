@@ -55,9 +55,9 @@ flowchart TD
     nudge --> interval
     interval --> finishing["Building, from its fastest<br/>recent instance to 90 s past<br/>its slowest, or with no<br/>history: every 10 s"]
     interval --> running["Building for less than its<br/>fastest recent instance, or<br/>scheduled: every 30 s, and<br/>again when it reaches that"]
-    interval --> overrun["Building over 90 s past<br/>its slowest recent instance:<br/>the time beyond that ÷ 10,<br/>30 s to 5 minutes"]
-    interval --> quiet["Quiet: the time since<br/>the last instance ÷ 30,<br/>30 s to 5 minutes"]
-    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last instance ÷ 120,<br/>30 s to 5 minutes"]
+    interval --> overrun["Building over 90 s past<br/>its slowest recent instance:<br/>the time beyond that ÷ 10,<br/>30 s to 30 minutes"]
+    interval --> quiet["Quiet: the time since<br/>the last instance ÷ 30,<br/>30 s to 30 minutes"]
+    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last instance ÷ 120,<br/>30 s to 30 minutes"]
     finishing --> due{"Due?"}
     running --> due
     overrun --> due

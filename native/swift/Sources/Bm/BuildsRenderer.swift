@@ -147,7 +147,7 @@ final class BuildsRenderer {
             let line = CGRect(x: 0, y: bodyRect.minY + gap, width: bodyRect.width, height: rowHeight)
             var x = gap
             if frame.loading {
-                // An arc turning once a second, from the clock: the window is drawn every frame anyway.
+                // An arc turning once a second, from the clock: while it shows, the view is drawn every frame.
                 let size: CGFloat = 18
                 let angle = CGFloat(Date().timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1)) * 360
                 let path = NSBezierPath()

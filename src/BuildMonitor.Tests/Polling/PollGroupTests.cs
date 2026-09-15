@@ -11,6 +11,7 @@ public class PollGroupTests
     [Arguments("Repository", "VerifyTests/Verify|VerifyTests/DiffEngine")]
     [Arguments("Pipeline", "VerifyTests/Verify/2|VerifyTests/DiffEngine/1|VerifyTests/Verify/1")]
     [Arguments("Connection", "")]
+    [Arguments("Group", "VerifyTests/Verify|VerifyTests/DiffEngine")]
     public async Task GroupsFollowTheFetchUnitInDiscoveryOrder(string unit, string keys) =>
         await Assert.That(string.Join('|', PollGroup.Of(Enum.Parse<FetchUnit>(unit), pipelines).Select(_ => _.Key))).IsEqualTo(keys);
 

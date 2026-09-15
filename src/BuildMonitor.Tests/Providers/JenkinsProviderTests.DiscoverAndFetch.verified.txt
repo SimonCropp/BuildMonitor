@@ -35,9 +35,6 @@
       Queued: DateTimeOffset_2,
       Started: DateTimeOffset_2,
       Finished: DateTimeOffset_3,
-      Estimate: {
-        Duration: 00:05:00
-      },
       BuildUrl: https://jenkins.example.com/job/build-all/500/,
       CanRetry: true,
       CanCancel: false,
@@ -96,8 +93,8 @@
     }
   ],
   Requests: [
-    GET https://jenkins.example.com/api/json?tree=jobs[name,displayName,url,color,_class,jobs[name,displayName,url,color,_class,jobs[name,displayName,url,color,_class]]],
-    GET https://jenkins.example.com/job/build-all/api/json?tree=builds[number,url,result,building,timestamp,duration,estimatedDuration,actions[lastBuiltRevision[branch[name]]]]{0,5},inQueue,queueItem[id,inQueueSince],
-    GET https://jenkins.example.com/job/team/job/app/job/PR-12/api/json?tree=builds[number,url,result,building,timestamp,duration,estimatedDuration,actions[lastBuiltRevision[branch[name]]]]{0,5},inQueue,queueItem[id,inQueueSince]
+    GET https://jenkins.example.com/api/json?tree=jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class]]]]]],
+    GET https://jenkins.example.com/job/build-all/api/json?tree=builds[number,url,result,building,timestamp,duration,actions[lastBuiltRevision[branch[name]]]]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince],
+    GET https://jenkins.example.com/job/team/job/app/job/PR-12/api/json?tree=builds[number,url,result,building,timestamp,duration]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince]
   ]
 }

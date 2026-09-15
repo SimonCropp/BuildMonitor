@@ -30,10 +30,12 @@
     <Using Include="System.Runtime.Versioning" />
     <Using Include="System.Text.Json.Serialization.Metadata" />
     <Using Include="Serilog" />
+    <Using Include="Serilog.Events" />
     <InternalsVisibleTo Include="BuildMonitor" />
     <InternalsVisibleTo Include="BuildMonitor.Tray" />
     <InternalsVisibleTo Include="BuildMonitor.Tests" />
     <InternalsVisibleTo Include="BuildMonitor.Windows.Tests" />
+    <InternalsVisibleTo Include="BuildMonitor.Benchmarks" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />

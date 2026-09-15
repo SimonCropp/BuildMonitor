@@ -9,11 +9,20 @@ sealed class OctopusProvider : ProviderBase
 {
     public override ProviderDescriptor Descriptor => ProviderDescriptors.Octopus;
 
+    // The project limit a dashboard reported, and the space's environments, both kept until the
+    // projects are listed again.
+    const string dashboardLimit = "octopus.dashboard-limit";
+    const string environmentNames = "octopus.environments";
+
     public override Uri BaseAddress(Connection connection) =>
         new(base.BaseAddress(connection), "api/");
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
+        // A listing may have found projects a limited dashboard now has room for, or a space with
+        // environments added since.
+        context.Memory.Remove(dashboardLimit);
+        context.Memory.Remove(environmentNames);
         var space = await Space(context, cancel);
         var server = context.Http.BaseAddress.GetLeftPart(UriPartial.Authority);
         var projects = await context.Http.Get($"{space.Id}/projects?take=100", OctopusContext.Default.OctopusPageOctopusProject, cancel);
@@ -36,9 +45,11 @@ sealed class OctopusProvider : ProviderBase
 
     /// <summary>
     /// One dashboard request returns the current and previous deployment of every project to every
-    /// environment, where the separate listings took three requests, plus one for each deployment
-    /// whose task fell outside the tasks page. A large server can limit the projects its dashboard
-    /// returns; then the separate listings are used, so no project goes missing.
+    /// environment, where the separate listings took three requests, plus one for the deployments
+    /// whose tasks fell outside the tasks page. A large server can limit the projects its dashboard
+    /// returns; then the separate listings are used, so no project goes missing, and the limit is
+    /// remembered until the projects are listed again, as the dashboard was otherwise downloaded
+    /// every poll only to be thrown away.
     /// </summary>
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
     {
@@ -48,11 +59,18 @@ sealed class OctopusProvider : ProviderBase
             return [];
         }
 
+        if (context.Memory.TryGet<int>(dashboardLimit, out var known) &&
+            known < pipelines.Count)
+        {
+            return await Separately(context, spaceId, pipelines, perPipeline, cancel);
+        }
+
         var projects = string.Join(',', pipelines.Select(_ => _.Id));
         var dashboard = await context.Http.Get($"{spaceId}/dashboard/dynamic?projects={projects}&includePrevious=true", OctopusContext.Default.OctopusDashboard, cancel);
         if (dashboard.ProjectLimit is { } limit &&
             limit < pipelines.Count)
         {
+            context.Memory.Set(dashboardLimit, limit);
             return await Separately(context, spaceId, pipelines, perPipeline, cancel);
         }
 
@@ -113,14 +131,13 @@ sealed class OctopusProvider : ProviderBase
     {
         var server = context.Http.BaseAddress.GetLeftPart(UriPartial.Authority);
         var byProject = pipelines.ToDictionary(_ => _.Id);
-        var environments = await context.Http.Get($"{spaceId}/environments/all", OctopusContext.Default.ListOctopusEnvironment, cancel);
-        var environmentNames = environments.ToDictionary(_ => _.Id, _ => _.Name);
+        var environments = await Environments(context, spaceId, cancel);
         var take = Math.Min(100, perPipeline * pipelines.Count);
         var deployments = await context.Http.Get($"{spaceId}/deployments?take={take}", OctopusContext.Default.OctopusPageOctopusDeployment, cancel);
         var tasks = await context.Http.Get($"{spaceId}/tasks?take={take}&name=Deploy", OctopusContext.Default.OctopusPageOctopusTask, cancel);
         var byTask = tasks.Items.ToDictionary(_ => _.Id);
 
-        var builds = new List<Build>();
+        var chosen = new List<(Pipeline Pipeline, OctopusDeployment Deployment)>();
         var taken = new Dictionary<string, int>();
         foreach (var deployment in deployments.Items)
         {
@@ -135,20 +152,60 @@ sealed class OctopusProvider : ProviderBase
                 continue;
             }
 
+            taken[deployment.ProjectId] = soFar + 1;
+            chosen.Add((pipeline, deployment));
+        }
+
+        // Together, where each was a request of its own, and from the space: a route without it
+        // reads the default space only.
+        var missing = chosen
+            .Select(_ => _.Deployment.TaskId)
+            .Where(_ => !byTask.ContainsKey(_))
+            .Distinct()
+            .ToList();
+        if (missing.Count > 0)
+        {
+            var fetched = await context.Http.Get($"{spaceId}/tasks?ids={string.Join(',', missing)}&take={missing.Count}", OctopusContext.Default.OctopusPageOctopusTask, cancel);
+            foreach (var task in fetched.Items)
+            {
+                byTask[task.Id] = task;
+            }
+        }
+
+        var builds = new List<Build>();
+        foreach (var (pipeline, deployment) in chosen)
+        {
+            // A task the server no longer has leaves nothing to show for its deployment.
             if (!byTask.TryGetValue(deployment.TaskId, out var task))
             {
-                task = await context.Http.Get($"tasks/{deployment.TaskId}", OctopusContext.Default.OctopusTask, cancel);
+                continue;
             }
 
             var estimate = task.State == "Executing" && task.Links?.Details is { } details
                 ? await Progress(context, Link(details, "verbose=false&tail=1"), cancel)
                 : null;
-            taken[deployment.ProjectId] = soFar + 1;
-            environmentNames.TryGetValue(deployment.EnvironmentId, out var environment);
+            environments.TryGetValue(deployment.EnvironmentId, out var environment);
             builds.Add(Convert(context.Connection.Id, server, spaceId, pipeline, deployment, task, environment, estimate));
         }
 
         return builds;
+    }
+
+    /// <summary>
+    /// The space's environment names by id, read once until the projects are listed again. Read
+    /// every poll, they changed no more often than the projects do.
+    /// </summary>
+    static async Task<IReadOnlyDictionary<string, string>> Environments(ProviderContext context, string spaceId, Cancel cancel)
+    {
+        if (context.Memory.TryGet<IReadOnlyDictionary<string, string>>(environmentNames, out var known))
+        {
+            return known;
+        }
+
+        var environments = await context.Http.Get($"{spaceId}/environments/all", OctopusContext.Default.ListOctopusEnvironment, cancel);
+        var names = environments.ToDictionary(_ => _.Id, _ => _.Name);
+        context.Memory.Set(environmentNames, names);
+        return names;
     }
 
     /// <summary>

@@ -8,11 +8,16 @@ sealed class BitbucketProvider : ProviderBase
 {
     public override ProviderDescriptor Descriptor => ProviderDescriptors.Bitbucket;
 
+    // Only what is read, as the probe already asks: whole repositories and pipelines came back
+    // with every link and property Bitbucket has for them.
+    const string repositoryFields = "next,values.slug,values.full_name,values.links.html.href";
+    const string pipelineFields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.display_name,values.created_on,values.completed_on";
+
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
         var workspace = context.Scope("workspace");
         var pipelines = new List<Pipeline>();
-        var path = $"repositories/{Encode(workspace)}?role=member&pagelen=100&sort=-updated_on";
+        var path = $"repositories/{Encode(workspace)}?role=member&pagelen=100&sort=-updated_on&fields={repositoryFields}";
         for (var page = 0; page < 5 && path is not null; page++)
         {
             var repositories = await context.Http.Get(path, BitbucketContext.Default.BitbucketPage, cancel);
@@ -35,7 +40,7 @@ sealed class BitbucketProvider : ProviderBase
         foreach (var pipeline in pipelines)
         {
             var page = await context.Http.Get(
-                $"repositories/{Encode(workspace)}/{pipeline.Id}/pipelines?sort=-created_on&pagelen={perPipeline}",
+                $"repositories/{Encode(workspace)}/{pipeline.Id}/pipelines?sort=-created_on&pagelen={perPipeline}&fields={pipelineFields}",
                 BitbucketContext.Default.BitbucketPipelinePage,
                 cancel);
             builds.AddRange(page.Values.Select(_ => Convert(context.Connection.Id, pipeline, _)));

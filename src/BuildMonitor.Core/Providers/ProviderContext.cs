@@ -26,6 +26,12 @@ record ProviderContext(Connection Connection, HttpJson Http)
     /// </summary>
     public DateTimeOffset? Since { get; init; }
 
+    /// <summary>
+    /// What the provider remembers about this connection between polls. The poller keeps one for
+    /// as long as it polls the connection; any other call starts with an empty one.
+    /// </summary>
+    public ProviderMemory Memory { get; init; } = new();
+
     public string Scope(string id) =>
         Connection.ScopeValue(id);
 }

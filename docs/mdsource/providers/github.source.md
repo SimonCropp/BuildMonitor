@@ -33,6 +33,8 @@ Runs are fetched a repository at a time, each on its own schedule (see [Poll int
 
 Each poll interval, page 1 of the repository list is read again, most recently pushed first, with the same conditional request discovery uses, so it costs nothing while nothing is pushed. A repository whose last push moved is fetched at once rather than when its schedule comes round. Runs that start without a push, such as scheduled runs, manual dispatches, re-runs started on the web and pull requests from forks, wait for the schedule: up to five minutes on a quiet repository.
 
+Discovery lists a repository's workflows again only once it has been pushed to since they were last listed, and every repository's once an hour, so a workflow enabled or disabled without a push can take up to an hour to show or go.
+
 ```mermaid
 ---
 config:
@@ -41,7 +43,7 @@ config:
 ---
 flowchart TD
     wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed repositories in<br/>the last 10 minutes?"}
-    listed -- "no" --> discover["GET user/repos?sort=pushed<br/>or the owner's, up to 5 pages,<br/>then the workflows of each<br/>repository pushed in 90 days"]
+    listed -- "no" --> discover["GET user/repos?sort=pushed<br/>or the owner's, up to 5 pages,<br/>then the workflows of each<br/>repository pushed since they<br/>were listed, or of every one<br/>pushed in 90 days each hour"]
     listed -- "yes" --> probed{"Probed in the<br/>last 30 seconds?"}
     probed -- "no" --> probe["GET page 1 of the same list,<br/>a free 304 while<br/>nothing was pushed"]
     probe --> moved{"A repository's<br/>pushed_at moved?"}

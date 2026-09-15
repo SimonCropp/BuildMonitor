@@ -18,6 +18,8 @@ The log directory sits beside the installed tool, so it moves with the version:
 
 The tray menu's "Open logs" and the Options page open it without any of that. Ten files of a megabyte each are kept.
 
+The log holds information, warnings and errors. Set the `BuildMonitor_LogLevel` environment variable to `Debug` to also log each connection's schedule every poll, a line per repository or pipeline. On a large account that fills the ten files in about an hour, so set it only while chasing a problem.
+
 
 ## The tray is not running
 
@@ -38,7 +40,7 @@ A GitHub limit is shared by every tool signed in as the same account, and GitHub
 
 ## A build on a quiet repository appears late
 
-A repository, project or pipeline that has not built for a while is checked less often, up to every five minutes, or thirty on Bitbucket. Refresh, or a retry from the tray, checks at once. See [Poll intervals](options.md#poll-intervals).
+A repository, project or pipeline that has not built for a while is checked less often, up to every five minutes on GitHub Actions, GitLab CI and Octopus Deploy, and every thirty on the others, which look for new builds more cheaply in between. Refresh, or a retry from the tray, checks at once. See [Poll intervals](options.md#poll-intervals).
 
 
 ## Settings

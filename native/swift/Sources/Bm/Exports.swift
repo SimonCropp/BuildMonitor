@@ -45,6 +45,16 @@ public func bmPresent(_ screen: UnsafePointer<BmScreen>?) -> Int32 {
         return 0
     }
 
+    // The managed side presents every frame, and a screen it has not rebuilt comes with the same
+    // generation. Decoded and drawn anyway, every string was copied and every row drawn sixty times
+    // a second to put the same pixels on screen.
+    let generation = screen.pointee.generation
+    if generation == runtime.presentedGeneration {
+        runtime.pumpUnchanged()
+        return 1
+    }
+
+    runtime.presentedGeneration = generation
     runtime.present(Frame.decode(screen))
     return 1
 }

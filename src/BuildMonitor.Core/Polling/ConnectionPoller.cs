@@ -17,6 +17,7 @@ sealed class ConnectionPoller
     CancelSource stop = new();
     HashSet<string> recorded = [];
     ETagCache etags = new();
+    ProviderMemory providerMemory = new();
     DateTimeOffset rotated = DateTimeOffset.MinValue;
     RateBudget budget;
     RequestBucket? bucket;
@@ -285,7 +286,8 @@ sealed class ConnectionPoller
         {
             Progress = visible ? progress => host.Mutate(_ => MonitorSession.SetProgress(_, connectionId, progress)) : _ => { },
             ShowForksAndCollaborations = host.State.Settings.ShowForksAndCollaborations,
-            Since = HistoryCutoff.Of(clock(), host.State.Settings.HistoryDays)
+            Since = HistoryCutoff.Of(clock(), host.State.Settings.HistoryDays),
+            Memory = providerMemory
         };
         var descriptor = provider.Descriptor;
         var now = clock();
@@ -426,7 +428,12 @@ sealed class ConnectionPoller
                 plan.Deferred.Length,
                 budget.SentCount,
                 budget.State.Remaining);
-            Log.Debug("{Connection} schedule\n{Plan}", connection.Name, PollSchedule.Describe(plan, now));
+            // A line per group, and built before Log.Debug could check the level, so every cycle
+            // formatted the whole table to throw it away.
+            if (Log.IsEnabled(LogEventLevel.Debug))
+            {
+                Log.Debug("{Connection} schedule\n{Plan}", connection.Name, PollSchedule.Describe(plan, now));
+            }
         }
 
         return health;

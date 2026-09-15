@@ -25,6 +25,19 @@ public class TravisProviderTests
     }
 
     [Test]
+    public async Task RecentActivityReadsTheLastStartedBuildOfEachRepository()
+    {
+        const string url = "https://api.travis-ci.com/repos?repository.active=true&limit=100&sort_by=current_build:desc&include=repository.last_started_build";
+        var handler = new FakeHttpHandler()
+            .Get(url, """{"repositories":[{"id":1,"slug":"VerifyTests/DiffEngine","last_started_build":{"id":900,"number":"120","state":"started"}},{"id":2,"slug":"VerifyTests/Empty","last_started_build":null}]}""");
+        var context = ProviderTestHelpers.Context("travis", handler);
+        var activity = await ProviderTestHelpers.Provider("travis").RecentActivity(context, [], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(activity!.Count).IsEqualTo(1);
+        await Assert.That(activity["VerifyTests/DiffEngine"]).IsEqualTo("900|started");
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {url}");
+    }
+
+    [Test]
     public async Task RetryAndCancel()
     {
         var handler = Handler()

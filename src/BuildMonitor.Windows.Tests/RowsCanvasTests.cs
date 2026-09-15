@@ -75,6 +75,33 @@ public class RowsCanvasTests
         await Assert.That(input.OverflowFrom).IsNotEqualTo(ChipKind.None);
     }
 
+    [Test]
+    public async Task AFontChangeMeasuresTheTextAgain()
+    {
+        // Widths are kept between paints, so a canvas that kept those of the font it was first drawn
+        // in would size its columns for text smaller than it draws.
+        using var larger = new Font("Segoe UI", 16f);
+        using var changed = Drawn(1000);
+        changed.Font = larger;
+        using var fresh = new RowsCanvas
+        {
+            Font = larger,
+            Size = new(1000, 400)
+        };
+        fresh.Apply(ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now).Builds!, null);
+
+        await Assert.That(Png(changed).SequenceEqual(Png(fresh))).IsTrue();
+    }
+
+    static byte[] Png(RowsCanvas canvas)
+    {
+        using var bitmap = new Bitmap(canvas.Width, canvas.Height);
+        canvas.DrawToBitmap(bitmap, new(0, 0, canvas.Width, canvas.Height));
+        using var stream = new MemoryStream();
+        bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+        return stream.ToArray();
+    }
+
     static RowsCanvas Drawn(int width)
     {
         var canvas = new RowsCanvas

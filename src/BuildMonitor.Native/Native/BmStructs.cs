@@ -126,6 +126,8 @@ struct BmScreen
     public int TrayItemCount;
 
     public int Theme;
+
+    public int Generation;
 }
 
 [StructLayout(LayoutKind.Sequential)]

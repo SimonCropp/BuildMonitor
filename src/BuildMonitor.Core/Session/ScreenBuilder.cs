@@ -14,22 +14,23 @@ static class ScreenBuilder
 
     public static Screen Build(SessionState state, DateTimeOffset now)
     {
-        var tray = Tray(state);
+        // Once for the tray, the rows and the columns, each of which used to sort every build itself.
+        var builds = RowProjection.Builds(state);
+        var tray = Tray(state, builds);
         var status = Status(state, now);
         return state.Page switch
         {
-            Page.Builds => BuildsScreen(state, now, tray, status),
+            Page.Builds => BuildsScreen(state, now, builds, tray, status),
             _ => FormScreen(state, tray, status)
         };
     }
 
-    static Screen BuildsScreen(SessionState state, DateTimeOffset now, TrayModel tray, string status)
+    static Screen BuildsScreen(SessionState state, DateTimeOffset now, ImmutableArray<Build> builds, TrayModel tray, string status)
     {
-        var rows = RowProjection.Rows(state);
+        var rows = RowProjection.Rows(state, builds);
         var body = MonitorSession.BodyRows(state);
         var top = Math.Clamp(state.ScrollTop, 0, Math.Max(0, rows.Length - body));
         var visible = rows.Skip(top).Take(body).ToList();
-        var builds = RowProjection.Builds(state);
         // Across every failed build rather than the visible rows, so a name does not grow and shrink
         // while scrolling past someone who shares it.
         var authors = AuthorNames.Of(builds.Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
@@ -52,7 +53,7 @@ static class ScreenBuilder
             menu = new(open.Row - top, open.Items.Select(_ => _.Label).ToList(), open.Overflow);
         }
 
-        var sized = Sized(state, rows);
+        var sized = Sized(state, builds, rows);
         var loading = Loading(state, rows.Length);
         return new(
             Title,
@@ -106,10 +107,16 @@ static class ScreenBuilder
     /// could show, so the columns hold still rather than jumping with each letter. The rows shown
     /// stay in, because a build the filter lifts out of its closed group was never measured there.
     /// </summary>
-    static ImmutableArray<Row> Sized(SessionState state, ImmutableArray<Row> rows) =>
-        state.Search.Length == 0
-            ? rows
-            : [..RowProjection.Rows(state with { Search = "" }), ..rows];
+    static ImmutableArray<Row> Sized(SessionState state, ImmutableArray<Build> builds, ImmutableArray<Row> rows)
+    {
+        if (state.Search.Length == 0)
+        {
+            return rows;
+        }
+
+        // The filter box does not narrow the builds, so the ones already sorted serve here too.
+        return [..RowProjection.Rows(state with { Search = "" }, builds), ..rows];
+    }
 
     static IReadOnlyList<string> Names(ImmutableArray<Row> rows, RowKind kind) =>
         rows.Where(_ => _.Kind == kind).Select(NameOf).Distinct().ToList();
@@ -531,9 +538,11 @@ static class ScreenBuilder
 
     // Tray
 
-    public static TrayModel Tray(SessionState state)
+    public static TrayModel Tray(SessionState state) =>
+        Tray(state, RowProjection.Builds(state));
+
+    static TrayModel Tray(SessionState state, ImmutableArray<Build> builds)
     {
-        var builds = RowProjection.Builds(state);
         var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
         var running = builds.Count(_ => _.IsActive);
         var icon = Icon(state, builds);

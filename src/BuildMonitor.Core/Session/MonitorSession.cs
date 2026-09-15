@@ -65,9 +65,15 @@ static class MonitorSession
     /// window, the scroll or the index changed; a transition that changes the rows goes through
     /// <see cref="Follow"/>, or the selection lands on whichever row took its place.
     /// </summary>
-    static SessionState Clamp(SessionState state)
+    static SessionState Clamp(SessionState state) =>
+        Clamp(state, RowProjection.Rows(state).Length);
+
+    /// <summary>
+    /// For a caller that has projected the rows already. <see cref="Follow"/> projected them a
+    /// third time here, and a poll applies inside the lock the frame loop takes every frame.
+    /// </summary>
+    static SessionState Clamp(SessionState state, int total)
     {
-        var total = RowProjection.Rows(state).Length;
         var body = BodyRows(state);
         var maxTop = Math.Max(0, total - body);
         var top = Math.Clamp(state.ScrollTop, 0, maxTop);
@@ -104,7 +110,7 @@ static class MonitorSession
             indexes.TryAdd(Identity(rows[index]), index);
         }
 
-        var followed = Clamp(after with { SelectedRow = Locate(previous, rows, indexes, before.SelectedRow) });
+        var followed = Clamp(after with { SelectedRow = Locate(previous, rows, indexes, before.SelectedRow) }, rows.Length);
         if (followed.Menu is { } menu &&
             (followed.ScrollTop != before.ScrollTop ||
              menu.Row >= previous.Length ||

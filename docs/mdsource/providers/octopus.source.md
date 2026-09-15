@@ -33,7 +33,7 @@ Octopus reports the progress and the estimated time remaining of an executing ta
 
 ## Polling
 
-One dashboard request returns the current and previous deployment of every project to every environment, instead of separate requests for environments, deployments and tasks, so the whole space is fetched on one schedule (see [Poll intervals](../options.md#poll-intervals)). An executing deployment costs one more request, for its progress. When a large server limits how many projects its dashboard returns, the separate requests are used instead.
+One dashboard request returns the current and previous deployment of every project to every environment, instead of separate requests for environments, deployments and tasks, so the whole space is fetched on one schedule (see [Poll intervals](../options.md#poll-intervals)). An executing deployment costs one more request, for its progress. When a large server limits how many projects its dashboard returns, the separate requests are used instead until the projects are next listed, reading the environments once in that time and fetching any task missing from the tasks page in one request.
 
 ```mermaid
 ---
@@ -55,9 +55,11 @@ flowchart TD
     overrun --> due
     quiet --> due
     due -- "no" --> sleep(["Sleep until the connection<br/>or the listing is due"])
-    due -- "yes" --> fetch["GET {space}/dashboard/dynamic,<br/>the current and previous<br/>deployment of every project<br/>to every environment"]
+    due -- "yes" --> known{"Cut short by ProjectLimit<br/>since the projects<br/>were listed?"}
+    known -- "no" --> fetch["GET {space}/dashboard/dynamic,<br/>the current and previous<br/>deployment of every project<br/>to every environment"]
+    known -- "yes" --> separately
     fetch -- "200" --> limited{"Cut short by<br/>ProjectLimit?"}
-    limited -- "yes" --> separately["GET environments,<br/>deployments and<br/>tasks instead"]
+    limited -- "yes" --> separately["GET environments, once until<br/>the projects are listed again,<br/>then deployments and tasks,<br/>and the tasks missing from<br/>that page by id"]
     limited -- "no" --> executing{"A deployment<br/>executing?"}
     separately --> executing
     executing -- "yes" --> details["GET its task details<br/>for progress and time left"]

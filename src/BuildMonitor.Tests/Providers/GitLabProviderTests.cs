@@ -89,6 +89,34 @@ public class GitLabProviderTests
     }
 
     [Test]
+    public async Task GraphQLThatFailedIsNotAskedAgainForAnHour()
+    {
+        // Asked every poll, a server without GraphQL paid a failed request before the REST ones.
+        var handler = Rest(Handler().MapHtml("GET", graph, "<html>GitLab</html>"));
+        var context = ProviderTestHelpers.Context("gitlab", handler);
+        await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        await Assert.That(builds.Select(_ => _.RunNumber)).IsEquivalentTo(["120", "119"]);
+        await Assert.That(handler.Requests.Count(_ => _.StartsWith($"GET {graph}", StringComparison.Ordinal))).IsEqualTo(1);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/pipelines?per_page=5"))).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task ProjectsAreAskedForInIdOrder()
+    {
+        // In discovery order, most recently active first, a rediscovery that reordered the projects
+        // changed the request's URL and lost the ETag cached for it.
+        var pipelines = new[] { "9", "10", "2" }
+            .Select(_ => new Pipeline(_, $"verify/p{_}", $"verify/p{_}", null, $"https://gitlab.com/verify/p{_}/-/pipelines"))
+            .ToList();
+        var nodes = string.Join(',', pipelines.Select(_ => $$$"""{"id":"gid://gitlab/Project/{{{_.Id}}}","pipelines":{"nodes":[]}}"""));
+        var handler = new FakeHttpHandler().Get(graph, $$$$"""{"data":{"projects":{"nodes":[{{{{nodes}}}}]}}}""");
+        var context = ProviderTestHelpers.Context("gitlab", handler);
+        await ProviderTestHelpers.Provider("gitlab").FetchBuilds(context, pipelines, 5, Cancel.None);
+        await Assert.That(Uri.UnescapeDataString(handler.Requests.Single())).Contains("""ids:["gid://gitlab/Project/2","gid://gitlab/Project/9","gid://gitlab/Project/10"]""");
+    }
+
+    [Test]
     public async Task RetryAndCancel()
     {
         var handler = Handler()

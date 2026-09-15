@@ -3,11 +3,11 @@
 /// <see cref="AuthScheme"/>, JSON in and out through source generated contexts, and the two
 /// failures the poller cares about surfaced as their own exceptions.
 /// <para>
-/// GET responses carrying an ETag are cached and revalidated with If-None-Match. GitHub answers
-/// an unchanged resource with a 304 that does not count against the rate limit, which is what
-/// makes polling a hundred repositories every thirty seconds affordable. The cache is the
-/// caller's, because this client lives for one poll; see <see cref="ETagCache"/>. So is the
-/// <see cref="RateBudget"/> every response is recorded in.
+/// GET responses carrying an ETag are cached, as the value parsed from them, and revalidated with
+/// If-None-Match. GitHub answers an unchanged resource with a 304 that does not count against the
+/// rate limit, which is what makes polling a hundred repositories every thirty seconds affordable.
+/// The cache is the caller's, because this client lives for one poll; see <see cref="ETagCache"/>.
+/// So is the <see cref="RateBudget"/> every response is recorded in.
 /// </para>
 /// </summary>
 sealed class HttpJson : IDisposable
@@ -58,14 +58,11 @@ sealed class HttpJson : IDisposable
     public bool IsCached(string path) =>
         cache.Contains(Resolve(path).ToString());
 
-    public async Task<T> Get<T>(string path, JsonTypeInfo<T> info, Cancel cancel)
-    {
-        var bytes = await GetBytes(path, json: true, cancel);
-        return Deserialize(bytes, info, path);
-    }
+    public Task<T> Get<T>(string path, JsonTypeInfo<T> info, Cancel cancel) =>
+        GetParsed(path, json: true, (content, token) => Deserialize(content, info, path, token), cancel);
 
-    public async Task<string> GetText(string path, Cancel cancel) =>
-        Encoding.UTF8.GetString(await GetBytes(path, json: false, cancel));
+    public Task<string> GetText(string path, Cancel cancel) =>
+        GetParsed(path, json: false, (content, token) => content.ReadAsStringAsync(token), cancel);
 
     /// <summary>
     /// A build log, as text. Never cached: a log can run to megabytes, and the cache would hold it
@@ -88,12 +85,18 @@ sealed class HttpJson : IDisposable
         return await response.Content.ReadAsStringAsync(cancel);
     }
 
-    async Task<byte[]> GetBytes(string path, bool json, Cancel cancel)
+    /// <summary>
+    /// A GET revalidated against the value cached for its URL, which a 304 hands back without
+    /// parsing again. A value of another type counts as nothing cached, and a body is kept only once
+    /// it has parsed, so a 304 never answers for one that did not.
+    /// </summary>
+    async Task<T> GetParsed<T>(string path, bool json, Func<HttpContent, Cancel, Task<T>> parse, Cancel cancel)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
         var requested = Resolve(path);
         var key = requested.ToString();
-        var cached = cache.TryGet(key, out var entry);
+        var cached = cache.TryGet(key, out var entry) &&
+                     entry.Value is T;
         if (cached)
         {
             request.Headers.TryAddWithoutValidation("If-None-Match", entry.ETag);
@@ -103,7 +106,7 @@ sealed class HttpJson : IDisposable
         if (response.StatusCode == HttpStatusCode.NotModified &&
             cached)
         {
-            return entry.Body;
+            return (T) entry.Value;
         }
 
         await Throw(response, requested, cancel);
@@ -112,14 +115,14 @@ sealed class HttpJson : IDisposable
             await ThrowIfHtml(response, "JSON", cancel);
         }
 
-        var body = await response.Content.ReadAsByteArrayAsync(cancel);
+        var value = await parse(response.Content, cancel);
         var etag = response.Headers.ETag?.ToString();
         if (etag is not null)
         {
-            cache.Set(key, etag, body);
+            cache.Set(key, etag, value!);
         }
 
-        return body;
+        return value;
     }
 
     public async Task<T> Send<T>(HttpMethod method, string path, HttpContent? content, JsonTypeInfo<T> info, Cancel cancel)
@@ -131,8 +134,7 @@ sealed class HttpJson : IDisposable
         using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, cancel);
         await Throw(response, Resolve(path), cancel);
         await ThrowIfHtml(response, "JSON", cancel);
-        var bytes = await response.Content.ReadAsByteArrayAsync(cancel);
-        return Deserialize(bytes, info, path);
+        return await Deserialize(response.Content, info, path, cancel);
     }
 
     public async Task Send(HttpMethod method, string path, HttpContent? content, Cancel cancel, IEnumerable<KeyValuePair<string, string>>? headers = null)
@@ -202,11 +204,16 @@ sealed class HttpJson : IDisposable
     Uri Resolve(string path) =>
         new(client.BaseAddress!, path);
 
-    static T Deserialize<T>(byte[] bytes, JsonTypeInfo<T> info, string path)
+    /// <summary>
+    /// Parsed as the body arrives rather than read into an array first, which for a response of a
+    /// few hundred kilobytes, as GitHub's runs are, put an array on the large object heap each time.
+    /// </summary>
+    static async Task<T> Deserialize<T>(HttpContent content, JsonTypeInfo<T> info, string path, Cancel cancel)
     {
         try
         {
-            return JsonSerializer.Deserialize(bytes, info) ??
+            await using var stream = await content.ReadAsStreamAsync(cancel);
+            return await JsonSerializer.DeserializeAsync(stream, info, cancel) ??
                    throw new HttpRequestException($"Empty response from {path}");
         }
         catch (JsonException exception)

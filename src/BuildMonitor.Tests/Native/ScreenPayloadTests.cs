@@ -74,6 +74,19 @@ public class ScreenPayloadTests
     }
 
     [Test]
+    public async Task EachBuildIsANewGeneration()
+    {
+        // A native head draws only a generation it has not drawn, so a rebuild that kept the last
+        // one would leave the change off the screen.
+        var payload = new ScreenPayload();
+        var screen = ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now);
+        payload.Build(screen);
+        var first = payload.Generation;
+        payload.Build(screen);
+        await Assert.That(payload.Generation).IsNotEqualTo(first);
+    }
+
+    [Test]
     public Task DbusMenuLayout()
     {
         var tray = ScreenBuilder.Tray(Fixtures.WithBuilds());

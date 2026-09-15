@@ -7,7 +7,7 @@
 sealed class SniTray : ITray
 {
     public const string WatcherName = "org.kde.StatusNotifierWatcher";
-    public static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
+    public static TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
 
     DBusConnection connection;
     string busName = $"org.kde.StatusNotifierItem-{Environment.ProcessId}-1";

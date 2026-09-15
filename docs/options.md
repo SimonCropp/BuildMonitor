@@ -62,7 +62,7 @@ Each repository, project or pipeline is scheduled on its own. One that has not b
 
 A running build gets the shorter interval from the fastest of its pipeline's last ten successful runs until a minute and a half past the slowest, or near the end of the provider's own estimate where it gives one, and is checked the moment that stretch begins rather than at its next poll. A build still running after that slows down, at about a tenth of how far it has overrun, since its estimate was plainly wrong, until it is polled like a quiet one.
 
-A repository that keeps failing backs off on its own without holding up the rest. When a provider's rate limit runs low, every interval stretches until the limit recovers. Bitbucket, which allows a thousand requests an hour, lets a quiet repository wait up to thirty minutes.
+A repository that keeps failing backs off on its own without holding up the rest. When a provider's rate limit runs low, every interval stretches until the limit recovers. Every provider but GitHub Actions, GitLab CI and Octopus Deploy lets a quiet repository, project or pipeline wait up to thirty minutes, because a cheaper request in between notices a new build sooner.
 
 
 ## Local port

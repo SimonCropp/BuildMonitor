@@ -7,9 +7,10 @@ sealed class DbusMenuHandler(SniTray owner) : IPathMethodHandler
     public const string Interface = "com.canonical.dbusmenu";
     public const string ObjectPath = "/MenuBar";
     const string properties = "org.freedesktop.DBus.Properties";
-    static readonly string[] propertyNames = ["Version", "TextDirection", "Status", "IconThemePath"];
+    static string[] propertyNames = ["Version", "TextDirection", "Status", "IconThemePath"];
 
     DbusMenuLayout layout = DbusMenuLayout.Empty;
+    IReadOnlyList<TrayMenuItem> items = [];
 
     public uint Revision { get; private set; } = 1;
 
@@ -18,17 +19,25 @@ sealed class DbusMenuHandler(SniTray owner) : IPathMethodHandler
     public bool HandlesChildPaths => false;
 
     /// <summary>
-    /// Swaps in a new menu when it differs from the last. True when the host should be told.
+    /// Swaps in a new menu when it differs from the last. True when the host should be told. The
+    /// items are compared before a layout is built, because each node reads its icon from the
+    /// embedded resources as it is made, and the tray model arrives with every screen rebuild.
     /// </summary>
-    public bool Update(IReadOnlyList<TrayMenuItem> items)
+    public bool Update(IReadOnlyList<TrayMenuItem> next)
     {
-        var next = DbusMenuLayout.Build(items);
-        if (next.Signature == layout.Signature)
+        if (next.SequenceEqual(items))
         {
             return false;
         }
 
-        layout = next;
+        items = next;
+        var built = DbusMenuLayout.Build(next);
+        if (built.Signature == layout.Signature)
+        {
+            return false;
+        }
+
+        layout = built;
         Revision++;
         return true;
     }

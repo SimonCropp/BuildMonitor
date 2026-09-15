@@ -4,7 +4,7 @@
 /// </summary>
 sealed unsafe class ScreenPayload
 {
-    static readonly byte[] emptyStrings = [0];
+    static byte[] emptyStrings = [0];
     List<byte> strings = [];
     List<BmRow> rows = [];
     List<BmString> names = [];
@@ -18,6 +18,9 @@ sealed unsafe class ScreenPayload
     List<BmMenuItem> menu = [];
     List<BmTrayItem> trayItems = [];
     BmScreen screen;
+    // Counts the builds, so the native side can tell a new screen from the one it drew last and
+    // draws nothing while it is handed the same one.
+    int generation;
 
     /// <summary>
     /// The ids behind the indexes a head reports: fields and tray items of the last frame.
@@ -27,6 +30,11 @@ sealed unsafe class ScreenPayload
     public List<string> TrayItemIds { get; } = [];
 
     public Page LastPage { get; private set; }
+
+    /// <summary>
+    /// For the tests: the generation the last build handed over.
+    /// </summary>
+    public int Generation => screen.Generation;
 
     public void Build(Screen source)
     {
@@ -57,7 +65,8 @@ sealed unsafe class ScreenPayload
             MenuRow = -1,
             TrayIcon = (int) source.Tray.Icon,
             TrayTooltip = Add(source.Tray.Tooltip),
-            Theme = (int) source.Theme
+            Theme = (int) source.Theme,
+            Generation = ++generation
         };
 
         if (source.Builds is { } builds)

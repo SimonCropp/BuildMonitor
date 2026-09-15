@@ -31,7 +31,7 @@ The countdown comes from the median of the pipeline's last ten successful runs.
 
 Builds are fetched a project at a time, each on its own schedule (see [Poll intervals](../options.md#poll-intervals)). Azure DevOps sends no ETags, so every request is a full one, and it allows each user 200 throughput units in any five minutes. Requests are budgeted to half of that by the cost Azure DevOps reports on each response, and a pause it asks for is honoured before it starts delaying requests.
 
-Each project asks for the last five builds of every definition, so a busy definition cannot push a quiet one out of the list. Each poll interval, each project is also asked only for builds queued since the newest one seen, which costs a small fraction of a fetch, so a new build on a quiet project shows within about thirty seconds. A retry started outside the tray reuses its build, and may wait for the schedule.
+Each project asks for the last five builds of every definition, so a busy definition cannot push a quiet one out of the list. Each poll interval, each project is also asked only for builds queued since the newest one seen, which costs a small fraction of a fetch, so a new build on a quiet project shows within about thirty seconds. A retry started outside the tray reuses its build, and may wait for the schedule, which on a quiet project is up to thirty minutes.
 
 ```mermaid
 ---
@@ -52,9 +52,9 @@ flowchart TD
     nudge --> interval
     interval --> finishing["Running, from its fastest<br/>recent build to 90 s past<br/>its slowest, or with no<br/>history: every 10 s"]
     interval --> running["Running for less than its<br/>fastest recent build, or<br/>queued: every 30 s, and<br/>again when it reaches that"]
-    interval --> overrun["Running over 90 s past<br/>its slowest recent build:<br/>the time beyond that ÷ 10,<br/>30 s to 5 minutes"]
-    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
-    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last build ÷ 120,<br/>30 s to 5 minutes"]
+    interval --> overrun["Running over 90 s past<br/>its slowest recent build:<br/>the time beyond that ÷ 10,<br/>30 s to 30 minutes"]
+    interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 30 minutes"]
+    interval --> failed["Quiet after a failure:<br/>the time since the<br/>last build ÷ 120,<br/>30 s to 30 minutes"]
     finishing --> stretch["Up to 8 times longer while<br/>under a quarter of<br/>the limit is left"]
     running --> stretch
     overrun --> stretch

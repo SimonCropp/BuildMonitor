@@ -1,4 +1,4 @@
-﻿class GitLabPipeline
+﻿record GitLabPipeline
 {
     public long Id { get; set; }
     public long Iid { get; set; }

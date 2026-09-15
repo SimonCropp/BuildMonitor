@@ -188,4 +188,31 @@ public class HttpJsonTests
         await Assert.That(budget.State.PausedUntil).IsEqualTo(Fixtures.Now.AddSeconds(30));
         await Assert.That(budget.CostTotal).IsEqualTo(0.04905);
     }
+
+    [Test]
+    public async Task ANotModifiedHandsBackTheValueAlreadyParsed()
+    {
+        // Kept as bytes, a large account's bodies ran to tens of megabytes, and each 304 parsed its
+        // body again.
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://dev.azure.com/org/_apis/projects", """{"count":1,"value":[{"id":"p1","name":"Web"}]}""", HttpStatusCode.OK, ("ETag", "\"abc\""));
+        using var client = AzureDevOps(handler);
+        var first = await client.Get("_apis/projects", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, Cancel.None);
+        handler.Map("GET", "https://dev.azure.com/org/_apis/projects", "", HttpStatusCode.NotModified);
+        var second = await client.Get("_apis/projects", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, Cancel.None);
+
+        await Assert.That(ReferenceEquals(first, second)).IsTrue();
+        await Assert.That(handler.Requests[^1]).Contains("If-None-Match: \"abc\"");
+    }
+
+    [Test]
+    public async Task ABodyThatDoesNotParseIsNotCached()
+    {
+        // Kept, every 304 after it would fail the same way with no request able to fix it.
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://dev.azure.com/org/_apis/projects", """{"count":1,"value":"not a list"}""", HttpStatusCode.OK, ("ETag", "\"abc\""));
+        using var client = AzureDevOps(handler);
+        await Assert.That(() => client.Get("_apis/projects", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, Cancel.None)).Throws<HttpRequestException>();
+        await Assert.That(client.IsCached("_apis/projects")).IsFalse();
+    }
 }

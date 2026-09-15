@@ -4,7 +4,7 @@ public class ETagCacheTests
     public async Task AnEntryRequestedEachCycleIsKept()
     {
         var cache = new ETagCache();
-        cache.Set("url", "\"a\"", [1]);
+        cache.Set("url", "\"a\"", "value");
         cache.Rotate();
         await Assert.That(cache.TryGet("url", out _)).IsTrue();
         cache.Rotate();
@@ -16,7 +16,7 @@ public class ETagCacheTests
     public async Task ContainsDoesNotKeepAnEntryAlive()
     {
         var cache = new ETagCache();
-        cache.Set("url", "\"a\"", [1]);
+        cache.Set("url", "\"a\"", "value");
         cache.Rotate();
         await Assert.That(cache.Contains("url")).IsTrue();
         cache.Rotate();
@@ -27,7 +27,7 @@ public class ETagCacheTests
     public async Task AnEntryNotRequestedForAWholeCycleIsDropped()
     {
         var cache = new ETagCache();
-        cache.Set("url", "\"a\"", [1]);
+        cache.Set("url", "\"a\"", "value");
         cache.Rotate();
         cache.Rotate();
         await Assert.That(cache.TryGet("url", out _)).IsFalse();

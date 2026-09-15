@@ -53,9 +53,25 @@ struct State {
     bool searchActive = false;
     /* Ctrl+F was pressed: the box takes the keyboard on the next frame it is drawn. */
     bool focusSearch = false;
+    /* The generation of the screen last drawn. The managed side hands over no such value, so the
+       first screen is always drawn. */
+    int64_t drawnGeneration = INT64_MIN;
+    /* Frames still to draw after the last reason to draw one, while ImGui settles: a hover it has
+       not shown yet, a popup or focus it was asked for, a click it acts on a frame late. */
+    int settling = 0;
+    /* The last frame drawn left an item active, a box being typed in or a slider being dragged,
+       which changes with no input at all: the caret blinks. */
+    bool itemActive = false;
+    bool cursorOnScreen = false;
+    bool focused = false;
+    /* When a frame was last fed input, for ImGui's delta time. */
+    double fedAt = 0.0;
 };
 
 State g;
+
+// How many frames are drawn after the last reason to draw one.
+const int settleFrames = 3;
 
 // ImGui 1.92 keeps IM_PI in imgui_internal.h, so imgui.h alone no longer declares it.
 const float pi = 3.14159265f;
@@ -198,6 +214,29 @@ void FeedInput(ImGuiIO& io) {
     for (int character = GetCharPressed(); character != 0; character = GetCharPressed()) {
         io.AddInputCharacter(static_cast<unsigned int>(character));
     }
+}
+
+// Whether the last poll brought anything ImGui must see: the pointer moving, entering or leaving the
+// window, a button, the wheel, a key, or the window resized or focused. Read without consuming
+// anything, so the frame drawn for it still finds the characters typed, which raylib keeps only
+// until the next poll.
+bool InputArrived() {
+    Vector2 moved = GetMouseDelta();
+    bool arrived = moved.x != 0.0f || moved.y != 0.0f || GetMouseWheelMove() != 0.0f || IsWindowResized();
+    for (int button = MOUSE_BUTTON_LEFT; button <= MOUSE_BUTTON_BACK && !arrived; button++) {
+        arrived = IsMouseButtonDown(button) || IsMouseButtonReleased(button);
+    }
+
+    for (int key = 1; key <= KEY_KB_MENU && !arrived; key++) {
+        arrived = IsKeyDown(key) || IsKeyReleased(key);
+    }
+
+    bool onScreen = IsCursorOnScreen();
+    bool focused = IsWindowFocused();
+    arrived = arrived || onScreen != g.cursorOnScreen || focused != g.focused;
+    g.cursorOnScreen = onScreen;
+    g.focused = focused;
+    return arrived;
 }
 
 // The keys the app owns, when no text field has the keyboard. The filter box keeps the keys editing
@@ -464,7 +503,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
     ImGuiTableFlags flags = ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadOuterX;
     float tableWidth = ImGui::GetContentRegionAvail().x;
     if (screen.rowCount == 0 && screen.loading) {
-        // An arc turning once a second, from the clock: the window is drawn every frame anyway.
+        // An arc turning once a second, from the clock: while it shows, the window is drawn every frame.
         ImDrawList* spinner = ImGui::GetWindowDrawList();
         ImVec2 at = ImGui::GetCursorScreenPos();
         float radius = 8.0f;
@@ -922,9 +961,13 @@ void DrawFooter(const BmScreen& screen) {
 void Frame(const BmScreen& screen, int width, int height, bool feed) {
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
-    io.DeltaTime = feed ? GetFrameTime() : 1.0f / 60.0f;
-    if (io.DeltaTime <= 0.0f) io.DeltaTime = 1.0f / 60.0f;
+    io.DeltaTime = 1.0f / 60.0f;
     if (feed) {
+        // From the clock rather than GetFrameTime, which is the length of the last frame drawn: after
+        // an idle stretch with no frames drawn, two clicks a second apart read as a double click.
+        double now = GetTime();
+        io.DeltaTime = static_cast<float>(std::clamp(now - g.fedAt, 0.001, 2.0));
+        g.fedAt = now;
         FeedInput(io);
     }
 
@@ -948,6 +991,7 @@ void Frame(const BmScreen& screen, int width, int height, bool feed) {
     ImGui::End();
     if (feed) {
         ReadShortcuts(io, formPage);
+        g.itemActive = ImGui::IsAnyItemActive();
     }
 
     ImGui::Render();
@@ -1083,11 +1127,30 @@ BM_API int32_t bm_present(const BmScreen* screen) {
     }
 
     UseTheme(screen->theme);
-    BeginDrawing();
-    ClearBackground(ClearColour());
-    Frame(*screen, GetScreenWidth(), GetScreenHeight(), true);
-    RenderDrawData(ImGui::GetDrawData());
-    EndDrawing();
+    // A frame is drawn only when it could look different from the last: a screen of another
+    // generation, input from the last poll, an item still active, the spinner, or ImGui settling
+    // after any of those. Otherwise it only waits and polls, as EndDrawing would: an idle window drew
+    // a whole ImGui frame sixty times a second to put the same pixels on screen. The managed side
+    // rebuilds a visible window's screen at least once a second, which also redraws anything the
+    // desktop let go stale.
+    bool input = InputArrived();
+    bool spinner = screen->page == BM_PAGE_BUILDS && screen->rowCount == 0 && screen->loading != 0;
+    if (input || screen->generation != g.drawnGeneration || g.itemActive || spinner) {
+        g.settling = settleFrames;
+    }
+
+    if (g.hidden || g.settling == 0) {
+        WaitTime(1.0 / 60.0);
+        PollInputEvents();
+    } else {
+        g.settling--;
+        g.drawnGeneration = screen->generation;
+        BeginDrawing();
+        ClearBackground(ClearColour());
+        Frame(*screen, GetScreenWidth(), GetScreenHeight(), true);
+        RenderDrawData(ImGui::GetDrawData());
+        EndDrawing();
+    }
 
     if (WindowShouldClose()) {
         g.input.closeRequested = 1;
@@ -1154,6 +1217,8 @@ BM_API void bm_set_hidden(int32_t hidden) {
     } else {
         ClearWindowState(FLAG_WINDOW_HIDDEN);
         RestoreWindow();
+        // Nothing is drawn while hidden, so what was drawn last may be long out of date.
+        g.drawnGeneration = INT64_MIN;
     }
 }
 
@@ -1162,6 +1227,9 @@ BM_API void bm_focus(void) {
         return;
     }
 
+    // It shows the window too, and a window still marked hidden is never drawn.
+    g.hidden = false;
+    g.drawnGeneration = INT64_MIN;
     ClearWindowState(FLAG_WINDOW_HIDDEN);
     RestoreWindow();
     SetWindowFocused();

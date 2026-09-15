@@ -9,6 +9,8 @@
 sealed unsafe class NativeMonitorWindow : IMonitorWindow
 {
     ScreenPayload payload = new();
+    // The screen the payload was last built from.
+    Screen? built;
     bool disposed;
 
     NativeMonitorWindow()
@@ -81,13 +83,21 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
 
     public bool Present(Screen screen)
     {
-        payload.Build(screen);
+        // The loop hands back the same instance until the state changes or the clock ticks over,
+        // and flattening it again every frame made about 1.4 MB of garbage a second.
+        if (!ReferenceEquals(screen, built))
+        {
+            payload.Build(screen);
+            built = screen;
+        }
+
         return payload.Present() == 1;
     }
 
     public bool Capture(Screen screen, int width, int height, string pngPath)
     {
         payload.Build(screen);
+        built = screen;
         return payload.Capture(width, height, pngPath) == 1;
     }
 

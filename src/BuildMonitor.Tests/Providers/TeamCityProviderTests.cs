@@ -75,6 +75,54 @@ public class TeamCityProviderTests
     }
 
     [Test]
+    public async Task EachProjectIsFetchedByItself()
+    {
+        // The whole server in one request, while anything on it ran, was about a megabyte a poll on
+        // five hundred configurations, most of them in projects with nothing to show.
+        var handler = Handler();
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        Pipeline[] pipelines =
+        [
+            new("Verify_Build", "Verify / Build", "Verify", "Verify", $"{server}/buildConfiguration/Verify_Build"),
+            new("Other_Config", "Other / Config", "Other", "Other", $"{server}/buildConfiguration/Other")
+        ];
+        var builds = await ProviderTestHelpers.Provider("teamcity").FetchBuilds(context, pipelines, 5, Cancel.None);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("locator=project:(id:Verify)"))).IsEqualTo(1);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("locator=project:(id:Other)"))).IsEqualTo(1);
+        await Assert.That(builds.Count).IsEqualTo(3);
+    }
+
+    static PollGroup VerifyProject() =>
+        new("Verify", [new("Verify_Build", "Verify / Build", "Verify", "Verify", $"{server}/buildConfiguration/Verify_Build"), new("Verify_Docs", "Verify / Docs", "Verify", "Verify", $"{server}/buildConfiguration/Verify_Docs")]);
+
+    [Test]
+    public async Task TheFirstProbeAsksForTheNewestBuild()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{server}/app/rest/builds", """{"build":[{"id":9001,"buildTypeId":"Verify_Build"}]}""");
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        var activity = await ProviderTestHelpers.Provider("teamcity").RecentActivity(context, [VerifyProject()], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        await Assert.That(activity!["Verify"]).IsEqualTo("9001");
+        await Assert.That(handler.Requests.Single()).Contains(",count:1&fields=build(id,buildTypeId)");
+    }
+
+    [Test]
+    public async Task ALaterProbeAsksOnlyForBuildsSinceTheNewestSeen()
+    {
+        // TeamCity sends no ETags, so without it a quiet project was fetched whole each time its
+        // schedule came round.
+        var handler = new FakeHttpHandler()
+            .Get($"{server}/app/rest/builds", """{"build":[{"id":9001,"buildTypeId":"Verify_Build"}]}""");
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        var provider = ProviderTestHelpers.Provider("teamcity");
+        var first = await provider.RecentActivity(context, [VerifyProject()], ImmutableDictionary<string, string>.Empty, Cancel.None);
+        handler.Get($"{server}/app/rest/builds", """{"build":[{"id":9003,"buildTypeId":"Verify_Docs"},{"id":9002,"buildTypeId":"Unwatched"}]}""");
+        var second = await provider.RecentActivity(context, [VerifyProject()], first!, Cancel.None);
+        await Assert.That(handler.Requests[^1]).Contains("sinceBuild:(id:9001)");
+        await Assert.That(second!["Verify"]).IsEqualTo("9003");
+    }
+
+    [Test]
     public async Task RetryAndCancel()
     {
         var handler = Handler()

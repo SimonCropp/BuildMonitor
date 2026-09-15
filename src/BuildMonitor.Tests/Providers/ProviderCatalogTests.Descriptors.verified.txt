@@ -20,7 +20,8 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: false,
-    FetchConcurrency: 1,
+    FetchConcurrency: 8,
+    IdleCap: 00:30:00,
     ProbeInterval: 00:01:00,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/appveyor.md
   },
@@ -53,7 +54,7 @@
     CustomClientId: false,
     Notes: The token needs Build (Read & execute).,
     FetchUnit: Repository,
-    FetchConcurrency: 1,
+    FetchConcurrency: 8,
     Quota: {
       Requests: 100.0,
       Per: 00:05:00,
@@ -61,6 +62,7 @@
       LearnLimit: false,
       ChargeByCost: true
     },
+    IdleCap: 00:30:00,
     ActionPermission: Build (Read & execute),
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md
   },
@@ -87,7 +89,7 @@
     HasPullRequests: true,
     CustomClientId: false,
     Notes: The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.,
-    FetchConcurrency: 1,
+    FetchConcurrency: 8,
     Quota: {
       Requests: 1000.0,
       Per: 01:00:00,
@@ -175,7 +177,8 @@
     HasPullRequests: false,
     CustomClientId: false,
     Notes: Create the token at {server}/go/access_tokens.,
-    FetchConcurrency: 1,
+    FetchConcurrency: 4,
+    IdleCap: 00:30:00,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/gocd.md
   },
   {
@@ -193,7 +196,8 @@
     HasPullRequests: false,
     CustomClientId: false,
     Notes: Create the token at {server}/me/security.,
-    FetchConcurrency: 1,
+    FetchConcurrency: 4,
+    IdleCap: 00:30:00,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/jenkins.md
   },
   {
@@ -242,8 +246,9 @@
     HasPullRequests: false,
     CustomClientId: false,
     Notes: Create the token under Profile, Access Tokens.,
-    FetchUnit: Connection,
-    FetchConcurrency: 1,
+    FetchUnit: Group,
+    FetchConcurrency: 4,
+    IdleCap: 00:30:00,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/teamcity.md
   },
   {
@@ -260,7 +265,9 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: false,
-    FetchConcurrency: 1,
+    FetchConcurrency: 8,
+    IdleCap: 00:30:00,
+    ProbeInterval: 00:01:00,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/travis.md
   }
 ]

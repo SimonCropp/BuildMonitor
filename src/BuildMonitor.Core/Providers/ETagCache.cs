@@ -1,6 +1,6 @@
 /// <summary>
-/// The ETag and body of every GET that carried one, kept for as long as a connection is polled
-/// so the next request for the same URL can be conditional.
+/// The ETag and parsed value of every GET that carried one, kept for as long as a connection is
+/// polled so the next request for the same URL can be conditional.
 /// <para>
 /// A new <see cref="HttpJson"/> is built for every poll, so a cache it owned would start empty
 /// each time and never send If-None-Match. Keeping every entry forever would grow without end,
@@ -9,13 +9,20 @@
 /// The poller rotates on a clock, slower than the longest interval a group can wait, so a quiet or
 /// backed off group keeps its entry.
 /// </para>
+/// <para>
+/// The parsed value rather than the body. GitHub is asked for five runs a workflow at about 12 KB
+/// of JSON a run, so a large account kept tens of megabytes of bodies, most of them on the large
+/// object heap, and parsed one again for every 304, where the runs parsed from a body hold about a
+/// tenth of it. A value is handed to every request answered with a 304, so nothing may change one
+/// once it is parsed.
+/// </para>
 /// </summary>
 sealed class ETagCache
 {
-    ConcurrentDictionary<string, (string ETag, byte[] Body)> current = new();
-    ConcurrentDictionary<string, (string ETag, byte[] Body)> previous = new();
+    ConcurrentDictionary<string, (string ETag, object Value)> current = new();
+    ConcurrentDictionary<string, (string ETag, object Value)> previous = new();
 
-    public bool TryGet(string url, out (string ETag, byte[] Body) entry)
+    public bool TryGet(string url, out (string ETag, object Value) entry)
     {
         if (current.TryGetValue(url, out entry))
         {
@@ -31,8 +38,8 @@ sealed class ETagCache
         return true;
     }
 
-    public void Set(string url, string etag, byte[] body) =>
-        current[url] = (etag, body);
+    public void Set(string url, string etag, object value) =>
+        current[url] = (etag, value);
 
     /// <summary>
     /// Whether a URL is cached, without keeping its entry alive: a probe choosing between two

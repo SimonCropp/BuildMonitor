@@ -38,6 +38,8 @@
       Finished: DateTimeOffset_3,
       BuildUrl: https://bitbucket.org/verify/diffengine/pipelines/results/87,
       BranchUrl: https://bitbucket.org/verify/diffengine/branch/feature,
+      PullRequestNumber: 9,
+      PullRequestUrl: https://bitbucket.org/verify/diffengine/pull-requests/9,
       CommitSha: def456,
       Author: Simon,
       CanRetry: true,
@@ -51,7 +53,7 @@
     }
   ],
   Requests: [
-    GET https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on,
-    GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5
+    GET https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on&fields=next,values.slug,values.full_name,values.links.html.href,
+    GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields=values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.display_name,values.created_on,values.completed_on
   ]
 }

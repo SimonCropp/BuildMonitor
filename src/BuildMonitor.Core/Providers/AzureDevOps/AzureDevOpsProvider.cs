@@ -17,19 +17,24 @@ sealed class AzureDevOpsProvider : ProviderBase
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
         var projects = await Projects(context, cancel);
-        var pipelines = new List<Pipeline>();
-        foreach (var project in projects)
-        {
-            var definitions = await context.Http.Get($"{Encode(project)}/_apis/pipelines?{apiVersion}", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsPipeline, cancel);
-            pipelines.AddRange(definitions.Value.Select(_ => new Pipeline(
-                $"{project}/{_.Id}",
-                _.Folder is null or "\\" ? _.Name : $"{_.Folder.Trim('\\')}\\{_.Name}",
-                project,
-                project,
-                _.Links?.Web?.Href ?? $"{context.Http.BaseAddress}{Encode(project)}/_build?definitionId={_.Id}")));
-        }
-
-        return pipelines;
+        // Concurrently, as a project at a time kept a first poll waiting an estimated fifteen
+        // seconds with fifty projects. The results keep the projects' order.
+        var perProject = await Concurrently.Map(
+            projects,
+            async (project, token) =>
+            {
+                var definitions = await context.Http.Get($"{Encode(project)}/_apis/pipelines?{apiVersion}", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsPipeline, token);
+                return definitions.Value
+                    .Select(_ => new Pipeline(
+                        $"{project}/{_.Id}",
+                        _.Folder is null or "\\" ? _.Name : $"{_.Folder.Trim('\\')}\\{_.Name}",
+                        project,
+                        project,
+                        _.Links?.Web?.Href ?? $"{context.Http.BaseAddress}{Encode(project)}/_build?definitionId={_.Id}"))
+                    .ToList();
+            },
+            cancel);
+        return perProject.SelectMany(_ => _).ToList();
     }
 
     static async Task<List<string>> Projects(ProviderContext context, Cancel cancel)
@@ -89,30 +94,39 @@ sealed class AzureDevOpsProvider : ProviderBase
     /// </summary>
     public override async Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel)
     {
-        var tokens = ImmutableDictionary.CreateBuilder<string, string>();
-        foreach (var group in groups)
-        {
-            var definitions = string.Join(',', group.Pipelines.Select(_ => _.Id[(_.Id.LastIndexOf('/') + 1)..]));
-            var since = previous.GetValueOrDefault(group.Key);
-            var filter = since is null ? "$top=1" : $"minTime={Encode(since)}&$top=50";
-            var response = await context.Http.Get(
-                $"{Encode(group.Key)}/_apis/build/builds?definitions={definitions}&{filter}&queryOrder=queueTimeDescending&{apiVersion}",
-                AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsBuild,
-                cancel);
-            DateTimeOffset? newest = since is null ? null : DateTimeOffset.Parse(since, CultureInfo.InvariantCulture);
-            foreach (var build in response.Value)
+        // Concurrently, as the cycle plans nothing until the probe is back, and a project at a time
+        // held it for an estimated fifteen seconds with fifty projects. The same throughput units.
+        var newest = await Concurrently.Map(
+            groups,
+            async (group, token) =>
             {
-                var queued = build.QueueTime;
-                if (newest is null ||
-                    queued > newest)
+                var definitions = string.Join(',', group.Pipelines.Select(_ => _.Id[(_.Id.LastIndexOf('/') + 1)..]));
+                var since = previous.GetValueOrDefault(group.Key);
+                var filter = since is null ? "$top=1" : $"minTime={Encode(since)}&$top=50";
+                var response = await context.Http.Get(
+                    $"{Encode(group.Key)}/_apis/build/builds?definitions={definitions}&{filter}&queryOrder=queueTimeDescending&{apiVersion}",
+                    AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsBuild,
+                    token);
+                DateTimeOffset? latest = since is null ? null : DateTimeOffset.Parse(since, CultureInfo.InvariantCulture);
+                foreach (var build in response.Value)
                 {
-                    newest = queued ?? newest;
+                    var queued = build.QueueTime;
+                    if (latest is null ||
+                        queued > latest)
+                    {
+                        latest = queued ?? latest;
+                    }
                 }
-            }
 
-            if (newest is { } value)
+                return latest;
+            },
+            cancel);
+        var tokens = ImmutableDictionary.CreateBuilder<string, string>();
+        for (var index = 0; index < groups.Length; index++)
+        {
+            if (newest[index] is { } value)
             {
-                tokens[group.Key] = value.ToString("O", CultureInfo.InvariantCulture);
+                tokens[groups[index].Key] = value.ToString("O", CultureInfo.InvariantCulture);
             }
         }
 
