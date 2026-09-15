@@ -12,6 +12,7 @@ public class CommandLineTests
     public async Task Parses(string line)
     {
         var args = line.Length == 0 ? [] : line.Split(' ');
-        await Verify(CommandLine.Parse(args)).UseTextForParameters(line.Length == 0 ? "none" : line.Replace(' ', '_').Replace("--", ""));
+        await Verify(CommandLine.Parse(args))
+            .UseTextForParameters(line.Length == 0 ? "none" : line.Replace(' ', '_').Replace("--", ""));
     }
 }

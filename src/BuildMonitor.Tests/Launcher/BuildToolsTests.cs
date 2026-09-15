@@ -5,7 +5,8 @@ using ModelContextProtocol.Server;
 /// </summary>
 public class BuildToolsTests
 {
-    MethodInfo[] methods = typeof(BuildTools).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+    static MethodInfo[] methods = typeof(BuildTools)
+        .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 
     [Test]
     public Task ToolSurface()
