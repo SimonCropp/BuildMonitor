@@ -32,7 +32,10 @@ record SessionState(
     Notification? Notification = null,
     // Text waiting for the loop to put on the clipboard, which belongs to the window and so to the
     // loop's thread rather than the thread pool a log is fetched on. Null once copied.
-    string? Clipboard = null)
+    string? Clipboard = null,
+    // What is typed in the filter box: only builds whose project, pipeline or branch contain it are
+    // rows. Never saved, unlike Settings.Filters, which exclude for good.
+    string Search = "")
 {
     public static SessionState Start(Settings settings) =>
         new(

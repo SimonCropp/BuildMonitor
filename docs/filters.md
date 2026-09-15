@@ -29,4 +29,6 @@ Pipeline and repository filters are applied before a pipeline is fetched, so an 
 
 The context menu's "Exclude" on a row adds an exact pipeline filter for it at once.
 
+To narrow the list for a moment rather than exclude anything, type in the Filter box at the top of the window instead. See [The window](tray.md#the-window).
+
 Filters are saved in settings.json and apply to every connection.

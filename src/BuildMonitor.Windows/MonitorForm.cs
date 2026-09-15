@@ -5,7 +5,7 @@
 /// </summary>
 sealed class MonitorForm : Form
 {
-    readonly FormsLabel header;
+    readonly HeaderPanel header;
     readonly RowsCanvas canvas;
     readonly VScrollBar scrollBar;
     readonly FormPanel formPanel;
@@ -33,12 +33,7 @@ sealed class MonitorForm : Form
 
         header = new()
         {
-            Dock = DockStyle.Top,
-            Height = LogicalToDeviceUnits(34),
-            Padding = DpiScale.Spacing(this, 10, 0, 10, 0),
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Palette.Dim,
-            BackColor = Palette.Surface
+            Dock = DockStyle.Top
         };
         footer = new()
         {
@@ -97,6 +92,33 @@ sealed class MonitorForm : Form
             return;
         }
 
+        if (!formPanel.Visible &&
+            e is { Control: true, KeyCode: Keys.F })
+        {
+            header.FocusSearch();
+            Handled(e);
+            return;
+        }
+
+        // The filter box keeps what editing needs: letters, Home, End and the clipboard. The keys
+        // that move through the rows still reach them, so a filter can be typed and its match opened
+        // without leaving the box, and Escape empties a box with text in it before it hides.
+        if (header.SearchFocused)
+        {
+            if (e.KeyCode == Keys.Escape &&
+                header.ClearSearch())
+            {
+                Handled(e);
+                return;
+            }
+
+            if (e.KeyCode is not (Keys.Up or Keys.Down or Keys.PageUp or Keys.PageDown or Keys.Enter or Keys.Escape or Keys.F5) &&
+                e is not { Control: true, KeyCode: Keys.Q })
+            {
+                return;
+            }
+        }
+
         var command = e.KeyCode switch
         {
             Keys.Up => CommandKind.PreviousRow,
@@ -120,6 +142,11 @@ sealed class MonitorForm : Form
         }
 
         canvas.Key = command;
+        Handled(e);
+    }
+
+    static void Handled(KeyEventArgs e)
+    {
         e.Handled = true;
         e.SuppressKeyPress = true;
     }
@@ -138,7 +165,7 @@ sealed class MonitorForm : Form
             Retheme();
         }
 
-        header.Text = screen.Builds?.Header ?? screen.Form?.Title ?? "";
+        header.Apply(screen.Builds?.Header ?? screen.Form?.Title ?? "", screen.Builds?.Search);
         if (screen.Builds is { } builds)
         {
             formPanel.Visible = false;
@@ -177,8 +204,7 @@ sealed class MonitorForm : Form
     {
         BackColor = Palette.Background;
         ForeColor = Palette.Text;
-        header.ForeColor = Palette.Dim;
-        header.BackColor = Palette.Surface;
+        header.Retheme();
         canvas.Retheme();
         footer.Retheme();
         formPanel.Retheme();
@@ -192,6 +218,7 @@ sealed class MonitorForm : Form
             ClickedButton = footer.DrainClickedButton(),
             FieldChanges = formPanel.DrainChanges(),
             ClickedField = formPanel.DrainClickedField(),
+            Search = header.DrainSearch(),
             CloseRequested = closeRequested,
             Columns = 120,
             Rows = Math.Max(1, canvas.VisibleRows) + ScreenBuilder.Chrome

@@ -1,6 +1,6 @@
 ﻿{
   PointerSize: 8,
-  Screen: 224,
+  Screen: 256,
   Input: 88,
   ScreenOffsets: [
     Strings@0,
@@ -22,22 +22,26 @@
     DetailCount@96,
     Chips@104,
     ChipCount@112,
-    FormTitle@116,
-    Fields@128,
-    FieldCount@136,
-    Options@144,
-    OptionCount@152,
-    Buttons@160,
-    ButtonCount@168,
-    Menu@176,
-    MenuCount@184,
-    MenuRow@188,
-    MenuOverflow@192,
-    TrayIcon@196,
-    TrayTooltip@200,
-    TrayItems@208,
-    TrayItemCount@216,
-    Theme@220
+    Spans@120,
+    SpanCount@128,
+    Search@132,
+    Empty@140,
+    FormTitle@148,
+    Fields@160,
+    FieldCount@168,
+    Options@176,
+    OptionCount@184,
+    Buttons@192,
+    ButtonCount@200,
+    Menu@208,
+    MenuCount@216,
+    MenuRow@220,
+    MenuOverflow@224,
+    TrayIcon@228,
+    TrayTooltip@232,
+    TrayItems@240,
+    TrayItemCount@248,
+    Theme@252
   ],
   InputOffsets: [
     Key@0,
@@ -80,5 +84,5 @@
     Hide=15,
     Quit=16
   ],
-  Version: 4
+  Version: 5
 }

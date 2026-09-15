@@ -2,7 +2,7 @@ import AppKit
 import CBm
 
 /// The window's content: the builds page and footer drawn by the renderer, with the form view
-/// laid over the body while a form page is up.
+/// laid over the body while a form page is up, and the filter box over the header while it is not.
 final class MonitorView: NSView {
     let renderer: BuildsRenderer
     let form: FormView
@@ -12,6 +12,10 @@ final class MonitorView: NSView {
     /// Holds the form, so a page with more fields than the body fits scrolls instead of hiding its
     /// last controls behind the footer where they cannot be reached.
     private let formScroll = NSScrollView()
+
+    /// The filter box: a real search field, for the platform's editing. It is pushed the session's
+    /// text only while it is not being edited, so a frame never fights the typist.
+    private let search = NSSearchField()
 
     init(renderer: BuildsRenderer, runtime: Runtime, frame: NSRect) {
         self.renderer = renderer
@@ -25,6 +29,13 @@ final class MonitorView: NSView {
         formScroll.documentView = form
         formScroll.isHidden = true
         addSubview(formScroll)
+        search.placeholderString = "Filter"
+        search.font = renderer.font
+        search.delegate = self
+        // The cancel button inside the field empties it without a text change notification.
+        search.target = self
+        search.action = #selector(searched(_:))
+        addSubview(search)
     }
 
     required init?(coder: NSCoder) {
@@ -52,6 +63,29 @@ final class MonitorView: NSView {
             let visible = formScroll.contentSize
             form.frame.size = NSSize(width: visible.width, height: max(form.contentHeight, visible.height))
         }
+
+        // A form page has no filter box, and a hidden box must not keep the keyboard.
+        if model.isForm && search.currentEditor() != nil {
+            window?.makeFirstResponder(self)
+        }
+
+        search.isHidden = model.isForm
+        let searchRect = renderer.searchRect(size: bounds.size)
+        if search.frame != searchRect {
+            search.frame = searchRect
+        }
+
+        if search.currentEditor() == nil && search.stringValue != model.search {
+            search.stringValue = model.search
+        }
+    }
+
+    @objc private func searched(_ sender: NSSearchField) {
+        queueSearch()
+    }
+
+    private func queueSearch() {
+        runtime?.queueEdit(field: Int(BM_SEARCH_FIELD.rawValue), value: search.stringValue)
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -129,6 +163,11 @@ final class MonitorView: NSView {
         case 96: key = BM_KEY_REFRESH
         default:
             let characters = event.charactersIgnoringModifiers ?? ""
+            if command && characters == "f" && !model.isForm {
+                window?.makeFirstResponder(search)
+                return
+            }
+
             if command && characters == "q" { key = BM_KEY_QUIT }
             else if command && characters == "c" && !model.isForm { key = BM_KEY_COPY }
             else if command && characters == "r" { key = BM_KEY_REFRESH }
@@ -140,5 +179,40 @@ final class MonitorView: NSView {
         }
 
         runtime.input.key = Int32(key.rawValue)
+    }
+}
+
+extension MonitorView: NSSearchFieldDelegate {
+    func controlTextDidChange(_ notification: Notification) {
+        queueSearch()
+    }
+
+    /// The keys that move through the rows still reach them from the box, so a filter can be typed
+    /// and its match opened without leaving it. Escape empties a box with text in it, and only once
+    /// it is empty hides the window, as it does from the rows.
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        guard let runtime else {
+            return false
+        }
+
+        switch commandSelector {
+        case #selector(NSResponder.moveUp(_:)):
+            runtime.input.key = Int32(BM_KEY_PREVIOUS_ROW.rawValue)
+        case #selector(NSResponder.moveDown(_:)):
+            runtime.input.key = Int32(BM_KEY_NEXT_ROW.rawValue)
+        case #selector(NSResponder.insertNewline(_:)):
+            runtime.input.key = Int32(BM_KEY_OPEN_BUILD.rawValue)
+        case #selector(NSResponder.cancelOperation(_:)):
+            if search.stringValue.isEmpty {
+                runtime.input.key = Int32(BM_KEY_HIDE.rawValue)
+            } else {
+                search.stringValue = ""
+                queueSearch()
+            }
+        default:
+            return false
+        }
+
+        return true
     }
 }

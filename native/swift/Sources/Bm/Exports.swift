@@ -183,7 +183,7 @@ public func bmCapture(
 
     context.translateBy(x: 0, y: CGFloat(height))
     context.scaleBy(x: 1, y: -1)
-    renderer.draw(Frame.decode(screen), in: context, size: CGSize(width: CGFloat(width), height: CGFloat(height)), staticForm: true)
+    renderer.draw(Frame.decode(screen), in: context, size: CGSize(width: CGFloat(width), height: CGFloat(height)), staticControls: true)
 
     guard let image = context.makeImage() else {
         return 0

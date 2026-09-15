@@ -76,14 +76,14 @@ public class ScreenTests
             .Snapshot(
                 """
                 +----------------------------------------------------------------------------------------------------------------------+
-                | BuildMonitor                                                                       9 pipelines, 2 failing, 4 running |
+                | BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   ? nightly    jenkins                                            queued     Build [Cancel]                          |
-                |   x [-] Verify          2 failing                                 25m ago                                            |
-                |   x            github   test.yml feature/inline                   25m ago    Build Branch PR 42 [Retry] [Copy log]   |
-                |   x            github   release.yml main                          50m ago    Build Branch [Retry] [Copy log]         |
-                |   + [+] Verify          2 passing                                 2h ago                                             |
-                | > + DiffEngine github   docs.yml main                             23h ago    Build Branch                            |
+                |   ? nightly    jenkins                                                         queued     [Cancel]                   |
+                |   x [-] Verify          2 failing                                              25m ago                               |
+                |   x            github   test.yml feature/inline                                25m ago    PR 42 [Retry] [Copy log]   |
+                |   x            github   release.yml main                                       50m ago    [Retry] [Copy log]         |
+                |   + [+] Verify          2 passing                                              2h ago                                |
+                | > + DiffEngine github   docs.yml main                                          23h ago                               |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+
@@ -108,10 +108,38 @@ public class ScreenTests
         Verify(Fixtures.Render(Fixtures.WithMenu()));
 
     [Test]
+    public Task Searched() =>
+        Verify(Fixtures.Render(MonitorSession.Search(Fixtures.WithGreenProject(), "docs")));
+
+    [Test]
+    public Task SearchedToNothing() =>
+        Verify(Fixtures.Render(MonitorSession.Search(Fixtures.WithBuilds(), "nothing like it")));
+
+    [Test]
+    public Task RowsLinkTheRunAndTheBranch() =>
+        Verify(ScreenBuilder.Build(Fixtures.WithGreenProject(), Fixtures.Now).Builds!.Rows
+            .Select(_ => $"{Link(_.Name, _.NameLink)} | {string.Concat(_.Detail.Select(span => Link(span.Text, span.Link)))}"))
+            .Snapshot(
+                """
+                [
+                  build-all | [Build all](Build) main,
+                  [Deploy Web](Build) | ,
+                  DiffEngine | [test.yml](Build) [main](Branch),
+                  [nightly](Build) | ,
+                  Verify | [test.yml](Build) [feature/inline](Branch),
+                  Verify | 2 passing,
+                  DiffEngine | [docs.yml](Build) [main](Branch)
+                ]
+                """);
+
+    static string Link(string text, ChipKind link) =>
+        link == ChipKind.None ? text : $"[{text}]({link})";
+
+    [Test]
     public Task OverflowMenuOpen()
     {
-        // A hundred columns leave the failed row room for its links but not for its actions.
-        var state = MonitorSession.Resize(Fixtures.WithBuilds(), 100, 30);
+        // Ninety columns leave the failed row room for its pull request but not for its actions.
+        var state = MonitorSession.Resize(Fixtures.WithBuilds(), 90, 30);
         var row = Fixtures.RowOf(state, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
         return Verify(Fixtures.Render(MonitorSession.OpenOverflow(state, row, ChipKind.Retry)));
     }

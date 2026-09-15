@@ -48,6 +48,11 @@ struct State {
     std::vector<ImVec2> overflowAnchors;
     int bodyRows = 1;
     bool keyDown[ImGuiKey_NamedKey_END]{};
+    /* The filter box's text. The screen's replaces it on every frame the box is not being typed in. */
+    std::string search;
+    bool searchActive = false;
+    /* Ctrl+F was pressed: the box takes the keyboard on the next frame it is drawn. */
+    bool focusSearch = false;
 };
 
 State g;
@@ -195,14 +200,25 @@ void FeedInput(ImGuiIO& io) {
     }
 }
 
-// The keys the app owns, when no text field has the keyboard.
+// The keys the app owns, when no text field has the keyboard. The filter box keeps the keys editing
+// needs, but Up, Down and the page keys still move through the rows it leaves, so a match can be
+// picked without leaving the box.
 void ReadShortcuts(const ImGuiIO& io, bool formPage) {
     if (io.WantTextInput) {
+        if (!g.searchActive) {
+            return;
+        }
+
+        if (IsKeyPressed(KEY_UP)) g.input.key = BM_KEY_PREVIOUS_ROW;
+        else if (IsKeyPressed(KEY_DOWN)) g.input.key = BM_KEY_NEXT_ROW;
+        else if (IsKeyPressed(KEY_PAGE_UP)) g.input.key = BM_KEY_PAGE_UP;
+        else if (IsKeyPressed(KEY_PAGE_DOWN)) g.input.key = BM_KEY_PAGE_DOWN;
         return;
     }
 
     bool control = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
-    if (IsKeyPressed(KEY_UP)) g.input.key = BM_KEY_PREVIOUS_ROW;
+    if (!formPage && control && IsKeyPressed(KEY_F)) g.focusSearch = true;
+    else if (IsKeyPressed(KEY_UP)) g.input.key = BM_KEY_PREVIOUS_ROW;
     else if (IsKeyPressed(KEY_DOWN)) g.input.key = BM_KEY_NEXT_ROW;
     else if (IsKeyPressed(KEY_PAGE_UP)) g.input.key = BM_KEY_PAGE_UP;
     else if (IsKeyPressed(KEY_PAGE_DOWN)) g.input.key = BM_KEY_PAGE_DOWN;
@@ -336,12 +352,99 @@ float ChipHeight() {
     return ImGui::GetTextLineHeight() + 2.0f;
 }
 
-void DrawBuilds(const BmScreen& screen, float bodyHeight) {
+// Text that opens something: an invisible button the size of the text, which takes the click from the
+// row's selectable beneath it, with the text drawn over it in the link colour and underlined while the
+// pointer is over it. The button is the last item, so the cursor is never left moved with nothing
+// submitted after it, which ImGui reports as an error.
+void LinkText(const char* begin, const char* end, int32_t row, int32_t kind) {
+    ImVec2 at = ImGui::GetCursorScreenPos();
+    ImVec2 size = ImGui::CalcTextSize(begin, end);
+    if (ImGui::InvisibleButton("##link", size)) {
+        g.input.clickedChipRow = row;
+        g.input.clickedChip = kind;
+    }
+
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    draw->AddText(at, ImGui::GetColorU32(chipText), begin, end);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        draw->AddLine(ImVec2(at.x, at.y + size.y - 1.0f), ImVec2(at.x + size.x, at.y + size.y - 1.0f), ImGui::GetColorU32(chipText));
+    }
+}
+
+// The detail cell run by run: plain text dimmed, links through LinkText.
+void DrawDetail(const BmScreen& screen, const BmRow& row, int32_t index) {
+    if (row.spanCount <= 0) {
+        // An item all the same, since the cursor was moved down to the line of text.
+        ImGui::TextUnformatted("");
+        return;
+    }
+
+    for (int32_t s = 0; s < row.spanCount; s++) {
+        const BmSpan& span = screen.spans[row.spanOffset + s];
+        if (s > 0) {
+            ImGui::SameLine(0.0f, 0.0f);
+        }
+
+        if (span.link == BM_CHIP_NONE) {
+            ImGui::PushStyleColor(ImGuiCol_Text, dim);
+            ImGui::TextUnformatted(Begin(screen, span.text), End(screen, span.text));
+            ImGui::PopStyleColor();
+            continue;
+        }
+
+        ImGui::PushID(s);
+        LinkText(Begin(screen, span.text), End(screen, span.text), index, span.link);
+        ImGui::PopID();
+    }
+}
+
+// The counts at the left and the filter box at the right, where the WinForms head puts it. The screen's
+// text replaces the box's on every frame it is not typed in, so a filter cleared elsewhere clears here
+// too. Escape empties a box with text in it before it lets go of the keyboard, and Enter opens the
+// selected build.
+void DrawHeader(const BmScreen& screen) {
+    const float searchWidth = 260.0f;
+    ImVec2 at = ImGui::GetCursorScreenPos();
+    float searchX = at.x + std::max(0.0f, ImGui::GetContentRegionAvail().x - searchWidth);
+    ImGui::AlignTextToFramePadding();
+    // Clipped short of the box, so a long header in a narrow window runs out rather than under it.
+    ImGui::PushClipRect(at, ImVec2(searchX - ImGui::GetStyle().ItemSpacing.x, at.y + ImGui::GetFrameHeight()), true);
     ImGui::TextColored(dim, "%s", Str(screen, screen.header).c_str());
+    ImGui::PopClipRect();
+    ImGui::SameLine();
+    ImGui::SetCursorScreenPos(ImVec2(searchX, at.y));
+    if (!g.searchActive) {
+        g.search = Str(screen, screen.search);
+    }
+
+    if (g.focusSearch) {
+        ImGui::SetKeyboardFocusHere();
+        g.focusSearch = false;
+    }
+
+    ImGui::SetNextItemWidth(searchWidth);
+    ImGuiInputTextFlags flags = ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_EscapeClearsAll | ImGuiInputTextFlags_EnterReturnsTrue;
+    if (ImGui::InputTextWithHint("##search", "Filter", g.search.data(), g.search.capacity() + 1, flags, TextResize, &g.search)) {
+        g.input.key = BM_KEY_OPEN_BUILD;
+    }
+
+    g.searchActive = ImGui::IsItemActive();
+    if (ImGui::IsItemEdited()) {
+        g.edits.push_back({BM_SEARCH_FIELD, std::string(g.search.c_str())});
+    }
+}
+
+void DrawBuilds(const BmScreen& screen, float bodyHeight) {
+    const float headerTop = ImGui::GetCursorPosY();
+    DrawHeader(screen);
     ImGui::Separator();
+    // What the header took, measured rather than assumed, so the body ends where the footer begins
+    // whatever the height of the box in it.
+    const float body = bodyHeight - (ImGui::GetCursorPosY() - headerTop);
 
     float rowHeight = ImGui::GetFrameHeightWithSpacing();
-    g.bodyRows = rowHeight > 0 ? static_cast<int>((bodyHeight - ImGui::GetFrameHeight()) / rowHeight) : 1;
+    g.bodyRows = rowHeight > 0 ? static_cast<int>(body / rowHeight) : 1;
     if (g.bodyRows < 1) g.bodyRows = 1;
 
     float scrollbarWidth = 0.0f;
@@ -350,7 +453,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         scrollbarWidth = 18.0f;
     }
 
-    ImGui::BeginChild("body", ImVec2(ImGui::GetContentRegionAvail().x - scrollbarWidth, bodyHeight - ImGui::GetFrameHeight()), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::BeginChild("body", ImVec2(ImGui::GetContentRegionAvail().x - scrollbarWidth, body), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) {
         float wheel = GetMouseWheelMove();
         if (wheel != 0.0f) {
@@ -371,9 +474,9 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         spinner->PathStroke(ImGui::GetColorU32(dim), ImDrawFlags_None, 2.5f);
         ImGui::Dummy(ImVec2(2.0f * radius + 4.0f, lineHeight));
         ImGui::SameLine();
-        ImGui::TextColored(dim, "Loading builds");
+        ImGui::TextColored(dim, "%s", Str(screen, screen.empty).c_str());
     } else if (screen.rowCount == 0) {
-        ImGui::TextColored(dim, "Nothing to show yet.");
+        ImGui::TextColored(dim, "%s", Str(screen, screen.empty).c_str());
     } else if (ImGui::BeginTable("rows", 5, flags)) {
         // The name cell starts with a status square a row height wide, then is as wide as the widest
         // name across every row, not only those on screen, so it does not shift while scrolling.
@@ -409,7 +512,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         // was loaded: a countdown past an hour, and the widest set of chips a row carries.
         const float barWidth = 104.0f;
         const float timingWidth = ImGui::CalcTextSize("0:00:00 left").x;
-        const float widestChips = ChipWidth("Build") + ChipWidth("Branch") + ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Copy log") + 4.0f * style.ItemSpacing.x;
+        const float widestChips = ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Copy log") + 2.0f * style.ItemSpacing.x;
         const float overflowWidth = ChipWidth(overflowLabel);
         // Each boundary between the five columns carries cell padding on both sides of it. What is
         // left, the name, the detail and the chips share.
@@ -462,7 +565,11 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             float top = cursor.y - style.CellPadding.y;
             draw->AddRectFilled(ImVec2(cursor.x, top), ImVec2(cursor.x + rowHeight, top + rowHeight), ImGui::GetColorU32(colour));
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + rowHeight + style.ItemSpacing.x);
-            std::string selectableLabel = name + "##row";
+            // A name that opens the run is drawn as a link over the selectable rather than as its
+            // label, and only its text is the link, so a click beside it still selects the row.
+            bool nameLink = row.nameLink != BM_CHIP_NONE;
+            ImVec2 nameAt = ImGui::GetCursorScreenPos();
+            std::string selectableLabel = (nameLink ? std::string() : name) + "##row";
             // As tall as the cell, so a click anywhere on the row selects it. A click on a group
             // toggles it, so the second press of a double click is dropped, or it would close what
             // the first opened.
@@ -473,6 +580,13 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
             if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
                 g.input.rightClickedRow = i;
+            }
+
+            if (nameLink) {
+                ImGui::SetCursorScreenPos(ImVec2(nameAt.x, nameAt.y + textOffset));
+                ImGui::PushID("name");
+                LinkText(name.c_str(), name.c_str() + name.size(), i, row.nameLink);
+                ImGui::PopID();
             }
 
             ImGui::TableSetColumnIndex(1);
@@ -502,10 +616,10 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
             // Cut off at the cell's edge rather than the column's, which is only the cell padding
-            // short of the run number, so a pipeline and branch too long for the cell stop short of it.
+            // short of the bar, so a pipeline and branch too long for the cell stop short of it.
             ImVec2 detailAt = ImGui::GetCursorScreenPos();
             ImGui::PushClipRect(ImVec2(detailAt.x, top), ImVec2(detailAt.x + ImGui::GetContentRegionAvail().x, top + rowHeight), true);
-            ImGui::TextColored(dim, "%s", Str(screen, row.detail).c_str());
+            DrawDetail(screen, row, i);
             ImGui::PopClipRect();
             ImGui::TableSetColumnIndex(2);
             if (row.progress >= 0.0f) {
@@ -576,7 +690,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         if (value < 0) value = 0;
         ImGui::PushStyleColor(ImGuiCol_FrameBg, surface);
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, border);
-        if (ImGui::VSliderInt("##scroll", ImVec2(14.0f, bodyHeight - ImGui::GetFrameHeight()), &value, 0, maximum, "")) {
+        if (ImGui::VSliderInt("##scroll", ImVec2(14.0f, body), &value, 0, maximum, "")) {
             g.input.scrollTo = maximum - value;
         }
 
@@ -793,6 +907,8 @@ void Frame(const BmScreen& screen, int width, int height, bool feed) {
     float bodyHeight = ImGui::GetContentRegionAvail().y - footer;
     bool formPage = screen.page == BM_PAGE_FORM;
     if (formPage) {
+        // A form page draws no filter box, so the box cannot be what has the keyboard.
+        g.searchActive = false;
         DrawForm(screen, bodyHeight);
     } else {
         DrawBuilds(screen, bodyHeight);

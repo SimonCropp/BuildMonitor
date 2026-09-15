@@ -15,6 +15,37 @@ public class ApplyTests
         await Assert.That(state.SelectedRow).IsEqualTo(row);
     }
 
+    [Test]
+    [Arguments(nameof(ChipKind.Build), "https://example.com/gh/Verify/test.yml/77")]
+    [Arguments(nameof(ChipKind.Branch), "https://github.com/VerifyTests/Verify/tree/feature/inline")]
+    public async Task ClickingANameInTheRowOpensIt(string link, string url)
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithBuilds();
+        var row = FailedRow(builds);
+        var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: Enum.Parse<ChipKind>(link)), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo([$"OpenUrl {url}"]);
+        await Assert.That(state.SelectedRow).IsEqualTo(row);
+    }
+
+    [Test]
+    public async Task TypingInTheFilterBoxNarrowsTheRows()
+    {
+        var state = Apply(Fixtures.WithBuilds(), new(Search: "inline"), new());
+        await Assert.That(state.Search).IsEqualTo("inline");
+        await Assert.That(MonitorSession.SelectedBuild(state)?.Key).IsEqualTo("gh/Verify/test.yml/feature/inline");
+    }
+
+    [Test]
+    public async Task AClickInTheFrameTheFilterChangedActsOnTheRowThatWasOnScreen()
+    {
+        // Filtered first, row 0 would be the failure, which cannot be cancelled.
+        var actions = new RecordingActions();
+        var state = Apply(Fixtures.WithBuilds(), new(ClickedChipRow: 0, ClickedChip: ChipKind.Cancel, Search: "inline"), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["Cancel jenkins/build-all/main"]);
+        await Assert.That(state.Search).IsEqualTo("inline");
+    }
+
     static int FailedRow(SessionState state) =>
         Fixtures.RowOf(state, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
 

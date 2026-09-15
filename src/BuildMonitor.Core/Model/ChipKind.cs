@@ -8,7 +8,10 @@
 enum ChipKind
 {
     None = 0,
+    // The pipeline's name in the row's text, or the project's where the pipeline is named after it:
+    // opens the run. A link in the text rather than a chip, so never among a row's chips.
     Build = 1,
+    // The branch's name in the row's text: opens the branch. Likewise never among a row's chips.
     Branch = 2,
     PullRequest = 3,
     Retry = 4,

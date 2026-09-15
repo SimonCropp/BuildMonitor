@@ -13,7 +13,10 @@ static class RowProjection
 {
     public static ImmutableArray<Row> Rows(SessionState state)
     {
-        var builds = Builds(state);
+        // Narrowed before grouping, so a group holds only the members that match: a closed group
+        // left whole would hide the one build the filter was typed to find.
+        var search = state.Search.Trim();
+        var builds = Builds(state).Where(_ => Matches(_, search)).ToImmutableArray();
         var connections = state.Connections.ToDictionary(_ => _.Connection.Id);
         var groups = builds
             .Where(_ => GroupKey.Of(_) is not null)
@@ -62,8 +65,20 @@ static class RowProjection
         key.Failed != state.ToggledGroups.Contains(key.Id);
 
     /// <summary>
+    /// Whether the build's project, pipeline or branch contains the text, ignoring case. The project
+    /// by its short name, the one a row shows: the full repository name would keep every repository
+    /// of an owner whose name holds the text, on rows showing nothing that matched.
+    /// </summary>
+    public static bool Matches(Build build, string search) =>
+        search.Length == 0 ||
+        build.ShortRepoName().Contains(search, StringComparison.OrdinalIgnoreCase) ||
+        build.PipelineName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+        (build.Branch?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    /// <summary>
     /// Every connection's builds: filtered, reduced to the runs worth a row, and sorted so what is
-    /// happening now sits at the top.
+    /// happening now sits at the top. Not narrowed by the filter box, so the tray, the header's
+    /// counts and the MCP tools still describe everything watched while a filter is typed.
     /// </summary>
     public static ImmutableArray<Build> Builds(SessionState state) =>
     [

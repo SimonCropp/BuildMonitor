@@ -95,13 +95,13 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     {
         BmInput input;
         Bm.PollInput(&input);
+        var value = input.ChangedValue is null || input.ChangedValueLength <= 0
+            ? ""
+            : Encoding.UTF8.GetString(input.ChangedValue, input.ChangedValueLength);
         IReadOnlyList<FieldChange>? changes = null;
         if (input.ChangedField >= 0 &&
             input.ChangedField < payload.FieldIds.Count)
         {
-            var value = input.ChangedValue is null || input.ChangedValueLength <= 0
-                ? ""
-                : Encoding.UTF8.GetString(input.ChangedValue, input.ChangedValueLength);
             changes = [new(payload.FieldIds[input.ChangedField], value)];
         }
 
@@ -118,6 +118,7 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             MenuClosed: input.MenuClosed != 0,
             FieldChanges: changes,
             ClickedField: input.ClickedField >= 0 && input.ClickedField < payload.FieldIds.Count ? payload.FieldIds[input.ClickedField] : null,
+            Search: input.ChangedField == Bm.SearchField ? value : null,
             ScrollDelta: input.ScrollDelta,
             ScrollTo: input.ScrollTo,
             CloseRequested: input.CloseRequested != 0,

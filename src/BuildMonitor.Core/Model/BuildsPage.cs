@@ -18,4 +18,9 @@ record BuildsPage(
     IReadOnlyList<string> Details,
     // No rows yet because a connection has not finished its first poll, so a head draws a spinner
     // rather than an empty page.
-    bool Loading);
+    bool Loading,
+    // The filter box's text, which a head shows unless someone is typing in it.
+    string Search,
+    // What the body says when it has no rows, composed once so every head says the same: loading,
+    // nothing matching the filter, or nothing yet. Empty while there are rows.
+    string Empty);

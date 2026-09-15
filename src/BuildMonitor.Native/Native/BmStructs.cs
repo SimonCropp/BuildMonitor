@@ -20,6 +20,9 @@ struct BmRow
     public int ChipOffset;
     public int ChipCount;
     public float Progress;
+    public int NameLink;
+    public int SpanOffset;
+    public int SpanCount;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -27,6 +30,13 @@ struct BmChip
 {
     public BmString Label;
     public int Kind;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+struct BmSpan
+{
+    public BmString Text;
+    public int Link;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -88,6 +98,10 @@ struct BmScreen
     public int DetailCount;
     public BmChip* Chips;
     public int ChipCount;
+    public BmSpan* Spans;
+    public int SpanCount;
+    public BmString Search;
+    public BmString Empty;
 
     public BmString FormTitle;
     public BmField* Fields;

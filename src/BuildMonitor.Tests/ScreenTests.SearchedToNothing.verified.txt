@@ -1,15 +1,15 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
-| BuildMonitor                                           8 pipelines, 1 failing, 4 running  Filter: [                ] |
+| BuildMonitor                                           6 pipelines, 1 failing, 4 running  Filter: [nothing like it ] |
 +----------------------------------------------------------------------------------------------------------------------+
-|   > build-all  jenkins  Build all main                              [##------] 04:00 left [Cancel]                   |
-|   > Deploy Web octopus                                              [###-----] 02:15 left [Cancel]                   |
-|   > DiffEngine github   test.yml main                               [####----] 03:00 left [Cancel]                   |
-|   ? nightly    jenkins                                                         queued     [Cancel]                   |
-|   x Verify     github   test.yml feature/inline                                25m ago    PR 42 [Retry] [Copy log]   |
-| > + [-] Verify          2 passing                                              2h ago                                |
-|   +            github   docs.yml main                                          2h ago                                |
-|   +            github   nuget.yml main                                         4h ago                                |
-|   + DiffEngine github   docs.yml main                                          23h ago                               |
+| No builds match "nothing like it"                                                                                    |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

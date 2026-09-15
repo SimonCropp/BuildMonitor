@@ -1,7 +1,8 @@
 /// <summary>
 /// The builds page, owner drawn: one row per <see cref="BuildRow"/> with a status square, a
-/// provider icon, the names, a progress bar and chips for the links and actions. Hit rectangles are recorded as
-/// the rows are drawn, so a click resolves against what was actually on screen.
+/// provider icon, the names with the run and branch as links, a progress bar and chips for the pull
+/// request and the actions. Hit rectangles are recorded as the rows are drawn, so a click resolves
+/// against what was actually on screen.
 /// </summary>
 sealed class RowsCanvas : Control
 {
@@ -13,20 +14,25 @@ sealed class RowsCanvas : Control
     const int barLength = 110;
     const int timingLength = 90;
     const int minimumDetail = 120;
+    // Without padding, so each run of the detail starts where the text before it ended.
+    const TextFormatFlags runFlags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
     // Stands in for the chips a row has no room for, and opens the drop down that holds them.
     const string overflowLabel = "…";
     // The chips of the widest row, which the chips column is as wide as while there is room.
-    static readonly string[] widestChips = ["Build", "Branch", "PR 9999", "Retry", "Copy log"];
+    static readonly string[] widestChips = ["PR 9999", "Retry", "Copy log"];
 
     BuildsPage? page;
     int menuShownForRow = -1;
     bool menuShownOverflow;
     int hoverRow = -1;
-    // Each clickable thing the last paint drew: a chip, the provider icon, or an overflow chip, which
-    // carries the first of the chips it stands in for.
+    // The link in the text under the pointer, underlined so it reads as a link before it is clicked.
+    Rectangle hoverLink = Rectangle.Empty;
+    // Each clickable thing the last paint drew: a chip, a link in the text, the provider icon, or an
+    // overflow chip, which carries the first of the chips it stands in for.
     readonly List<(int Row, ChipKind Chip, bool Overflow, Rectangle Bounds)> chips = [];
     readonly ContextMenuStrip contextMenu = new();
     Font bold;
+    Font underline;
 
     // Pending input, drained once per frame.
     int clickedRow = -1;
@@ -53,6 +59,7 @@ sealed class RowsCanvas : Control
         BackColor = Palette.Background;
         ForeColor = Palette.Text;
         bold = new(Font, FontStyle.Bold);
+        underline = new(Font, FontStyle.Underline);
         MenuTheme.Apply(contextMenu);
         contextMenu.ItemClicked += (_, arguments) =>
         {
@@ -83,6 +90,8 @@ sealed class RowsCanvas : Control
         base.OnFontChanged(e);
         bold.Dispose();
         bold = new(Font, FontStyle.Bold);
+        underline.Dispose();
+        underline = new(Font, FontStyle.Underline);
     }
 
     /// <summary>
@@ -200,7 +209,7 @@ sealed class RowsCanvas : Control
                 x += spinner + gap;
             }
 
-            TextRenderer.DrawText(graphics, page.Loading ? "Loading builds" : "Nothing to show yet.", Font, new Rectangle(x, gap, Width - x - gap, RowHeight), Palette.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+            TextRenderer.DrawText(graphics, page.Empty, Font, new Rectangle(x, gap, Width - x - gap, RowHeight), Palette.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             return;
         }
 
@@ -287,7 +296,7 @@ sealed class RowsCanvas : Control
         var barWidth = LogicalToDeviceUnits(barLength);
         var timingWidth = LogicalToDeviceUnits(timingLength);
 
-        Draw(graphics, DisplayName(row), NameFont(row), x, bounds, layout.Name, Palette.Text);
+        DrawName(graphics, row, index, x, bounds, layout.Name);
         x += layout.Name + gap;
         // The logo leads the second cell, beside the pipeline it ran, so a group's members, whose
         // first cell is empty, still show which service each one came from.
@@ -302,7 +311,7 @@ sealed class RowsCanvas : Control
             chips.Add((index, ChipKind.Project, false, iconBounds));
         }
 
-        Draw(graphics, row.Detail, Font, x + iconWidth, bounds, layout.Detail - iconWidth, Palette.Dim);
+        DrawDetail(graphics, row, index, x + iconWidth, bounds, layout.Detail - iconWidth);
         x += layout.Detail + gap;
 
         if (row.Progress >= 0)
@@ -320,6 +329,62 @@ sealed class RowsCanvas : Control
         x += timingWidth + gap;
         DrawChips(graphics, row, index, x, x + layout.Chips, centreY);
     }
+
+    /// <summary>
+    /// The first cell, in the link colour where the name opens the run. Its hit rectangle is the text
+    /// as drawn rather than the cell, so a click beside a short name still selects the row.
+    /// </summary>
+    void DrawName(Graphics graphics, BuildRow row, int index, int x, Rectangle bounds, int width)
+    {
+        var text = DisplayName(row);
+        if (row.NameLink == ChipKind.None)
+        {
+            Draw(graphics, text, NameFont(row), x, bounds, width, Palette.Text);
+            return;
+        }
+
+        var link = LinkBounds(x, Math.Min(MeasureName(text, Font), width), bounds);
+        Draw(graphics, text, link == hoverLink ? underline : Font, x, bounds, width, Palette.ChipText);
+        chips.Add((index, row.NameLink, false, link));
+    }
+
+    /// <summary>
+    /// The second cell run by run: plain text dimmed and links in the link colour, cut short with an
+    /// ellipsis where the cell ends. Each run starts at the measured width of all the text before it
+    /// rather than the sum of each run's own width, which would round short a pixel a run, and each
+    /// link's hit rectangle is clipped to what showed of it.
+    /// </summary>
+    void DrawDetail(Graphics graphics, BuildRow row, int index, int x, Rectangle bounds, int width)
+    {
+        var right = x + width;
+        var before = "";
+        foreach (var span in row.Detail)
+        {
+            var left = x + Measure(before);
+            if (left >= right)
+            {
+                return;
+            }
+
+            before += span.Text;
+            var cell = new Rectangle(left, bounds.Top, right - left, bounds.Height);
+            if (span.Link == ChipKind.None)
+            {
+                TextRenderer.DrawText(graphics, span.Text, Font, cell, Palette.Dim, runFlags);
+                continue;
+            }
+
+            var link = LinkBounds(left, Math.Min(x + Measure(before), right) - left, bounds);
+            TextRenderer.DrawText(graphics, span.Text, link == hoverLink ? underline : Font, cell, Palette.ChipText, runFlags);
+            chips.Add((index, span.Link, false, link));
+        }
+    }
+
+    /// <summary>
+    /// A line of text centred in its row: what a link in the text is hit tested against.
+    /// </summary>
+    Rectangle LinkBounds(int x, int width, Rectangle row) =>
+        new(x, row.Top + (row.Height - Font.Height) / 2, width, Font.Height);
 
     /// <summary>
     /// The chips that fit, from the left, then an overflow chip in place of the rest. A chip is
@@ -414,10 +479,14 @@ sealed class RowsCanvas : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         var row = RowAt(e.Y);
-        Cursor = chips.Any(_ => _.Bounds.Contains(e.Location)) ? Cursors.Hand : Cursors.Default;
-        if (row != hoverRow)
+        var hit = chips.FirstOrDefault(_ => _.Bounds.Contains(e.Location));
+        Cursor = hit.Bounds == Rectangle.Empty ? Cursors.Default : Cursors.Hand;
+        var link = hit is { Overflow: false, Chip: ChipKind.Build or ChipKind.Branch } ? hit.Bounds : Rectangle.Empty;
+        if (row != hoverRow ||
+            link != hoverLink)
         {
             hoverRow = row;
+            hoverLink = link;
             Invalidate();
         }
 
@@ -427,6 +496,7 @@ sealed class RowsCanvas : Control
     protected override void OnMouseLeave(EventArgs e)
     {
         hoverRow = -1;
+        hoverLink = Rectangle.Empty;
         Invalidate();
         base.OnMouseLeave(e);
     }
@@ -501,6 +571,7 @@ sealed class RowsCanvas : Control
         {
             contextMenu.Dispose();
             bold.Dispose();
+            underline.Dispose();
         }
 
         base.Dispose(disposing);

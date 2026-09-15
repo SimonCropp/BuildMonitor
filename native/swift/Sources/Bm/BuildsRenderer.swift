@@ -11,8 +11,8 @@ import Foundation
 /// WinForms canvas sizes itself, rather than from fixed points. The size is whatever the managed
 /// side hands bm_init, and cells fixed for one size crowd or clip the text at a larger one.
 final class BuildsRenderer {
-    /// A chip, the provider icon, or an overflow chip, which carries the first of the chips it
-    /// stands in for.
+    /// A chip, a link in a row's text, the provider icon, or an overflow chip, which carries the
+    /// first of the chips it stands in for.
     struct Hit {
         var row: Int
         var chip: Int32
@@ -26,6 +26,8 @@ final class BuildsRenderer {
     let chipPadding: CGFloat = 8
     let chipGap: CGFloat = 6
     let iconSize: CGFloat = 16
+    /// The filter box at the right of the header.
+    let searchWidth: CGFloat = 240
     /// Stands in for the chips a row has no room for, and opens the drop down that holds them.
     let overflowLabel = "…"
     var rightInset: CGFloat = 0
@@ -38,6 +40,7 @@ final class BuildsRenderer {
     let footerHeight: CGFloat
     let chipHeight: CGFloat
     let buttonHeight: CGFloat
+    let searchHeight: CGFloat
 
     private(set) var rowRects: [CGRect] = []
     private(set) var chips: [Hit] = []
@@ -61,6 +64,7 @@ final class BuildsRenderer {
         footerHeight = lineHeight + 28
         chipHeight = lineHeight + 2
         buttonHeight = lineHeight + 10
+        searchHeight = lineHeight + 6
     }
 
     var bodyRows: Int {
@@ -75,10 +79,20 @@ final class BuildsRenderer {
             height: max(0, size.height - headerHeight - footerHeight))
     }
 
-    /// `staticForm` draws a form page as text and boxes. The window lays real controls over the
-    /// body instead, so it passes false; a capture has no window and passes true, which is what
-    /// makes a form snapshot show something.
-    func draw(_ frame: Frame, in context: CGContext, size: CGSize, staticForm: Bool = false) {
+    /// Where the filter box goes: the right of the header, centred in it. One rect for the search
+    /// field the window lays there and for the box a capture draws in its place.
+    func searchRect(size: CGSize) -> CGRect {
+        CGRect(
+            x: max(padding, size.width - padding - searchWidth),
+            y: (headerHeight - searchHeight) / 2,
+            width: searchWidth,
+            height: searchHeight)
+    }
+
+    /// `staticControls` draws the filter box and a form page as text and boxes. The window lays real
+    /// controls over them instead, so it passes false; a capture has no window and passes true, which
+    /// is what makes a snapshot show them.
+    func draw(_ frame: Frame, in context: CGContext, size: CGSize, staticControls: Bool = false) {
         layout(size: size)
         rowRects.removeAll()
         chips.removeAll()
@@ -91,13 +105,20 @@ final class BuildsRenderer {
         let graphics = NSGraphicsContext(cgContext: context, flipped: true)
         NSGraphicsContext.current = graphics
 
-        drawText(frame.isForm ? frame.formTitle : frame.header, at: CGPoint(x: padding, y: (headerHeight - lineHeight) / 2), font: font, colour: Palette.dim)
+        // Short of the filter box on the builds page, so a long header runs out rather than under it.
+        let search = searchRect(size: size)
+        let headerWidth = frame.isForm ? size.width - 2 * padding : search.minX - gap - padding
+        drawText(frame.isForm ? frame.formTitle : frame.header, at: CGPoint(x: padding, y: (headerHeight - lineHeight) / 2), font: font, colour: Palette.dim, width: max(0, headerWidth))
+        if !frame.isForm && staticControls {
+            drawSearch(frame.search, in: search)
+        }
+
         Palette.border.setFill()
         CGRect(x: 0, y: headerHeight - 1, width: size.width, height: 1).fill()
 
         if !frame.isForm {
             drawRows(frame)
-        } else if staticForm {
+        } else if staticControls {
             // Clipped to the body, so fields past the bottom are cut off the way the window's
             // scroll view cuts them off, rather than drawn over the footer.
             context.saveGState()
@@ -108,6 +129,14 @@ final class BuildsRenderer {
 
         drawFooter(frame, size: size)
         NSGraphicsContext.restoreGraphicsState()
+    }
+
+    /// The filter box as a capture shows it: its text, or the placeholder the search field shows.
+    private func drawSearch(_ search: String, in rect: CGRect) {
+        Palette.surface.setFill()
+        NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
+        let shown = search.isEmpty ? "Filter" : search
+        drawText(shown, at: CGPoint(x: rect.minX + 8, y: rect.midY - lineHeight / 2), font: font, colour: search.isEmpty ? Palette.dim : Palette.text, width: rect.width - 16)
     }
 
     private func drawRows(_ frame: Frame) {
@@ -127,7 +156,7 @@ final class BuildsRenderer {
                 x += size + gap
             }
 
-            drawText(frame.loading ? "Loading builds" : "Nothing to show yet.", at: CGPoint(x: x, y: line.midY - lineHeight / 2), font: font, colour: Palette.dim)
+            drawText(frame.empty, at: CGPoint(x: x, y: line.midY - lineHeight / 2), font: font, colour: Palette.dim)
             return
         }
 
@@ -136,7 +165,7 @@ final class BuildsRenderer {
         // Measured rather than fixed, so each cell holds its widest text at whatever size the font
         // is: a countdown past an hour, and the widest set of chips a row carries.
         let timingWidth = measure("0:00:00 left")
-        let widestChips = ["Build", "Branch", "PR 9999", "Retry", "Copy log"].map(chipWidth).reduce(0, +) + 4 * chipGap
+        let widestChips = ["PR 9999", "Retry", "Copy log"].map(chipWidth).reduce(0, +) + 2 * chipGap
         let overflowWidth = chipWidth(overflowLabel)
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.
@@ -179,7 +208,16 @@ final class BuildsRenderer {
             CGRect(x: rect.minX, y: rect.minY, width: rowHeight, height: rowHeight).fill()
 
             var x = textX
-            drawText(displayName(row), at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: nameWidth)
+            if row.isNameLink {
+                // A name that opens the run, in the link colour. Only its text is the link, so a click
+                // beside it still selects the row.
+                drawText(row.name, at: CGPoint(x: x, y: textY), font: font, colour: Palette.chipText, width: nameWidth)
+                let linkWidth = min(measure(row.name).rounded(.up), nameWidth)
+                chips.append(Hit(row: index, chip: row.nameLink, overflow: false, rect: CGRect(x: x, y: textY, width: linkWidth, height: lineHeight)))
+            } else {
+                drawText(displayName(row), at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: nameWidth)
+            }
+
             x += nameWidth + gap
             // The logo leads the detail cell, beside the pipeline it ran, so a group's members, whose
             // first cell is empty, still show which service each came from.
@@ -189,7 +227,7 @@ final class BuildsRenderer {
                 chips.append(Hit(row: index, chip: Int32(BM_CHIP_PROJECT.rawValue), overflow: false, rect: iconRect))
             }
 
-            drawText(row.detail, at: CGPoint(x: x + iconWidth, y: textY), font: font, colour: Palette.dim, width: detailWidth - iconWidth)
+            drawDetail(row, index: index, from: x + iconWidth, width: detailWidth - iconWidth, textY: textY)
             x += detailWidth + gap
             if row.progress >= 0 {
                 let track = CGRect(x: x, y: rect.midY - 4, width: barWidth, height: 8)
@@ -204,6 +242,27 @@ final class BuildsRenderer {
             drawText(row.timing, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: timingWidth)
             x += timingWidth + gap
             drawChips(row, index: index, from: x, to: x + chipsWidth, rowRect: rect, overflowWidth: overflowWidth)
+        }
+    }
+
+    /// The detail cell run by run: plain text dimmed and links in the link colour, a run too long for
+    /// what is left of the cell cut short with an ellipsis. Each link records only what showed of it,
+    /// so a click resolves against the text on screen.
+    private func drawDetail(_ row: Frame.Row, index: Int, from start: CGFloat, width: CGFloat, textY: CGFloat) {
+        let right = start + width
+        var x = start
+        for span in row.spans {
+            guard x < right else {
+                return
+            }
+
+            let spanWidth = measure(span.text)
+            drawText(span.text, at: CGPoint(x: x, y: textY), font: font, colour: span.isLink ? Palette.chipText : Palette.dim, width: right - x)
+            if span.isLink {
+                chips.append(Hit(row: index, chip: span.link, overflow: false, rect: CGRect(x: x, y: textY, width: min(spanWidth, right - x), height: lineHeight)))
+            }
+
+            x += spanWidth
         }
     }
 

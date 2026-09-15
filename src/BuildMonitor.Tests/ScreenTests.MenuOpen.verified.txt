@@ -1,12 +1,12 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
-| BuildMonitor                                                                       6 pipelines, 1 failing, 4 running |
+| BuildMonitor                                           6 pipelines, 1 failing, 4 running  Filter: [                ] |
 +----------------------------------------------------------------------------------------------------------------------+
-|   > build-all  jenkins  Build all main                 [##------] 04:00 left Build [Cancel]                          |
-|   > Deploy Web octopus                                 [###-----] 02:15 left Build [Cancel]                          |
-| > > DiffEngine github   test.yml main                  [####----] 03:00 left Build Branch [Cancel]                   |
-|   +------------------+                                            queued     Build [Cancel]                          |
-|   | Open build       |  test.yml feature/inline                   25m ago    Build Branch PR 42 [Retry] [Copy log]   |
-|   | Open branch      |  docs.yml main                             23h ago    Build Branch                            |
+|   > build-all  jenkins  Build all main                              [##------] 04:00 left [Cancel]                   |
+|   > Deploy Web octopus                                              [###-----] 02:15 left [Cancel]                   |
+| > > DiffEngine github   test.yml main                               [####----] 03:00 left [Cancel]                   |
+|   +------------------+                                                         queued     [Cancel]                   |
+|   | Open build       |  test.yml feature/inline                                25m ago    PR 42 [Retry] [Copy log]   |
+|   | Open branch      |  docs.yml main                                          23h ago                               |
 |   | Copy build URL   |                                                                                               |
 |   | Cancel build     |                                                                                               |
 |   | Refresh          |                                                                                               |

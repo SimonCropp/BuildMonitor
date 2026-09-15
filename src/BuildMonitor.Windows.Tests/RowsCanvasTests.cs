@@ -44,6 +44,27 @@ public class RowsCanvasTests
     }
 
     [Test]
+    [Arguments(nameof(ChipKind.Build))]
+    [Arguments(nameof(ChipKind.Branch))]
+    public async Task ARowReportsTheLinksInItsText(string link)
+    {
+        using var canvas = Drawn(1000);
+        var row = FailedRow();
+        var input = ClickAlong(canvas, row, _ => _.ClickedChip == Enum.Parse<ChipKind>(link));
+        await Assert.That(input.ClickedChipRow).IsEqualTo(row);
+    }
+
+    [Test]
+    public async Task ANameThatIsTheBuildsReportsTheRun()
+    {
+        // Octopus names the pipeline after the project, so the name is the only place the run is named.
+        using var canvas = Drawn(1000);
+        var row = Fixtures.RowOf(Fixtures.WithBuilds(), _ => _.Build?.PipelineName == "Deploy Web");
+        var input = ClickAlong(canvas, row, _ => _.ClickedChip == ChipKind.Build);
+        await Assert.That(input.ClickedChipRow).IsEqualTo(row);
+    }
+
+    [Test]
     public async Task ANarrowRowPutsItsLastChipsBehindAnOverflowChip()
     {
         using var canvas = Drawn(640);

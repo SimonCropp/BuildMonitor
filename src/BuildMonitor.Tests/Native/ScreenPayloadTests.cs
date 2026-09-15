@@ -8,13 +8,14 @@ public class ScreenPayloadTests
         return Verify(payload.Describe())
             .Snapshot(
                 """
-                page: 0 rows: 6 details: 5 chips: 16 fields: 0 options: 0 buttons: 4 menu: 0 tray: 8 strings: 659 bytes
-                row status=1 flags=0 progress=0.20 'build-all' 'Build all main' provider='jenkins' '04:00 left' chips=Build:Build,Cancel:Cancel
-                row status=1 flags=0 progress=0.40 'Deploy Web' '' provider='octopus' '02:15 left' chips=Build:Build,Cancel:Cancel
-                row status=1 flags=1 progress=0.50 'DiffEngine' 'test.yml main' provider='github' '03:00 left' chips=Build:Build,Branch:Branch,Cancel:Cancel
-                row status=0 flags=0 progress=-1.00 'nightly' '' provider='jenkins' 'queued' chips=Build:Build,Cancel:Cancel
-                row status=3 flags=0 progress=-1.00 'Verify' 'test.yml feature/inline' provider='github' '25m ago' chips=Build:Build,Branch:Branch,PullRequest:PR 42,Retry:Retry,CopyLog:Copy log
-                row status=2 flags=0 progress=-1.00 'DiffEngine' 'docs.yml main' provider='github' '23h ago' chips=Build:Build,Branch:Branch
+                page: 0 rows: 6 details: 5 chips: 7 spans: 11 fields: 0 options: 0 buttons: 4 menu: 0 tray: 8 strings: 674 bytes
+                search='' empty=''
+                row status=1 flags=0 progress=0.20 'build-all' link=None 'Build all main' spans=Build:'Build all',None:' main' provider='jenkins' '04:00 left' chips=Cancel:Cancel
+                row status=1 flags=0 progress=0.40 'Deploy Web' link=Build '' spans= provider='octopus' '02:15 left' chips=Cancel:Cancel
+                row status=1 flags=1 progress=0.50 'DiffEngine' link=None 'test.yml main' spans=Build:'test.yml',None:' ',Branch:'main' provider='github' '03:00 left' chips=Cancel:Cancel
+                row status=0 flags=0 progress=-1.00 'nightly' link=Build '' spans= provider='jenkins' 'queued' chips=Cancel:Cancel
+                row status=3 flags=0 progress=-1.00 'Verify' link=None 'test.yml feature/inline' spans=Build:'test.yml',None:' ',Branch:'feature/inline' provider='github' '25m ago' chips=PullRequest:PR 42,Retry:Retry,CopyLog:Copy log
+                row status=2 flags=0 progress=-1.00 'DiffEngine' link=None 'docs.yml main' spans=Build:'docs.yml',None:' ',Branch:'main' provider='github' '23h ago' chips=
                 button flags=1 'Refresh'
                 button flags=1 'Options'
                 button flags=1 'Filters'
@@ -39,7 +40,8 @@ public class ScreenPayloadTests
         return Verify(payload.Describe())
             .Snapshot(
                 """
-                page: 1 rows: 0 details: 0 chips: 0 fields: 5 options: 10 buttons: 4 menu: 0 tray: 8 strings: 529 bytes
+                page: 1 rows: 0 details: 0 chips: 0 spans: 0 fields: 5 options: 10 buttons: 4 menu: 0 tray: 8 strings: 529 bytes
+                search='' empty=''
                 field kind=5 flags=1 'provider' 'Provider' 'AppVeyor' options=0+10
                 field kind=2 flags=1 'name' 'Name' '' options=10+0
                 field kind=2 flags=1 'scope:account' 'Account (optional)' '' options=10+0

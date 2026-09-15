@@ -62,7 +62,10 @@ enum BmRowFlags {
  */
 enum BmChipKind {
     BM_CHIP_NONE = 0,
+    /* The run: a link in a row's text, the pipeline's name in its detail or, where the pipeline is
+       named after the project, its name. Never among a row's chips. */
     BM_CHIP_BUILD = 1,
+    /* The branch: a link in a row's detail. Never among a row's chips. */
     BM_CHIP_BRANCH = 2,
     BM_CHIP_PULL_REQUEST = 3,
     BM_CHIP_RETRY = 4,
@@ -79,11 +82,19 @@ typedef struct BmChip {
     int32_t kind;
 } BmChip;
 
+/* One run of a row's detail: plain text, drawn dimmed, or a link, drawn in the link colour. */
+typedef struct BmSpan {
+    BmString text;
+    /* A BmChipKind a click on the run reports, or BM_CHIP_NONE for plain text. */
+    int32_t link;
+} BmSpan;
+
 typedef struct BmRow {
     int32_t status;
     int32_t flags;
     /* The first cell, drawn bright, and the second, drawn dimmed. Which string leads is decided
-       by the managed side, so no renderer composes its own. */
+       by the managed side, so no renderer composes its own. detail is the text of the row's spans
+       joined, for measuring; the cell is drawn from the spans. */
     BmString name;
     BmString detail;
     /* A name given to bm_set_row_icon, drawn at the start of the detail cell, or empty for none. */
@@ -98,6 +109,14 @@ typedef struct BmRow {
     int32_t chipCount;
     /* 0 to 1 while a bar should be drawn, -1 for none. */
     float progress;
+    /* A BmChipKind a click on the name reports, drawn in the link colour, or BM_CHIP_NONE. */
+    int32_t nameLink;
+    /*
+     * The detail in runs, drawn one after another: a range into BmScreen.spans. A click on a link run
+     * reports its kind through BmInput.clickedChipRow and clickedChip, as a chip's does.
+     */
+    int32_t spanOffset;
+    int32_t spanCount;
 } BmRow;
 
 /* Keep in sync with FieldKind.cs */
@@ -207,6 +226,14 @@ typedef struct BmScreen {
     /* Every visible row's chips, which BmRow.chipOffset and chipCount index. */
     const BmChip* chips;
     int32_t chipCount;
+    /* Every visible row's detail runs, which BmRow.spanOffset and spanCount index. */
+    const BmSpan* spans;
+    int32_t spanCount;
+    /* The filter box at the right of the builds page's header: its text, shown unless the box is being
+       typed in. An edit is reported through BmInput.changedField as BM_SEARCH_FIELD. */
+    BmString search;
+    /* What the body says when rowCount is 0, beside the spinner while loading. */
+    BmString empty;
 
     /* The form page. */
     BmString formTitle;
@@ -260,13 +287,18 @@ enum BmKey {
     BM_KEY_QUIT = 16
 };
 
+/* BmInput.changedField for an edit of the filter box, which is not one of BmScreen.fields. */
+enum BmSearchField {
+    BM_SEARCH_FIELD = -2
+};
+
 typedef struct BmInput {
     int32_t key;
     /* Index into BmScreen.buttons, or -1. */
     int32_t clickedButton;
     /* Index into BmScreen.rows, or -1. */
     int32_t clickedRow;
-    /* A chip, or the provider icon, of a visible row: the row and a BmChipKind. */
+    /* A chip, a link in the text, or the provider icon, of a visible row: the row and a BmChipKind. */
     int32_t clickedChipRow;
     int32_t clickedChip;
     /* The overflow chip of a visible row, and the BmChipKind of the first chip it stands in for. */
@@ -278,9 +310,10 @@ typedef struct BmInput {
     /* The open menu was dismissed without choosing anything. */
     int32_t menuClosed;
     /*
-     * One edit per poll: the field (index into BmScreen.fields, or -1) and its new UTF-8 value.
-     * The buffer belongs to the library and is valid until the next bm_poll_input. A head
-     * queues edits and hands over the oldest; a frame is 16 ms, so a burst drains in a few.
+     * One edit per poll: the field (index into BmScreen.fields, BM_SEARCH_FIELD for the filter box,
+     * or -1) and its new UTF-8 value. The buffer belongs to the library and is valid until the next
+     * bm_poll_input. A head queues edits and hands over the oldest; a frame is 16 ms, so a burst
+     * drains in a few.
      */
     int32_t changedField;
     const uint8_t* changedValue;
@@ -302,7 +335,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 4
+#define BM_VERSION 5
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

@@ -9,11 +9,21 @@ struct Frame {
         let label: String
     }
 
+    /// One run of a row's detail: plain text, or a link a click reports as a chip's kind.
+    struct Span {
+        let text: String
+        let link: Int32
+
+        var isLink: Bool { link != Int32(BM_CHIP_NONE.rawValue) }
+    }
+
     struct Row {
         let status: Int32
         let flags: Int32
         let name: String
+        let nameLink: Int32
         let detail: String
+        let spans: [Span]
         let provider: String
         let timing: String
         let chips: [Chip]
@@ -22,6 +32,7 @@ struct Frame {
         var isGroup: Bool { flags & Int32(BM_ROW_GROUP.rawValue) != 0 }
         var isSelected: Bool { flags & Int32(BM_ROW_SELECTED.rawValue) != 0 }
         var isExpanded: Bool { flags & Int32(BM_ROW_EXPANDED.rawValue) != 0 }
+        var isNameLink: Bool { nameLink != Int32(BM_CHIP_NONE.rawValue) }
     }
 
     struct Field {
@@ -59,6 +70,8 @@ struct Frame {
     let names: [String]
     let groupNames: [String]
     let details: [String]
+    let search: String
+    let empty: String
     let formTitle: String
     let fields: [Field]
     let buttons: [Button]
@@ -89,14 +102,22 @@ struct Frame {
             Chip(kind: $0.kind, label: text($0.label))
         }
 
+        let spans = UnsafeBufferPointer(start: screen.spans, count: Int(screen.spanCount)).map {
+            Span(text: text($0.text), link: $0.link)
+        }
+
         let rows = UnsafeBufferPointer(start: screen.rows, count: Int(screen.rowCount)).map { row -> Row in
             let start = Int(row.chipOffset)
             let end = min(chips.count, start + Int(row.chipCount))
+            let spanStart = Int(row.spanOffset)
+            let spanEnd = min(spans.count, spanStart + Int(row.spanCount))
             return Row(
                 status: row.status,
                 flags: row.flags,
                 name: text(row.name),
+                nameLink: row.nameLink,
                 detail: text(row.detail),
+                spans: spanStart >= 0 && spanStart < spanEnd ? Array(spans[spanStart..<spanEnd]) : [],
                 provider: text(row.provider),
                 timing: text(row.timing),
                 chips: start >= 0 && start < end ? Array(chips[start..<end]) : [],
@@ -148,6 +169,8 @@ struct Frame {
             names: Array(allNames.prefix(Int(screen.nameCount))),
             groupNames: Array(allNames.dropFirst(Int(screen.nameCount))),
             details: details,
+            search: text(screen.search),
+            empty: text(screen.empty),
             formTitle: text(screen.formTitle),
             fields: fields,
             buttons: buttons,

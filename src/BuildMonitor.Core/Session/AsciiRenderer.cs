@@ -16,7 +16,9 @@ static class AsciiRenderer
     const string overflow = "[...]";
     // The chips cell is this wide while there is room, so the columns before it do not move as
     // builds gain and lose chips.
-    const string widestChips = "Build Branch PR 9999 [Retry] [Copy log]";
+    const string widestChips = "PR 9999 [Retry] [Copy log]";
+    // Inside the filter box's brackets.
+    const int searchWidth = 16;
 
     public static string Render(Screen screen)
     {
@@ -25,8 +27,7 @@ static class AsciiRenderer
         var builder = new StringBuilder();
         var border = $"+{new string('-', columns - 2)}+";
         builder.Append(border).Append('\n');
-        var subtitle = screen.Builds?.Header ?? screen.Form?.Title ?? "";
-        builder.Append(Full(Justify(screen.Title, subtitle, inner), columns)).Append('\n');
+        builder.Append(Full(Justify(screen.Title, Subtitle(screen), inner), columns)).Append('\n');
         builder.Append(border).Append('\n');
 
         var body = Math.Max(1, screen.Rows - ScreenBuilder.Chrome);
@@ -48,13 +49,23 @@ static class AsciiRenderer
         return $"{text}\n{Tray(screen.Tray)}{notification}";
     }
 
+    /// <summary>
+    /// What the title line says after the title: a form's title, or the builds page's counts then
+    /// its filter box, at the right, where the pixel heads put the box in their header.
+    /// </summary>
+    static string Subtitle(Screen screen) =>
+        screen.Builds is { } builds
+            ? $"{builds.Header}  Filter: [{Fit(builds.Search, searchWidth)}]"
+            : screen.Form?.Title ?? "";
+
     // Builds page
 
     static List<string> BuildsLines(BuildsPage page, int inner)
     {
-        if (page is { Loading: true, Rows.Count: 0 })
+        if (page.Rows.Count == 0)
         {
-            return ["Loading builds..."];
+            // The dots stand in for the spinner the pixel heads turn beside the words.
+            return [page.Loading ? $"{page.Empty}..." : page.Empty];
         }
 
         // "[-] " leads a group's name.
@@ -129,7 +140,7 @@ static class AsciiRenderer
             cells.Add(Fit(row.Provider, providerWidth));
         }
 
-        cells.Add(Fit(row.Detail, layout.Detail));
+        cells.Add(Fit(row.DetailText, layout.Detail));
         if (layout.Bar)
         {
             cells.Add(Bar(row.Progress));

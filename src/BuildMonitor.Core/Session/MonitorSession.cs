@@ -200,6 +200,18 @@ static class MonitorSession
     public static Build? SelectedBuild(SessionState state) =>
         SelectedRow(state)?.Build;
 
+    // Filter box
+
+    /// <summary>
+    /// Narrows the rows to the builds matching what was typed. The selection keeps its build while
+    /// that still shows, and is scrolled into view: every letter moves the rows under it, and a
+    /// selection left above or below the body reads as lost.
+    /// </summary>
+    public static SessionState Search(SessionState state, string text) =>
+        state.Search == text
+            ? state
+            : EnsureVisible(Follow(state, state with { Search = text }));
+
     // Groups
 
     /// <summary>

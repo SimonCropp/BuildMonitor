@@ -1,5 +1,5 @@
 /// <summary>
-/// Writes every image the heads embed. Tray icons are a coloured disc with a white glyph, so
+/// Writes every image the heads embed. Tray icons are a coloured disc with a white mark, so
 /// the state reads at sixteen pixels; menu and row glyphs are the bare Lucide stroke in a mid
 /// grey that survives a light or a dark menu.
 /// </summary>
@@ -9,13 +9,24 @@ static class Program
     static readonly int[] pixmapSizes = [16, 22, 24, 32, 48];
     static readonly int[] glyphSizes = [16, 32];
 
-    static readonly (string Name, Icon Icon, SKColor Background)[] tray =
+    // How much of the largest square inside the disc a tray mark fills. The rest keeps the round caps
+    // at the ends of a cross off the rim.
+    const float markFill = 0.86f;
+
+    // Heavier than Lucide's 2, so a mark scaled into sixteen pixels is still more than a pixel wide.
+    const string markStroke = "2.5";
+
+    /// <summary>
+    /// Bare marks rather than circled ones: the disc is the circle already, and a circled mark drew a
+    /// second ring inside it, which left the tick or the cross a few pixels across at sixteen.
+    /// </summary>
+    static readonly (string Name, string Svg, SKColor Background)[] tray =
     [
-        ("idle", Lucide.Hammer, new(0x7A, 0x7A, 0x7A)),
-        ("running", Lucide.LoaderCircle, new(0x3B, 0x82, 0xF6)),
-        ("success", Lucide.CircleCheck, new(0x22, 0xA0, 0x5B)),
-        ("failed", Lucide.CircleX, new(0xD9, 0x3A, 0x3A)),
-        ("attention", Lucide.TriangleAlert, new(0xE0, 0x8A, 0x1E))
+        ("idle", Lucide.Hammer.Svg, new(0x7A, 0x7A, 0x7A)),
+        ("running", Lucide.LoaderCircle.Svg, new(0x3B, 0x82, 0xF6)),
+        ("success", Lucide.Check.Svg, new(0x22, 0xA0, 0x5B)),
+        ("failed", Lucide.X.Svg, new(0xD9, 0x3A, 0x3A)),
+        ("attention", WithoutCircle(Lucide.CircleAlert.Svg), new(0xE0, 0x8A, 0x1E))
     ];
 
     static readonly (string Name, Icon Icon)[] glyphs =
@@ -73,12 +84,14 @@ static class Program
             File.Delete(file);
         }
 
-        foreach (var (name, icon, background) in tray)
+        foreach (var (name, svg, background) in tray)
         {
+            using var mark = Load(Heavier(svg), SKColors.White, name);
+            var painted = Painted(mark.Picture!);
             var frames = new Dictionary<int, byte[]>();
             foreach (var size in traySizes.Union(pixmapSizes).Distinct().Order())
             {
-                using var bitmap = Disc(icon, background, size);
+                using var bitmap = Disc(mark.Picture!, painted, background, size);
                 var png = Png(bitmap);
                 frames[size] = png;
                 if (traySizes.Contains(size))
@@ -118,7 +131,12 @@ static class Program
         return 0;
     }
 
-    static SKBitmap Disc(Icon icon, SKColor background, int size)
+    /// <summary>
+    /// The disc, filling the icon, then the mark sized from the part of it that is painted rather than
+    /// from its 24 unit box, which Lucide pads by a different amount for each mark. Sized by the box, a
+    /// tick came out smaller than a cross, and both smaller than the disc had room for.
+    /// </summary>
+    static SKBitmap Disc(SKPicture mark, SKRect painted, SKColor background, int size)
     {
         var bitmap = new SKBitmap(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(bitmap);
@@ -129,10 +147,77 @@ static class Program
             IsAntialias = true
         };
         var centre = size / 2f;
-        canvas.DrawCircle(centre, centre, centre - Math.Max(0.5f, size / 32f), paint);
-        var inset = size * 0.2f;
-        Draw(canvas, icon, SKColors.White, inset, inset, size - 2 * inset);
+        var radius = centre - Math.Max(0.5f, size / 32f);
+        canvas.DrawCircle(centre, centre, radius, paint);
+        var side = radius * MathF.Sqrt(2) * markFill;
+        canvas.Translate(centre, centre);
+        canvas.Scale(side / Math.Max(painted.Width, painted.Height));
+        canvas.Translate(-painted.MidX, -painted.MidY);
+        canvas.DrawPicture(mark);
         return bitmap;
+    }
+
+    /// <summary>
+    /// The part of a picture that is painted, found by drawing it large and reading the alpha back:
+    /// the picture's own bounds are its whole box, padding and all.
+    /// </summary>
+    static SKRect Painted(SKPicture picture)
+    {
+        const int scale = 16;
+        var box = picture.CullRect;
+        var width = (int) Math.Ceiling(box.Width * scale);
+        var height = (int) Math.Ceiling(box.Height * scale);
+        using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using (var canvas = new SKCanvas(bitmap))
+        {
+            canvas.Clear(SKColors.Transparent);
+            canvas.Scale(scale);
+            canvas.Translate(-box.Left, -box.Top);
+            canvas.DrawPicture(picture);
+        }
+
+        var left = width;
+        var top = height;
+        var right = 0;
+        var bottom = 0;
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                if (bitmap.GetPixel(x, y).Alpha == 0)
+                {
+                    continue;
+                }
+
+                left = Math.Min(left, x);
+                top = Math.Min(top, y);
+                right = Math.Max(right, x + 1);
+                bottom = Math.Max(bottom, y + 1);
+            }
+        }
+
+        return new(box.Left + left / (float) scale, box.Top + top / (float) scale, box.Left + right / (float) scale, box.Top + bottom / (float) scale);
+    }
+
+    /// <summary>
+    /// A circled mark without its circle, for a mark Lucide only draws in one.
+    /// </summary>
+    static string WithoutCircle(string svg)
+    {
+        var start = svg.IndexOf("<circle", StringComparison.Ordinal);
+        var end = start < 0 ? -1 : svg.IndexOf("/>", start, StringComparison.Ordinal);
+        if (end < 0)
+        {
+            throw new InvalidOperationException("No self closing circle to remove");
+        }
+
+        return svg.Remove(start, end + 2 - start);
+    }
+
+    static string Heavier(string svg)
+    {
+        var heavier = svg.Replace("stroke-width=\"2\"", $"stroke-width=\"{markStroke}\"");
+        return heavier == svg ? throw new InvalidOperationException("No stroke width to change") : heavier;
     }
 
     static SKBitmap Glyph(Icon icon, SKColor colour, int size)
@@ -145,18 +230,10 @@ static class Program
         return bitmap;
     }
 
-    /// <summary>
-    /// The SVG says currentColor; Skia has no CSS cascade to give it one, so it is substituted
-    /// before parsing.
-    /// </summary>
     static void Draw(SKCanvas canvas, Icon icon, SKColor colour, float x, float y, float size)
     {
-        var hex = $"#{colour.Red:x2}{colour.Green:x2}{colour.Blue:x2}";
-        var svg = icon.Svg.Replace("currentColor", hex);
-        using var loaded = new SKSvg();
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(svg));
-        var picture = loaded.Load(stream) ??
-                      throw new InvalidOperationException($"Could not parse {icon.Name}");
+        using var loaded = Load(icon.Svg, colour, icon.Name);
+        var picture = loaded.Picture!;
         var bounds = picture.CullRect;
         var scale = size / Math.Max(bounds.Width, bounds.Height);
         canvas.Save();
@@ -164,6 +241,24 @@ static class Program
         canvas.Scale(scale);
         canvas.DrawPicture(picture);
         canvas.Restore();
+    }
+
+    /// <summary>
+    /// The SVG says currentColor; Skia has no CSS cascade to give it one, so it is substituted
+    /// before parsing.
+    /// </summary>
+    static SKSvg Load(string svg, SKColor colour, string name)
+    {
+        var hex = $"#{colour.Red:x2}{colour.Green:x2}{colour.Blue:x2}";
+        var loaded = new SKSvg();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(svg.Replace("currentColor", hex)));
+        if (loaded.Load(stream) is null)
+        {
+            loaded.Dispose();
+            throw new InvalidOperationException($"Could not parse {name}");
+        }
+
+        return loaded;
     }
 
     static byte[] Png(SKBitmap bitmap)

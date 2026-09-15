@@ -11,6 +11,10 @@ public class MonitorFormTests
         Capture(Fixtures.WithBuilds());
 
     [Test]
+    public Task Searched() =>
+        Capture(MonitorSession.Search(Fixtures.WithBuilds(), "main"));
+
+    [Test]
     public Task Empty() =>
         Capture(Fixtures.Empty());
 

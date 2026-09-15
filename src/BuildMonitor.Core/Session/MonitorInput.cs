@@ -22,6 +22,8 @@ readonly record struct MonitorInput(
     IReadOnlyList<FieldChange>? FieldChanges = null,
     // A Button, Link or ListRow field that was clicked, by id.
     string? ClickedField = null,
+    // The filter box's text when it was edited, or null.
+    string? Search = null,
     int ScrollDelta = 0,
     // An absolute first visible row, from a scrollbar, or -1.
     int ScrollTo = -1,
@@ -47,6 +49,7 @@ readonly record struct MonitorInput(
         MenuClosed ||
         FieldChanges is { Count: > 0 } ||
         ClickedField is not null ||
+        Search is not null ||
         ScrollDelta != 0 ||
         ScrollTo >= 0 ||
         CloseRequested ||

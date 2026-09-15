@@ -164,6 +164,65 @@ public class SessionTests
         Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/docs.yml/main");
 
     [Test]
+    [Arguments("diffengine", "gh/DiffEngine/test.yml/main,gh/DiffEngine/docs.yml/main")]
+    [Arguments("DOCS", "gh/DiffEngine/docs.yml/main")]
+    [Arguments("inline", "gh/Verify/test.yml/feature/inline")]
+    [Arguments(" nightly ", "jenkins/nightly/")]
+    // The owner is not the project a row shows, so it matches nothing.
+    [Arguments("VerifyTests", "")]
+    public async Task SearchMatchesTheProjectThePipelineOrTheBranch(string search, string keys)
+    {
+        var state = MonitorSession.Search(Fixtures.WithBuilds(), search);
+        await Assert.That(string.Join(',', RowProjection.Rows(state).Select(_ => _.Build?.Key))).IsEqualTo(keys);
+    }
+
+    [Test]
+    public async Task SearchLiftsAMatchOutOfItsClosedGroup()
+    {
+        // Verify's green docs.yml and nuget.yml share a closed group, and only nuget.yml matches.
+        var row = RowProjection.Rows(MonitorSession.Search(Fixtures.WithGreenProject(), "nuget")).Single();
+        await Assert.That(row.Kind).IsEqualTo(RowKind.Build);
+        await Assert.That(row.Build!.PipelineName).IsEqualTo("nuget.yml");
+    }
+
+    [Test]
+    public async Task SearchForAProjectKeepsItsGroup()
+    {
+        var rows = RowProjection.Rows(MonitorSession.Search(Fixtures.WithGreenProject(), "verify"));
+        await Assert.That(rows.Select(_ => _.Kind)).IsEquivalentTo([RowKind.Build, RowKind.Group]);
+    }
+
+    [Test]
+    public async Task SearchLeavesTheTrayAndTheCountsAlone()
+    {
+        var builds = Fixtures.WithBuilds();
+        var searched = MonitorSession.Search(builds, "docs");
+        await Assert.That(ScreenBuilder.Tray(searched).Icon).IsEqualTo(TrayIconKind.Failed);
+        await Assert.That(ScreenBuilder.Tray(searched).Tooltip).IsEqualTo(ScreenBuilder.Tray(builds).Tooltip);
+        await Assert.That(ScreenBuilder.Build(searched, Fixtures.Now).Builds!.Header).IsEqualTo("6 pipelines, 1 failing, 4 running");
+    }
+
+    [Test]
+    public async Task SearchKeepsTheSelectionOnItsBuild()
+    {
+        var builds = Fixtures.WithBuilds();
+        var searched = MonitorSession.Search(MonitorSession.SelectRow(builds, DocsRow(builds)), "main");
+        await Assert.That(MonitorSession.SelectedBuild(searched)?.Key).IsEqualTo("gh/DiffEngine/docs.yml/main");
+
+        var cleared = MonitorSession.Search(searched, "");
+        await Assert.That(MonitorSession.SelectedBuild(cleared)?.Key).IsEqualTo("gh/DiffEngine/docs.yml/main");
+    }
+
+    [Test]
+    public async Task SearchScrollsTheSelectionIntoView()
+    {
+        // Nine rows in a body of six, scrolled to the last. Two docs.yml rows are left, both in view.
+        var state = MonitorSession.Search(Fixtures.Scrolled(), "docs");
+        await Assert.That(state.ScrollTop).IsEqualTo(0);
+        await Assert.That(MonitorSession.SelectedBuild(state)?.Key).IsEqualTo("gh/DiffEngine/docs.yml/main");
+    }
+
+    [Test]
     public async Task MenuClosesWhenAPollMovesItsRow()
     {
         // The running DiffEngine build offers Cancel. A newer run sorts above it, so a menu left

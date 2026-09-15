@@ -49,10 +49,12 @@ static class ScreenBuilder
             menu = new(open.Row - top, open.Items.Select(_ => _.Label).ToList(), open.Overflow);
         }
 
+        var sized = Sized(state, rows);
+        var loading = Loading(state, rows.Length);
         return new(
             Title,
             Page.Builds,
-            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(rows, RowKind.Build), Names(rows, RowKind.Group), Details(rows), Loading(state, rows.Length)),
+            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized), loading, state.Search, Empty(state, rows.Length, loading)),
             null,
             Buttons(state),
             status,
@@ -75,6 +77,37 @@ static class ScreenBuilder
         state.Connections.Any(_ => _.LastPolled is null &&
                                    _.Health is ConnectionHealth.Unpolled or ConnectionHealth.Polling);
 
+    /// <summary>
+    /// What the body says with no rows. A filter that matches nothing says so, or the list would look
+    /// emptied by something else; a first poll still out is said first, since the rows it brings may
+    /// match.
+    /// </summary>
+    static string Empty(SessionState state, int rows, bool loading)
+    {
+        if (rows > 0)
+        {
+            return "";
+        }
+
+        if (loading)
+        {
+            return "Loading builds";
+        }
+
+        var search = state.Search.Trim();
+        return search.Length > 0 ? $"No builds match \"{search}\"" : "Nothing to show yet.";
+    }
+
+    /// <summary>
+    /// The rows the columns are sized from: those shown and, while a filter is typed, every row it
+    /// could show, so the columns hold still rather than jumping with each letter. The rows shown
+    /// stay in, because a build the filter lifts out of its closed group was never measured there.
+    /// </summary>
+    static ImmutableArray<Row> Sized(SessionState state, ImmutableArray<Row> rows) =>
+        state.Search.Length == 0
+            ? rows
+            : [..RowProjection.Rows(state with { Search = "" }), ..rows];
+
     static IReadOnlyList<string> Names(ImmutableArray<Row> rows, RowKind kind) =>
         rows.Where(_ => _.Kind == kind).Select(NameOf).Distinct().ToList();
 
@@ -90,28 +123,82 @@ static class ScreenBuilder
             _ => row.Build!.ShortRepoName()
         };
 
+    /// <summary>
+    /// What a click on a row's first cell opens: the run, where the pipeline is named after the
+    /// project. The second cell leaves such a pipeline out, so without this the row, an AppVeyor
+    /// project's for one, would name its run nowhere a click could reach.
+    /// </summary>
+    static ChipKind NameLinkOf(Row row) =>
+        row is { Kind: RowKind.Build, Build: { } build } && NamedAfterProject(build)
+            ? ChipKind.Build
+            : ChipKind.None;
+
+    static bool NamedAfterProject(Build build) =>
+        string.Equals(build.ShortRepoName(), build.PipelineName, StringComparison.OrdinalIgnoreCase);
+
     static IReadOnlyList<string> Details(ImmutableArray<Row> rows) =>
-        rows.Select(DetailOf).Distinct().ToList();
+        rows.Select(_ => string.Concat(DetailOf(_).Select(span => span.Text))).Distinct().ToList();
 
     /// <summary>
-    /// What a row's second cell says, one rule for the row and for the details the column is sized
-    /// from, as for <see cref="NameOf"/>.
+    /// What a row's second cell says, in runs, one rule for the row and for the details the column is
+    /// sized from, as for <see cref="NameOf"/>. The pipeline links to the run and the branch to its
+    /// page. A branch the provider gave no page is plain text, as a link that opened nothing would
+    /// read as broken.
     /// </summary>
-    static string DetailOf(Row row)
+    static IReadOnlyList<DetailSpan> DetailOf(Row row)
     {
         if (row.Build is not { } build)
         {
-            return row.Group!.Failed ? $"{row.Members.Length} failing" : $"{row.Members.Length} passing";
+            return [new(row.Group!.Failed ? $"{row.Members.Length} failing" : $"{row.Members.Length} passing")];
         }
 
+        var spans = new List<DetailSpan>();
         // The pipeline is left out when the provider names it after the repository, as AppVeyor
-        // does, rather than the same name reading in both columns.
-        List<string> detail =
-        [
-            string.Equals(build.ShortRepoName(), build.PipelineName, StringComparison.OrdinalIgnoreCase) ? "" : build.PipelineName,
-            build.Branch ?? ""
-        ];
-        return string.Join(' ', detail.Where(_ => _.Length > 0));
+        // does, rather than the same name reading in both columns. The name links to the run instead.
+        if (!NamedAfterProject(build))
+        {
+            Append(spans, build.PipelineName, ChipKind.Build);
+        }
+
+        Append(spans, build.Branch ?? "", build.BranchUrl is null ? ChipKind.None : ChipKind.Branch);
+        return spans;
+    }
+
+    /// <summary>
+    /// Adds a run after a space. Plain text joins the plain text before it, so a head draws no more
+    /// runs than the links need.
+    /// </summary>
+    static void Append(List<DetailSpan> spans, string text, ChipKind link)
+    {
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        if (spans.Count > 0)
+        {
+            AppendPlain(spans, " ");
+        }
+
+        if (link == ChipKind.None)
+        {
+            AppendPlain(spans, text);
+        }
+        else
+        {
+            spans.Add(new(text, link));
+        }
+    }
+
+    static void AppendPlain(List<DetailSpan> spans, string text)
+    {
+        if (spans is [.., { Link: ChipKind.None } last])
+        {
+            spans[^1] = last with { Text = last.Text + text };
+            return;
+        }
+
+        spans.Add(new(text));
     }
 
     static string Header(SessionState state, int pipelines, int failing, int running)
@@ -137,6 +224,7 @@ static class ScreenBuilder
             row.Kind,
             build.Status,
             NameOf(row),
+            NameLinkOf(row),
             DetailOf(row),
             row.Connection!.Connection.ProviderId,
             fraction,
@@ -148,8 +236,8 @@ static class ScreenBuilder
 
     /// <summary>
     /// A group's own row: the project, then what a closed group would otherwise hide, how many
-    /// builds it holds and how long since the latest. No chips: which build they would act on is
-    /// ambiguous, so the group is opened first.
+    /// builds it holds and how long since the latest. No chips or links: which build they would act
+    /// on is ambiguous, so the group is opened first.
     /// </summary>
     static BuildRow ComposeGroup(Row row, GroupKey group, bool selected, DateTimeOffset now)
     {
@@ -160,6 +248,7 @@ static class ScreenBuilder
             RowKind.Group,
             group.Failed ? BuildStatus.Failed : BuildStatus.Succeeded,
             NameOf(row),
+            ChipKind.None,
             DetailOf(row),
             "",
             -1,

@@ -7,8 +7,9 @@ public class BmStructTests
 {
     [Test]
     [Arguments(typeof(BmString), 8)]
-    [Arguments(typeof(BmRow), 8 + 4 * 8 + 8 + 4)]
+    [Arguments(typeof(BmRow), 8 + 4 * 8 + 8 + 4 + 12)]
     [Arguments(typeof(BmChip), 8 + 4)]
+    [Arguments(typeof(BmSpan), 8 + 4)]
     [Arguments(typeof(BmField), 8 + 4 * 8 + 8)]
     [Arguments(typeof(BmButton), 12)]
     [Arguments(typeof(BmMenuItem), 8)]

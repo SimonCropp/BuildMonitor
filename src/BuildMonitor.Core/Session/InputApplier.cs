@@ -92,6 +92,13 @@ static class InputApplier
             state = ClickField(state, field, actions);
         }
 
+        // After the clicks, which index the rows that were on screen, and before the keys, so an
+        // Enter pressed as the text changed opens what the filter left selected.
+        if (input.Search is { } search)
+        {
+            state = MonitorSession.Search(state, search);
+        }
+
         if (input.Key != CommandKind.None)
         {
             state = Execute(state, input.Key, null, actions, window);
