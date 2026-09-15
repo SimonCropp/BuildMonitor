@@ -8,7 +8,7 @@ static class Concurrently
 {
     public const int Limit = 8;
 
-    public static async Task<List<TResult>> Map<TItem, TResult>(
+    public static async Task<TResult[]> Map<TItem, TResult>(
         IReadOnlyList<TItem> items,
         Func<TItem, Cancel, Task<TResult>> work,
         Cancel cancel,
@@ -26,7 +26,7 @@ static class Concurrently
         }
 
         await Task.WhenAll(tasks);
-        return [..results];
+        return results;
 
         async Task Run(int slot)
         {
@@ -49,7 +49,7 @@ static class Concurrently
     /// With Map, one repository the token could not see discarded the whole poll and backed every
     /// repository off; here each item reports its own outcome. Cancellation still ends everything.
     /// </summary>
-    public static async Task<List<Settled<TResult>>> Settle<TItem, TResult>(
+    public static async Task<Settled<TResult>[]> Settle<TItem, TResult>(
         IReadOnlyList<TItem> items,
         int limit,
         Func<TItem, Cancel, Task<TResult>> work,
@@ -68,7 +68,7 @@ static class Concurrently
         }
 
         await Task.WhenAll(tasks);
-        return [..results];
+        return results;
 
         async Task Run(int slot)
         {

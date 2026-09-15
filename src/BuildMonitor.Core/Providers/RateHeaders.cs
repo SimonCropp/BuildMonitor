@@ -72,6 +72,13 @@ static class RateHeaders
         return null;
     }
 
-    static string? First(HttpResponseHeaders headers, string name) =>
-        headers.TryGetValues(name, out var values) ? values.FirstOrDefault() : null;
+    static string? First(HttpResponseHeaders headers, string name)
+    {
+        if (headers.TryGetValues(name, out var values))
+        {
+            return values.FirstOrDefault();
+        }
+
+        return null;
+    }
 }

@@ -4,6 +4,7 @@
 /// </summary>
 sealed unsafe class ScreenPayload
 {
+    static readonly byte[] emptyStrings = [0];
     List<byte> strings = [];
     List<BmRow> rows = [];
     List<BmString> names = [];
@@ -222,55 +223,44 @@ sealed unsafe class ScreenPayload
 
     int WithPinned(Call call)
     {
-        var stringBytes = strings.Count == 0 ? [0] : CollectionsMarshal.AsSpan(strings).ToArray();
-        var rowArray = rows.ToArray();
-        var nameArray = names.ToArray();
-        var detailArray = details.ToArray();
-        var authorArray = authors.ToArray();
-        var chipArray = chips.ToArray();
-        var spanArray = spans.ToArray();
-        var fieldArray = fields.ToArray();
-        var optionArray = options.ToArray();
-        var buttonArray = buttons.ToArray();
-        var menuArray = menu.ToArray();
-        var trayArray = trayItems.ToArray();
+        var stringBytes = strings.Count == 0 ? emptyStrings.AsSpan() : CollectionsMarshal.AsSpan(strings);
         fixed (byte* stringPointer = stringBytes)
-        fixed (BmRow* rowPointer = rowArray)
-        fixed (BmString* namePointer = nameArray)
-        fixed (BmString* detailPointer = detailArray)
-        fixed (BmString* authorPointer = authorArray)
-        fixed (BmChip* chipPointer = chipArray)
-        fixed (BmSpan* spanPointer = spanArray)
-        fixed (BmField* fieldPointer = fieldArray)
-        fixed (BmString* optionPointer = optionArray)
-        fixed (BmButton* buttonPointer = buttonArray)
-        fixed (BmMenuItem* menuPointer = menuArray)
-        fixed (BmTrayItem* trayPointer = trayArray)
+        fixed (BmRow* rowPointer = CollectionsMarshal.AsSpan(rows))
+        fixed (BmString* namePointer = CollectionsMarshal.AsSpan(names))
+        fixed (BmString* detailPointer = CollectionsMarshal.AsSpan(details))
+        fixed (BmString* authorPointer = CollectionsMarshal.AsSpan(authors))
+        fixed (BmChip* chipPointer = CollectionsMarshal.AsSpan(chips))
+        fixed (BmSpan* spanPointer = CollectionsMarshal.AsSpan(spans))
+        fixed (BmField* fieldPointer = CollectionsMarshal.AsSpan(fields))
+        fixed (BmString* optionPointer = CollectionsMarshal.AsSpan(options))
+        fixed (BmButton* buttonPointer = CollectionsMarshal.AsSpan(buttons))
+        fixed (BmMenuItem* menuPointer = CollectionsMarshal.AsSpan(menu))
+        fixed (BmTrayItem* trayPointer = CollectionsMarshal.AsSpan(trayItems))
         {
             var frame = screen;
             frame.Strings = stringPointer;
             frame.StringsLength = strings.Count;
             frame.Rows = rowPointer;
-            frame.RowCount = rowArray.Length;
+            frame.RowCount = rows.Count;
             frame.Names = namePointer;
             frame.Details = detailPointer;
-            frame.DetailCount = detailArray.Length;
+            frame.DetailCount = details.Count;
             frame.Authors = authorPointer;
-            frame.AuthorCount = authorArray.Length;
+            frame.AuthorCount = authors.Count;
             frame.Chips = chipPointer;
-            frame.ChipCount = chipArray.Length;
+            frame.ChipCount = chips.Count;
             frame.Spans = spanPointer;
-            frame.SpanCount = spanArray.Length;
+            frame.SpanCount = spans.Count;
             frame.Fields = fieldPointer;
-            frame.FieldCount = fieldArray.Length;
+            frame.FieldCount = fields.Count;
             frame.Options = optionPointer;
-            frame.OptionCount = optionArray.Length;
+            frame.OptionCount = options.Count;
             frame.Buttons = buttonPointer;
-            frame.ButtonCount = buttonArray.Length;
+            frame.ButtonCount = buttons.Count;
             frame.Menu = menuPointer;
-            frame.MenuCount = menuArray.Length;
+            frame.MenuCount = menu.Count;
             frame.TrayItems = trayPointer;
-            frame.TrayItemCount = trayArray.Length;
+            frame.TrayItemCount = trayItems.Count;
             return call(&frame);
         }
     }

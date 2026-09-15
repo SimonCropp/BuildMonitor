@@ -280,8 +280,8 @@ sealed class FormPanel : Panel
             return null;
         }
 
-        var drained = changes.ToList();
-        changes.Clear();
+        var drained = changes;
+        changes = [];
         return drained;
     }
 

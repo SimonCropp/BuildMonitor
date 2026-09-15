@@ -18,14 +18,14 @@ record RateState(double? Limit, double? Remaining, DateTimeOffset? Reset, bool N
     /// <summary>
     /// Resets for one window reported by different servers differ by a second or so.
     /// </summary>
-    static readonly TimeSpan sameWindow = TimeSpan.FromSeconds(2);
+    static TimeSpan sameWindow = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// How long a count without a reset is trusted. Azure DevOps measures its limit over a sliding
     /// five minutes and stops sending the count once usage falls, so a count held for longer would
     /// hold a connection back after the pressure had gone.
     /// </summary>
-    static readonly TimeSpan slidingWindow = TimeSpan.FromMinutes(5);
+    static TimeSpan slidingWindow = TimeSpan.FromMinutes(5);
 
     public RateState Merge(RateObservation observation, bool success, DateTimeOffset now)
     {
@@ -59,9 +59,20 @@ record RateState(double? Limit, double? Remaining, DateTimeOffset? Reset, bool N
     /// <summary>
     /// Whether the count still describes the window it came from.
     /// </summary>
-    public bool Current(DateTimeOffset now) =>
-        Remaining is not null &&
-        (Reset is { } reset ? reset > now : Observed is { } observed && now - observed < slidingWindow);
+    public bool Current(DateTimeOffset now)
+    {
+        if (Remaining is null)
+        {
+            return false;
+        }
+
+        if (Reset is { } reset)
+        {
+            return reset > now;
+        }
+
+        return Observed is { } observed && now - observed < slidingWindow;
+    }
 
     bool SameWindow(DateTimeOffset? reset) =>
         reset is { } incoming &&
