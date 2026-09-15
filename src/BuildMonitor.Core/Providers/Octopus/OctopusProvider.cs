@@ -17,8 +17,10 @@ sealed class OctopusProvider : ProviderBase
         var space = await Space(context, cancel);
         var server = context.Http.BaseAddress.GetLeftPart(UriPartial.Authority);
         var projects = await context.Http.Get($"{space.Id}/projects?take=100", OctopusContext.Default.OctopusPageOctopusProject, cancel);
+        // The project stands in for the repository. The space did before, and grouped every finished
+        // deployment in it under the space's name.
         return projects.Items
-            .Select(_ => new Pipeline(_.Id, _.Name, space.Name, space.Id, $"{server}{_.Links?.Web ?? ""}"))
+            .Select(_ => new Pipeline(_.Id, _.Name, _.Name, space.Id, $"{server}{_.Links?.Web ?? ""}"))
             .ToList();
     }
 
