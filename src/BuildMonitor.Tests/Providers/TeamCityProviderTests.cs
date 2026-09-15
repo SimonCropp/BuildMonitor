@@ -88,6 +88,19 @@ public class TeamCityProviderTests
     }
 
     [Test]
+    public async Task FetchLogDownloadsTheBuildLog()
+    {
+        var handler = Handler()
+            .Get($"{server}/downloadBuildLog.html?buildId=9000", "[Step 2/2] Tests failed: 1\n");
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("teamcity", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("teamcity").FetchLog(context, builds.Single(_ => _.RunNumber == "119"), Cancel.None);
+        await Assert.That(log).IsEqualTo("[Step 2/2] Tests failed: 1\n");
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/downloadBuildLog.html?buildId=9000");
+    }
+
+    [Test]
     [Arguments("20260101T120000+0000", "2026-01-01T12:00:00+00:00")]
     [Arguments("20260101T120000+0300", "2026-01-01T12:00:00+03:00")]
     [Arguments("20260101T120000-0500", "2026-01-01T12:00:00-05:00")]

@@ -22,6 +22,8 @@ abstract class ProviderBase : IProvider
 
     public abstract Task Cancel(ProviderContext context, Build build, Cancel cancel);
 
+    public abstract Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel);
+
     public abstract Task<ConnectionTest> Test(ProviderContext context, Cancel cancel);
 
     public virtual Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel) =>
@@ -38,4 +40,11 @@ abstract class ProviderBase : IProvider
 
     protected static string Join(params string?[] parts) =>
         string.Join('|', parts.Select(_ => _ ?? ""));
+
+    /// <summary>
+    /// The logs of the jobs that failed as one text, each under a line naming its job, so two logs
+    /// pasted together do not read as one.
+    /// </summary>
+    protected static string Sections(IEnumerable<(string Name, string Log)> logs) =>
+        string.Join("\n\n", logs.Select(_ => $"==> {_.Name} <==\n{_.Log.TrimEnd()}"));
 }

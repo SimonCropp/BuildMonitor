@@ -26,6 +26,7 @@ One per workflow, showing the latest run. A run on another branch that is queued
 
  * Retry re-runs only the failed jobs of a failed run, and the whole run otherwise
  * Cancel cancels a queued or running run
+ * Copy log copies the logs of the jobs that failed or timed out in the latest attempt
 
 
 ## Estimates

@@ -78,12 +78,12 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                                                       9 pipelines, 2 failing, 4 running |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   ? nightly    jenkins                                      #88               queued     Build              [Cancel] |
-                |   x [-] Verify          2 failing                                             25m ago                                |
-                |   x            github   test.yml feature/inline             #77               25m ago    Build Branch PR 42 [Retry]  |
-                |   x            github   release.yml main                    #9                50m ago    Build Branch       [Retry]  |
-                |   + [+] Verify          2 passing                                             2h ago                                 |
-                | > + DiffEngine github   docs.yml main                       #300              23h ago    Build Branch                |
+                |   ? nightly    jenkins                                            queued     Build [Cancel]                          |
+                |   x [-] Verify          2 failing                                 25m ago                                            |
+                |   x            github   test.yml feature/inline                   25m ago    Build Branch PR 42 [Retry] [Copy log]   |
+                |   x            github   release.yml main                          50m ago    Build Branch [Retry] [Copy log]         |
+                |   + [+] Verify          2 passing                                 2h ago                                             |
+                | > + DiffEngine github   docs.yml main                             23h ago    Build Branch                            |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+
@@ -106,6 +106,15 @@ public class ScreenTests
     [Test]
     public Task MenuOpen() =>
         Verify(Fixtures.Render(Fixtures.WithMenu()));
+
+    [Test]
+    public Task OverflowMenuOpen()
+    {
+        // A hundred columns leave the failed row room for its links but not for its actions.
+        var state = MonitorSession.Resize(Fixtures.WithBuilds(), 100, 30);
+        var row = Fixtures.RowOf(state, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
+        return Verify(Fixtures.Render(MonitorSession.OpenOverflow(state, row, ChipKind.Retry)));
+    }
 
     [Test]
     public Task DefaultBranchOnly()

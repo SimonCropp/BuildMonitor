@@ -33,10 +33,12 @@ Each row carries:
  * a status square; the squares of neighbouring rows touch, so a run of failures reads as one block
  * the provider's logo, when the connections span more than one CI service
  * the repository, then the pipeline and branch; the pipeline is left out when it is named after the repository, as an AppVeyor project is
- * the run number
  * a progress bar and a countdown while the build runs, from the provider's own estimate where it gives one and otherwise from the median of the pipeline's last ten successful runs. A build that runs past its estimate shows how far over it is. Without any estimate the elapsed time is shown
  * links: Build opens the run, Branch opens the branch in the repository, PR opens the pull request
  * Retry, for a failed or cancelled run; Cancel, for a queued or running one
+ * Copy log, for a failed run, which fetches the log of what failed and puts it on the clipboard. The status line says when it has arrived
+
+When the window is too narrow for a row's buttons, the repository, pipeline and branch keep their width and the buttons that do not fit go behind a … button at the end of the row, which lists them in a drop down. A pipeline and branch longer than about forty characters are cut short before that happens.
 
 Right click a row for the same actions plus copying the build URL and excluding the pipeline, which adds an exact match to the [filters](filters.md).
 

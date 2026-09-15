@@ -248,6 +248,46 @@ public class SessionTests
     }
 
     [Test]
+    public async Task AFailedBuildsMenuOffersItsLog()
+    {
+        var builds = Fixtures.WithBuilds();
+        var state = MonitorSession.OpenMenu(builds, Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline"));
+        await Assert.That(state.Menu!.Items.Any(_ => _.Command == CommandKind.CopyLog)).IsTrue();
+        await Assert.That(state.Menu.Overflow).IsFalse();
+    }
+
+    [Test]
+    public async Task TheOverflowOffersEveryChipFromTheFirstHidden()
+    {
+        var builds = Fixtures.WithBuilds();
+        var row = Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
+        var state = MonitorSession.OpenOverflow(builds, row, ChipKind.PullRequest);
+        await Assert.That(state.Menu!.Items.Select(_ => $"{_.Label} {_.Command}")).IsEquivalentTo(["PR 42 OpenPullRequest", "Retry Retry", "Copy log CopyLog"]);
+        await Assert.That(state.Menu.Overflow).IsTrue();
+        await Assert.That(state.Menu.Row).IsEqualTo(row);
+    }
+
+    [Test]
+    public async Task TheOverflowLeavesOutAChipTheBuildLost()
+    {
+        // build-all's Cancel was behind the overflow chip, but the build finished before the click.
+        var builds = Fixtures.WithBuilds();
+        var finished = Fixtures.JenkinsBuilds().Select(_ => _.PipelineId == "build-all" ? _ with { Status = BuildStatus.Succeeded, CanCancel = false, Finished = Fixtures.Now } : _);
+        var state = MonitorSession.ApplyPoll(builds, Fixtures.Jenkins.Id, [], [..finished], Fixtures.Now);
+        var row = Fixtures.RowOf(state, _ => _.Build?.PipelineId == "build-all");
+        await Assert.That(MonitorSession.OpenOverflow(state, row, ChipKind.Cancel).Menu).IsNull();
+    }
+
+    [Test]
+    public async Task CopiedClearsOnlyTheTextThatWasCopied()
+    {
+        var first = MonitorSession.Copy(Fixtures.WithBuilds(), "first log", "Copied the log");
+        var second = MonitorSession.Copy(first, "second log", "Copied the log");
+        await Assert.That(MonitorSession.Copied(second, first.Clipboard!).Clipboard).IsEqualTo("second log");
+        await Assert.That(MonitorSession.Copied(second, second.Clipboard!).Clipboard).IsNull();
+    }
+
+    [Test]
     public async Task ApplyPollReplacesOnlyThatConnection()
     {
         var state = Fixtures.WithBuilds();

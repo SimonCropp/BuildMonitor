@@ -7,9 +7,16 @@ static class AsciiRenderer
 {
     const int barWidth = 10;
     const int timingWidth = 10;
-    const int linksWidth = 18;
-    const int actionsWidth = 8;
     const int providerWidth = 8;
+    const int minimumName = 8;
+    const int minimumDetail = 12;
+    // Past this a long pipeline or branch is cut short rather than pushing every row's chips into
+    // the drop down.
+    const int maximumDetail = 40;
+    const string overflow = "[...]";
+    // The chips cell is this wide while there is room, so the columns before it do not move as
+    // builds gain and lose chips.
+    const string widestChips = "Build Branch PR 9999 [Retry] [Copy log]";
 
     public static string Render(Screen screen)
     {
@@ -51,10 +58,11 @@ static class AsciiRenderer
         }
 
         // "[-] " leads a group's name.
-        var longest = Math.Max(
+        var longestName = Math.Max(
             page.Names.Select(_ => _.Length).DefaultIfEmpty().Max(),
             page.GroupNames.Select(_ => _.Length + 4).DefaultIfEmpty().Max());
-        var layout = Layout(inner, page.Rows.Any(_ => _.Provider.Length > 0), longest);
+        var longestDetail = page.Details.Select(_ => _.Length).DefaultIfEmpty().Max();
+        var layout = Layout(inner, page.Rows.Any(_ => _.Provider.Length > 0), longestName, longestDetail);
         return page.Rows.Select(_ => RowLine(_, layout)).ToList();
     }
 
@@ -64,50 +72,48 @@ static class AsciiRenderer
             : row.Name;
 
     /// <summary>
-    /// The fixed cells around the two name columns, dropped from the right when the window is too
-    /// narrow to hold them, so the names always keep a readable width. The first name column is as
-    /// wide as its longest name, so short project names leave the pipeline room, but never so wide
-    /// that the pipeline cell drops below a readable width.
+    /// The widths every row shares, so the columns line up. The name column is as wide as the
+    /// longest name and the detail column as the longest detail, up to a readable maximum, and the
+    /// chips give way first: a row without room for all of them puts the last behind an overflow
+    /// chip rather than cutting the names short. Only once no chip but that one fits does the bar
+    /// go, and then the names shrink.
     /// </summary>
-    static (int Name, int Detail, bool Provider, bool Bar, bool Links, bool Actions) Layout(int inner, bool provider, int longest)
+    static (int Name, int Detail, bool Provider, bool Bar, int Chips) Layout(int inner, bool provider, int longestName, int longestDetail)
     {
-        // marker, glyph, run number: always present.
-        const int fixedCells = 1 + 1 + 6;
+        var name = Math.Max(minimumName, longestName);
+        var detail = Math.Min(longestDetail, maximumDetail);
         var bar = true;
-        var links = true;
-        var actions = true;
         while (true)
         {
-            var used = fixedCells + timingWidth + (provider ? providerWidth : 0) + (bar ? barWidth : 0) + (links ? linksWidth : 0) + (actions ? actionsWidth : 0);
-            var cells = 4 + (provider ? 1 : 0) + (bar ? 1 : 0) + (links ? 1 : 0) + (actions ? 1 : 0);
-            // One space between each cell, and two name cells.
-            var remaining = inner - used - (cells + 1);
-            if (remaining >= 28)
+            // Marker, glyph and timing, the provider and the bar when shown, and a space before
+            // every cell but the first.
+            var cells = 2 + timingWidth + (provider ? providerWidth + 1 : 0) + (bar ? barWidth + 1 : 0) + 5;
+            // What the name, detail and chips share.
+            var available = inner - cells;
+            var spare = available - name - detail;
+            if (spare >= widestChips.Length)
             {
-                var name = Math.Clamp(longest, 8, remaining - 12);
-                return (name, remaining - name, provider, bar, links, actions);
+                return (name, available - name - widestChips.Length, provider, bar, widestChips.Length);
             }
 
-            if (actions)
+            if (spare >= overflow.Length)
             {
-                actions = false;
+                return (name, detail, provider, bar, spare);
             }
-            else if (links)
-            {
-                links = false;
-            }
-            else if (bar)
+
+            if (bar)
             {
                 bar = false;
+                continue;
             }
-            else
-            {
-                return (Math.Max(8, remaining * 3 / 5), Math.Max(6, remaining - remaining * 3 / 5), provider, false, false, false);
-            }
+
+            var names = available - overflow.Length;
+            var shrunk = Math.Clamp(name, minimumName, Math.Max(minimumName, names - Math.Min(minimumDetail, detail)));
+            return (shrunk, Math.Max(1, names - shrunk), provider, false, overflow.Length);
         }
     }
 
-    static string RowLine(BuildRow row, (int Name, int Detail, bool Provider, bool Bar, bool Links, bool Actions) layout)
+    static string RowLine(BuildRow row, (int Name, int Detail, bool Provider, bool Bar, int Chips) layout)
     {
         var marker = row.Selected ? '>' : ' ';
         var cells = new List<string>
@@ -124,24 +130,13 @@ static class AsciiRenderer
         }
 
         cells.Add(Fit(row.Detail, layout.Detail));
-        cells.Add(Fit(row.RunNumber, 6).PadLeft(6));
-
         if (layout.Bar)
         {
             cells.Add(Bar(row.Progress));
         }
 
         cells.Add(Fit(row.Timing, timingWidth));
-        if (layout.Links)
-        {
-            cells.Add(Fit(Links(row), linksWidth));
-        }
-
-        if (layout.Actions)
-        {
-            cells.Add(Fit(Actions(row), actionsWidth));
-        }
-
+        cells.Add(Fit(Chips(row.Chips, layout.Chips), layout.Chips));
         return string.Join(' ', cells);
     }
 
@@ -156,39 +151,43 @@ static class AsciiRenderer
         return $"[{new string('#', filled)}{new string('-', barWidth - 2 - filled)}]";
     }
 
-    static string Links(BuildRow row)
+    /// <summary>
+    /// The chips that fit, from the left, then an overflow chip in place of the rest. A chip is
+    /// drawn only with room left after it for the overflow chip, unless it is the last, so the
+    /// overflow chip always fits where the first chip that did not would have gone.
+    /// </summary>
+    static string Chips(IReadOnlyList<RowChip> chips, int width)
     {
-        var parts = new List<string>();
-        if (row.Build is not null)
+        var builder = new StringBuilder();
+        for (var index = 0; index < chips.Count; index++)
         {
-            parts.Add(row.Build.Label);
+            var text = ChipText(chips[index]);
+            var start = builder.Length == 0 ? 0 : builder.Length + 1;
+            var reserve = index == chips.Count - 1 ? 0 : 1 + overflow.Length;
+            if (builder.Length > 0)
+            {
+                builder.Append(' ');
+            }
+
+            if (start + text.Length + reserve > width)
+            {
+                builder.Append(overflow);
+                break;
+            }
+
+            builder.Append(text);
         }
 
-        if (row.Branch is not null)
-        {
-            parts.Add(row.Branch.Label);
-        }
-
-        if (row.PullRequest is not null)
-        {
-            parts.Add(row.PullRequest.Label);
-        }
-
-        return string.Join(' ', parts);
+        return builder.ToString();
     }
 
     /// <summary>
-    /// A build is almost always one or the other: a finished one can be retried, a live one
-    /// cancelled. The rare both is abbreviated rather than given a cell wide enough for it.
+    /// Links bare and actions bracketed, as the pixel heads colour the two apart.
     /// </summary>
-    static string Actions(BuildRow row) =>
-        (row.CanRetry, row.CanCancel) switch
-        {
-            (true, true) => "[R] [C]",
-            (true, false) => "[Retry]",
-            (false, true) => "[Cancel]",
-            _ => ""
-        };
+    static string ChipText(RowChip chip) =>
+        chip.Kind is ChipKind.Retry or ChipKind.Cancel or ChipKind.CopyLog
+            ? $"[{chip.Label}]"
+            : chip.Label;
 
     static char Glyph(BuildStatus status) =>
         status switch
@@ -261,7 +260,8 @@ static class AsciiRenderer
 
     /// <summary>
     /// The open context menu, drawn over the finished grid the way the pixel heads float theirs
-    /// over the frame. Anchored one line under its row, inset from the left.
+    /// over the frame. Anchored one line under its row, inset from the left, or for the drop down
+    /// of a row's overflow chip, under that chip.
     /// </summary>
     static string Overlay(string text, Screen screen)
     {
@@ -275,7 +275,17 @@ static class AsciiRenderer
         var width = menu.Labels.Max(_ => _.Length) + 2;
         // Border, title, separator: three lines sit above the first body row.
         var top = 3 + menu.Row + 1;
-        const int left = 4;
+        var left = 4;
+        if (menu.Overflow)
+        {
+            var anchor = lines[top - 1];
+            var chip = new string(anchor).LastIndexOf(overflow, StringComparison.Ordinal);
+            if (chip >= 0)
+            {
+                // Kept inside the grid when the chip sits near its right edge.
+                left = Math.Max(left, Math.Min(chip, anchor.Length - width - 3));
+            }
+        }
 
         void Write(int line, string content)
         {

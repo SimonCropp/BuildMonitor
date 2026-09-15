@@ -211,6 +211,35 @@ sealed class AzureDevOpsProvider : ProviderBase
         return context.Http.Send(HttpMethod.Patch, $"{Encode(parts[0])}/_apis/build/builds/{parts[1]}?{apiVersion}", HttpJson.Json("""{"status":"cancelling"}"""), cancel);
     }
 
+    /// <summary>
+    /// The logs of the failed tasks, each under its job, from the build's timeline. A job that failed
+    /// with no task failing, as one whose agent was lost does, gives its own log instead. Asked for
+    /// as plain text: accepting JSON, a log comes back as an array of its lines, or not at all.
+    /// </summary>
+    public override async Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var builds = $"{Encode(parts[0])}/_apis/build/builds/{parts[1]}";
+        var timeline = await context.Http.Get($"{builds}/timeline?{apiVersion}", AzureDevOpsContext.Default.AzureDevOpsTimeline, cancel);
+        var byId = timeline.Records.ToDictionary(_ => _.Id);
+        var failed = timeline.Records.Where(_ => _ is { Result: "failed", Log: not null }).ToList();
+        var tasks = failed.Where(_ => _.Type == "Task").ToList();
+        var chosen = tasks.Count > 0 ? tasks : failed.Where(_ => _.Type == "Job").ToList();
+        var logs = new List<(string Name, string Log)>();
+        // Log ids are handed out as the logs are written, so this is the order the build ran in.
+        foreach (var record in chosen.OrderBy(_ => _.Log!.Id))
+        {
+            var name = record.Type == "Task" &&
+                       record.ParentId is { } parent &&
+                       byId.TryGetValue(parent, out var job)
+                ? $"{job.Name} / {record.Name}"
+                : record.Name ?? "";
+            logs.Add((name, await context.Http.GetLog($"{builds}/logs/{record.Log!.Id}?{apiVersion}", cancel, "text/plain")));
+        }
+
+        return Sections(logs);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var projects = await context.Http.Get($"_apis/projects?{apiVersion}&$top=100", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, cancel);

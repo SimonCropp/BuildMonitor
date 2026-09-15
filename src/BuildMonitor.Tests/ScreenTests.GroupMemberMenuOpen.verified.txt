@@ -1,15 +1,15 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                                                       8 pipelines, 1 failing, 4 running |
 +----------------------------------------------------------------------------------------------------------------------+
-|   > build-all  jenkins  Build all main                      #501   [##------] 04:00 left Build              [Cancel] |
-|   > Deploy Web octopus                                      #12    [###-----] 02:15 left Build              [Cancel] |
-|   > DiffEngine github   test.yml main                       #1234  [####----] 03:00 left Build Branch       [Cancel] |
-|   ? nightly    jenkins                                      #88               queued     Build              [Cancel] |
-|   x Verify     github   test.yml feature/inline             #77               25m ago    Build Branch PR 42 [Retry]  |
-|   + [-] Verify          2 passing                                             2h ago                                 |
-| > +            github   docs.yml main                       #40               2h ago     Build Branch                |
-|   +------------------+  nuget.yml main                      #12               4h ago     Build Branch                |
-|   | Open build       |  docs.yml main                       #300              23h ago    Build Branch                |
+|   > build-all  jenkins  Build all main                 [##------] 04:00 left Build [Cancel]                          |
+|   > Deploy Web octopus                                 [###-----] 02:15 left Build [Cancel]                          |
+|   > DiffEngine github   test.yml main                  [####----] 03:00 left Build Branch [Cancel]                   |
+|   ? nightly    jenkins                                            queued     Build [Cancel]                          |
+|   x Verify     github   test.yml feature/inline                   25m ago    Build Branch PR 42 [Retry] [Copy log]   |
+|   + [-] Verify          2 passing                                 2h ago                                             |
+| > +            github   docs.yml main                             2h ago     Build Branch                            |
+|   +------------------+  nuget.yml main                            4h ago     Build Branch                            |
+|   | Open build       |  docs.yml main                             23h ago    Build Branch                            |
 |   | Open branch      |                                                                                               |
 |   | Copy build URL   |                                                                                               |
 |   | Collapse Verify  |                                                                                               |

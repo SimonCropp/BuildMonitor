@@ -7,23 +7,33 @@ sealed class RowsCanvas : Control
 {
     const int padding = 10;
     const int chipPadding = 8;
+    const int chipSpacing = 6;
     const int iconSize = 16;
     const int spinnerSize = 18;
+    const int barLength = 110;
+    const int timingLength = 90;
     const int minimumDetail = 120;
+    // Stands in for the chips a row has no room for, and opens the drop down that holds them.
+    const string overflowLabel = "…";
+    // The chips of the widest row, which the chips column is as wide as while there is room.
+    static readonly string[] widestChips = ["Build", "Branch", "PR 9999", "Retry", "Copy log"];
 
     BuildsPage? page;
     int menuShownForRow = -1;
+    bool menuShownOverflow;
     int hoverRow = -1;
-    readonly List<(int Row, LinkKind Link, RowAction Action, Rectangle Bounds)> chips = [];
+    // Each clickable thing the last paint drew: a chip, the provider icon, or an overflow chip, which
+    // carries the first of the chips it stands in for.
+    readonly List<(int Row, ChipKind Chip, bool Overflow, Rectangle Bounds)> chips = [];
     readonly ContextMenuStrip contextMenu = new();
     Font bold;
 
     // Pending input, drained once per frame.
     int clickedRow = -1;
-    int clickedLinkRow = -1;
-    LinkKind clickedLink;
-    int clickedActionRow = -1;
-    RowAction clickedAction;
+    int clickedChipRow = -1;
+    ChipKind clickedChip;
+    int clickedOverflowRow = -1;
+    ChipKind overflowFrom;
     int rightClickedRow = -1;
     int clickedMenuItem = -1;
     bool menuClosed;
@@ -53,6 +63,10 @@ sealed class RowsCanvas : Control
         };
         contextMenu.Closed += (_, arguments) =>
         {
+            // Forgotten however it closed, so a menu the session opens again for the same row, as
+            // a second click on the chip that opened it does, is shown again rather than taken for
+            // the one already up.
+            menuShownForRow = -1;
             if (arguments.CloseReason != ToolStripDropDownCloseReason.ItemClicked)
             {
                 menuClosed = true;
@@ -96,9 +110,11 @@ sealed class RowsCanvas : Control
                 contextMenu.Close();
             }
         }
-        else if (menuShownForRow != overlay.Row)
+        else if (menuShownForRow != overlay.Row ||
+                 menuShownOverflow != overlay.Overflow)
         {
             menuShownForRow = overlay.Row;
+            menuShownOverflow = overlay.Overflow;
             ShowMenu(overlay);
         }
 
@@ -120,6 +136,15 @@ sealed class RowsCanvas : Control
             contextMenu.Items.Add(new ToolStripMenuItem(overlay.Labels[index]) { Tag = index, ForeColor = Palette.Text });
         }
 
+        // A drop down hangs under the overflow chip that opened it, a context menu under its row.
+        var anchor = chips.LastOrDefault(_ => _.Overflow && _.Row == overlay.Row).Bounds;
+        if (overlay.Overflow &&
+            anchor != Rectangle.Empty)
+        {
+            contextMenu.Show(this, new(anchor.Left, anchor.Bottom));
+            return;
+        }
+
         var y = Math.Min(Height, (overlay.Row + 1) * RowHeight);
         contextMenu.Show(this, new(LogicalToDeviceUnits(padding + 20), y));
     }
@@ -129,10 +154,10 @@ sealed class RowsCanvas : Control
         var input = new MonitorInput(
             Key: Key,
             ClickedRow: clickedRow,
-            ClickedLinkRow: clickedLinkRow,
-            ClickedLink: clickedLink,
-            ClickedActionRow: clickedActionRow,
-            ClickedAction: clickedAction,
+            ClickedChipRow: clickedChipRow,
+            ClickedChip: clickedChip,
+            ClickedOverflowRow: clickedOverflowRow,
+            OverflowFrom: overflowFrom,
             RightClickedRow: rightClickedRow,
             ClickedMenuItem: clickedMenuItem,
             MenuClosed: menuClosed,
@@ -140,10 +165,10 @@ sealed class RowsCanvas : Control
             ScrollTo: ScrollTo);
         Key = CommandKind.None;
         clickedRow = -1;
-        clickedLinkRow = -1;
-        clickedLink = LinkKind.None;
-        clickedActionRow = -1;
-        clickedAction = RowAction.None;
+        clickedChipRow = -1;
+        clickedChip = ChipKind.None;
+        clickedOverflowRow = -1;
+        overflowFrom = ChipKind.None;
         rightClickedRow = -1;
         clickedMenuItem = -1;
         menuClosed = false;
@@ -182,11 +207,7 @@ sealed class RowsCanvas : Control
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps
         // its name in line with the rows under it.
         var iconWidth = page.Rows.Any(_ => _.Provider.Length > 0) ? LogicalToDeviceUnits(iconSize + padding) : 0;
-        var nameColumn = page.Names
-            .Select(_ => MeasureName(_, Font))
-            .Concat(page.GroupNames.Select(_ => MeasureName($"▾ {_}", bold)))
-            .DefaultIfEmpty()
-            .Max();
+        var layout = ColumnWidths(page, iconWidth);
         for (var index = 0; index < page.Rows.Count; index++)
         {
             var top = index * RowHeight;
@@ -206,21 +227,52 @@ sealed class RowsCanvas : Control
                 graphics.FillRectangle(new SolidBrush(Palette.HoverRow), bounds);
             }
 
-            DrawRow(graphics, row, bounds, index, iconWidth, nameColumn);
+            DrawRow(graphics, row, bounds, index, iconWidth, layout);
         }
+    }
+
+    /// <summary>
+    /// The widths every row shares, so the columns line up. The name column is as wide as the
+    /// widest name and the detail column as the widest pipeline and branch, up to a readable
+    /// maximum, and the chips give way first: a row without room for all of them puts the last
+    /// behind an overflow chip, where a fixed chips column cut the names short instead. Only once no
+    /// chip but that one fits do the names shrink.
+    /// </summary>
+    (int Name, int Detail, int Chips) ColumnWidths(BuildsPage builds, int iconWidth)
+    {
+        var gap = LogicalToDeviceUnits(padding);
+        // After the status square, a gap after each of the name, detail, bar, timing and chips.
+        var available = Width - RowHeight - LogicalToDeviceUnits(barLength) - LogicalToDeviceUnits(timingLength) - 6 * gap;
+        // With the padding Draw leaves, so the widest text fits without an ellipsis.
+        var nameWanted = builds.Names
+            .Select(_ => MeasureName(_, Font))
+            .Concat(builds.GroupNames.Select(_ => MeasureName($"▾ {_}", bold)))
+            .DefaultIfEmpty()
+            .Max();
+        // Forty characters at most: past that a long pipeline or branch is cut short rather than
+        // pushing every row's chips into the drop down.
+        var detailWanted = iconWidth + Math.Min(
+            builds.Details.Select(_ => MeasureName(_, Font)).DefaultIfEmpty().Max(),
+            MeasureName(new('0', 40), Font));
+        var widest = widestChips.Sum(ChipWidth) + (widestChips.Length - 1) * LogicalToDeviceUnits(chipSpacing);
+        var spare = available - nameWanted - detailWanted;
+        var chipsWidth = spare >= widest ? widest : Math.Max(ChipWidth(overflowLabel), spare);
+        var names = Math.Max(LogicalToDeviceUnits(120), available - chipsWidth);
+        var narrowest = LogicalToDeviceUnits(40);
+        var nameWidth = Math.Clamp(nameWanted, narrowest, Math.Max(narrowest, names - Math.Min(LogicalToDeviceUnits(minimumDetail), detailWanted)));
+        return (nameWidth, names - nameWidth, chipsWidth);
     }
 
     static string DisplayName(BuildRow row) =>
         row.Kind == RowKind.Group ? $"{(row.Expanded ? "▾" : "▸")} {row.Name}" : row.Name;
 
-    // With the padding Draw leaves, so the widest name fits without an ellipsis.
     static int MeasureName(string text, Font font) =>
         TextRenderer.MeasureText(text, font, Size.Empty, TextFormatFlags.NoPrefix).Width;
 
     Font NameFont(BuildRow row) =>
         row.Kind == RowKind.Group ? bold : Font;
 
-    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, int nameColumn)
+    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, (int Name, int Detail, int Chips) layout)
     {
         // The full height of the row and flush with its neighbours, so a run of rows in one status
         // reads as one block rather than a column of dots.
@@ -232,25 +284,11 @@ sealed class RowsCanvas : Control
         var gap = LogicalToDeviceUnits(padding);
         var x = bounds.Height + gap;
         var centreY = bounds.Top + bounds.Height / 2;
-        // Widths: the two names share what the fixed cells leave.
-        var runWidth = LogicalToDeviceUnits(70);
-        var barWidth = LogicalToDeviceUnits(110);
-        var timingWidth = LogicalToDeviceUnits(90);
-        var chipGap = LogicalToDeviceUnits(6);
-        var chipInset = LogicalToDeviceUnits(chipPadding);
-        // Reserved for the widest set of chips, so the columns line up whatever a row carries.
-        var actionsWidth = Measure("Cancel") + 2 * chipInset + gap;
-        var linksWidth = Measure("Build") + Measure("Branch") + Measure("PR 9999") + 3 * (2 * chipInset + chipGap);
-        var fixedWidth = runWidth + barWidth + timingWidth + linksWidth + actionsWidth + 5 * gap;
-        var names = Math.Max(LogicalToDeviceUnits(120), bounds.Width - x - fixedWidth);
-        // As wide as the widest name, so a short project name leaves the pipeline room, but never
-        // so wide that the pipeline cell drops below a readable width.
-        var narrowest = LogicalToDeviceUnits(40);
-        var nameWidth = Math.Clamp(nameColumn, narrowest, Math.Max(narrowest, names - LogicalToDeviceUnits(minimumDetail)));
-        var detailWidth = names - nameWidth;
+        var barWidth = LogicalToDeviceUnits(barLength);
+        var timingWidth = LogicalToDeviceUnits(timingLength);
 
-        Draw(graphics, DisplayName(row), NameFont(row), x, bounds, nameWidth, Palette.Text);
-        x += nameWidth + gap;
+        Draw(graphics, DisplayName(row), NameFont(row), x, bounds, layout.Name, Palette.Text);
+        x += layout.Name + gap;
         // The logo leads the second cell, beside the pipeline it ran, so a group's members, whose
         // first cell is empty, still show which service each one came from.
         if (row.Provider.Length > 0 &&
@@ -261,13 +299,11 @@ sealed class RowsCanvas : Control
             graphics.DrawImage(icon, iconBounds);
             // Hit tested like a chip, so the icon shows the hand and opens the project page
             // rather than selecting the row.
-            chips.Add((index, LinkKind.Project, RowAction.None, iconBounds));
+            chips.Add((index, ChipKind.Project, false, iconBounds));
         }
 
-        Draw(graphics, row.Detail, Font, x + iconWidth, bounds, detailWidth - iconWidth, Palette.Dim);
-        x += detailWidth + gap;
-        Draw(graphics, row.RunNumber, Font, x, bounds, runWidth, Palette.Dim);
-        x += runWidth + gap;
+        Draw(graphics, row.Detail, Font, x + iconWidth, bounds, layout.Detail - iconWidth, Palette.Dim);
+        x += layout.Detail + gap;
 
         if (row.Progress >= 0)
         {
@@ -282,22 +318,41 @@ sealed class RowsCanvas : Control
         x += barWidth + gap;
         Draw(graphics, row.Timing, Font, x, bounds, timingWidth, Palette.Dim);
         x += timingWidth + gap;
+        DrawChips(graphics, row, index, x, x + layout.Chips, centreY);
+    }
 
-        foreach (var (kind, label) in Chips(row))
+    /// <summary>
+    /// The chips that fit, from the left, then an overflow chip in place of the rest. A chip is
+    /// drawn only with room after it for the overflow chip, unless it is the last, so the overflow
+    /// chip always fits where the first chip that did not would have gone.
+    /// </summary>
+    void DrawChips(Graphics graphics, BuildRow row, int index, int x, int right, int centreY)
+    {
+        var chipGap = LogicalToDeviceUnits(chipSpacing);
+        var overflowWidth = ChipWidth(overflowLabel);
+        for (var position = 0; position < row.Chips.Count; position++)
         {
-            x = Chip(graphics, label, x, centreY, Palette.Chip, Palette.ChipText, index, kind, RowAction.None) + chipGap;
-        }
+            var chip = row.Chips[position];
+            var reserve = position == row.Chips.Count - 1 ? 0 : chipGap + overflowWidth;
+            if (x + ChipWidth(chip.Label) + reserve > right)
+            {
+                Chip(graphics, overflowLabel, x, centreY, Palette.Chip, Palette.Text, index, chip.Kind, overflow: true);
+                return;
+            }
 
-        if (row.CanRetry)
-        {
-            x = Chip(graphics, "Retry", x, centreY, Palette.RetryChip, Palette.Text, index, LinkKind.None, RowAction.Retry) + chipGap;
-        }
-
-        if (row.CanCancel)
-        {
-            Chip(graphics, "Cancel", x, centreY, Palette.CancelChip, Palette.Text, index, LinkKind.None, RowAction.Cancel);
+            var (background, foreground) = Colours(chip.Kind);
+            x = Chip(graphics, chip.Label, x, centreY, background, foreground, index, chip.Kind, overflow: false) + chipGap;
         }
     }
+
+    static (Color Background, Color Foreground) Colours(ChipKind kind) =>
+        kind switch
+        {
+            ChipKind.Retry => (Palette.RetryChip, Palette.Text),
+            ChipKind.Cancel => (Palette.CancelChip, Palette.Text),
+            ChipKind.CopyLog => (Palette.Chip, Palette.Text),
+            _ => (Palette.Chip, Palette.ChipText)
+        };
 
     /// <summary>
     /// An arc turning once a second, driven by the clock rather than a timer: the frame loop
@@ -310,28 +365,9 @@ sealed class RowsCanvas : Control
         graphics.DrawArc(pen, bounds, angle, 270);
     }
 
-    static IEnumerable<(LinkKind Kind, string Label)> Chips(BuildRow row)
+    int Chip(Graphics graphics, string label, int x, int centreY, Color background, Color foreground, int row, ChipKind kind, bool overflow)
     {
-        if (row.Build is not null)
-        {
-            yield return (LinkKind.Build, row.Build.Label);
-        }
-
-        if (row.Branch is not null)
-        {
-            yield return (LinkKind.Branch, row.Branch.Label);
-        }
-
-        if (row.PullRequest is not null)
-        {
-            yield return (LinkKind.PullRequest, row.PullRequest.Label);
-        }
-    }
-
-    int Chip(Graphics graphics, string label, int x, int centreY, Color background, Color foreground, int row, LinkKind link, RowAction action)
-    {
-        var width = Measure(label) + 2 * LogicalToDeviceUnits(chipPadding);
-        var bounds = new Rectangle(x, centreY - ChipHeight / 2, width, ChipHeight);
+        var bounds = new Rectangle(x, centreY - ChipHeight / 2, ChipWidth(label), ChipHeight);
         using (var brush = new SolidBrush(background))
         using (var path = RoundedRectangle(bounds, LogicalToDeviceUnits(6)))
         {
@@ -339,9 +375,12 @@ sealed class RowsCanvas : Control
         }
 
         TextRenderer.DrawText(graphics, label, Font, bounds, foreground, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-        chips.Add((row, link, action, bounds));
+        chips.Add((row, kind, overflow, bounds));
         return bounds.Right;
     }
+
+    int ChipWidth(string label) =>
+        Measure(label) + 2 * LogicalToDeviceUnits(chipPadding);
 
     static GraphicsPath RoundedRectangle(Rectangle bounds, int radius)
     {
@@ -405,15 +444,15 @@ sealed class RowsCanvas : Control
             var chip = chips.FirstOrDefault(_ => _.Bounds.Contains(e.Location));
             if (chip.Bounds != Rectangle.Empty)
             {
-                if (chip.Link != LinkKind.None)
+                if (chip.Overflow)
                 {
-                    clickedLinkRow = chip.Row;
-                    clickedLink = chip.Link;
+                    clickedOverflowRow = chip.Row;
+                    overflowFrom = chip.Chip;
                 }
                 else
                 {
-                    clickedActionRow = chip.Row;
-                    clickedAction = chip.Action;
+                    clickedChipRow = chip.Row;
+                    clickedChip = chip.Chip;
                 }
             }
             else if (e.Clicks < 2 ||

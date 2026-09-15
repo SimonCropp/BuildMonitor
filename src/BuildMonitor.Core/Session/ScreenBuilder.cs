@@ -46,13 +46,13 @@ static class ScreenBuilder
             open.Row >= top &&
             open.Row < top + visible.Count)
         {
-            menu = new(open.Row - top, open.Items.Select(_ => _.Label).ToList());
+            menu = new(open.Row - top, open.Items.Select(_ => _.Label).ToList(), open.Overflow);
         }
 
         return new(
             Title,
             Page.Builds,
-            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(rows, RowKind.Build), Names(rows, RowKind.Group), Loading(state, rows.Length)),
+            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(rows, RowKind.Build), Names(rows, RowKind.Group), Details(rows), Loading(state, rows.Length)),
             null,
             Buttons(state),
             status,
@@ -90,6 +90,30 @@ static class ScreenBuilder
             _ => row.Build!.ShortRepoName()
         };
 
+    static IReadOnlyList<string> Details(ImmutableArray<Row> rows) =>
+        rows.Select(DetailOf).Distinct().ToList();
+
+    /// <summary>
+    /// What a row's second cell says, one rule for the row and for the details the column is sized
+    /// from, as for <see cref="NameOf"/>.
+    /// </summary>
+    static string DetailOf(Row row)
+    {
+        if (row.Build is not { } build)
+        {
+            return row.Group!.Failed ? $"{row.Members.Length} failing" : $"{row.Members.Length} passing";
+        }
+
+        // The pipeline is left out when the provider names it after the repository, as AppVeyor
+        // does, rather than the same name reading in both columns.
+        List<string> detail =
+        [
+            string.Equals(build.ShortRepoName(), build.PipelineName, StringComparison.OrdinalIgnoreCase) ? "" : build.PipelineName,
+            build.Branch ?? ""
+        ];
+        return string.Join(' ', detail.Where(_ => _.Length > 0));
+    }
+
     static string Header(SessionState state, int pipelines, int failing, int running)
     {
         if (state.Connections.Length == 0)
@@ -109,61 +133,40 @@ static class ScreenBuilder
 
         var estimate = Estimator.Estimate(build, state.Medians);
         var (fraction, timing) = Progress.Compute(build, estimate, now);
-        var repo = build.ShortRepoName();
-        // The pipeline is left out when the provider names it after the repository, as AppVeyor
-        // does, rather than the same name reading in both columns.
-        List<string> detail =
-        [
-            string.Equals(repo, build.PipelineName, StringComparison.OrdinalIgnoreCase) ? "" : build.PipelineName,
-            build.Branch ?? ""
-        ];
         return new(
             row.Kind,
             build.Status,
             NameOf(row),
-            string.Join(' ', detail.Where(_ => _.Length > 0)),
+            DetailOf(row),
             row.Connection!.Connection.ProviderId,
-            build.RunNumber.Length == 0 ? "" : $"#{build.RunNumber}",
             fraction,
             timing,
             selected,
             false,
-            new(LinkKind.Build, "Build", build.BuildUrl),
-            build.BranchUrl is null ? null : new(LinkKind.Branch, "Branch", build.BranchUrl),
-            build.PullRequestUrl is null
-                ? null
-                : new(LinkKind.PullRequest, build.PullRequestNumber is null ? "PR" : $"PR {build.PullRequestNumber}", build.PullRequestUrl),
-            build.Retryable(),
-            build.CanCancel);
+            RowChips.Of(build));
     }
 
     /// <summary>
     /// A group's own row: the project, then what a closed group would otherwise hide, how many
-    /// builds it holds and how long since the latest. No links and no actions: which build they
-    /// would act on is ambiguous, so the group is opened first.
+    /// builds it holds and how long since the latest. No chips: which build they would act on is
+    /// ambiguous, so the group is opened first.
     /// </summary>
     static BuildRow ComposeGroup(Row row, GroupKey group, bool selected, DateTimeOffset now)
     {
-        var members = row.Members;
-        var latest = members.MaxBy(_ => _.Finished ?? _.Started ?? _.Queued ?? DateTimeOffset.MinValue)!;
+        var latest = row.Members.MaxBy(_ => _.Finished ?? _.Started ?? _.Queued ?? DateTimeOffset.MinValue)!;
         var (_, timing) = Progress.Compute(latest, null, now);
 
         return new(
             RowKind.Group,
             group.Failed ? BuildStatus.Failed : BuildStatus.Succeeded,
             NameOf(row),
-            group.Failed ? $"{members.Length} failing" : $"{members.Length} passing",
-            "",
+            DetailOf(row),
             "",
             -1,
             timing,
             selected,
             row.Expanded,
-            null,
-            null,
-            null,
-            false,
-            false);
+            []);
     }
 
 

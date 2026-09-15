@@ -17,6 +17,7 @@ One per project. Merge request pipelines show the merge request number and link 
 
  * Retry retries the failed jobs of the pipeline
  * Cancel cancels a pending or running pipeline
+ * Copy log copies the traces of the failed jobs, leaving out jobs allowed to fail
 
 
 ## Estimates

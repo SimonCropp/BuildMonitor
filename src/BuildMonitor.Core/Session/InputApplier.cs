@@ -56,15 +56,14 @@ static class InputApplier
             }
         }
 
-        if (input.ClickedLinkRow >= 0)
+        if (input.ClickedChipRow >= 0)
         {
-            state = OpenLink(state, state.ScrollTop + input.ClickedLinkRow, input.ClickedLink, actions);
+            state = ClickChip(state, state.ScrollTop + input.ClickedChipRow, input.ClickedChip, actions, window);
         }
 
-        if (input.ClickedActionRow >= 0)
+        if (input.ClickedOverflowRow >= 0)
         {
-            state = MonitorSession.SelectRow(state, state.ScrollTop + input.ClickedActionRow);
-            state = Execute(state, input.ClickedAction == RowAction.Retry ? CommandKind.Retry : CommandKind.Cancel, null, actions, window);
+            state = MonitorSession.OpenOverflow(state, state.ScrollTop + input.ClickedOverflowRow, input.OverflowFrom);
         }
 
         if (input.RightClickedRow >= 0)
@@ -116,30 +115,21 @@ static class InputApplier
         return state;
     }
 
-    static SessionState OpenLink(SessionState state, int row, LinkKind link, MonitorActions actions)
+    /// <summary>
+    /// A chip acts on the selected build, so its row is selected first. A row that is gone, or is a
+    /// group now, takes nothing: clamped, the selection would land on another build and act on it.
+    /// </summary>
+    static SessionState ClickChip(SessionState state, int row, ChipKind chip, MonitorActions actions, IMonitorWindow? window)
     {
         var rows = RowProjection.Rows(state);
         if (row < 0 ||
             row >= rows.Length ||
-            rows[row].Build is not { } build)
+            rows[row].Build is null)
         {
             return state;
         }
 
-        var url = link switch
-        {
-            LinkKind.Build => build.BuildUrl,
-            LinkKind.Branch => build.BranchUrl,
-            LinkKind.PullRequest => build.PullRequestUrl,
-            LinkKind.Project => build.ProjectUrl,
-            _ => null
-        };
-        if (url is not null)
-        {
-            actions.OpenUrl(url);
-        }
-
-        return MonitorSession.SelectRow(state, row);
+        return Execute(MonitorSession.SelectRow(state, row), RowChips.Command(chip), null, actions, window);
     }
 
     static SessionState ClickField(SessionState state, string id, MonitorActions actions)
@@ -230,6 +220,7 @@ static class InputApplier
             case CommandKind.OpenBuild:
             case CommandKind.OpenBranch:
             case CommandKind.OpenPullRequest:
+            case CommandKind.OpenProject:
             {
                 // A group has no one build to open, so Enter or a double click opens or closes it.
                 if (command == CommandKind.OpenBuild &&
@@ -247,6 +238,7 @@ static class InputApplier
                 {
                     CommandKind.OpenBranch => build.BranchUrl,
                     CommandKind.OpenPullRequest => build.PullRequestUrl,
+                    CommandKind.OpenProject => build.ProjectUrl,
                     _ => build.BuildUrl
                 };
                 if (url is not null)
@@ -264,6 +256,8 @@ static class InputApplier
                 }
 
                 return state;
+            case CommandKind.CopyLog:
+                return MonitorSession.SelectedBuild(state) is { } logged ? CopyLog(state, logged, actions) : state;
             case CommandKind.Retry:
                 return MonitorSession.SelectedBuild(state) is { } retry ? Retry(state, retry, actions) : state;
             case CommandKind.Cancel:
@@ -404,6 +398,17 @@ static class InputApplier
 
         actions.Cancel(build);
         return MonitorSession.SetStatus(state, $"Cancelling {build.PipelineName} {build.RunNumberLabel()}".TrimEnd());
+    }
+
+    static SessionState CopyLog(SessionState state, Build build, MonitorActions actions)
+    {
+        if (!build.LogCopyable())
+        {
+            return state;
+        }
+
+        actions.CopyLog(build);
+        return MonitorSession.SetStatus(state, $"Fetching the log of {build.PipelineName} {build.RunNumberLabel()}".TrimEnd());
     }
 
     static SessionState Save(SessionState state, MonitorActions actions)

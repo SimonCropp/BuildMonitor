@@ -47,6 +47,26 @@ public class TravisProviderTests
     }
 
     [Test]
+    public async Task FetchLogOfTheFailedJobsNotAllowedToFail()
+    {
+        var handler = Handler()
+            .Get(
+                "https://api.travis-ci.com/build/899/jobs",
+                """{"jobs":[{"id":5001,"number":"119.1","state":"passed","allow_failure":false},{"id":5002,"number":"119.2","state":"failed","allow_failure":false},{"id":5003,"number":"119.3","state":"errored","allow_failure":true}]}""")
+            .Get("https://api.travis-ci.com/job/5002/log.txt", "The command \"npm test\" exited with 1.\n");
+        var context = ProviderTestHelpers.Context("travis", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("travis", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("travis").FetchLog(context, builds.Single(_ => _.RunNumber == "119"), Cancel.None);
+        await Assert.That(log).IsEqualTo("==> Job 119.2 <==\nThe command \"npm test\" exited with 1.");
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://api.travis-ci.com/build/899/jobs",
+            "GET https://api.travis-ci.com/job/5002/log.txt"
+        ]);
+    }
+
+    [Test]
     public async Task SendsTheVersionHeaderAndTokenScheme()
     {
         var handler = new FakeHttpHandler().Get("https://api.travis-ci.com/user", """{"login":"simon"}""");

@@ -66,6 +66,31 @@ public class AppVeyorProviderTests
     }
 
     [Test]
+    public async Task FetchLogOfTheFailedJobs()
+    {
+        var handler = Handler()
+            .Get(
+                "https://ci.appveyor.com/api/projects/simon/diffengine/build/1.0.44",
+                """
+                {"project":{"slug":"diffengine"},"build":{"buildId":99,"buildNumber":44,"version":"1.0.44","status":"failed","jobs":[
+                  {"jobId":"a1b2","name":"","status":"failed"},
+                  {"jobId":"c3d4","name":"Environment: docs","status":"success"}
+                ]}}
+                """)
+            .Get("https://ci.appveyor.com/api/buildjobs/a1b2/log", "Build FAILED.\n");
+        var context = ProviderTestHelpers.Context("appveyor", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("appveyor", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("appveyor").FetchLog(context, builds.Single(_ => _.RunNumber == "44"), Cancel.None);
+        await Assert.That(log).IsEqualTo("==> a1b2 <==\nBuild FAILED.");
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://ci.appveyor.com/api/projects/simon/diffengine/build/1.0.44",
+            "GET https://ci.appveyor.com/api/buildjobs/a1b2/log"
+        ]);
+    }
+
+    [Test]
     public async Task UserLevelTokenPrefixesOnlyCallsThatDoNotNameTheAccount()
     {
         var handler = Handler("https://ci.appveyor.com/api/account/simon/projects")

@@ -23,6 +23,22 @@ static class RealActions
                 host,
                 $"Cancelling {build.PipelineName}",
                 $"Cancelled {build.PipelineName} {build.RunNumberLabel()}".TrimEnd()),
+            CopyLog: build => _ = Task.Run(async () =>
+            {
+                var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
+                try
+                {
+                    var log = await poller.FetchLog(build, Cancel.None);
+                    host.Mutate(_ => log.Length == 0
+                        ? MonitorSession.SetStatus(_, $"{name} has no log to copy")
+                        : MonitorSession.Copy(_, log, $"Copied the log of {name}"));
+                }
+                catch (Exception exception)
+                {
+                    Log.Error(exception, "Copying the log of {Build} failed", name);
+                    host.Mutate(_ => MonitorSession.SetStatus(_, $"Copying the log of {name} failed: {exception.Message}"));
+                }
+            }),
             SignIn: signIn.Start,
             CancelSignIn: signIn.Abandon,
             Test: (connection, token) => _ = Task.Run(async () =>

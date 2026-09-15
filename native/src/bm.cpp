@@ -43,6 +43,9 @@ struct State {
     std::string activeField;
     bool menuOpen = false;
     int32_t menuRow = -1;
+    bool menuOverflow = false;
+    /* Where each visible row's overflow chip was drawn this frame, bottom left, or x -1 for none. */
+    std::vector<ImVec2> overflowAnchors;
     int bodyRows = 1;
     bool keyDown[ImGuiKey_NamedKey_END]{};
 };
@@ -127,10 +130,10 @@ void ResetInput() {
     g.input.key = BM_KEY_NONE;
     g.input.clickedButton = -1;
     g.input.clickedRow = -1;
-    g.input.clickedLinkRow = -1;
-    g.input.clickedLink = BM_LINK_NONE;
-    g.input.clickedActionRow = -1;
-    g.input.clickedAction = BM_ACTION_NONE;
+    g.input.clickedChipRow = -1;
+    g.input.clickedChip = BM_CHIP_NONE;
+    g.input.clickedOverflowRow = -1;
+    g.input.overflowFrom = BM_CHIP_NONE;
     g.input.rightClickedRow = -1;
     g.input.clickedMenuItem = -1;
     g.input.menuClosed = 0;
@@ -305,6 +308,30 @@ float ChipWidth(const char* label) {
     return ImGui::CalcTextSize(label).x + 2.0f * ImGui::GetStyle().FramePadding.x;
 }
 
+// Stands in for the chips a row has no room for. Plain dots, as the group arrows are plain letters,
+// because the font atlas is built for Latin text.
+const char* const overflowLabel = "...";
+
+// Retry and Cancel on colours of their own, links in the link colour, as the WinForms canvas draws them.
+ImVec4 ChipColour(int32_t kind) {
+    switch (kind) {
+        case BM_CHIP_RETRY: return retryChip;
+        case BM_CHIP_CANCEL: return cancelChip;
+        default: return chip;
+    }
+}
+
+ImVec4 ChipTextColour(int32_t kind) {
+    switch (kind) {
+        case BM_CHIP_RETRY:
+        case BM_CHIP_CANCEL:
+        case BM_CHIP_COPY_LOG:
+            return text;
+        default:
+            return chipText;
+    }
+}
+
 float ChipHeight() {
     return ImGui::GetTextLineHeight() + 2.0f;
 }
@@ -347,10 +374,9 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         ImGui::TextColored(dim, "Loading builds");
     } else if (screen.rowCount == 0) {
         ImGui::TextColored(dim, "Nothing to show yet.");
-    } else if (ImGui::BeginTable("rows", 7, flags)) {
+    } else if (ImGui::BeginTable("rows", 5, flags)) {
         // The name cell starts with a status square a row height wide, then is as wide as the widest
         // name across every row, not only those on screen, so it does not shift while scrolling.
-        // Never so wide that the pipeline cell drops below a readable width.
         float nameText = 0.0f;
         for (int32_t i = 0; i < screen.nameCount + screen.groupNameCount; i++) {
             std::string name = Str(screen, screen.names[i]);
@@ -361,27 +387,14 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             nameText = std::max(nameText, ImGui::CalcTextSize(name.c_str()).x);
         }
 
-        const ImGuiStyle& style = ImGui::GetStyle();
-        // Measured rather than fixed, so each cell holds its widest text at whatever size the font
-        // was loaded: a run number, a countdown past an hour, and the widest set of chips a row
-        // carries, so the columns line up whatever a row holds.
-        const float runWidth = ImGui::CalcTextSize("#000000").x;
-        const float barWidth = 104.0f;
-        const float timingWidth = ImGui::CalcTextSize("0:00:00 left").x;
-        const float linksWidth = ChipWidth("Build") + ChipWidth("Branch") + ChipWidth("PR 9999") + 2.0f * style.ItemSpacing.x;
-        const float actionsWidth = ChipWidth("Cancel");
-        // Each boundary between the seven columns carries cell padding on both sides of it.
-        const float fixedColumns = runWidth + barWidth + timingWidth + linksWidth + actionsWidth + 6.0f * 2.0f * style.CellPadding.x;
-        const float minimumDetail = 120.0f;
-        float nameWanted = rowHeight + style.ItemSpacing.x + nameText + 2.0f * style.CellPadding.x;
-        float nameWidth = std::max(40.0f, std::min(nameWanted, tableWidth - fixedColumns - minimumDetail));
-        ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, nameWidth);
-        ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("run", ImGuiTableColumnFlags_WidthFixed, runWidth);
-        ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, barWidth);
-        ImGui::TableSetupColumn("timing", ImGuiTableColumnFlags_WidthFixed, timingWidth);
-        ImGui::TableSetupColumn("links", ImGuiTableColumnFlags_WidthFixed, linksWidth);
-        ImGui::TableSetupColumn("actions", ImGuiTableColumnFlags_WidthFixed, actionsWidth);
+        // The detail cell likewise, up to forty characters: past that a long pipeline or branch is cut
+        // short rather than pushing every row's chips into the drop down.
+        float detailText = 0.0f;
+        for (int32_t i = 0; i < screen.detailCount; i++) {
+            detailText = std::max(detailText, ImGui::CalcTextSize(Str(screen, screen.details[i]).c_str()).x);
+        }
+
+        detailText = std::min(detailText, ImGui::CalcTextSize("0000000000000000000000000000000000000000").x);
 
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.
@@ -390,6 +403,33 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         for (int32_t i = 0; i < screen.rowCount; i++) {
             anyIcon = anyIcon || screen.rows[i].provider.length > 0;
         }
+
+        const ImGuiStyle& style = ImGui::GetStyle();
+        // Measured rather than fixed, so each cell holds its widest text at whatever size the font
+        // was loaded: a countdown past an hour, and the widest set of chips a row carries.
+        const float barWidth = 104.0f;
+        const float timingWidth = ImGui::CalcTextSize("0:00:00 left").x;
+        const float widestChips = ChipWidth("Build") + ChipWidth("Branch") + ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Copy log") + 4.0f * style.ItemSpacing.x;
+        const float overflowWidth = ChipWidth(overflowLabel);
+        // Each boundary between the five columns carries cell padding on both sides of it. What is
+        // left, the name, the detail and the chips share.
+        const float available = tableWidth - barWidth - timingWidth - 4.0f * 2.0f * style.CellPadding.x;
+        const float nameWanted = rowHeight + style.ItemSpacing.x + nameText + 2.0f * style.CellPadding.x;
+        const float detailWanted = (anyIcon ? iconSize + style.ItemSpacing.x : 0.0f) + detailText;
+        // The chips give way first: a row without room for all of them puts the last behind an
+        // overflow chip, rather than the names being cut short. Only once no chip but that one fits
+        // do the names shrink.
+        const float spare = available - nameWanted - detailWanted;
+        const float chipsWidth = spare >= widestChips ? widestChips : std::max(overflowWidth, spare);
+        const float names = std::max(120.0f, available - chipsWidth);
+        const float minimumDetail = 120.0f;
+        const float nameWidth = std::max(40.0f, std::min(nameWanted, names - std::min(minimumDetail, detailWanted)));
+        ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, nameWidth);
+        ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, barWidth);
+        ImGui::TableSetupColumn("timing", ImGuiTableColumnFlags_WidthFixed, timingWidth);
+        ImGui::TableSetupColumn("chips", ImGuiTableColumnFlags_WidthFixed, chipsWidth);
+        g.overflowAnchors.assign(static_cast<size_t>(screen.rowCount), ImVec2(-1.0f, -1.0f));
 
         // Every cell is centred in its row, as the WinForms canvas centres its text, rather than hung
         // from the top of it, where a row taller than its chips leaves the text above the chips.
@@ -449,8 +489,8 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                     ImGui::SetCursorScreenPos(ImVec2(at.x, iconTop));
                     ImGui::PushID(i);
                     if (ImGui::InvisibleButton("##project", ImVec2(iconSize, iconSize))) {
-                        g.input.clickedLinkRow = i;
-                        g.input.clickedLink = BM_LINK_PROJECT;
+                        g.input.clickedChipRow = i;
+                        g.input.clickedChip = BM_CHIP_PROJECT;
                     }
 
                     ImGui::PopID();
@@ -468,9 +508,6 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             ImGui::TextColored(dim, "%s", Str(screen, row.detail).c_str());
             ImGui::PopClipRect();
             ImGui::TableSetColumnIndex(2);
-            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
-            ImGui::TextColored(dim, "%s", Str(screen, row.runNumber).c_str());
-            ImGui::TableSetColumnIndex(3);
             if (row.progress >= 0.0f) {
                 // Drawn rather than submitted as a ProgressBar. That is a framed item, which moves the
                 // row's text baseline down by the frame padding, and the timing text in the next cell
@@ -481,60 +518,46 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                 draw->AddRectFilled(trackMin, ImVec2(trackMin.x + filled, trackMin.y + 8.0f), ImGui::GetColorU32(StatusColour(BM_STATUS_RUNNING)), style.FrameRounding);
             }
 
-            ImGui::TableSetColumnIndex(4);
+            ImGui::TableSetColumnIndex(3);
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
             ImGui::TextColored(dim, "%s", Str(screen, row.timing).c_str());
-            ImGui::TableSetColumnIndex(5);
+            ImGui::TableSetColumnIndex(4);
             // Moved down only when a chip follows. A cursor moved with no item submitted after it is
             // an error to ImGui, which it reports with a tooltip over the window.
-            if (row.buildLabel.length > 0 || row.branchLabel.length > 0 || row.pullRequestLabel.length > 0) {
+            if (row.chipCount > 0) {
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() + chipOffset);
             }
 
-            if (row.buildLabel.length > 0) {
-                if (Chip(Str(screen, row.buildLabel).c_str(), chip, chipText)) {
-                    g.input.clickedLinkRow = i;
-                    g.input.clickedLink = BM_LINK_BUILD;
+            // The chips that fit, from the left, then an overflow chip in place of the rest. A chip is
+            // drawn only with room after it for the overflow chip, unless it is the last, so the
+            // overflow chip always fits where the first chip that did not would have gone.
+            const float chipsRight = ImGui::GetCursorScreenPos().x + chipsWidth;
+            for (int32_t c = 0; c < row.chipCount; c++) {
+                const BmChip& item = screen.chips[row.chipOffset + c];
+                std::string label = Str(screen, item.label);
+                if (c > 0) {
+                    ImGui::SameLine();
                 }
 
-                ImGui::SameLine();
-            }
+                ImGui::PushID(c);
+                const float reserve = c == row.chipCount - 1 ? 0.0f : style.ItemSpacing.x + overflowWidth;
+                if (ImGui::GetCursorScreenPos().x + ChipWidth(label.c_str()) + reserve > chipsRight) {
+                    if (Chip("...##overflow", chip, text)) {
+                        g.input.clickedOverflowRow = i;
+                        g.input.overflowFrom = item.kind;
+                    }
 
-            if (row.branchLabel.length > 0) {
-                if (Chip(Str(screen, row.branchLabel).c_str(), chip, chipText)) {
-                    g.input.clickedLinkRow = i;
-                    g.input.clickedLink = BM_LINK_BRANCH;
+                    g.overflowAnchors[static_cast<size_t>(i)] = ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y);
+                    ImGui::PopID();
+                    break;
                 }
 
-                ImGui::SameLine();
-            }
-
-            if (row.pullRequestLabel.length > 0) {
-                if (Chip(Str(screen, row.pullRequestLabel).c_str(), chip, chipText)) {
-                    g.input.clickedLinkRow = i;
-                    g.input.clickedLink = BM_LINK_PULL_REQUEST;
-                }
-            }
-
-            ImGui::TableSetColumnIndex(6);
-            if (row.flags & (BM_ROW_CAN_RETRY | BM_ROW_CAN_CANCEL)) {
-                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + chipOffset);
-            }
-
-            if (row.flags & BM_ROW_CAN_RETRY) {
-                if (Chip("Retry", retryChip, text)) {
-                    g.input.clickedActionRow = i;
-                    g.input.clickedAction = BM_ACTION_RETRY;
+                if (Chip(label.c_str(), ChipColour(item.kind), ChipTextColour(item.kind))) {
+                    g.input.clickedChipRow = i;
+                    g.input.clickedChip = item.kind;
                 }
 
-                ImGui::SameLine();
-            }
-
-            if (row.flags & BM_ROW_CAN_CANCEL) {
-                if (Chip("Cancel", cancelChip, text)) {
-                    g.input.clickedActionRow = i;
-                    g.input.clickedAction = BM_ACTION_CANCEL;
-                }
+                ImGui::PopID();
             }
 
             ImGui::PopID();
@@ -562,10 +585,18 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
     // The context menu, as a popup the managed side opened by sending menu items.
     if (screen.menuCount > 0) {
-        if (!g.menuOpen || g.menuRow != screen.menuRow) {
+        bool overflow = screen.menuOverflow != 0;
+        if (!g.menuOpen || g.menuRow != screen.menuRow || g.menuOverflow != overflow) {
             ImGui::OpenPopup("row_menu");
             g.menuOpen = true;
             g.menuRow = screen.menuRow;
+            g.menuOverflow = overflow;
+        }
+
+        // The drop down of an overflow chip hangs under that chip; a context menu opens at the pointer.
+        if (overflow && screen.menuRow >= 0 && screen.menuRow < static_cast<int32_t>(g.overflowAnchors.size()) &&
+            g.overflowAnchors[static_cast<size_t>(screen.menuRow)].x >= 0.0f) {
+            ImGui::SetNextWindowPos(g.overflowAnchors[static_cast<size_t>(screen.menuRow)], ImGuiCond_Appearing);
         }
 
         if (ImGui::BeginPopup("row_menu")) {
@@ -586,6 +617,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
     } else {
         g.menuOpen = false;
         g.menuRow = -1;
+        g.menuOverflow = false;
     }
 }
 

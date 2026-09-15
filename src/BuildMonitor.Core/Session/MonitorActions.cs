@@ -10,6 +10,8 @@ record MonitorActions(
     Action<string?> Refresh,
     Action<Build> Retry,
     Action<Build> Cancel,
+    // Fetches a failed build's log, which arrives on the clipboard through the state.
+    Action<Build> CopyLog,
     Action<Connection, AuthMethod, Guid> SignIn,
     Action<Guid> CancelSignIn,
     // The draft connection and the token typed for it, or null to use the stored one.
@@ -31,6 +33,7 @@ record MonitorActions(
         _ => throw new InvalidOperationException("Refresh"),
         _ => throw new InvalidOperationException("Retry"),
         _ => throw new InvalidOperationException("Cancel"),
+        _ => throw new InvalidOperationException("CopyLog"),
         (_, _, _) => throw new InvalidOperationException("SignIn"),
         _ => throw new InvalidOperationException("CancelSignIn"),
         (_, _) => throw new InvalidOperationException("Test"),

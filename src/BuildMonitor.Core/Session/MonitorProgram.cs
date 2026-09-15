@@ -174,6 +174,14 @@ static class MonitorProgram
                 }
             }
 
+            if (state.Clipboard is { } text)
+            {
+                // Cleared before the window is asked, like the notification, so a clipboard that
+                // throws is not asked again every frame.
+                host.Mutate(_ => MonitorSession.Copied(_, text));
+                window.SetClipboard(text);
+            }
+
             if (!window.Present(screen))
             {
                 return;

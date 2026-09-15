@@ -11,10 +11,12 @@ import Foundation
 /// WinForms canvas sizes itself, rather than from fixed points. The size is whatever the managed
 /// side hands bm_init, and cells fixed for one size crowd or clip the text at a larger one.
 final class BuildsRenderer {
+    /// A chip, the provider icon, or an overflow chip, which carries the first of the chips it
+    /// stands in for.
     struct Hit {
         var row: Int
-        var link: Int32
-        var action: Int32
+        var chip: Int32
+        var overflow: Bool
         var rect: CGRect
     }
 
@@ -24,6 +26,8 @@ final class BuildsRenderer {
     let chipPadding: CGFloat = 8
     let chipGap: CGFloat = 6
     let iconSize: CGFloat = 16
+    /// Stands in for the chips a row has no room for, and opens the drop down that holds them.
+    let overflowLabel = "…"
     var rightInset: CGFloat = 0
 
     let font: NSFont
@@ -130,24 +134,33 @@ final class BuildsRenderer {
         let width = bodyRect.width
         let barWidth: CGFloat = 110
         // Measured rather than fixed, so each cell holds its widest text at whatever size the font
-        // is: a run number, a countdown past an hour, and the widest set of chips a row carries,
-        // so the columns line up whatever a row holds.
-        let runWidth = measure("#000000")
+        // is: a countdown past an hour, and the widest set of chips a row carries.
         let timingWidth = measure("0:00:00 left")
-        let linksWidth = measure("Build") + measure("Branch") + measure("PR 9999") + 3 * (2 * chipPadding + chipGap)
-        let actionsWidth = measure("Cancel") + 2 * chipPadding + gap
+        let widestChips = ["Build", "Branch", "PR 9999", "Retry", "Copy log"].map(chipWidth).reduce(0, +) + 4 * chipGap
+        let overflowWidth = chipWidth(overflowLabel)
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.
         let iconWidth: CGFloat = frame.rows.contains { !$0.provider.isEmpty } ? iconSize + gap : 0
         let textX = rowHeight + gap
-        // The two names share what the fixed cells leave.
-        let names = max(120, width - textX - runWidth - barWidth - timingWidth - linksWidth - actionsWidth - 5 * gap)
+        // What the name, the detail and the chips share: the row less the square, the bar, the
+        // timing and a gap after each of the five cells.
+        let available = width - textX - barWidth - timingWidth - 5 * gap
         // As wide as the widest name across every row, not only those on screen, so it does not shift
-        // while scrolling. Never so wide that the pipeline cell drops below a readable width.
-        let widest = (frame.names + frame.groupNames.map { "▾ " + $0 })
+        // while scrolling; the detail likewise, up to forty characters, past which a long pipeline or
+        // branch is cut short rather than pushing every row's chips into the drop down.
+        let nameWanted = (frame.names + frame.groupNames.map { "▾ " + $0 })
             .map { measure($0).rounded(.up) }
             .max() ?? 0
-        let nameWidth = min(max(widest, 40), max(40, names - 120))
+        let detailWanted = iconWidth + min(
+            frame.details.map { measure($0).rounded(.up) }.max() ?? 0,
+            measure(String(repeating: "0", count: 40)))
+        // The chips give way first: a row without room for all of them puts the last behind an
+        // overflow chip, rather than the names being cut short. Only once no chip but that one fits
+        // do the names shrink.
+        let spare = available - nameWanted - detailWanted
+        let chipsWidth = spare >= widestChips ? widestChips : max(overflowWidth, spare)
+        let names = max(120, available - chipsWidth)
+        let nameWidth = min(max(nameWanted, 40), max(40, names - min(120, detailWanted)))
         let detailWidth = names - nameWidth
 
         for (index, row) in frame.rows.enumerated() {
@@ -173,13 +186,11 @@ final class BuildsRenderer {
             if let icon = RowIcons.images[row.provider] {
                 let iconRect = CGRect(x: x, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize)
                 icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-                chips.append(Hit(row: index, link: Int32(BM_LINK_PROJECT.rawValue), action: Int32(BM_ACTION_NONE.rawValue), rect: iconRect))
+                chips.append(Hit(row: index, chip: Int32(BM_CHIP_PROJECT.rawValue), overflow: false, rect: iconRect))
             }
 
             drawText(row.detail, at: CGPoint(x: x + iconWidth, y: textY), font: font, colour: Palette.dim, width: detailWidth - iconWidth)
             x += detailWidth + gap
-            drawText(row.runNumber, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: runWidth)
-            x += runWidth + gap
             if row.progress >= 0 {
                 let track = CGRect(x: x, y: rect.midY - 4, width: barWidth, height: 8)
                 Palette.barTrack.setFill()
@@ -192,27 +203,43 @@ final class BuildsRenderer {
             x += barWidth + gap
             drawText(row.timing, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: timingWidth)
             x += timingWidth + gap
-
-            var chipX = x
-            for (label, link) in [(row.buildLabel, BM_LINK_BUILD), (row.branchLabel, BM_LINK_BRANCH), (row.pullRequestLabel, BM_LINK_PULL_REQUEST)] where !label.isEmpty {
-                let chipRect = drawChip(label, x: chipX, rowRect: rect, fill: Palette.chip, textColour: Palette.chipText)
-                chips.append(Hit(row: index, link: Int32(link.rawValue), action: Int32(BM_ACTION_NONE.rawValue), rect: chipRect))
-                chipX += chipRect.width + chipGap
-            }
-
-            x += linksWidth
-            chipX = x
-            if row.canRetry {
-                let chipRect = drawChip("Retry", x: chipX, rowRect: rect, fill: Palette.retryChip, textColour: Palette.text)
-                chips.append(Hit(row: index, link: Int32(BM_LINK_NONE.rawValue), action: Int32(BM_ACTION_RETRY.rawValue), rect: chipRect))
-                chipX += chipRect.width + chipGap
-            }
-
-            if row.canCancel {
-                let chipRect = drawChip("Cancel", x: chipX, rowRect: rect, fill: Palette.cancelChip, textColour: Palette.text)
-                chips.append(Hit(row: index, link: Int32(BM_LINK_NONE.rawValue), action: Int32(BM_ACTION_CANCEL.rawValue), rect: chipRect))
-            }
+            drawChips(row, index: index, from: x, to: x + chipsWidth, rowRect: rect, overflowWidth: overflowWidth)
         }
+    }
+
+    /// The chips that fit, from the left, then an overflow chip in place of the rest. A chip is drawn
+    /// only with room after it for the overflow chip, unless it is the last, so the overflow chip
+    /// always fits where the first chip that did not would have gone.
+    private func drawChips(_ row: Frame.Row, index: Int, from start: CGFloat, to right: CGFloat, rowRect: CGRect, overflowWidth: CGFloat) {
+        var x = start
+        for (position, chip) in row.chips.enumerated() {
+            let reserve = position == row.chips.count - 1 ? 0 : chipGap + overflowWidth
+            if x + chipWidth(chip.label) + reserve > right {
+                let chipRect = drawChip(overflowLabel, x: x, rowRect: rowRect, fill: Palette.chip, textColour: Palette.text)
+                chips.append(Hit(row: index, chip: chip.kind, overflow: true, rect: chipRect))
+                return
+            }
+
+            let (fill, textColour) = colours(chip.kind)
+            let chipRect = drawChip(chip.label, x: x, rowRect: rowRect, fill: fill, textColour: textColour)
+            chips.append(Hit(row: index, chip: chip.kind, overflow: false, rect: chipRect))
+            x = chipRect.maxX + chipGap
+        }
+    }
+
+    /// Retry and Cancel on colours of their own, links in the link colour, as the WinForms canvas
+    /// draws them.
+    private func colours(_ kind: Int32) -> (NSColor, NSColor) {
+        switch UInt32(kind) {
+        case BM_CHIP_RETRY.rawValue: return (Palette.retryChip, Palette.text)
+        case BM_CHIP_CANCEL.rawValue: return (Palette.cancelChip, Palette.text)
+        case BM_CHIP_COPY_LOG.rawValue: return (Palette.chip, Palette.text)
+        default: return (Palette.chip, Palette.chipText)
+        }
+    }
+
+    private func chipWidth(_ label: String) -> CGFloat {
+        measure(label) + 2 * chipPadding
     }
 
     private func displayName(_ row: Frame.Row) -> String {

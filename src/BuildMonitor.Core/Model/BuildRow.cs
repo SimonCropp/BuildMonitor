@@ -13,19 +13,16 @@
 /// estimate against.</param>
 /// <param name="Timing">The countdown, over-run, elapsed or age text beside the bar.</param>
 /// <param name="Expanded">Whether a group's members follow its row.</param>
+/// <param name="Chips">The buttons, in the order they are drawn. Empty for a group's own row:
+/// which of its builds they would act on is ambiguous.</param>
 record BuildRow(
     RowKind Kind,
     BuildStatus Status,
     string Name,
     string Detail,
     string Provider,
-    string RunNumber,
     double Progress,
     string Timing,
     bool Selected,
     bool Expanded,
-    LinkChip? Build,
-    LinkChip? Branch,
-    LinkChip? PullRequest,
-    bool CanRetry,
-    bool CanCancel);
+    IReadOnlyList<RowChip> Chips);

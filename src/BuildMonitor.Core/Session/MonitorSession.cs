@@ -258,6 +258,11 @@ static class MonitorSession
             }
 
             items.Add(new("Copy build URL", CommandKind.CopyBuildUrl));
+            if (build.LogCopyable())
+            {
+                items.Add(new("Copy log", CommandKind.CopyLog));
+            }
+
             if (build.Retryable())
             {
                 items.Add(new("Retry", CommandKind.Retry));
@@ -278,6 +283,34 @@ static class MonitorSession
         }
 
         return SelectRow(state, row) with { Menu = new(row, items.ToImmutable()) };
+    }
+
+    /// <summary>
+    /// The drop down of the chips a narrow row had no room for: every chip of the build from
+    /// <paramref name="from"/> on. Taken from the build as it is now, and by kind rather than by
+    /// position, so it never offers a chip the build lost since the row was drawn, such as Cancel
+    /// on a build that has finished.
+    /// </summary>
+    public static SessionState OpenOverflow(SessionState state, int row, ChipKind from)
+    {
+        var rows = RowProjection.Rows(state);
+        if (row < 0 ||
+            row >= rows.Length ||
+            rows[row].Build is not { } build)
+        {
+            return state;
+        }
+
+        var items = RowChips.Of(build)
+            .Where(_ => _.Kind >= from)
+            .Select(_ => new MenuItem(_.Label, RowChips.Command(_.Kind)))
+            .ToImmutableArray();
+        if (items.Length == 0)
+        {
+            return state;
+        }
+
+        return SelectRow(state, row) with { Menu = new(row, items, Overflow: true) };
     }
 
     public static SessionState CloseMenu(SessionState state) =>
@@ -695,6 +728,18 @@ static class MonitorSession
 
     public static SessionState SetStatus(SessionState state, string status) =>
         state.Status == status ? state : state with { Status = status };
+
+    /// <summary>
+    /// Text fetched in the background, waiting for the loop to put it on the clipboard.
+    /// </summary>
+    public static SessionState Copy(SessionState state, string text, string status) =>
+        state with { Clipboard = text, Status = status };
+
+    /// <summary>
+    /// Clears only the text the loop copied, so a second log that arrived meanwhile keeps its turn.
+    /// </summary>
+    public static SessionState Copied(SessionState state, string text) =>
+        ReferenceEquals(state.Clipboard, text) ? state with { Clipboard = null } : state;
 
     public static SessionState Hide(SessionState state) =>
         state with { Hidden = true, Menu = null };

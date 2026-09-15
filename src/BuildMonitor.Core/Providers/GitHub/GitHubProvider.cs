@@ -253,6 +253,38 @@ sealed class GitHubProvider : ProviderBase
         return context.Http.Send(HttpMethod.Post, $"repos/{parts[0]}/actions/runs/{parts[1]}/cancel", null, cancel);
     }
 
+    /// <summary>
+    /// The logs of the latest attempt's jobs that failed or timed out, rather than every job's, so
+    /// the one that broke is not buried under the ones that passed. A run that failed before it
+    /// started a job, as one with a broken workflow file does, has none. Each log is a redirect to
+    /// storage that wants no credential, which the handler follows.
+    /// </summary>
+    public override async Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var failed = new List<GitHubJob>();
+        for (var page = 1; page <= maxPages; page++)
+        {
+            var jobs = await context.Http.Get(
+                $"repos/{parts[0]}/actions/runs/{parts[1]}/jobs?filter=latest&per_page=100&page={page}",
+                GitHubContext.Default.GitHubJobs,
+                cancel);
+            failed.AddRange(jobs.Jobs.Where(_ => _.Conclusion is "failure" or "timed_out"));
+            if (jobs.Jobs.Count < 100)
+            {
+                break;
+            }
+        }
+
+        var logs = new List<(string Name, string Log)>();
+        foreach (var job in failed)
+        {
+            logs.Add((job.Name, await context.Http.GetLog($"repos/{parts[0]}/actions/jobs/{job.Id}/logs", cancel)));
+        }
+
+        return Sections(logs);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("user", GitHubContext.Default.GitHubUser, cancel);

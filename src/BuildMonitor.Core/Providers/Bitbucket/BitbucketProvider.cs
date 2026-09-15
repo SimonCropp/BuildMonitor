@@ -123,6 +123,30 @@ sealed class BitbucketProvider : ProviderBase
         return context.Http.Send(HttpMethod.Post, $"repositories/{Encode(context.Scope("workspace"))}/{build.PipelineId}/pipelines/{Encode(uuid)}/stopPipeline", null, cancel);
     }
 
+    /// <summary>
+    /// The logs of the pipeline's failed steps. A log request that accepts JSON or plain text is
+    /// refused with a 406, so it accepts anything. A finished step's log is a redirect to storage that
+    /// wants no credential, which the handler follows.
+    /// </summary>
+    public override async Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel)
+    {
+        var pipeline = $"repositories/{Encode(context.Scope("workspace"))}/{build.PipelineId}/pipelines/{Encode(Split(build)[0])}";
+        var logs = new List<(string Name, string Log)>();
+        var path = $"{pipeline}/steps";
+        for (var page = 0; page < 10 && path is not null; page++)
+        {
+            var steps = await context.Http.Get(path, BitbucketContext.Default.BitbucketStepPage, cancel);
+            foreach (var step in steps.Values.Where(_ => _.State?.Result?.Name is "FAILED" or "ERROR"))
+            {
+                logs.Add((step.Name ?? step.Uuid, await context.Http.GetLog($"{pipeline}/steps/{Encode(step.Uuid)}/log", cancel, "*/*")));
+            }
+
+            path = steps.Next;
+        }
+
+        return Sections(logs);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var workspace = await context.Http.Get($"workspaces/{Encode(context.Scope("workspace"))}", BitbucketContext.Default.BitbucketWorkspace, cancel);

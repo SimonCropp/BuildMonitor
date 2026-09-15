@@ -66,6 +66,27 @@ sealed class HttpJson : IDisposable
     public async Task<string> GetText(string path, Cancel cancel) =>
         Encoding.UTF8.GetString(await GetBytes(path, json: false, cancel));
 
+    /// <summary>
+    /// A build log, as text. Never cached: a log can run to megabytes, and the cache would hold it
+    /// for as long as the client lives. <paramref name="accept"/> replaces the JSON the client asks
+    /// for otherwise, which one service answers with the log's lines as a JSON array and another
+    /// refuses with a 406. A web page is refused as it is where JSON was expected, because a sign
+    /// in page or a web app on the clipboard is no log.
+    /// </summary>
+    public async Task<string> GetLog(string path, Cancel cancel, string? accept = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        if (accept is not null)
+        {
+            request.Headers.Accept.ParseAdd(accept);
+        }
+
+        using var response = await Exchange(request, HttpCompletionOption.ResponseHeadersRead, cancel);
+        await Throw(response, Resolve(path), cancel);
+        await ThrowIfHtml(response, "a log", cancel);
+        return await response.Content.ReadAsStringAsync(cancel);
+    }
+
     async Task<byte[]> GetBytes(string path, bool json, Cancel cancel)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
@@ -87,7 +108,7 @@ sealed class HttpJson : IDisposable
         await Throw(response, requested, cancel);
         if (json)
         {
-            await ThrowIfHtml(response, cancel);
+            await ThrowIfHtml(response, "JSON", cancel);
         }
 
         var body = await response.Content.ReadAsByteArrayAsync(cancel);
@@ -108,7 +129,7 @@ sealed class HttpJson : IDisposable
         };
         using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, cancel);
         await Throw(response, Resolve(path), cancel);
-        await ThrowIfHtml(response, cancel);
+        await ThrowIfHtml(response, "JSON", cancel);
         var bytes = await response.Content.ReadAsByteArrayAsync(cancel);
         return Deserialize(bytes, info, path);
     }
@@ -255,7 +276,7 @@ sealed class HttpJson : IDisposable
     /// parse failure did, because GitLab reads a GraphQL request failing without one as a server
     /// with no GraphQL and fetches over REST.
     /// </summary>
-    static async Task ThrowIfHtml(HttpResponseMessage response, Cancel cancel)
+    static async Task ThrowIfHtml(HttpResponseMessage response, string expected, Cancel cancel)
     {
         if (response.Content.Headers.ContentType?.MediaType != "text/html")
         {
@@ -263,7 +284,7 @@ sealed class HttpJson : IDisposable
         }
 
         var text = await Text(response, cancel);
-        throw new HttpRequestException($"{(int) response.StatusCode} {response.ReasonPhrase} from {response.RequestMessage?.RequestUri}: text/html where JSON was expected{Snippet(text)}");
+        throw new HttpRequestException($"{(int) response.StatusCode} {response.ReasonPhrase} from {response.RequestMessage?.RequestUri}: text/html where {expected} was expected{Snippet(text)}");
     }
 
     /// <summary>

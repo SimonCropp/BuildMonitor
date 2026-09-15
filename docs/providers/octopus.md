@@ -24,6 +24,7 @@ One per project, showing the latest deployment. The environment stands in for th
 
  * Retry re-runs the deployment task
  * Cancel cancels a queued or executing task
+ * Copy log copies the deployment task's log
 
 
 ## Estimates

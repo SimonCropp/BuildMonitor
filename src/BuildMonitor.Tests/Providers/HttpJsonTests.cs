@@ -74,6 +74,36 @@ public class HttpJsonTests
     }
 
     [Test]
+    public async Task ALogAcceptsOnlyWhatItAsksFor()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://dev.azure.com/org/_apis/build/builds/1/logs/2", "line one\nline two");
+        using var client = AzureDevOps(handler);
+        await Assert.That(await client.GetLog("_apis/build/builds/1/logs/2", Cancel.None, "text/plain")).IsEqualTo("line one\nline two");
+        await Assert.That(handler.RequestHeaders.Single().Accept.ToString()).IsEqualTo("text/plain");
+    }
+
+    [Test]
+    public async Task ALogIsNotCached()
+    {
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://dev.azure.com/org/_apis/build/builds/1/logs/2", "log", HttpStatusCode.OK, ("ETag", "\"abc\""));
+        using var client = AzureDevOps(handler);
+        await client.GetLog("_apis/build/builds/1/logs/2", Cancel.None);
+        await Assert.That(client.IsCached("_apis/build/builds/1/logs/2")).IsFalse();
+    }
+
+    [Test]
+    public async Task AWebPageWhereALogWasExpectedIsRefused()
+    {
+        var handler = new FakeHttpHandler()
+            .MapHtml("GET", "https://dev.azure.com/org/_apis/build/builds/1/logs/2", "<html>Maintenance</html>");
+        using var client = AzureDevOps(handler);
+        var exception = await Assert.That(async () => await client.GetLog("_apis/build/builds/1/logs/2", Cancel.None)).Throws<HttpRequestException>();
+        await Assert.That(exception!.Message).IsEqualTo("200 OK from https://dev.azure.com/org/_apis/build/builds/1/logs/2: text/html where a log was expected: <html>Maintenance</html>");
+    }
+
+    [Test]
     public async Task ABitbucketResetIsTheSecondsLeftInTheWindow()
     {
         var handler = new FakeHttpHandler()

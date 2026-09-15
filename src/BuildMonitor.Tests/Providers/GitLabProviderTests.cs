@@ -102,6 +102,31 @@ public class GitLabProviderTests
     }
 
     [Test]
+    public async Task FetchLogLeavesOutJobsAllowedToFail()
+    {
+        var handler = Handler()
+            .Get(
+                "https://gitlab.com/api/v4/projects/77/pipelines/5000/jobs?scope[]=failed&per_page=100",
+                """
+                [
+                  {"id":903,"name":"lint","stage":"test","status":"failed","allow_failure":true},
+                  {"id":902,"name":"unit","stage":"test","status":"failed","allow_failure":false}
+                ]
+                """)
+            .Get("https://gitlab.com/api/v4/projects/77/jobs/902/trace", "1 test failed\n");
+        var context = ProviderTestHelpers.Context("gitlab", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("gitlab").FetchLog(context, builds.Single(_ => _.RunNumber == "119"), Cancel.None);
+        await Assert.That(log).IsEqualTo("==> test / unit <==\n1 test failed");
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://gitlab.com/api/v4/projects/77/pipelines/5000/jobs?scope[]=failed&per_page=100",
+            "GET https://gitlab.com/api/v4/projects/77/jobs/902/trace"
+        ]);
+    }
+
+    [Test]
     public async Task GroupScopeAndSelfHosted()
     {
         var handler = new FakeHttpHandler()

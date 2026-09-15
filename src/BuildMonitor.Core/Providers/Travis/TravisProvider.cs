@@ -93,6 +93,23 @@ sealed class TravisProvider : ProviderBase
     public override Task Cancel(ProviderContext context, Build build, Cancel cancel) =>
         context.Http.Send(HttpMethod.Post, $"build/{build.ProviderRef}/cancel", null, cancel);
 
+    /// <summary>
+    /// The logs of the build's failed and errored jobs, leaving out jobs allowed to fail, which did
+    /// not fail the build. Read as log.txt, which is plain text whatever the request accepts and
+    /// holds an archived log as well as a recent one.
+    /// </summary>
+    public override async Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel)
+    {
+        var jobs = await context.Http.Get($"build/{build.ProviderRef}/jobs", TravisContext.Default.TravisJobs, cancel);
+        var logs = new List<(string Name, string Log)>();
+        foreach (var job in jobs.Jobs.Where(_ => _ is { State: "failed" or "errored", AllowFailure: false }))
+        {
+            logs.Add(($"Job {job.Number}", await context.Http.GetLog($"job/{job.Id}/log.txt", cancel)));
+        }
+
+        return Sections(logs);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("user", TravisContext.Default.TravisUser, cancel);

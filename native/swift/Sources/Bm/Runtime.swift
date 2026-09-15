@@ -210,8 +210,14 @@ final class Runtime {
             menu.addItem(item)
         }
 
-        let anchor = renderer.rowRects[Int(frame.menuRow)]
-        if !menu.popUp(positioning: nil, at: CGPoint(x: anchor.minX + 24, y: anchor.maxY), in: view) {
+        // A drop down hangs under the overflow chip that opened it, a context menu under its row.
+        let row = renderer.rowRects[Int(frame.menuRow)]
+        var anchor = CGPoint(x: row.minX + 24, y: row.maxY)
+        if frame.menuOverflow, let chip = renderer.chips.last(where: { $0.overflow && $0.row == Int(frame.menuRow) }) {
+            anchor = CGPoint(x: chip.rect.minX, y: chip.rect.maxY)
+        }
+
+        if !menu.popUp(positioning: nil, at: anchor, in: view) {
             input.menuClosed = 1
         }
     }
@@ -260,10 +266,10 @@ final class Runtime {
         input.key = Int32(BM_KEY_NONE.rawValue)
         input.clickedButton = -1
         input.clickedRow = -1
-        input.clickedLinkRow = -1
-        input.clickedLink = Int32(BM_LINK_NONE.rawValue)
-        input.clickedActionRow = -1
-        input.clickedAction = Int32(BM_ACTION_NONE.rawValue)
+        input.clickedChipRow = -1
+        input.clickedChip = Int32(BM_CHIP_NONE.rawValue)
+        input.clickedOverflowRow = -1
+        input.overflowFrom = Int32(BM_CHIP_NONE.rawValue)
         input.rightClickedRow = -1
         input.clickedMenuItem = -1
         input.menuClosed = 0

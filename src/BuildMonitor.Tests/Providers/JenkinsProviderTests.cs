@@ -114,6 +114,19 @@ public class JenkinsProviderTests
     }
 
     [Test]
+    public async Task FetchLogReadsTheConsole()
+    {
+        var handler = Handler()
+            .Get($"{server}/job/team/job/app/job/PR-12/3/consoleText", "ERROR: script returned exit code 1\n");
+        var context = ProviderTestHelpers.Context("jenkins", handler, server, "simon");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("jenkins", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("jenkins").FetchLog(context, builds.Single(_ => _.RunNumber == "3"), Cancel.None);
+        await Assert.That(log).IsEqualTo("ERROR: script returned exit code 1\n");
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/job/team/job/app/job/PR-12/3/consoleText");
+    }
+
+    [Test]
     public async Task UsesBasicAuthWithTheUser()
     {
         var handler = new FakeHttpHandler().Get($"{server}/me/api/json?tree=fullName,id", """{"id":"simon","fullName":"Simon"}""");

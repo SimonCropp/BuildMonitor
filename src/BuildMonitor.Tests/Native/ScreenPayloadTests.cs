@@ -8,13 +8,13 @@ public class ScreenPayloadTests
         return Verify(payload.Describe())
             .Snapshot(
                 """
-                page: 0 rows: 6 fields: 0 options: 0 buttons: 4 menu: 0 tray: 8 strings: 581 bytes
-                row status=1 flags=16 progress=0.20 'build-all' 'Build all main' provider='jenkins' '#501''04:00 left' links='Build','',''
-                row status=1 flags=16 progress=0.40 'Deploy Web' '' provider='octopus' '#12''02:15 left' links='Build','',''
-                row status=1 flags=17 progress=0.50 'DiffEngine' 'test.yml main' provider='github' '#1234''03:00 left' links='Build','Branch',''
-                row status=0 flags=16 progress=-1.00 'nightly' '' provider='jenkins' '#88''queued' links='Build','',''
-                row status=3 flags=8 progress=-1.00 'Verify' 'test.yml feature/inline' provider='github' '#77''25m ago' links='Build','Branch','PR 42'
-                row status=2 flags=0 progress=-1.00 'DiffEngine' 'docs.yml main' provider='github' '#300''23h ago' links='Build','Branch',''
+                page: 0 rows: 6 details: 5 chips: 16 fields: 0 options: 0 buttons: 4 menu: 0 tray: 8 strings: 659 bytes
+                row status=1 flags=0 progress=0.20 'build-all' 'Build all main' provider='jenkins' '04:00 left' chips=Build:Build,Cancel:Cancel
+                row status=1 flags=0 progress=0.40 'Deploy Web' '' provider='octopus' '02:15 left' chips=Build:Build,Cancel:Cancel
+                row status=1 flags=1 progress=0.50 'DiffEngine' 'test.yml main' provider='github' '03:00 left' chips=Build:Build,Branch:Branch,Cancel:Cancel
+                row status=0 flags=0 progress=-1.00 'nightly' '' provider='jenkins' 'queued' chips=Build:Build,Cancel:Cancel
+                row status=3 flags=0 progress=-1.00 'Verify' 'test.yml feature/inline' provider='github' '25m ago' chips=Build:Build,Branch:Branch,PullRequest:PR 42,Retry:Retry,CopyLog:Copy log
+                row status=2 flags=0 progress=-1.00 'DiffEngine' 'docs.yml main' provider='github' '23h ago' chips=Build:Build,Branch:Branch
                 button flags=1 'Refresh'
                 button flags=1 'Options'
                 button flags=1 'Filters'
@@ -39,7 +39,7 @@ public class ScreenPayloadTests
         return Verify(payload.Describe())
             .Snapshot(
                 """
-                page: 1 rows: 0 fields: 5 options: 10 buttons: 4 menu: 0 tray: 8 strings: 529 bytes
+                page: 1 rows: 0 details: 0 chips: 0 fields: 5 options: 10 buttons: 4 menu: 0 tray: 8 strings: 529 bytes
                 field kind=5 flags=1 'provider' 'Provider' 'AppVeyor' options=0+10
                 field kind=2 flags=1 'name' 'Name' '' options=10+0
                 field kind=2 flags=1 'scope:account' 'Account (optional)' '' options=10+0

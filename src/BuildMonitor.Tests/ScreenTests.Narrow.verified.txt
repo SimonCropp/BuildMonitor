@@ -1,12 +1,12 @@
 ﻿+------------------------------------------------------------------------------+
 | BuildMonitor                               6 pipelines, 1 failing, 4 running |
 +------------------------------------------------------------------------------+
-|   > build-all  jenkins  Build all main          #501   [##------] 04:00 left |
-|   > Deploy Web octopus                          #12    [###-----] 02:15 left |
-| > > DiffEngine github   test.yml main           #1234  [####----] 03:00 left |
-|   ? nightly    jenkins                          #88               queued     |
-|   x Verify     github   test.yml feature/inline #77               25m ago    |
-|   + DiffEngine github   docs.yml main           #300              23h ago    |
+|   > build-all  jenkins  Build all main          [##------] 04:00 left [...]  |
+|   > Deploy Web octopus                          [###-----] 02:15 left [...]  |
+| > > DiffEngine github   test.yml main           [####----] 03:00 left [...]  |
+|   ? nightly    jenkins                                     queued     [...]  |
+|   x Verify     github   test.yml feature/inline            25m ago    [...]  |
+|   + DiffEngine github   docs.yml main                      23h ago    [...]  |
 |                                                                              |
 |                                                                              |
 |                                                                              |

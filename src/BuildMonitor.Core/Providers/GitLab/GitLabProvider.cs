@@ -205,6 +205,24 @@ sealed class GitLabProvider : ProviderBase
         return context.Http.Send(HttpMethod.Post, $"projects/{parts[0]}/pipelines/{parts[1]}/cancel", null, cancel);
     }
 
+    /// <summary>
+    /// The traces of the pipeline's failed jobs, oldest first. Jobs allowed to fail are left out:
+    /// they did not fail the pipeline, and their traces would bury the one that did.
+    /// </summary>
+    public override async Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var jobs = await context.Http.Get($"projects/{parts[0]}/pipelines/{parts[1]}/jobs?scope[]=failed&per_page=100", GitLabContext.Default.ListGitLabJob, cancel);
+        var logs = new List<(string Name, string Log)>();
+        foreach (var job in jobs.Where(_ => !_.AllowFailure).OrderBy(_ => _.Id))
+        {
+            var name = job.Stage is null ? job.Name : $"{job.Stage} / {job.Name}";
+            logs.Add((name, await context.Http.GetLog($"projects/{parts[0]}/jobs/{job.Id}/trace", cancel)));
+        }
+
+        return Sections(logs);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("user", GitLabContext.Default.GitLabUser, cancel);

@@ -2,5 +2,6 @@
 [JsonSerializable(typeof(List<GitHubRepository>))]
 [JsonSerializable(typeof(GitHubWorkflows))]
 [JsonSerializable(typeof(GitHubRuns))]
+[JsonSerializable(typeof(GitHubJobs))]
 [JsonSerializable(typeof(GitHubUser))]
 partial class GitHubContext : JsonSerializerContext;

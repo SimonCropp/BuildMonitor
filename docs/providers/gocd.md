@@ -24,6 +24,7 @@ One per pipeline. The stages of an instance fold into one status: building while
 
  * Retry re-runs the failed jobs of the failed stage, or schedules the pipeline when nothing failed
  * Cancel cancels the running stage
+ * Copy log copies the consoles of the failed jobs of the failed stages
 
 
 ## Estimates

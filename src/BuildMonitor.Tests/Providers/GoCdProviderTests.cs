@@ -88,4 +88,25 @@ public class GoCdProviderTests
                 ]
                 """);
     }
+
+    [Test]
+    public async Task FetchLogReadsTheConsolesOfTheFailedJobs()
+    {
+        var handler = Handler()
+            .Get(
+                $"{server}/go/api/pipelines/web/41",
+                """{"name":"web","counter":41,"stages":[{"name":"build","counter":"1","result":"Passed","jobs":[{"name":"compile","result":"Passed"}]},{"name":"test","counter":"2","result":"Failed","jobs":[{"name":"unit","result":"Failed"},{"name":"lint","result":"Passed"}]}]}""")
+            .Get($"{server}/go/files/web/41/test/2/unit/cruise-output/console.log", "[go] Task: ./test.sh failed\n");
+        var context = ProviderTestHelpers.Context("gocd", handler, server);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gocd", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("gocd").FetchLog(context, builds.Single(_ => _.RunNumber == "41"), Cancel.None);
+        await Assert.That(log).IsEqualTo("==> test / unit <==\n[go] Task: ./test.sh failed");
+        await Assert.That(handler.RequestHeaders[^1].Accept.ToString()).IsEqualTo("*/*");
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            $"GET {server}/go/api/pipelines/web/41",
+            $"GET {server}/go/files/web/41/test/2/unit/cruise-output/console.log"
+        ]);
+    }
 }

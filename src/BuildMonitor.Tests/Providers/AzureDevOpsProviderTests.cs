@@ -89,6 +89,48 @@ public class AzureDevOpsProviderTests
     }
 
     [Test]
+    public async Task FetchLogOfTheFailedTasksAsText()
+    {
+        var handler = Handler()
+            .Get(
+                $"{organization}/Web/_apis/build/builds/300/timeline?api-version=7.1",
+                """
+                {"records":[
+                  {"id":"t2","parentId":"j1","type":"Task","name":"Test","result":"failed","log":{"id":5}},
+                  {"id":"j1","parentId":"p1","type":"Job","name":"Build","result":"failed","log":{"id":3}},
+                  {"id":"t1","parentId":"j1","type":"Task","name":"Checkout","result":"succeeded","log":{"id":4}},
+                  {"id":"p1","type":"Phase","name":"Build","result":"failed"}
+                ]}
+                """)
+            .Get($"{organization}/Web/_apis/build/builds/300/logs/5?api-version=7.1", "##[error]1 test failed\n");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("azure-devops").FetchLog(context, builds.Single(_ => _.RunNumber == "20260101.2"), Cancel.None);
+        await Assert.That(log).IsEqualTo("==> Build / Test <==\n##[error]1 test failed");
+        await Assert.That(handler.RequestHeaders[^1].Accept.ToString()).IsEqualTo("text/plain");
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            $"GET {organization}/Web/_apis/build/builds/300/timeline?api-version=7.1",
+            $"GET {organization}/Web/_apis/build/builds/300/logs/5?api-version=7.1"
+        ]);
+    }
+
+    [Test]
+    public async Task AJobThatFailedWithNoFailedTaskGivesItsOwnLog()
+    {
+        var handler = Handler()
+            .Get(
+                $"{organization}/Web/_apis/build/builds/300/timeline?api-version=7.1",
+                """{"records":[{"id":"j1","type":"Job","name":"Build","result":"failed","log":{"id":3}}]}""")
+            .Get($"{organization}/Web/_apis/build/builds/300/logs/3?api-version=7.1", "The agent was lost\n");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        var log = await ProviderTestHelpers.Provider("azure-devops").FetchLog(context, builds.Single(_ => _.RunNumber == "20260101.2"), Cancel.None);
+        await Assert.That(log).IsEqualTo("==> Build <==\nThe agent was lost");
+    }
+
+    [Test]
     public async Task ProjectScopeSkipsProjectDiscovery()
     {
         var handler = new FakeHttpHandler()

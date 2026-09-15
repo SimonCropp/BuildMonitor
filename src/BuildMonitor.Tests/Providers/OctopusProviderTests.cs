@@ -76,6 +76,19 @@ public class OctopusProviderTests
     }
 
     [Test]
+    public async Task FetchLogReadsTheTaskLogFromItsSpace()
+    {
+        var handler = Handler()
+            .Get($"{server}/api/Spaces-1/tasks/ServerTasks-99/raw", "Step 2 failed: exit code 1\n");
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("octopus").FetchLog(context, builds.Single(_ => _.Branch == "Staging"), Cancel.None);
+        await Assert.That(log).IsEqualTo("Step 2 failed: exit code 1\n");
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/api/Spaces-1/tasks/ServerTasks-99/raw");
+    }
+
+    [Test]
     public async Task NamedSpaceIsUsed()
     {
         var handler = new FakeHttpHandler()

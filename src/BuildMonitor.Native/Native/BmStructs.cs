@@ -16,12 +16,17 @@ struct BmRow
     public BmString Name;
     public BmString Detail;
     public BmString Provider;
-    public BmString RunNumber;
     public BmString Timing;
-    public BmString BuildLabel;
-    public BmString BranchLabel;
-    public BmString PullRequestLabel;
+    public int ChipOffset;
+    public int ChipCount;
     public float Progress;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+struct BmChip
+{
+    public BmString Label;
+    public int Kind;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -79,6 +84,10 @@ struct BmScreen
     public BmString* Names;
     public int NameCount;
     public int GroupNameCount;
+    public BmString* Details;
+    public int DetailCount;
+    public BmChip* Chips;
+    public int ChipCount;
 
     public BmString FormTitle;
     public BmField* Fields;
@@ -92,6 +101,7 @@ struct BmScreen
     public BmMenuItem* Menu;
     public int MenuCount;
     public int MenuRow;
+    public int MenuOverflow;
 
     public int TrayIcon;
     public BmString TrayTooltip;
@@ -107,10 +117,10 @@ struct BmInput
     public int Key;
     public int ClickedButton;
     public int ClickedRow;
-    public int ClickedLinkRow;
-    public int ClickedLink;
-    public int ClickedActionRow;
-    public int ClickedAction;
+    public int ClickedChipRow;
+    public int ClickedChip;
+    public int ClickedOverflowRow;
+    public int OverflowFrom;
     public int RightClickedRow;
     public int ClickedMenuItem;
     public int MenuClosed;
@@ -152,9 +162,7 @@ static class BmFlags
     public const int RowSelected = 1 << 0;
     public const int RowGroup = 1 << 1;
     public const int RowExpanded = 1 << 2;
-    public const int RowCanRetry = 1 << 3;
-    public const int RowCanCancel = 1 << 4;
-    public const int RowMember = 1 << 5;
+    public const int RowMember = 1 << 3;
     public const int FieldEnabled = 1 << 0;
     public const int ButtonEnabled = 1 << 0;
     public const int TrayEnabled = 1 << 0;

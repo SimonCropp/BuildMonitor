@@ -100,7 +100,7 @@ sealed class OctopusProvider : ProviderBase
                 null,
                 CanRetry: status is not (BuildStatus.Running or BuildStatus.Queued),
                 CanCancel: status is BuildStatus.Running or BuildStatus.Queued,
-                Join(item.TaskId, $"{spaceId}/tasks/rerun/{item.TaskId}", $"{spaceId}/tasks/{item.TaskId}/cancel"),
+                Join(item.TaskId, $"{spaceId}/tasks/rerun/{item.TaskId}", $"{spaceId}/tasks/{item.TaskId}/cancel", $"{spaceId}/tasks/{item.TaskId}/raw"),
                 pipeline.Url));
         }
 
@@ -143,7 +143,7 @@ sealed class OctopusProvider : ProviderBase
                 : null;
             taken[deployment.ProjectId] = soFar + 1;
             environmentNames.TryGetValue(deployment.EnvironmentId, out var environment);
-            builds.Add(Convert(context.Connection.Id, server, pipeline, deployment, task, environment, estimate));
+            builds.Add(Convert(context.Connection.Id, server, spaceId, pipeline, deployment, task, environment, estimate));
         }
 
         return builds;
@@ -195,7 +195,7 @@ sealed class OctopusProvider : ProviderBase
             _ => BuildStatus.Unknown
         };
 
-    static Build Convert(string connectionId, string server, Pipeline pipeline, OctopusDeployment deployment, OctopusTask task, string? environment, ProviderEstimate? estimate)
+    static Build Convert(string connectionId, string server, string spaceId, Pipeline pipeline, OctopusDeployment deployment, OctopusTask task, string? environment, ProviderEstimate? estimate)
     {
         var status = Status(task.State);
         var rerun = task.Links?.Rerun is { } rerunLink ? Link(rerunLink) : null;
@@ -222,7 +222,7 @@ sealed class OctopusProvider : ProviderBase
             null,
             CanRetry: rerun is not null && status is not (BuildStatus.Running or BuildStatus.Queued),
             CanCancel: cancel is not null && status is BuildStatus.Running or BuildStatus.Queued,
-            Join(task.Id, rerun, cancel),
+            Join(task.Id, rerun, cancel, task.Links?.Raw is { } raw ? Link(raw) : $"{spaceId}/tasks/{task.Id}/raw"),
             pipeline.Url);
     }
 
@@ -252,6 +252,14 @@ sealed class OctopusProvider : ProviderBase
 
     public override Task Cancel(ProviderContext context, Build build, Cancel cancel) =>
         context.Http.Send(HttpMethod.Post, Split(build)[2], null, cancel);
+
+    /// <summary>
+    /// The deployment task's whole log, the one log Octopus keeps for it, read from the task's own
+    /// space: the route without a space reads the default space only. Asked for as a file, because
+    /// the call can also answer in JSON.
+    /// </summary>
+    public override Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel) =>
+        context.Http.GetLog(Split(build)[3], cancel, "application/octet-stream");
 
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {

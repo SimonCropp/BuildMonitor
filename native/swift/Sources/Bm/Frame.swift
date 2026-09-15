@@ -4,24 +4,24 @@ import Foundation
 /// One frame, copied out of the C structs into Swift values so nothing here outlives the call
 /// that handed it over.
 struct Frame {
+    struct Chip {
+        let kind: Int32
+        let label: String
+    }
+
     struct Row {
         let status: Int32
         let flags: Int32
         let name: String
         let detail: String
         let provider: String
-        let runNumber: String
         let timing: String
-        let buildLabel: String
-        let branchLabel: String
-        let pullRequestLabel: String
+        let chips: [Chip]
         let progress: Float
 
         var isGroup: Bool { flags & Int32(BM_ROW_GROUP.rawValue) != 0 }
         var isSelected: Bool { flags & Int32(BM_ROW_SELECTED.rawValue) != 0 }
         var isExpanded: Bool { flags & Int32(BM_ROW_EXPANDED.rawValue) != 0 }
-        var canRetry: Bool { flags & Int32(BM_ROW_CAN_RETRY.rawValue) != 0 }
-        var canCancel: Bool { flags & Int32(BM_ROW_CAN_CANCEL.rawValue) != 0 }
     }
 
     struct Field {
@@ -58,11 +58,13 @@ struct Frame {
     let loading: Bool
     let names: [String]
     let groupNames: [String]
+    let details: [String]
     let formTitle: String
     let fields: [Field]
     let buttons: [Button]
     let menu: [String]
     let menuRow: Int32
+    let menuOverflow: Bool
     let trayIcon: Int32
     let trayTooltip: String
     let trayItems: [TrayItem]
@@ -83,19 +85,22 @@ struct Frame {
             return String(decoding: slice, as: UTF8.self)
         }
 
-        let rows = UnsafeBufferPointer(start: screen.rows, count: Int(screen.rowCount)).map {
-            Row(
-                status: $0.status,
-                flags: $0.flags,
-                name: text($0.name),
-                detail: text($0.detail),
-                provider: text($0.provider),
-                runNumber: text($0.runNumber),
-                timing: text($0.timing),
-                buildLabel: text($0.buildLabel),
-                branchLabel: text($0.branchLabel),
-                pullRequestLabel: text($0.pullRequestLabel),
-                progress: $0.progress)
+        let chips = UnsafeBufferPointer(start: screen.chips, count: Int(screen.chipCount)).map {
+            Chip(kind: $0.kind, label: text($0.label))
+        }
+
+        let rows = UnsafeBufferPointer(start: screen.rows, count: Int(screen.rowCount)).map { row -> Row in
+            let start = Int(row.chipOffset)
+            let end = min(chips.count, start + Int(row.chipCount))
+            return Row(
+                status: row.status,
+                flags: row.flags,
+                name: text(row.name),
+                detail: text(row.detail),
+                provider: text(row.provider),
+                timing: text(row.timing),
+                chips: start >= 0 && start < end ? Array(chips[start..<end]) : [],
+                progress: row.progress)
         }
 
         let options = UnsafeBufferPointer(start: screen.options, count: Int(screen.optionCount)).map(text)
@@ -128,6 +133,7 @@ struct Frame {
         }
 
         let allNames = UnsafeBufferPointer(start: screen.names, count: Int(screen.nameCount + screen.groupNameCount)).map(text)
+        let details = UnsafeBufferPointer(start: screen.details, count: Int(screen.detailCount)).map(text)
 
         return Frame(
             page: screen.page,
@@ -141,11 +147,13 @@ struct Frame {
             loading: screen.loading != 0,
             names: Array(allNames.prefix(Int(screen.nameCount))),
             groupNames: Array(allNames.dropFirst(Int(screen.nameCount))),
+            details: details,
             formTitle: text(screen.formTitle),
             fields: fields,
             buttons: buttons,
             menu: menu,
             menuRow: screen.menuRow,
+            menuOverflow: screen.menuOverflow != 0,
             trayIcon: screen.trayIcon,
             trayTooltip: text(screen.trayTooltip),
             trayItems: trayItems,

@@ -6,12 +6,12 @@ readonly record struct MonitorInput(
     CommandKind Key = CommandKind.None,
     int ClickedButton = -1,
     int ClickedRow = -1,
-    // A click on a link chip of a visible row: which row and which chip.
-    int ClickedLinkRow = -1,
-    LinkKind ClickedLink = LinkKind.None,
-    // A click on a Retry or Cancel chip of a visible row.
-    int ClickedActionRow = -1,
-    RowAction ClickedAction = RowAction.None,
+    // A click on a chip, or the provider icon, of a visible row: which row and which chip.
+    int ClickedChipRow = -1,
+    ChipKind ClickedChip = ChipKind.None,
+    // A click on the overflow chip of a visible row, and the first of the chips it stands in for.
+    int ClickedOverflowRow = -1,
+    ChipKind OverflowFrom = ChipKind.None,
     // A right-click on a visible row, or -1. Opens the context menu.
     int RightClickedRow = -1,
     // A click on an item of the open context menu, or -1.
@@ -40,8 +40,8 @@ readonly record struct MonitorInput(
         Key != CommandKind.None ||
         ClickedButton >= 0 ||
         ClickedRow >= 0 ||
-        ClickedLinkRow >= 0 ||
-        ClickedActionRow >= 0 ||
+        ClickedChipRow >= 0 ||
+        ClickedOverflowRow >= 0 ||
         RightClickedRow >= 0 ||
         ClickedMenuItem >= 0 ||
         MenuClosed ||

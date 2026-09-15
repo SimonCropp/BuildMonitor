@@ -90,6 +90,34 @@ public class GitHubProviderTests
     }
 
     [Test]
+    public async Task FetchLogOfTheJobsThatFailedOrTimedOut()
+    {
+        var handler = Handler()
+            .Get(
+                "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs/499/jobs?filter=latest&per_page=100&page=1",
+                """
+                {"total_count":3,"jobs":[
+                  {"id":71,"name":"build (ubuntu-latest)","conclusion":"success"},
+                  {"id":72,"name":"build (windows-latest)","conclusion":"failure"},
+                  {"id":73,"name":"docs","conclusion":"timed_out"}
+                ]}
+                """)
+            .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/jobs/72/logs", "error CS1002: ; expected\n")
+            .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/jobs/73/logs", "The job has exceeded the maximum execution time\n");
+        var context = ProviderTestHelpers.Context("github", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("github").FetchLog(context, builds.Single(_ => _.RunNumber == "1233"), Cancel.None);
+        await Assert.That(log).IsEqualTo("==> build (windows-latest) <==\nerror CS1002: ; expected\n\n==> docs <==\nThe job has exceeded the maximum execution time");
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs/499/jobs?filter=latest&per_page=100&page=1",
+            "GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/jobs/72/logs",
+            "GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/jobs/73/logs"
+        ]);
+    }
+
+    [Test]
     public async Task OwnerScopeUsesTheOrganization()
     {
         var handler = new FakeHttpHandler()

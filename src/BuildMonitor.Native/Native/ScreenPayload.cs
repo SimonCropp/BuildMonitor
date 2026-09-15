@@ -7,6 +7,8 @@ sealed unsafe class ScreenPayload
     readonly List<byte> strings = [];
     readonly List<BmRow> rows = [];
     readonly List<BmString> names = [];
+    readonly List<BmString> details = [];
+    readonly List<BmChip> chips = [];
     readonly List<BmField> fields = [];
     readonly List<BmString> options = [];
     readonly List<BmButton> buttons = [];
@@ -28,6 +30,8 @@ sealed unsafe class ScreenPayload
         strings.Clear();
         rows.Clear();
         names.Clear();
+        details.Clear();
+        chips.Clear();
         fields.Clear();
         options.Clear();
         buttons.Clear();
@@ -64,25 +68,37 @@ sealed unsafe class ScreenPayload
             {
                 names.Add(Add(name));
             }
+
+            foreach (var detail in builds.Details)
+            {
+                details.Add(Add(detail));
+            }
+
             foreach (var row in builds.Rows)
             {
+                var chipOffset = chips.Count;
+                foreach (var chip in row.Chips)
+                {
+                    chips.Add(new()
+                    {
+                        Label = Add(chip.Label),
+                        Kind = (int) chip.Kind
+                    });
+                }
+
                 rows.Add(new()
                 {
                     Status = (int) row.Status,
                     Flags = (row.Selected ? BmFlags.RowSelected : 0) |
                             (row.Kind == RowKind.Group ? BmFlags.RowGroup : 0) |
                             (row.Expanded ? BmFlags.RowExpanded : 0) |
-                            (row.Kind == RowKind.Member ? BmFlags.RowMember : 0) |
-                            (row.CanRetry ? BmFlags.RowCanRetry : 0) |
-                            (row.CanCancel ? BmFlags.RowCanCancel : 0),
+                            (row.Kind == RowKind.Member ? BmFlags.RowMember : 0),
                     Name = Add(row.Name),
                     Detail = Add(row.Detail),
                     Provider = Add(row.Provider),
-                    RunNumber = Add(row.RunNumber),
                     Timing = Add(row.Timing),
-                    BuildLabel = Add(row.Build?.Label ?? ""),
-                    BranchLabel = Add(row.Branch?.Label ?? ""),
-                    PullRequestLabel = Add(row.PullRequest?.Label ?? ""),
+                    ChipOffset = chipOffset,
+                    ChipCount = row.Chips.Count,
                     Progress = (float) row.Progress
                 });
             }
@@ -129,6 +145,7 @@ sealed unsafe class ScreenPayload
         if (source.Menu is { } overlay)
         {
             screen.MenuRow = overlay.Row;
+            screen.MenuOverflow = overlay.Overflow ? 1 : 0;
             foreach (var label in overlay.Labels)
             {
                 menu.Add(new() { Label = Add(label) });
@@ -169,6 +186,8 @@ sealed unsafe class ScreenPayload
         var stringBytes = strings.Count == 0 ? [0] : CollectionsMarshal.AsSpan(strings).ToArray();
         var rowArray = rows.ToArray();
         var nameArray = names.ToArray();
+        var detailArray = details.ToArray();
+        var chipArray = chips.ToArray();
         var fieldArray = fields.ToArray();
         var optionArray = options.ToArray();
         var buttonArray = buttons.ToArray();
@@ -177,6 +196,8 @@ sealed unsafe class ScreenPayload
         fixed (byte* stringPointer = stringBytes)
         fixed (BmRow* rowPointer = rowArray)
         fixed (BmString* namePointer = nameArray)
+        fixed (BmString* detailPointer = detailArray)
+        fixed (BmChip* chipPointer = chipArray)
         fixed (BmField* fieldPointer = fieldArray)
         fixed (BmString* optionPointer = optionArray)
         fixed (BmButton* buttonPointer = buttonArray)
@@ -189,6 +210,10 @@ sealed unsafe class ScreenPayload
             frame.Rows = rowPointer;
             frame.RowCount = rowArray.Length;
             frame.Names = namePointer;
+            frame.Details = detailPointer;
+            frame.DetailCount = detailArray.Length;
+            frame.Chips = chipPointer;
+            frame.ChipCount = chipArray.Length;
             frame.Fields = fieldPointer;
             frame.FieldCount = fieldArray.Length;
             frame.Options = optionPointer;
@@ -209,12 +234,13 @@ sealed unsafe class ScreenPayload
     public string Describe()
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"page: {screen.Page} rows: {rows.Count} fields: {fields.Count} options: {options.Count} buttons: {buttons.Count} menu: {menu.Count} tray: {trayItems.Count} strings: {strings.Count} bytes");
+        builder.AppendLine($"page: {screen.Page} rows: {rows.Count} details: {details.Count} chips: {chips.Count} fields: {fields.Count} options: {options.Count} buttons: {buttons.Count} menu: {menu.Count} tray: {trayItems.Count} strings: {strings.Count} bytes");
         var blob = strings.ToArray();
         string Text(BmString value) => Encoding.UTF8.GetString(blob, value.Offset, value.Length);
         foreach (var row in rows)
         {
-            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' '{Text(row.Detail)}' provider='{Text(row.Provider)}' '{Text(row.RunNumber)}''{Text(row.Timing)}' links='{Text(row.BuildLabel)}','{Text(row.BranchLabel)}','{Text(row.PullRequestLabel)}'");
+            var rowChips = chips.Skip(row.ChipOffset).Take(row.ChipCount).Select(_ => $"{(ChipKind) _.Kind}:{Text(_.Label)}");
+            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' '{Text(row.Detail)}' provider='{Text(row.Provider)}' '{Text(row.Timing)}' chips={string.Join(',', rowChips)}");
         }
 
         foreach (var field in fields)

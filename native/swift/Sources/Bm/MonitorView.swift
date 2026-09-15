@@ -70,12 +70,12 @@ final class MonitorView: NSView {
         }
 
         if let hit = renderer.chips.first(where: { $0.rect.contains(point) }) {
-            if hit.link != Int32(BM_LINK_NONE.rawValue) {
-                runtime.input.clickedLinkRow = Int32(hit.row)
-                runtime.input.clickedLink = hit.link
+            if hit.overflow {
+                runtime.input.clickedOverflowRow = Int32(hit.row)
+                runtime.input.overflowFrom = hit.chip
             } else {
-                runtime.input.clickedActionRow = Int32(hit.row)
-                runtime.input.clickedAction = hit.action
+                runtime.input.clickedChipRow = Int32(hit.row)
+                runtime.input.clickedChip = hit.chip
             }
 
             return

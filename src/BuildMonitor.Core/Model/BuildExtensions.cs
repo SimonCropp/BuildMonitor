@@ -22,6 +22,14 @@ static class BuildExtensions
         };
 
     /// <summary>
+    /// Offered only for a failed build. A passing or cancelled run's log answers no question and a
+    /// running one's is still being written, so a chip on every row would bury the logs that matter
+    /// the way a Retry chip on green rows would.
+    /// </summary>
+    public static bool LogCopyable(this Build build) =>
+        build.Status == BuildStatus.Failed;
+
+    /// <summary>
     /// The last segment only: the owner is the same for most rows, and a column of repeated
     /// "VerifyTests/" prefixes pushes the part that differs out of view.
     /// </summary>

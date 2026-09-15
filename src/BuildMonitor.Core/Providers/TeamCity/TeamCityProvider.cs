@@ -152,6 +152,13 @@ sealed class TeamCityProvider : ProviderBase
         return context.Http.Send(HttpMethod.Post, path, body, cancel);
     }
 
+    /// <summary>
+    /// The build log, from the download beside the REST API, which has no call for it. The download
+    /// takes the same access token.
+    /// </summary>
+    public override Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel) =>
+        context.Http.GetLog($"../../downloadBuildLog.html?buildId={Split(build)[1]}", cancel);
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var server = await context.Http.Get("server", TeamCityContext.Default.TeamCityServer, cancel);

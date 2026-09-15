@@ -13,4 +13,6 @@ class AppVeyorBuild
     public DateTimeOffset? Started { get; set; }
     public DateTimeOffset? Finished { get; set; }
     public DateTimeOffset? Updated { get; set; }
+    // Only in a single build's detail; the history leaves them out.
+    public List<AppVeyorJob> Jobs { get; set; } = [];
 }

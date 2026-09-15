@@ -1,6 +1,6 @@
 /// <summary>
-/// One CI service. Everything a provider knows about its API lives behind these five calls;
-/// nothing else in the app composes a URL for it.
+/// One CI service. Everything a provider knows about its API lives behind these calls; nothing
+/// else in the app composes a URL for it.
 /// </summary>
 interface IProvider
 {
@@ -27,6 +27,13 @@ interface IProvider
     Task Retry(ProviderContext context, Build build, Cancel cancel);
 
     Task Cancel(ProviderContext context, Build build, Cancel cancel);
+
+    /// <summary>
+    /// The log of a failed build, as text: the logs of the jobs, steps or tasks that failed, each
+    /// under its name, or the whole build's where the service keeps one log a build. Empty when
+    /// nothing that failed has a log, such as a run that failed before it started a job.
+    /// </summary>
+    Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel);
 
     /// <summary>
     /// Proves the credential works, and says who it belongs to when the API tells.

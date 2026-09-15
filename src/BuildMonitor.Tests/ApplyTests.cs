@@ -10,7 +10,7 @@ public class ApplyTests
         var actions = new RecordingActions();
         var builds = Fixtures.WithBuilds();
         var row = FailedRow(builds);
-        var state = Apply(builds, new(ClickedLinkRow: row, ClickedLink: LinkKind.PullRequest), actions);
+        var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.PullRequest), actions);
         await Assert.That(actions.Calls).IsEquivalentTo(["OpenUrl https://github.com/VerifyTests/Verify/pull/42"]);
         await Assert.That(state.SelectedRow).IsEqualTo(row);
     }
@@ -26,7 +26,7 @@ public class ApplyTests
     {
         var actions = new RecordingActions();
         var builds = Fixtures.WithBuilds();
-        var state = Apply(builds, new(ClickedActionRow: FailedRow(builds), ClickedAction: RowAction.Retry), actions);
+        var state = Apply(builds, new(ClickedChipRow: FailedRow(builds), ClickedChip: ChipKind.Retry), actions);
         await Assert.That(actions.Calls).IsEquivalentTo(["Retry gh/Verify/test.yml/feature/inline"]);
         await Assert.That(state.Status).IsEqualTo("Retrying test.yml #77");
     }
@@ -35,8 +35,53 @@ public class ApplyTests
     public async Task RetryOnARunningBuildIsIgnored()
     {
         var actions = new RecordingActions();
-        Apply(Fixtures.WithBuilds(), new(ClickedActionRow: 1, ClickedAction: RowAction.Retry), actions);
+        Apply(Fixtures.WithBuilds(), new(ClickedChipRow: 1, ClickedChip: ChipKind.Retry), actions);
         await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    [Test]
+    public async Task ClickingCopyLogAsksForTheLog()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithBuilds();
+        var state = Apply(builds, new(ClickedChipRow: FailedRow(builds), ClickedChip: ChipKind.CopyLog), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["CopyLog gh/Verify/test.yml/feature/inline"]);
+        await Assert.That(state.Status).IsEqualTo("Fetching the log of test.yml #77");
+    }
+
+    [Test]
+    public async Task CopyLogOnABuildThatDidNotFailIsIgnored()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithBuilds();
+        Apply(MonitorSession.SelectRow(builds, RunningRow(builds)), new(Key: CommandKind.CopyLog), actions);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    [Test]
+    public async Task AChipOfARowThatIsGoneDoesNothing()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithBuilds();
+        var state = Apply(builds, new(ClickedChipRow: 40, ClickedChip: ChipKind.Cancel), actions);
+        await Assert.That(actions.Calls).IsEmpty();
+        await Assert.That(state.SelectedRow).IsEqualTo(builds.SelectedRow);
+    }
+
+    [Test]
+    public async Task TheOverflowChipOpensTheChipsItStandsInFor()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithBuilds();
+        var row = FailedRow(builds);
+        var state = Apply(builds, new(ClickedOverflowRow: row, OverflowFrom: ChipKind.Retry), actions);
+        await Assert.That(state.Menu!.Overflow).IsTrue();
+        await Assert.That(state.Menu.Items.Select(_ => _.Label)).IsEquivalentTo(["Retry", "Copy log"]);
+        await Assert.That(state.SelectedRow).IsEqualTo(row);
+
+        state = Apply(state, new(ClickedMenuItem: 1), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["CopyLog gh/Verify/test.yml/feature/inline"]);
+        await Assert.That(state.Menu).IsNull();
     }
 
     [Test]
@@ -94,7 +139,7 @@ public class ApplyTests
         var actions = new RecordingActions();
         var state = Fixtures.WithBuilds();
         state = state with { Builds = [..state.Builds.Select(_ => _ with { ProjectUrl = "https://example.com/project" })] };
-        Apply(state, new(ClickedLinkRow: 0, ClickedLink: LinkKind.Project), actions);
+        Apply(state, new(ClickedChipRow: 0, ClickedChip: ChipKind.Project), actions);
         await Assert.That(actions.Calls).IsEquivalentTo(["OpenUrl https://example.com/project"]);
     }
 

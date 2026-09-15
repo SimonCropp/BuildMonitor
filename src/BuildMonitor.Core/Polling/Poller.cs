@@ -99,6 +99,12 @@ sealed class Poller(
         Nudge(build);
     }
 
+    public Task<string> FetchLog(Build build, Cancel token)
+    {
+        var connection = Connection(build.ConnectionId);
+        return Providers.Get(connection.ProviderId).FetchLog(Context(connection), build, token);
+    }
+
     public Task<ConnectionTest> Test(Connection connection, string? token, Cancel cancelToken) =>
         Providers.Get(connection.ProviderId).Test(Context(connection, token), cancelToken);
 

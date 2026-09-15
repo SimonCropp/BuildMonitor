@@ -118,6 +118,26 @@ sealed class AppVeyorProvider : ProviderBase
         return context.Http.Send(HttpMethod.Delete, $"api/builds/{build.PipelineId}/{Encode(version)}", null, cancel);
     }
 
+    /// <summary>
+    /// The logs of the build's failed jobs. The build is read by the route that names the account
+    /// in its own path, as history is, and a job's log by the job's id, so neither takes the
+    /// prefix; a route that wanted it would answer with the web app, which the log fetch refuses
+    /// rather than copying. A job is often unnamed, and then goes by its id.
+    /// </summary>
+    public override async Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel)
+    {
+        var version = Split(build)[1];
+        var detail = await context.Http.Get($"api/projects/{build.PipelineId}/build/{Encode(version)}", AppVeyorContext.Default.AppVeyorBuildDetail, cancel);
+        var logs = new List<(string Name, string Log)>();
+        foreach (var job in detail.Build?.Jobs.Where(_ => _.Status == "failed") ?? [])
+        {
+            var name = string.IsNullOrEmpty(job.Name) ? job.JobId : job.Name;
+            logs.Add((name, await context.Http.GetLog($"api/buildjobs/{job.JobId}/log", cancel)));
+        }
+
+        return Sections(logs);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var projects = await context.Http.Get($"{Prefix(context)}/projects", AppVeyorContext.Default.ListAppVeyorProject, cancel);

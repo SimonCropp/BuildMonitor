@@ -29,7 +29,10 @@ record SessionState(
     bool Hidden,
     bool Exit,
     // Waiting for the loop to hand it to the tray. Null once shown.
-    Notification? Notification = null)
+    Notification? Notification = null,
+    // Text waiting for the loop to put on the clipboard, which belongs to the window and so to the
+    // loop's thread rather than the thread pool a log is fetched on. Null once copied.
+    string? Clipboard = null)
 {
     public static SessionState Start(Settings settings) =>
         new(

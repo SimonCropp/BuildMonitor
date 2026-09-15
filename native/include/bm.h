@@ -48,15 +48,36 @@ enum BmStatus {
 
 enum BmRowFlags {
     BM_ROW_SELECTED = 1 << 0,
-    /* A project's group: name is the project and detail its count. No links or actions. */
+    /* A project's group: name is the project and detail its count. No chips. */
     BM_ROW_GROUP = 1 << 1,
     /* A group whose members follow it. */
     BM_ROW_EXPANDED = 1 << 2,
-    BM_ROW_CAN_RETRY = 1 << 3,
-    BM_ROW_CAN_CANCEL = 1 << 4,
     /* A build under its open group. name is empty. */
-    BM_ROW_MEMBER = 1 << 5
+    BM_ROW_MEMBER = 1 << 3
 };
+
+/*
+ * Keep in sync with ChipKind.cs. A row's chips come in the order of these values, links then
+ * actions, and a click reports the kind rather than a position.
+ */
+enum BmChipKind {
+    BM_CHIP_NONE = 0,
+    BM_CHIP_BUILD = 1,
+    BM_CHIP_BRANCH = 2,
+    BM_CHIP_PULL_REQUEST = 3,
+    BM_CHIP_RETRY = 4,
+    BM_CHIP_CANCEL = 5,
+    BM_CHIP_COPY_LOG = 6,
+    /* The provider icon: the repository or project page. Clicked like a chip, never among a row's chips. */
+    BM_CHIP_PROJECT = 7
+};
+
+/* One button on a row. */
+typedef struct BmChip {
+    BmString label;
+    /* A BmChipKind. */
+    int32_t kind;
+} BmChip;
 
 typedef struct BmRow {
     int32_t status;
@@ -67,12 +88,14 @@ typedef struct BmRow {
     BmString detail;
     /* A name given to bm_set_row_icon, drawn at the start of the detail cell, or empty for none. */
     BmString provider;
-    BmString runNumber;
     BmString timing;
-    /* Link chips. A zero length label means no chip. */
-    BmString buildLabel;
-    BmString branchLabel;
-    BmString pullRequestLabel;
+    /*
+     * The row's chips: a range into BmScreen.chips. A row without room for all of them draws those
+     * that fit, from the left, then an overflow chip in place of the rest, and reports a click on
+     * it through BmInput.clickedOverflowRow; the managed side opens the drop down.
+     */
+    int32_t chipOffset;
+    int32_t chipCount;
     /* 0 to 1 while a bar should be drawn, -1 for none. */
     float progress;
 } BmRow;
@@ -177,6 +200,13 @@ typedef struct BmScreen {
     const BmString* names;
     int32_t nameCount;
     int32_t groupNameCount;
+    /* Every distinct detail across all rows, to size that column from. The chips give way to the
+       width these want, up to a readable maximum, before the details are cut short. */
+    const BmString* details;
+    int32_t detailCount;
+    /* Every visible row's chips, which BmRow.chipOffset and chipCount index. */
+    const BmChip* chips;
+    int32_t chipCount;
 
     /* The form page. */
     BmString formTitle;
@@ -192,6 +222,8 @@ typedef struct BmScreen {
     const BmMenuItem* menu;
     int32_t menuCount;
     int32_t menuRow;
+    /* 1 when the menu is the drop down of menuRow's overflow chip: it hangs under that chip. */
+    int32_t menuOverflow;
 
     /* The tray. Ignored by an implementation whose bm_tray_available returns 0. */
     int32_t trayIcon;
@@ -228,31 +260,18 @@ enum BmKey {
     BM_KEY_QUIT = 16
 };
 
-enum BmLink {
-    BM_LINK_NONE = 0,
-    BM_LINK_BUILD = 1,
-    BM_LINK_BRANCH = 2,
-    BM_LINK_PULL_REQUEST = 3,
-    /* The provider icon: the repository or project page. */
-    BM_LINK_PROJECT = 4
-};
-
-enum BmAction {
-    BM_ACTION_NONE = 0,
-    BM_ACTION_RETRY = 1,
-    BM_ACTION_CANCEL = 2
-};
-
 typedef struct BmInput {
     int32_t key;
     /* Index into BmScreen.buttons, or -1. */
     int32_t clickedButton;
     /* Index into BmScreen.rows, or -1. */
     int32_t clickedRow;
-    int32_t clickedLinkRow;
-    int32_t clickedLink;
-    int32_t clickedActionRow;
-    int32_t clickedAction;
+    /* A chip, or the provider icon, of a visible row: the row and a BmChipKind. */
+    int32_t clickedChipRow;
+    int32_t clickedChip;
+    /* The overflow chip of a visible row, and the BmChipKind of the first chip it stands in for. */
+    int32_t clickedOverflowRow;
+    int32_t overflowFrom;
     int32_t rightClickedRow;
     /* Index into BmScreen.menu, or -1. */
     int32_t clickedMenuItem;
@@ -283,7 +302,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 3
+#define BM_VERSION 4
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

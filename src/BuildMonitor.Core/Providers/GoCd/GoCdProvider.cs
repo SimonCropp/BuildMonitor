@@ -198,6 +198,29 @@ sealed class GoCdProvider : ProviderBase
         return context.Http.Send(HttpMethod.Post, $"stages/{Encode(parts[0])}/{parts[1]}/{Encode(parts[4])}/{parts[5]}/cancel", null, cancel, [confirm]);
     }
 
+    /// <summary>
+    /// The consoles of the failed jobs of the failed stages. A console is an artifact file rather
+    /// than an API resource, and GoCD answers a request whose Accept header it does not serve with a
+    /// 404, so the console request accepts anything rather than the API's JSON.
+    /// </summary>
+    public override async Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var pipeline = Encode(parts[0]);
+        var instance = await context.Http.Get($"pipelines/{pipeline}/{parts[1]}", GoCdContext.Default.GoCdInstance, cancel);
+        var logs = new List<(string Name, string Log)>();
+        foreach (var stage in instance.Stages.Where(_ => _.Result == "Failed"))
+        {
+            foreach (var job in stage.Jobs.Where(_ => _.Result == "Failed"))
+            {
+                var path = $"../files/{pipeline}/{parts[1]}/{Encode(stage.Name)}/{stage.Counter}/{Encode(job.Name)}/cruise-output/console.log";
+                logs.Add(($"{stage.Name} / {job.Name}", await context.Http.GetLog(path, cancel, "*/*")));
+            }
+        }
+
+        return Sections(logs);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("current_user", GoCdContext.Default.GoCdUser, cancel);

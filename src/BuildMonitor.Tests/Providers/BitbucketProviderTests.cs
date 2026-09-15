@@ -57,4 +57,25 @@ public class BitbucketProviderTests
                 ]
                 """);
     }
+
+    [Test]
+    public async Task FetchLogOfTheFailedStepsAcceptsAnything()
+    {
+        var handler = Handler()
+            .Get(
+                "https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines/{u2}/steps",
+                """{"values":[{"uuid":"{s1}","name":"Build","state":{"name":"COMPLETED","result":{"name":"SUCCESSFUL"}}},{"uuid":"{s2}","name":"Test","state":{"name":"COMPLETED","result":{"name":"FAILED"}}}]}""")
+            .Get("https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines/{u2}/steps/{s2}/log", "npm ERR! Test failed.\n");
+        var context = ProviderTestHelpers.Context("bitbucket", handler, user: "simon@example.com", scope: ("workspace", "verify"));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("bitbucket", context);
+        handler.Requests.Clear();
+        var log = await ProviderTestHelpers.Provider("bitbucket").FetchLog(context, builds.Single(_ => _.RunNumber == "87"), Cancel.None);
+        await Assert.That(log).IsEqualTo("==> Test <==\nnpm ERR! Test failed.");
+        await Assert.That(handler.RequestHeaders[^1].Accept.ToString()).IsEqualTo("*/*");
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines/{u2}/steps",
+            "GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines/{u2}/steps/{s2}/log"
+        ]);
+    }
 }

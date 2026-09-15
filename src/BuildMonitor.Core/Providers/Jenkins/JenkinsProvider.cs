@@ -246,6 +246,16 @@ sealed class JenkinsProvider : ProviderBase
         }
     }
 
+    /// <summary>
+    /// The build's console, whole: it is the one log a Jenkins build keeps, and a Pipeline's stages
+    /// are only markers inside it.
+    /// </summary>
+    public override Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        return context.Http.GetLog($"{parts[0]}{parts[1]}/consoleText", cancel);
+    }
+
     static Task<HttpStatusCode> Post(ProviderContext context, string path, JenkinsCrumb? crumb, Cancel cancel)
     {
         var content = new StringContent("");

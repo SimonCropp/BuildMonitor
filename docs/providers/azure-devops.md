@@ -26,6 +26,7 @@ One per pipeline definition. Pull request builds show the pull request number an
 
  * Retry re-runs the build
  * Cancel cancels a queued or running build
+ * Copy log copies the logs of the failed tasks, or of a failed job when none of its tasks failed
 
 
 ## Estimates
