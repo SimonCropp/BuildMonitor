@@ -14,13 +14,29 @@ static class Progress
         switch (build.Status)
         {
             case BuildStatus.Queued:
-                return (-1, "queued");
+                return (-1, Waiting(build, now));
             case BuildStatus.Running:
                 return Running(build, estimate, now);
             default:
                 var finished = build.Finished ?? build.Started ?? build.Queued;
                 return (-1, finished is null ? "" : $"{Age(now - finished.Value)} ago");
         }
+    }
+
+    /// <summary>
+    /// How long the run has been waiting for an agent. A bare "queued" read the same after a day
+    /// stuck behind an offline pool as it did a second after the run was raised, which is the one
+    /// thing worth knowing about a build that has not started. Providers that report no queue time,
+    /// Travis among them, keep the bare word rather than counting from an arbitrary zero.
+    /// </summary>
+    static string Waiting(Build build, DateTimeOffset now)
+    {
+        if (build.Queued is not { } queued)
+        {
+            return "queued";
+        }
+
+        return $"queued {Age(now - queued)}";
     }
 
     static (double, string) Running(Build build, TimeSpan? estimate, DateTimeOffset now)

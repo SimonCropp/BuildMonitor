@@ -57,7 +57,7 @@
     "Run": "88",
     "Status": "Queued",
     "Progress": -1,
-    "Timing": "queued",
+    "Timing": "queued 30s",
     "BuildUrl": "https://example.com/jenkins/nightly/88",
     "CanRetry": false,
     "CanCancel": true

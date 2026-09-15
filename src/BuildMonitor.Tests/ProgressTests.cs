@@ -126,9 +126,17 @@ public class ProgressTests
     }
 
     [Test]
-    public async Task QueuedShowsQueued()
+    public async Task QueuedShowsHowLongItHasWaited()
     {
         var (fraction, text) = Progress.Compute(Build(BuildStatus.Queued, queued: now - TimeSpan.FromMinutes(5)), TimeSpan.FromMinutes(6), now);
+        await Assert.That(fraction).IsEqualTo(-1);
+        await Assert.That(text).IsEqualTo("queued 5m");
+    }
+
+    [Test]
+    public async Task AQueuedBuildWithNoTimesShowsNoAge()
+    {
+        var (fraction, text) = Progress.Compute(Build(BuildStatus.Queued), null, now);
         await Assert.That(fraction).IsEqualTo(-1);
         await Assert.That(text).IsEqualTo("queued");
     }
