@@ -27,7 +27,10 @@ static class StatusPrinter
         foreach (var build in builds)
         {
             var run = build.Run.Length == 0 ? "" : $"#{build.Run}";
-            builder.AppendLine($"  {Fit(BuildExtensions.ShortRepoName(build.Repo), repoWidth)}  {Fit(build.Pipeline, pipelineWidth)}  {Fit(build.Branch ?? "", branchWidth)}  {run,-8} {build.Status,-10} {build.Timing,-12} {build.BuildUrl}");
+            var repo = Fit(BuildExtensions.ShortRepoName(build.Repo), repoWidth);
+            var pipeline = Fit(build.Pipeline, pipelineWidth);
+            var branch = Fit(build.Branch ?? "", branchWidth);
+            builder.AppendLine($"  {repo}  {pipeline}  {branch}  {run,-8} {build.Status,-10} {build.Timing,-12} {build.BuildUrl}");
         }
 
         return builder.ToString();

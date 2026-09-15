@@ -10,17 +10,23 @@ static class RevealFile
             Directory.CreateDirectory(directory);
             if (OperatingSystem.IsWindows())
             {
-                using var explorer = Process.Start(new ProcessStartInfo("explorer.exe", [directory]) { UseShellExecute = true });
+                using var explorer = Process.Start(
+                    new ProcessStartInfo(
+                        "explorer.exe", [directory])
+                    {
+                        UseShellExecute = true
+                    });
                 return;
             }
 
             var opener = OperatingSystem.IsMacOS() ? "open" : "xdg-open";
-            using var process = Process.Start(new ProcessStartInfo(opener, [directory])
-            {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            });
+            using var process = Process.Start(
+                new ProcessStartInfo(opener, [directory])
+                {
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                });
         }
         catch (Exception exception)
         {

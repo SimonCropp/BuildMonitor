@@ -1,3 +1,5 @@
+using Microsoft.Win32;
+
 /// <summary>
 /// HKCU\Software\Microsoft\Windows\CurrentVersion\Run. The value is a command line, so the path
 /// is quoted: an unquoted path with a space in it is read as a program and an argument.
@@ -10,13 +12,13 @@ sealed class WindowsRunKey : IRunAtLogin
 
     public bool Exists()
     {
-        using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(keyPath);
+        using var key = Registry.CurrentUser.OpenSubKey(keyPath);
         return key?.GetValue(valueName) is not null;
     }
 
     public void Set(bool enabled)
     {
-        using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(keyPath, true) ??
+        using var key = Registry.CurrentUser.OpenSubKey(keyPath, true) ??
                         throw new InvalidOperationException("The Run key does not exist");
         if (enabled)
         {

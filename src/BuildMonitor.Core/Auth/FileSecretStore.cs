@@ -17,7 +17,12 @@ class FileSecretStore(string directory) : ISecretStore
         }
 
         var bytes = File.ReadAllBytes(path);
-        return bytes.Length == 0 ? null : Decode(bytes);
+        if (bytes.Length == 0)
+        {
+            return null;
+        }
+
+        return Decode(bytes);
     }
 
     public void Write(string key, string value)
@@ -25,7 +30,11 @@ class FileSecretStore(string directory) : ISecretStore
         System.IO.Directory.CreateDirectory(Directory);
         if (!OperatingSystem.IsWindows())
         {
-            File.SetUnixFileMode(Directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            File.SetUnixFileMode(
+                Directory,
+                UnixFileMode.UserRead |
+                UnixFileMode.UserWrite |
+                UnixFileMode.UserExecute);
         }
 
         var path = PathFor(key);
@@ -33,7 +42,10 @@ class FileSecretStore(string directory) : ISecretStore
         File.WriteAllBytes(temp, Encode(value));
         if (!OperatingSystem.IsWindows())
         {
-            File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.SetUnixFileMode(
+                temp,
+                UnixFileMode.UserRead |
+                UnixFileMode.UserWrite);
         }
 
         File.Move(temp, path, true);

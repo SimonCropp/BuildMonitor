@@ -32,6 +32,11 @@ static class Estimator
             return new(duration * 0.75, duration);
         }
 
-        return ranges.TryGetValue(build.PipelineKey, out var range) ? range : null;
+        if (ranges.TryGetValue(build.PipelineKey, out var range))
+        {
+            return range;
+        }
+
+        return null;
     }
 }

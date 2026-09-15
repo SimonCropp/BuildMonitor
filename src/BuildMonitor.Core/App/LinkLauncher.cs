@@ -14,17 +14,22 @@ static class LinkLauncher
         {
             if (OperatingSystem.IsWindows())
             {
-                using var process = Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                using var process = Process.Start(
+                    new ProcessStartInfo(url)
+                    {
+                        UseShellExecute = true
+                    });
                 return;
             }
 
             var opener = OperatingSystem.IsMacOS() ? "open" : "xdg-open";
-            using var unix = Process.Start(new ProcessStartInfo(opener, [url])
-            {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            });
+            using var unix = Process.Start(
+                new ProcessStartInfo(opener, [url])
+                {
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                });
         }
         catch (Exception exception)
         {

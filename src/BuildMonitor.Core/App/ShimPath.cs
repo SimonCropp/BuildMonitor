@@ -12,12 +12,12 @@ static class ShimPath
         processPath ??= Environment.ProcessPath ?? "";
         var segments = processPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var store = Array.IndexOf(segments, ".store");
-        if (store > 0)
+        if (store <= 0)
         {
-            var toolsDirectory = string.Join(Path.DirectorySeparatorChar, segments[..store]);
-            return Path.Combine(toolsDirectory, OperatingSystem.IsWindows() ? $"{Command}.exe" : Command);
+            return processPath;
         }
 
-        return processPath;
+        var toolsDirectory = string.Join(Path.DirectorySeparatorChar, segments[..store]);
+        return Path.Combine(toolsDirectory, OperatingSystem.IsWindows() ? $"{Command}.exe" : Command);
     }
 }

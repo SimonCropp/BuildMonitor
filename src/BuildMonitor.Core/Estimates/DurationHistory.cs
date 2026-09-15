@@ -78,7 +78,9 @@ sealed class DurationHistory
             {
                 if (list.Count > 0)
                 {
-                    builder[key] = new(TimeSpan.FromSeconds(list.Min()), TimeSpan.FromSeconds(list.Max()));
+                    var min = TimeSpan.FromSeconds(list.Min());
+                    var max = TimeSpan.FromSeconds(list.Max());
+                    builder[key] = new(min, max);
                 }
             }
 

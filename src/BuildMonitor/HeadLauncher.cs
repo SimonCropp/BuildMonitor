@@ -3,7 +3,7 @@
 /// </summary>
 static class HeadLauncher
 {
-    public static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(15);
+    static readonly TimeSpan startTimeout = TimeSpan.FromSeconds(15);
 
     /// <summary>
     /// Shows the running tray, or starts one. Returns an exit code.
@@ -21,7 +21,12 @@ static class HeadLauncher
             return 0;
         }
 
-        return await Start(port, cancel) ? 0 : 2;
+        if (await Start(port, cancel))
+        {
+            return 0;
+        }
+
+        return 2;
     }
 
     public static async Task<bool> Start(int port, Cancel cancel)
@@ -35,7 +40,7 @@ static class HeadLauncher
 
         Launch(head);
         var client = new ProtocolClient(port);
-        var deadline = DateTime.UtcNow + StartTimeout;
+        var deadline = DateTime.UtcNow + startTimeout;
         while (DateTime.UtcNow < deadline)
         {
             if (await client.IsRunning(cancel))
@@ -46,7 +51,7 @@ static class HeadLauncher
             await Task.Delay(200, cancel);
         }
 
-        await Console.Error.WriteLineAsync($"The tray did not answer on port {port} within {StartTimeout.TotalSeconds} seconds");
+        await Console.Error.WriteLineAsync($"The tray did not answer on port {port} within {startTimeout.TotalSeconds} seconds");
         return false;
     }
 

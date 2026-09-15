@@ -45,7 +45,11 @@ static class ProcessRunner
 
             return (process.ExitCode, text);
         }
-        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException or IOException)
+        catch (Exception exception)
+            when (exception is
+                      Win32Exception or
+                      InvalidOperationException or
+                      IOException)
         {
             return (-1, exception.Message);
         }
