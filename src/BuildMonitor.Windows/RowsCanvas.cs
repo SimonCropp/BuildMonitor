@@ -37,6 +37,10 @@ sealed class RowsCanvas : Control
     ContextMenuStrip contextMenu = new();
     Font bold;
     Font underline;
+    // Text widths by the text, the font's style and the flags. Measuring was most of a paint: the
+    // columns measure every name, detail and author across all rows, and each visible row measured
+    // its runs and chips twice, about five hundred strings and 26 ms on a large account.
+    Dictionary<(string Text, FontStyle Style, TextFormatFlags Flags), int> widths = new();
 
     // Pending input, drained once per frame.
     int clickedRow = -1;

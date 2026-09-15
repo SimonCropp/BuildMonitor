@@ -11,12 +11,20 @@
 /// </summary>
 static class RowProjection
 {
-    public static ImmutableArray<Row> Rows(SessionState state)
+    public static ImmutableArray<Row> Rows(SessionState state) =>
+        Rows(state, Builds(state));
+
+    /// <summary>
+    /// The rows from <paramref name="sorted"/>, which is this state's <see cref="Builds"/>, for a
+    /// caller that has them already. <see cref="Builds"/> is most of the time a projection takes,
+    /// and a screen rebuild used to take it three times, four with a filter typed.
+    /// </summary>
+    public static ImmutableArray<Row> Rows(SessionState state, ImmutableArray<Build> sorted)
     {
         // Narrowed before grouping, so a group holds only the members that match: a closed group
         // left whole would hide the one build the filter was typed to find.
         var search = state.Search.Trim();
-        var builds = Builds(state).Where(_ => Matches(_, search)).ToImmutableArray();
+        var builds = sorted.Where(_ => Matches(_, search)).ToImmutableArray();
         var connections = state.Connections.ToDictionary(_ => _.Connection.Id);
         var groups = builds
             .Where(_ => GroupKey.Of(_) is not null)

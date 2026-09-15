@@ -24,21 +24,21 @@ static class PollSchedule
     /// A queued or running build older than this counts as quiet: a queue stuck waiting for a
     /// runner that never comes would otherwise hold its group on the fast interval for days.
     /// </summary>
-    static readonly TimeSpan staleActive = TimeSpan.FromHours(6);
+    static TimeSpan staleActive = TimeSpan.FromHours(6);
 
     /// <summary>
     /// How long a nudged group stays on the poll interval. A push shows up before its run exists,
     /// so one fetch straight after the nudge can find nothing new.
     /// </summary>
-    static readonly TimeSpan nudgeWindow = TimeSpan.FromMinutes(3);
+    static TimeSpan nudgeWindow = TimeSpan.FromMinutes(3);
 
-    static readonly TimeSpan minimumGap = TimeSpan.FromSeconds(2);
+    static TimeSpan minimumGap = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// How near the end of a provider's countdown a build counts as finishing, and how far past the
     /// slowest run it still does: a run a little slower than any before is not yet a hung one.
     /// </summary>
-    static readonly TimeSpan finishingMargin = TimeSpan.FromSeconds(90);
+    static TimeSpan finishingMargin = TimeSpan.FromSeconds(90);
 
     public static TimeSpan IdleCap(ScheduleInput input) =>
         Max(input.IdleCap ?? DefaultIdleCap, input.Interval);
@@ -182,7 +182,8 @@ static class PollSchedule
             dueAt = opens;
         }
 
-        return new(group.Key, fresh ? ScheduleReason.Unfetched : reason, interval, Later(dueAt, input.PausedUntil));
+        var later = Later(dueAt, input.PausedUntil);
+        return new(group.Key, fresh ? ScheduleReason.Unfetched : reason, interval, later);
     }
 
     static (ScheduleReason Reason, TimeSpan Interval) GroupInterval(ScheduleInput input, PollGroup group, ILookup<string, Build> byPipeline)
@@ -271,9 +272,12 @@ static class PollSchedule
             return (ScheduleReason.Overrun, Max(input.Interval, Min(position.PastClose / 10, IdleCap(input))));
         }
 
-        return position.UntilOpen > TimeSpan.Zero
-            ? (ScheduleReason.Running, input.Interval)
-            : (ScheduleReason.Finishing, input.RunningInterval);
+        if (position.UntilOpen > TimeSpan.Zero)
+        {
+            return (ScheduleReason.Running, input.Interval);
+        }
+
+        return (ScheduleReason.Finishing, input.RunningInterval);
     }
 
     /// <summary>
@@ -370,7 +374,12 @@ static class PollSchedule
             }
         }
 
-        return rate.NearLimit ? Math.Max(pressure, 4) : pressure;
+        if (rate.NearLimit)
+        {
+            return Math.Max(pressure, 4);
+        }
+
+        return pressure;
     }
 
     /// <summary>
@@ -436,25 +445,56 @@ static class PollSchedule
 
         if (span.TotalHours >= 1)
         {
-            return span.Minutes == 0 ? $"{(int) span.TotalHours}h" : $"{(int) span.TotalHours}h{span.Minutes}m";
+            if (span.Minutes == 0)
+            {
+                return $"{(int) span.TotalHours}h";
+            }
+
+            return $"{(int) span.TotalHours}h{span.Minutes}m";
         }
 
         if (span.TotalMinutes >= 1)
         {
-            return span.Seconds == 0 ? $"{(int) span.TotalMinutes}m" : $"{(int) span.TotalMinutes}m{span.Seconds}s";
+            if (span.Seconds == 0)
+            {
+                return $"{(int) span.TotalMinutes}m";
+            }
+
+            return $"{(int) span.TotalMinutes}m{span.Seconds}s";
         }
 
         return $"{(int) Math.Round(span.TotalSeconds)}s";
     }
 
-    static string Offset(TimeSpan offset) =>
-        offset <= TimeSpan.Zero ? "now" : $"+{Span(offset)}";
+    static string Offset(TimeSpan offset)
+    {
+        if (offset <= TimeSpan.Zero)
+        {
+            return "now";
+        }
 
-    static DateTimeOffset Later(DateTimeOffset at, DateTimeOffset? paused) =>
-        paused is { } until && until > at ? until : at;
+        return $"+{Span(offset)}";
+    }
 
-    static DateTimeOffset Earliest(DateTimeOffset? current, DateTimeOffset at) =>
-        current is { } known && known <= at ? known : at;
+    static DateTimeOffset Later(DateTimeOffset at, DateTimeOffset? paused)
+    {
+        if (paused is { } until && until > at)
+        {
+            return until;
+        }
+
+        return at;
+    }
+
+    static DateTimeOffset Earliest(DateTimeOffset? current, DateTimeOffset at)
+    {
+        if (current is { } known && known <= at)
+        {
+            return known;
+        }
+
+        return at;
+    }
 
     static TimeSpan Max(TimeSpan left, TimeSpan right) =>
         left > right ? left : right;

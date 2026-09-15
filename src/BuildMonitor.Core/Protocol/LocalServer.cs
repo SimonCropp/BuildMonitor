@@ -4,7 +4,7 @@
 /// </summary>
 sealed class LocalServer : IDisposable
 {
-    readonly TcpListener listener;
+    TcpListener listener;
 
     LocalServer(TcpListener listener, int port)
     {

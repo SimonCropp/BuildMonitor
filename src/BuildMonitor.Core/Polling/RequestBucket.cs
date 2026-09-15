@@ -26,10 +26,15 @@ readonly record struct RequestBucket(double Tokens, DateTimeOffset UpdatedAt)
     /// <summary>
     /// When the bucket next holds a whole token.
     /// </summary>
-    public DateTimeOffset NextToken(RequestQuota quota) =>
-        Tokens >= 1
-            ? UpdatedAt
-            : UpdatedAt + TimeSpan.FromSeconds((1 - Tokens) / Rate(quota));
+    public DateTimeOffset NextToken(RequestQuota quota)
+    {
+        if (Tokens >= 1)
+        {
+            return UpdatedAt;
+        }
+
+        return UpdatedAt + TimeSpan.FromSeconds((1 - Tokens) / Rate(quota));
+    }
 
     static double Rate(RequestQuota quota) =>
         quota.Requests / quota.Per.TotalSeconds;
