@@ -25,12 +25,17 @@ public class PackageTests
         return "";
     }
 
-    public static string? Package() =>
-        nugets.Length == 0
-            ? null
-            : Directory.GetFiles(nugets, "BuildMonitor.*.nupkg")
-                .OrderByDescending(File.GetLastWriteTimeUtc)
-                .FirstOrDefault();
+    public static string? Package()
+    {
+        if (nugets.Length == 0)
+        {
+            return null;
+        }
+
+        return Directory.GetFiles(nugets, "BuildMonitor.*.nupkg")
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
+    }
 
     [Test]
     [PackageTest]

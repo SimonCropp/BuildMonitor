@@ -5,9 +5,9 @@
 /// </summary>
 static class Program
 {
-    static readonly int[] traySizes = [16, 20, 24, 32, 48, 256];
-    static readonly int[] pixmapSizes = [16, 22, 24, 32, 48];
-    static readonly int[] glyphSizes = [16, 32];
+    static int[] traySizes = [16, 20, 24, 32, 48, 256];
+    static int[] pixmapSizes = [16, 22, 24, 32, 48];
+    static int[] glyphSizes = [16, 32];
 
     // How much of the largest square inside the disc a tray mark fills. The rest keeps the round caps
     // at the ends of a cross off the rim.
@@ -20,7 +20,7 @@ static class Program
     /// Bare marks rather than circled ones: the disc is the circle already, and a circled mark drew a
     /// second ring inside it, which left the tick or the cross a few pixels across at sixteen.
     /// </summary>
-    static readonly (string Name, string Svg, SKColor Background)[] tray =
+    static (string Name, string Svg, SKColor Background)[] tray =
     [
         ("idle", Lucide.Hammer.Svg, new(0x7A, 0x7A, 0x7A)),
         ("running", Lucide.LoaderCircle.Svg, new(0x3B, 0x82, 0xF6)),
@@ -29,7 +29,7 @@ static class Program
         ("attention", WithoutCircle(Lucide.CircleAlert.Svg), new(0xE0, 0x8A, 0x1E))
     ];
 
-    static readonly (string Name, Icon Icon)[] glyphs =
+    static (string Name, Icon Icon)[] glyphs =
     [
         ("open", Lucide.AppWindow),
         ("refresh", Lucide.RefreshCw),
@@ -52,14 +52,14 @@ static class Program
         ("unknown", Lucide.CircleDashed)
     ];
 
-    static readonly SKColor glyphColour = new(0x8A, 0x8A, 0x8A);
+    static SKColor glyphColour = new(0x8A, 0x8A, 0x8A);
 
     /// <summary>
     /// Provider logos from Simple Icons, keyed by provider id. Iconify carries the shapes but not
     /// the brand colours, so those are transcribed from simple-icons. A brand that is near black,
     /// GitHub and TeamCity, is drawn in the glyph grey instead, or it would vanish on a dark theme.
     /// </summary>
-    static readonly (string Id, Icon Icon, SKColor Colour)[] providers =
+    static (string Id, Icon Icon, SKColor Colour)[] providers =
     [
         ("appveyor", SimpleIcons.Appveyor, new(0x00, 0xB3, 0xE0)),
         ("travis", SimpleIcons.Travisci, new(0x3E, 0xAA, 0xAF)),

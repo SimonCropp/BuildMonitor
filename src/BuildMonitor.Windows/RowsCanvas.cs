@@ -15,11 +15,15 @@ sealed class RowsCanvas : Control
     const int timingLength = 90;
     const int minimumDetail = 120;
     // Without padding, so each run of the detail starts where the text before it ended.
-    const TextFormatFlags runFlags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
+    const TextFormatFlags runFlags = TextFormatFlags.Left |
+                                     TextFormatFlags.VerticalCenter |
+                                     TextFormatFlags.EndEllipsis |
+                                     TextFormatFlags.NoPrefix |
+                                     TextFormatFlags.NoPadding;
     // Stands in for the chips a row has no room for, and opens the drop down that holds them.
     const string overflowLabel = "…";
     // The chips of the widest row, which the chips column is as wide as while there is room.
-    static readonly string[] widestChips = ["PR 9999", "Retry", "Copy log"];
+    static string[] widestChips = ["PR 9999", "Retry", "Copy log"];
 
     BuildsPage? page;
     int menuShownForRow = -1;
@@ -29,8 +33,8 @@ sealed class RowsCanvas : Control
     Rectangle hoverLink = Rectangle.Empty;
     // Each clickable thing the last paint drew: a chip, a link in the text, the provider icon, or an
     // overflow chip, which carries the first of the chips it stands in for.
-    readonly List<(int Row, ChipKind Chip, bool Overflow, Rectangle Bounds)> chips = [];
-    readonly ContextMenuStrip contextMenu = new();
+    List<(int Row, ChipKind Chip, bool Overflow, Rectangle Bounds)> chips = [];
+    ContextMenuStrip contextMenu = new();
     Font bold;
     Font underline;
 
