@@ -26,7 +26,8 @@ sealed class NativeTray : ITray
                 return null;
             }
         }
-        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
+        catch (Exception exception)
+            when (exception is DllNotFoundException or EntryPointNotFoundException)
         {
             error = exception.Message;
             return null;

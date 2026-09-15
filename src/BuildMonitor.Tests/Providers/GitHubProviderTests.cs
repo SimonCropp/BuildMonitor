@@ -169,13 +169,14 @@ public class GitHubProviderTests
     public async Task EnterpriseServerUsesApiV3()
     {
         var provider = ProviderTestHelpers.Provider("github");
-        var address = provider.BaseAddress(new()
-        {
-            Id = "x",
-            ProviderId = "github",
-            Name = "x",
-            Server = "https://github.example.com"
-        });
+        var address = provider.BaseAddress(
+            new()
+            {
+                Id = "x",
+                ProviderId = "github",
+                Name = "x",
+                Server = "https://github.example.com"
+            });
         await Assert.That(address.ToString()).IsEqualTo("https://github.example.com/api/v3/");
     }
 

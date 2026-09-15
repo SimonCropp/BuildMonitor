@@ -8,7 +8,7 @@
 /// </summary>
 sealed unsafe class NativeMonitorWindow : IMonitorWindow
 {
-    readonly ScreenPayload payload = new();
+    ScreenPayload payload = new();
     bool disposed;
 
     NativeMonitorWindow()
@@ -117,14 +117,16 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             ClickedMenuItem: input.ClickedMenuItem,
             MenuClosed: input.MenuClosed != 0,
             FieldChanges: changes,
-            ClickedField: input.ClickedField >= 0 && input.ClickedField < payload.FieldIds.Count ? payload.FieldIds[input.ClickedField] : null,
+            ClickedField: input.ClickedField >= 0 &&
+                          input.ClickedField < payload.FieldIds.Count ? payload.FieldIds[input.ClickedField] : null,
             Search: input.ChangedField == Bm.SearchField ? value : null,
             ScrollDelta: input.ScrollDelta,
             ScrollTo: input.ScrollTo,
             CloseRequested: input.CloseRequested != 0,
             Columns: 120,
             Rows: Math.Max(1, input.Rows) + ScreenBuilder.Chrome,
-            TrayItem: input.ClickedTrayItem >= 0 && input.ClickedTrayItem < payload.TrayItemIds.Count ? payload.TrayItemIds[input.ClickedTrayItem] : null,
+            TrayItem: input.ClickedTrayItem >= 0 &&
+                      input.ClickedTrayItem < payload.TrayItemIds.Count ? payload.TrayItemIds[input.ClickedTrayItem] : null,
             TrayIconClicked: input.TrayIconClicked != 0);
     }
 

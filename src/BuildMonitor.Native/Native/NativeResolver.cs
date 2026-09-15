@@ -9,7 +9,7 @@
 static class NativeResolver
 {
     const string name = "buildmonitor_ui";
-    static readonly Lock gate = new();
+    static Lock gate = new();
     static bool registered;
 
     /// <summary>

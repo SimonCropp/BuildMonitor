@@ -4,18 +4,18 @@
 /// </summary>
 sealed unsafe class ScreenPayload
 {
-    readonly List<byte> strings = [];
-    readonly List<BmRow> rows = [];
-    readonly List<BmString> names = [];
-    readonly List<BmString> details = [];
-    readonly List<BmString> authors = [];
-    readonly List<BmChip> chips = [];
-    readonly List<BmSpan> spans = [];
-    readonly List<BmField> fields = [];
-    readonly List<BmString> options = [];
-    readonly List<BmButton> buttons = [];
-    readonly List<BmMenuItem> menu = [];
-    readonly List<BmTrayItem> trayItems = [];
+    List<byte> strings = [];
+    List<BmRow> rows = [];
+    List<BmString> names = [];
+    List<BmString> details = [];
+    List<BmString> authors = [];
+    List<BmChip> chips = [];
+    List<BmSpan> spans = [];
+    List<BmField> fields = [];
+    List<BmString> options = [];
+    List<BmButton> buttons = [];
+    List<BmMenuItem> menu = [];
+    List<BmTrayItem> trayItems = [];
     BmScreen screen;
 
     /// <summary>
@@ -90,42 +90,45 @@ sealed unsafe class ScreenPayload
                 var chipOffset = chips.Count;
                 foreach (var chip in row.Chips)
                 {
-                    chips.Add(new()
-                    {
-                        Label = Add(chip.Label),
-                        Kind = (int) chip.Kind
-                    });
+                    chips.Add(
+                        new()
+                        {
+                            Label = Add(chip.Label),
+                            Kind = (int) chip.Kind
+                        });
                 }
 
                 var spanOffset = spans.Count;
                 foreach (var span in row.Detail)
                 {
-                    spans.Add(new()
-                    {
-                        Text = Add(span.Text),
-                        Link = (int) span.Link
-                    });
+                    spans.Add(
+                        new()
+                        {
+                            Text = Add(span.Text),
+                            Link = (int) span.Link
+                        });
                 }
 
-                rows.Add(new()
-                {
-                    Status = (int) row.Status,
-                    Flags = (row.Selected ? BmFlags.RowSelected : 0) |
-                            (row.Kind == RowKind.Group ? BmFlags.RowGroup : 0) |
-                            (row.Expanded ? BmFlags.RowExpanded : 0) |
-                            (row.Kind == RowKind.Member ? BmFlags.RowMember : 0),
-                    Name = Add(row.Name),
-                    Detail = Add(row.DetailText),
-                    Provider = Add(row.Provider),
-                    Timing = Add(row.Timing),
-                    ChipOffset = chipOffset,
-                    ChipCount = row.Chips.Count,
-                    Progress = (float) row.Progress,
-                    NameLink = (int) row.NameLink,
-                    SpanOffset = spanOffset,
-                    SpanCount = row.Detail.Count,
-                    Author = Add(row.Author)
-                });
+                rows.Add(
+                    new()
+                    {
+                        Status = (int) row.Status,
+                        Flags = (row.Selected ? BmFlags.RowSelected : 0) |
+                                (row.Kind == RowKind.Group ? BmFlags.RowGroup : 0) |
+                                (row.Expanded ? BmFlags.RowExpanded : 0) |
+                                (row.Kind == RowKind.Member ? BmFlags.RowMember : 0),
+                        Name = Add(row.Name),
+                        Detail = Add(row.DetailText),
+                        Provider = Add(row.Provider),
+                        Timing = Add(row.Timing),
+                        ChipOffset = chipOffset,
+                        ChipCount = row.Chips.Count,
+                        Progress = (float) row.Progress,
+                        NameLink = (int) row.NameLink,
+                        SpanOffset = spanOffset,
+                        SpanCount = row.Detail.Count,
+                        Author = Add(row.Author)
+                    });
             }
         }
 
@@ -144,27 +147,29 @@ sealed unsafe class ScreenPayload
                 }
 
                 FieldIds.Add(field.Id);
-                fields.Add(new()
-                {
-                    Kind = (int) field.Kind,
-                    Flags = field.Enabled ? BmFlags.FieldEnabled : 0,
-                    Id = Add(field.Id),
-                    Label = Add(field.Label),
-                    Value = Add(field.Value),
-                    Hint = Add(field.Hint ?? ""),
-                    OptionOffset = optionOffset,
-                    OptionCount = field.Options?.Count ?? 0
-                });
+                fields.Add(
+                    new()
+                    {
+                        Kind = (int) field.Kind,
+                        Flags = field.Enabled ? BmFlags.FieldEnabled : 0,
+                        Id = Add(field.Id),
+                        Label = Add(field.Label),
+                        Value = Add(field.Value),
+                        Hint = Add(field.Hint ?? ""),
+                        OptionOffset = optionOffset,
+                        OptionCount = field.Options?.Count ?? 0
+                    });
             }
         }
 
         foreach (var button in source.Buttons)
         {
-            buttons.Add(new()
-            {
-                Label = Add(button.Label),
-                Flags = button.Enabled ? BmFlags.ButtonEnabled : 0
-            });
+            buttons.Add(
+                new()
+                {
+                    Label = Add(button.Label),
+                    Flags = button.Enabled ? BmFlags.ButtonEnabled : 0
+                });
         }
 
         if (source.Menu is { } overlay)
@@ -173,20 +178,25 @@ sealed unsafe class ScreenPayload
             screen.MenuOverflow = overlay.Overflow ? 1 : 0;
             foreach (var label in overlay.Labels)
             {
-                menu.Add(new() { Label = Add(label) });
+                menu.Add(
+                    new()
+                    {
+                        Label = Add(label)
+                    });
             }
         }
 
         foreach (var item in source.Tray.Items)
         {
             TrayItemIds.Add(item.Id);
-            trayItems.Add(new()
-            {
-                Id = Add(item.Id),
-                Label = Add(item.Label),
-                Icon = Add(item.IconName ?? ""),
-                Flags = (item.Enabled ? BmFlags.TrayEnabled : 0) | (item.Separator ? BmFlags.TraySeparator : 0)
-            });
+            trayItems.Add(
+                new()
+                {
+                    Id = Add(item.Id),
+                    Label = Add(item.Label),
+                    Icon = Add(item.IconName ?? ""),
+                    Flags = (item.Enabled ? BmFlags.TrayEnabled : 0) | (item.Separator ? BmFlags.TraySeparator : 0)
+                });
         }
     }
 
@@ -195,7 +205,11 @@ sealed unsafe class ScreenPayload
         var offset = strings.Count;
         var bytes = Encoding.UTF8.GetBytes(text);
         strings.AddRange(bytes);
-        return new() { Offset = offset, Length = bytes.Length };
+        return new()
+        {
+            Offset = offset,
+            Length = bytes.Length
+        };
     }
 
     public int Present() =>
