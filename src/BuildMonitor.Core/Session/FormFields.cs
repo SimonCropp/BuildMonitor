@@ -39,6 +39,7 @@ static class FormFields
     public const string User = "user";
     public const string Token = "token";
     public const string TokenHelp = "tokenHelp";
+    public const string ProviderDocs = "providerDocs";
     public const string ClientId = "clientId";
     public const string CallbackPort = "callbackPort";
     public const string Notes = "notes";

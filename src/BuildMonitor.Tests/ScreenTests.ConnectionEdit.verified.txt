@@ -8,7 +8,7 @@
 | API token: [                                        ] (Leave empty to keep the stored token)                         |
 | How to get an API token -> https://www.jenkins.io/doc/book/system-administration/authenticating-scripted-clients/    |
 | Create the token at https://jenkins.example.com/me/security.                                                         |
-|                                                                                                                      |
+| Jenkins documentation -> https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/jenkins.md              |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

@@ -25,7 +25,7 @@ static class OAuthClients
     public static OAuthClient? For(Connection connection)
     {
         var provider = ProviderDescriptors.Get(connection.ProviderId);
-        var server = (connection.Server ?? provider.DefaultServer ?? "").TrimEnd('/');
+        var server = ServerAddress.Normalize(connection.Server ?? provider.DefaultServer ?? "");
         switch (connection.ProviderId)
         {
             case "github":

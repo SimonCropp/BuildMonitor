@@ -480,6 +480,8 @@ static class ScreenBuilder
             fields.Add(new(FormFields.Notes, FieldKind.Label, "", descriptor.Notes.Replace("{server}", form.Value(FormFields.Server))));
         }
 
+        fields.Add(new(FormFields.ProviderDocs, FieldKind.Link, $"{descriptor.Name} documentation", descriptor.DocsUrl));
+
         if (form.Message is not null)
         {
             fields.Add(new(FormFields.Message, FieldKind.Label, "", form.Message));

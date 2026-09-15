@@ -6,8 +6,8 @@
 | Account (optional): [                                        ] (Only needed for a v2 (user level) token)             |
 | API token: [                                        ]                                                                |
 | How to get an API token -> https://ci.appveyor.com/api-keys                                                          |
+| AppVeyor documentation -> https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/appveyor.md            |
 | Error: Enter the api token.                                                                                          |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

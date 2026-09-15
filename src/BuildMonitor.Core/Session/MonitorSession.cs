@@ -444,7 +444,8 @@ static class MonitorSession
     }
 
     public static SessionState SetFormError(SessionState state, string error) =>
-        state.Form is null ? state : state with { Form = state.Form with { Error = error } };
+        // Clears the message too, or a failed test leaves "Testing..." above its error.
+        state.Form is null ? state : state with { Form = state.Form with { Error = error, Message = null } };
 
     public static SessionState SetFormMessage(SessionState state, string message) =>
         state.Form is null ? state : state with { Form = state.Form with { Message = message, Error = null } };

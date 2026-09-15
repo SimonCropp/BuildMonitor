@@ -3,6 +3,11 @@
 Watches the deployments of every project in one space: the default space, or the one the connection names.
 
 
+## Server
+
+The URL of the Octopus server, such as `https://octopus.example.com`. A server entered without a scheme is taken as https, so use `http://octopus.example.com` when the server is not on TLS. When Octopus runs under a virtual directory, include the path, such as `https://octopus.example.com/octopus`. Leave off `/api`, which is added for every request.
+
+
 ## Credential
 
 An [API key](https://octopus.com/docs/api/authentication/create-an-api-key), created under Profile, My API Keys.

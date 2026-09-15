@@ -21,7 +21,8 @@
     HasPullRequests: true,
     CustomClientId: false,
     FetchConcurrency: 1,
-    ProbeInterval: 00:01:00
+    ProbeInterval: 00:01:00,
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/appveyor.md
   },
   {
     Id: azure-devops,
@@ -59,7 +60,8 @@
       Burst: 100.0,
       LearnLimit: false,
       ChargeByCost: true
-    }
+    },
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md
   },
   {
     Id: bitbucket,
@@ -93,7 +95,8 @@
       ChargeByCost: false
     },
     IdleCap: 00:30:00,
-    ProbeInterval: 00:01:00
+    ProbeInterval: 00:01:00,
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/bitbucket.md
   },
   {
     Id: github,
@@ -125,7 +128,8 @@
       Burst: 450.0,
       LearnLimit: false,
       ChargeByCost: false
-    }
+    },
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/github.md
   },
   {
     Id: gitlab,
@@ -151,7 +155,8 @@
     CustomClientId: true,
     Notes: The token needs the api scope to retry and cancel, or read_api to only watch.,
     FetchUnit: Connection,
-    FetchConcurrency: 1
+    FetchConcurrency: 1,
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/gitlab.md
   },
   {
     Id: gocd,
@@ -166,7 +171,8 @@
     HasPullRequests: false,
     CustomClientId: false,
     Notes: Create the token at {server}/go/access_tokens.,
-    FetchConcurrency: 1
+    FetchConcurrency: 1,
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/gocd.md
   },
   {
     Id: jenkins,
@@ -183,7 +189,8 @@
     HasPullRequests: false,
     CustomClientId: false,
     Notes: Create the token at {server}/me/security.,
-    FetchConcurrency: 1
+    FetchConcurrency: 1,
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/jenkins.md
   },
   {
     Id: octopus,
@@ -207,7 +214,8 @@
     HasPullRequests: false,
     CustomClientId: false,
     FetchUnit: Connection,
-    FetchConcurrency: 1
+    FetchConcurrency: 1,
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/octopus.md
   },
   {
     Id: teamcity,
@@ -231,7 +239,8 @@
     CustomClientId: false,
     Notes: Create the token under Profile, Access Tokens.,
     FetchUnit: Connection,
-    FetchConcurrency: 1
+    FetchConcurrency: 1,
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/teamcity.md
   },
   {
     Id: travis,
@@ -247,6 +256,7 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: false,
-    FetchConcurrency: 1
+    FetchConcurrency: 1,
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/travis.md
   }
 ]

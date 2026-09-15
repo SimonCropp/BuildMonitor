@@ -169,6 +169,9 @@ static class InputApplier
             case FormFields.TokenHelp when state.Form is not null:
                 actions.OpenUrl(ConnectionDraft.Descriptor(state.Form).TokenHelpUrl);
                 return state;
+            case FormFields.ProviderDocs when state.Form is not null:
+                actions.OpenUrl(ConnectionDraft.Descriptor(state.Form).DocsUrl);
+                return state;
             case FormFields.VerificationUrl when state.SignIn?.VerificationUrl is { } url:
                 actions.OpenUrl(url);
                 return state;

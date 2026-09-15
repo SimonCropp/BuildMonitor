@@ -36,6 +36,12 @@ record ProviderDescriptor(
     TimeSpan? IdleCap = null,
     TimeSpan? ProbeInterval = null)
 {
+    /// <summary>
+    /// The provider's page in the docs, which the connection editor links so the server and scope
+    /// formats are one click away when a test fails.
+    /// </summary>
+    public string DocsUrl => $"https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/{Id}.md";
+
     public IEnumerable<AuthMethod> AuthMethods()
     {
         if (BrowserSignIn)

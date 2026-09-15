@@ -48,8 +48,30 @@ public class ConnectionDraftTests
     public async Task BadServerIsRejected()
     {
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Jenkins");
-        state = MonitorSession.FieldChanged(state, FormFields.Server, "jenkins.local");
+        state = MonitorSession.FieldChanged(state, FormFields.Server, "ftp://jenkins.local");
         await Assert.That(ConnectionDraft.Validate(state.Form!)).IsEqualTo("The server must be an http or https URL.");
+    }
+
+    [Test]
+    [Arguments("octopus.example.com", "https://octopus.example.com")]
+    [Arguments("octopus.example.com/", "https://octopus.example.com")]
+    [Arguments("localhost:8080", "https://localhost:8080")]
+    [Arguments("http://octopus.example.com", "http://octopus.example.com")]
+    public async Task ServerWithoutSchemeIsHttps(string server, string expected)
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Octopus Deploy");
+        state = MonitorSession.FieldChanged(state, FormFields.Server, server);
+        await Assert.That(ConnectionDraft.Build(state.Form!).Server).IsEqualTo(expected);
+        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsNotEqualTo("The server must be an http or https URL.");
+    }
+
+    [Test]
+    public async Task FailedTestClearsTestingMessage()
+    {
+        var state = MonitorSession.SetFormMessage(Fixtures.ConnectionNew(), "Testing...");
+        state = MonitorSession.SetFormError(state, "Unauthorized");
+        await Assert.That(state.Form!.Message).IsNull();
+        await Assert.That(state.Form!.Error).IsEqualTo("Unauthorized");
     }
 
     [Test]

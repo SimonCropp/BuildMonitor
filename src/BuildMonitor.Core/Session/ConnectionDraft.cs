@@ -28,7 +28,7 @@ static class ConnectionDraft
             }
         }
 
-        var server = form.Value(FormFields.Server).Trim().TrimEnd('/');
+        var server = ServerAddress.Normalize(form.Value(FormFields.Server));
         var user = form.Value(FormFields.User).Trim();
         var clientId = form.Value(FormFields.ClientId).Trim();
         var callbackPort = int.TryParse(form.Value(FormFields.CallbackPort).Trim(), out var parsedPort) ? parsedPort : (int?) null;
@@ -64,7 +64,7 @@ static class ConnectionDraft
             return "Enter the server URL.";
         }
 
-        var server = form.Value(FormFields.Server).Trim();
+        var server = ServerAddress.Normalize(form.Value(FormFields.Server));
         if (server.Length > 0 &&
             !Uri.TryCreate(server, UriKind.Absolute, out var uri) |
             (uri is not null && uri.Scheme != "http" && uri.Scheme != "https"))

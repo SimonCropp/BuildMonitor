@@ -9,7 +9,7 @@ abstract class ProviderBase : IProvider
     {
         var server = connection.Server ?? Descriptor.DefaultServer ??
                      throw new InvalidOperationException($"{Descriptor.Name} needs a server");
-        return new(server.TrimEnd('/') + "/", UriKind.Absolute);
+        return new(ServerAddress.Normalize(server) + "/", UriKind.Absolute);
     }
 
     public virtual IEnumerable<KeyValuePair<string, string>> Headers => [];
