@@ -57,12 +57,14 @@ flowchart TD
     probed -- "yes" --> interval
     moved -- "no" --> interval
     nudge --> interval
-    interval --> finishing["Running, past ¾ of its<br/>usual time or with no<br/>history: every 10 s"]
-    interval --> running["Running for less than<br/>that, or queued:<br/>every 30 s"]
+    interval --> finishing["Running, from its fastest<br/>recent build to 90 s past<br/>its slowest, or with no<br/>history: every 10 s"]
+    interval --> running["Running for less than its<br/>fastest recent build, or<br/>queued: every 30 s, and<br/>again when it reaches that"]
+    interval --> overrun["Running over 90 s past<br/>its slowest recent build:<br/>the time beyond that ÷ 10,<br/>30 s to 5 minutes"]
     interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
     interval --> failed["Quiet after a failure:<br/>the time since the<br/>last build ÷ 120,<br/>30 s to 5 minutes"]
     finishing --> stretch["Up to 8 times longer while<br/>under a quarter of<br/>the limit is left"]
     running --> stretch
+    overrun --> stretch
     quiet --> stretch
     failed --> stretch
     stretch --> due{"Due, and within 100<br/>throughput units<br/>in 5 minutes?"}

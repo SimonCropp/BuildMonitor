@@ -7,6 +7,8 @@ enum ScheduleReason
     Finishing,
     Running,
     Queued,
+    // Running past the slowest its pipeline has taken: still active, but its estimate was wrong.
+    Overrun,
     Nudged,
     Unfetched,
     RecentFailure,

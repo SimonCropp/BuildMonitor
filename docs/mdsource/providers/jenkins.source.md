@@ -46,12 +46,14 @@ flowchart TD
     probed -- "yes" --> interval
     moved -- "no" --> interval
     nudge --> interval
-    interval --> finishing["Building, past ¾ of<br/>Jenkins' estimate or<br/>with none: every 10 s"]
-    interval --> running["Building for less than<br/>that, or queued:<br/>every 30 s"]
+    interval --> finishing["Building, from ¾ of<br/>Jenkins' estimate to 90 s<br/>past it, or with none:<br/>every 10 s"]
+    interval --> running["Building for less than<br/>¾ of the estimate, or<br/>queued: every 30 s, and<br/>again when it reaches that"]
+    interval --> overrun["Building over 90 s<br/>past the estimate:<br/>the time beyond that ÷ 10,<br/>30 s to 5 minutes"]
     interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
     interval --> failed["Quiet after a failed or<br/>unstable build: the time<br/>since it ÷ 120,<br/>30 s to 5 minutes"]
     finishing --> due{"Due?"}
     running --> due
+    overrun --> due
     quiet --> due
     failed --> due
     due -- "no" --> sleep(["Sleep until a job,<br/>the probe or the<br/>listing is due"])

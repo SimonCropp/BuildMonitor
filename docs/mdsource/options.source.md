@@ -40,9 +40,11 @@ Pops a desktop notification when a poll finds a build that has failed since the 
 
 ## Poll intervals
 
-How often a repository, project or pipeline that built recently is polled, in seconds, and the shorter interval used for a build near the end of its usual duration.
+How often a repository, project or pipeline that built recently is polled, in seconds, and the shorter interval used while a running build is expected to finish.
 
 Each repository, project or pipeline is scheduled on its own. One that has not built for a while is polled less often, at about a thirtieth of the time since its last build: an hour after a success it is checked every two minutes, and never less often than every five minutes. After a failure it slows four times more gradually, because a fix or a retry is likely soon. A retry or cancel from the tray checks that pipeline again at once, and Refresh checks everything.
+
+A running build gets the shorter interval from the fastest of its pipeline's last ten successful runs until a minute and a half past the slowest, or near the end of the provider's own estimate where it gives one, and is checked the moment that stretch begins rather than at its next poll. A build still running after that slows down, at about a tenth of how far it has overrun, since its estimate was plainly wrong, until it is polled like a quiet one.
 
 A repository that keeps failing backs off on its own without holding up the rest. When a provider's rate limit runs low, every interval stretches until the limit recovers. Bitbucket, which allows a thousand requests an hour, lets a quiet repository wait up to thirty minutes.
 

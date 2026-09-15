@@ -7,11 +7,13 @@
 /// when every answer was a 304, while most of those repositories had not built in days.
 /// </para>
 /// <para>
-/// Now a group follows its busiest pipeline. A build near its expected finish is fetched on the
-/// running interval, and other active builds on the poll interval. A quiet pipeline slows with
-/// the time since its last build, a thirtieth of it, or a hundred and twentieth after a failure,
-/// until the idle cap. On top of that come failure backoff, pressure from a draining quota, and a
-/// request quota that defers the least urgent groups.
+/// Now a group follows its busiest pipeline. A running build is fetched on the running interval
+/// while it is expected to finish, from the fastest to the slowest of its pipeline's recent runs,
+/// and is due the moment that window opens; before it, and for a queued build, the poll interval
+/// applies, and past it the interval grows with the overrun. A quiet pipeline slows with the time
+/// since its last build, a thirtieth of it, or a hundred and twentieth after a failure, until the
+/// idle cap. On top of that come failure backoff, pressure from a draining quota, and a request
+/// quota that defers the least urgent groups.
 /// </para>
 /// </summary>
 static class PollSchedule
@@ -32,7 +34,11 @@ static class PollSchedule
 
     static readonly TimeSpan minimumGap = TimeSpan.FromSeconds(2);
 
-    static readonly TimeSpan finishingRemaining = TimeSpan.FromSeconds(90);
+    /// <summary>
+    /// How near the end of a provider's countdown a build counts as finishing, and how far past the
+    /// slowest run it still does: a run a little slower than any before is not yet a hung one.
+    /// </summary>
+    static readonly TimeSpan finishingMargin = TimeSpan.FromSeconds(90);
 
     public static TimeSpan IdleCap(ScheduleInput input) =>
         Max(input.IdleCap ?? DefaultIdleCap, input.Interval);
@@ -166,6 +172,16 @@ static class PollSchedule
         var dueAt = input.Everything || fresh || memory.NudgedAt > lastAttempt
             ? now
             : lastAttempt + interval * (1 + Spread(input.ConnectionId, group.Key));
+        // Sooner when a running build's finish window opens before the next tick, but never to cut
+        // short a backoff or a draining quota, which stretched the interval on purpose.
+        if (memory.Failures == 0 &&
+            pressure <= 1 &&
+            WindowOpens(input, group, byPipeline) is { } opens &&
+            opens < dueAt)
+        {
+            dueAt = opens;
+        }
+
         return new(group.Key, fresh ? ScheduleReason.Unfetched : reason, interval, Later(dueAt, input.PausedUntil));
     }
 
@@ -201,9 +217,7 @@ static class PollSchedule
 
             (ScheduleReason Reason, TimeSpan Interval) candidate = build.Status == BuildStatus.Queued
                 ? (ScheduleReason.Queued, input.Interval)
-                : Finishing(build, input.Medians, now)
-                    ? (ScheduleReason.Finishing, input.RunningInterval)
-                    : (ScheduleReason.Running, input.Interval);
+                : Running(input, build);
             if (active is not { } current ||
                 candidate.Interval < current.Interval ||
                 (candidate.Interval == current.Interval && candidate.Reason < current.Reason))
@@ -238,23 +252,85 @@ static class PollSchedule
     }
 
     /// <summary>
-    /// A running build is only fetched on the running interval near its expected finish: until
-    /// then the countdown needs no fresh data, and a long build fetched every ten seconds for its
-    /// whole run cost several times the requests for the same news.
+    /// A running build is fetched on the running interval only while it is expected to finish:
+    /// before that the countdown needs no fresh data, and a long build fetched every ten seconds for
+    /// its whole run cost several times the requests for the same news. Past that its estimate was
+    /// plainly wrong, so the interval grows with the overrun, a tenth of it: a hung build was
+    /// otherwise fetched every ten seconds until it went stale hours later.
     /// </summary>
-    static bool Finishing(Build build, ImmutableDictionary<string, TimeSpan> medians, DateTimeOffset now)
+    static (ScheduleReason Reason, TimeSpan Interval) Running(ScheduleInput input, Build build)
     {
-        if (build.Estimate?.Remaining is { } remaining)
+        if (Position(build, input.Durations, input.Now) is not { } position)
         {
-            return remaining <= finishingRemaining;
+            // Nothing to estimate against, so any moment could be the end.
+            return (ScheduleReason.Finishing, input.RunningInterval);
         }
 
-        if (Estimator.Estimate(build, medians) is not { } estimate)
+        if (position.PastClose > TimeSpan.Zero)
         {
-            return true;
+            return (ScheduleReason.Overrun, Max(input.Interval, Min(position.PastClose / 10, IdleCap(input))));
         }
 
-        return now - (build.Started ?? build.Queued ?? now) >= estimate * 0.75;
+        return position.UntilOpen > TimeSpan.Zero
+            ? (ScheduleReason.Running, input.Interval)
+            : (ScheduleReason.Finishing, input.RunningInterval);
+    }
+
+    /// <summary>
+    /// Where a running build stands against the window it is expected to finish in: how long until
+    /// the window opens, and how far past its close the build is, each negative until it happens.
+    /// A provider's countdown opens it within the margin of the end and closes it the margin past.
+    /// A countdown at exactly zero may be one that stops there rather than going negative, which
+    /// says nothing of how far past the end a build is, so then the elapsed time is measured instead
+    /// against the window of the provider's duration or the history, where there is one: from its
+    /// fastest run until the margin past its slowest.
+    /// </summary>
+    static (TimeSpan UntilOpen, TimeSpan PastClose)? Position(Build build, ImmutableDictionary<string, DurationRange> durations, DateTimeOffset now)
+    {
+        var window = Estimator.Window(build, durations);
+        if (build.Estimate?.Remaining is { } remaining &&
+            (remaining != TimeSpan.Zero || window is null))
+        {
+            return (remaining - finishingMargin, -remaining - finishingMargin);
+        }
+
+        if (window is not { } range)
+        {
+            return null;
+        }
+
+        var elapsed = now - (build.Started ?? build.Queued ?? now);
+        return (range.Fastest - elapsed, elapsed - range.Slowest - finishingMargin);
+    }
+
+    /// <summary>
+    /// When the soonest finish window of the group's running builds opens, if one is still to open,
+    /// so the group is due then rather than on its next tick, which could start the running interval
+    /// most of a poll interval late. Not for a build with a provider's countdown: that is as of the
+    /// last fetch, so it names no fixed moment, and the next fetch reads a fresher one anyway.
+    /// </summary>
+    static DateTimeOffset? WindowOpens(ScheduleInput input, PollGroup group, ILookup<string, Build> byPipeline)
+    {
+        DateTimeOffset? soonest = null;
+        foreach (var build in group.Pipelines.SelectMany(_ => byPipeline[_.Id]))
+        {
+            if (build.Status != BuildStatus.Running ||
+                build.Started is not { } started ||
+                build.Estimate?.Remaining is not null ||
+                input.Now - started > staleActive ||
+                Estimator.Window(build, input.Durations) is not { } window)
+            {
+                continue;
+            }
+
+            var opens = started + window.Fastest;
+            if (opens > input.Now)
+            {
+                soonest = Earliest(soonest, opens);
+            }
+        }
+
+        return soonest;
     }
 
     static DateTimeOffset? Activity(Build build)

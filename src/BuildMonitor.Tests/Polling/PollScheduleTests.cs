@@ -2,6 +2,10 @@ public class PollScheduleTests
 {
     static readonly DateTimeOffset now = Fixtures.Now;
 
+    // A pipeline whose recent successful runs took from five to seven minutes.
+    static readonly ImmutableDictionary<string, DurationRange> fiveToSeven =
+        ImmutableDictionary<string, DurationRange>.Empty.Add("gh/ci", new(TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(7)));
+
     static ScheduleInput Input(
         IEnumerable<PollGroup> groups,
         IEnumerable<Build> builds,
@@ -11,7 +15,7 @@ public class PollScheduleTests
         RateState? rate = null,
         DateTimeOffset? pausedUntil = null,
         RequestBucket? bucket = null,
-        ImmutableDictionary<string, TimeSpan>? medians = null) =>
+        ImmutableDictionary<string, DurationRange>? durations = null) =>
         new(
             "gh",
             quota,
@@ -19,7 +23,7 @@ public class PollScheduleTests
             [..groups],
             memory ?? ImmutableDictionary<string, GroupMemory>.Empty,
             [..builds],
-            medians ?? ImmutableDictionary<string, TimeSpan>.Empty,
+            durations ?? ImmutableDictionary<string, DurationRange>.Empty,
             TimeSpan.FromSeconds(30),
             TimeSpan.FromSeconds(10),
             rate ?? RateState.Unknown,
@@ -43,8 +47,8 @@ public class PollScheduleTests
     static Build Queued(string pipelineId, TimeSpan ago) =>
         Fixtures.Build("gh", pipelineId, pipelineId, "repo", "main", "3", BuildStatus.Queued, queued: now - ago);
 
-    static (ScheduleReason Reason, TimeSpan Interval) Pipeline(Build build, TimeSpan? idleCap = null, ImmutableDictionary<string, TimeSpan>? medians = null) =>
-        PollSchedule.PipelineInterval(Input([], [build], idleCap: idleCap, medians: medians), [build]);
+    static (ScheduleReason Reason, TimeSpan Interval) Pipeline(Build build, TimeSpan? idleCap = null, ImmutableDictionary<string, DurationRange>? durations = null) =>
+        PollSchedule.PipelineInterval(Input([], [build], idleCap: idleCap, durations: durations), [build]);
 
     [Test]
     [Arguments(false, 10, 30)]
@@ -67,14 +71,16 @@ public class PollScheduleTests
             .IsEqualTo((ScheduleReason.Quiet, TimeSpan.FromMinutes(30)));
 
     [Test]
-    [Arguments(2, 30)]
-    [Arguments(5, 10)]
-    [Arguments(7, 10)]
-    public async Task ARunningBuildPollsFastNearItsUsualDuration(int minutesIn, int seconds)
-    {
-        var medians = ImmutableDictionary<string, TimeSpan>.Empty.Add("gh/ci", TimeSpan.FromMinutes(6));
-        await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(minutesIn)), medians: medians).Interval).IsEqualTo(TimeSpan.FromSeconds(seconds));
-    }
+    [Arguments(4, "Running", 30)]
+    [Arguments(5, "Finishing", 10)]
+    [Arguments(8, "Finishing", 10)]
+    // A minute and a half past the slowest run, then slowing by a tenth of the overrun up to the idle cap.
+    [Arguments(9, "Overrun", 30)]
+    [Arguments(29, "Overrun", 123)]
+    [Arguments(59, "Overrun", 300)]
+    public async Task ARunningBuildPollsFastFromItsFastestRunToItsSlowest(int minutesIn, string reason, int seconds) =>
+        await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(minutesIn)), durations: fiveToSeven))
+            .IsEqualTo((Enum.Parse<ScheduleReason>(reason), TimeSpan.FromSeconds(seconds)));
 
     [Test]
     public async Task ARunningBuildWithoutAnEstimateIsFinishing() =>
@@ -83,8 +89,25 @@ public class PollScheduleTests
     [Test]
     [Arguments(60, "Finishing")]
     [Arguments(300, "Running")]
-    public async Task TheProvidersRemainingTimeBeatsTheMedian(int remainingSeconds, string reason) =>
-        await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(1), new(null, 50, TimeSpan.FromSeconds(remainingSeconds)))).Reason).IsEqualTo(Enum.Parse<ScheduleReason>(reason));
+    [Arguments(-120, "Overrun")]
+    public async Task TheProvidersRemainingTimeBeatsTheHistory(int remainingSeconds, string reason) =>
+        await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(6), new(null, 50, TimeSpan.FromSeconds(remainingSeconds))), durations: fiveToSeven).Reason)
+            .IsEqualTo(Enum.Parse<ScheduleReason>(reason));
+
+    [Test]
+    [Arguments(5, "Running")]
+    [Arguments(7, "Finishing")]
+    [Arguments(10, "Overrun")]
+    public async Task TheProvidersDurationOpensTheWindowAtThreeQuartersOfIt(int minutesIn, string reason) =>
+        await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(minutesIn), new(TimeSpan.FromMinutes(8), null, null)), durations: fiveToSeven).Reason)
+            .IsEqualTo(Enum.Parse<ScheduleReason>(reason));
+
+    [Test]
+    [Arguments(8, "Finishing")]
+    [Arguments(10, "Overrun")]
+    public async Task ACountdownStoppedAtZeroIsMeasuredAgainstTheProvidersDuration(int minutesIn, string reason) =>
+        await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(minutesIn), new(TimeSpan.FromMinutes(8), 100, TimeSpan.Zero))).Reason)
+            .IsEqualTo(Enum.Parse<ScheduleReason>(reason));
 
     [Test]
     public async Task AQueuedBuildPollsAtTheInterval() =>
@@ -93,6 +116,28 @@ public class PollScheduleTests
     [Test]
     public async Task ABuildActiveForSevenHoursIsQuiet() =>
         await Assert.That(Pipeline(Running("ci", TimeSpan.FromHours(7)))).IsEqualTo((ScheduleReason.Quiet, TimeSpan.FromMinutes(5)));
+
+    [Test]
+    public async Task AGroupIsDueWhenItsRunningBuildsWindowOpens()
+    {
+        var group = Group("VerifyTests/Verify", "ci");
+        var fetched = Fetched(TimeSpan.FromSeconds(5), "ci");
+        var tick = now - TimeSpan.FromSeconds(5) + TimeSpan.FromSeconds(30) * (1 + PollSchedule.Spread("gh", group.Key));
+
+        // Ten seconds short of its fastest run, which comes before the next tick.
+        var nearlyOpen = Running("ci", TimeSpan.FromMinutes(5) - TimeSpan.FromSeconds(10));
+        var soon = PollSchedule.Group(Input([group], [nearlyOpen], ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, fetched), durations: fiveToSeven), group);
+        await Assert.That((soon.Reason, soon.DueAt)).IsEqualTo((ScheduleReason.Running, now + TimeSpan.FromSeconds(10)));
+
+        // A window a minute off waits for the tick.
+        var minuteOff = PollSchedule.Group(Input([group], [Running("ci", TimeSpan.FromMinutes(4))], ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, fetched), durations: fiveToSeven), group);
+        await Assert.That(minuteOff.DueAt).IsEqualTo(tick);
+
+        // A group backing off after a failure is not pulled forward.
+        var failing = fetched with { Failures = 1 };
+        var backingOff = PollSchedule.Group(Input([group], [nearlyOpen], ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, failing), durations: fiveToSeven), group);
+        await Assert.That(backingOff.DueAt).IsEqualTo(tick);
+    }
 
     [Test]
     public async Task AGroupPollsAsOftenAsItsBusiestPipeline()

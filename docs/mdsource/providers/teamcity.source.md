@@ -40,11 +40,13 @@ flowchart TD
     listed -- "no" --> discover["GET buildTypes?locator=<br/>affectedProject:(id:…),<br/>every configuration<br/>under the project"]
     listed -- "yes" --> interval["One schedule for every<br/>configuration, set<br/>by the busiest"]
     discover --> interval
-    interval --> finishing["A build running with<br/>90 s or less left, or<br/>no estimate: every 10 s"]
-    interval --> running["Any other running<br/>or queued build:<br/>every 30 s"]
+    interval --> finishing["A build running with 90 s<br/>or less left, up to 90 s<br/>over, or no estimate:<br/>every 10 s"]
+    interval --> running["A queued build, or one<br/>running with more than<br/>90 s left: every 30 s"]
+    interval --> overrun["A build running over<br/>90 s past TeamCity's<br/>estimate: the time beyond<br/>that ÷ 10, 30 s to 5 minutes"]
     interval --> quiet["Otherwise the shortest of<br/>each configuration's time<br/>since its last build ÷ 30,<br/>or ÷ 120 when that failed,<br/>30 s to 5 minutes"]
     finishing --> due{"Due?"}
     running --> due
+    overrun --> due
     quiet --> due
     due -- "no" --> sleep(["Sleep until the connection<br/>or the listing is due"])
     due -- "yes" --> fetch["GET buildTypes with the<br/>last 5 builds of every<br/>configuration, in one request"]

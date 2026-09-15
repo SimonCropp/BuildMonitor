@@ -40,12 +40,14 @@ flowchart TD
     listed -- "no" --> discover["GET repos?repository.active=true,<br/>up to 100"]
     listed -- "yes" --> interval["Each repository is polled<br/>as its latest builds need"]
     discover --> interval
-    interval --> finishing["Started, past ¾ of its<br/>usual time or with no<br/>history: every 10 s"]
-    interval --> running["Started for less than<br/>that, or created or<br/>queued: every 30 s"]
+    interval --> finishing["Started, from its fastest<br/>recent build to 90 s past<br/>its slowest, or with no<br/>history: every 10 s"]
+    interval --> running["Started for less than its<br/>fastest recent build, or<br/>created or queued: every<br/>30 s, and again when it<br/>reaches that"]
+    interval --> overrun["Started over 90 s past<br/>its slowest recent build:<br/>the time beyond that ÷ 10,<br/>30 s to 5 minutes"]
     interval --> quiet["Quiet: the time since<br/>the last build ÷ 30,<br/>30 s to 5 minutes"]
     interval --> failed["Quiet after a failed or<br/>errored build: the time<br/>since it ÷ 120,<br/>30 s to 5 minutes"]
     finishing --> due{"Due?"}
     running --> due
+    overrun --> due
     quiet --> due
     failed --> due
     due -- "no" --> sleep(["Sleep until a repository<br/>or the listing is due"])

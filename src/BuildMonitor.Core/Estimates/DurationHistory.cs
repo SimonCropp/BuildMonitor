@@ -65,6 +65,27 @@ sealed class DurationHistory
         }
     }
 
+    /// <summary>
+    /// The fastest and slowest recent run of each pipeline, which the poller aims its running
+    /// interval between.
+    /// </summary>
+    public ImmutableDictionary<string, DurationRange> Ranges()
+    {
+        lock (gate)
+        {
+            var builder = ImmutableDictionary.CreateBuilder<string, DurationRange>();
+            foreach (var (key, list) in seconds)
+            {
+                if (list.Count > 0)
+                {
+                    builder[key] = new(TimeSpan.FromSeconds(list.Min()), TimeSpan.FromSeconds(list.Max()));
+                }
+            }
+
+            return builder.ToImmutable();
+        }
+    }
+
     static TimeSpan? MedianOf(List<double> list)
     {
         if (list.Count == 0)

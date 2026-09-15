@@ -40,11 +40,13 @@ flowchart TD
     listed -- "no" --> discover["GET projects with Reporter<br/>access or above, or the<br/>group's, subgroups included"]
     listed -- "yes" --> interval["One schedule for every<br/>project, set by the busiest"]
     discover --> interval
-    interval --> finishing["A pipeline running past ¾<br/>of its usual time or with<br/>no history: every 10 s"]
-    interval --> running["Any other running<br/>or pending pipeline:<br/>every 30 s"]
+    interval --> finishing["A pipeline running from its<br/>fastest recent run to 90 s<br/>past its slowest, or with<br/>no history: every 10 s"]
+    interval --> running["A pending pipeline, or one<br/>running for less than its<br/>fastest recent run: every<br/>30 s, and again when it<br/>reaches that"]
+    interval --> overrun["A pipeline running over<br/>90 s past its slowest<br/>recent run: the time beyond<br/>that ÷ 10, 30 s to 5 minutes"]
     interval --> quiet["Otherwise the shortest of<br/>each project's time since<br/>its last pipeline ÷ 30,<br/>or ÷ 120 when that failed,<br/>30 s to 5 minutes"]
     finishing --> due{"Due?"}
     running --> due
+    overrun --> due
     quiet --> due
     due -- "no" --> sleep(["Sleep until the connection<br/>or the listing is due"])
     due -- "yes" --> query["GET graphql: the last<br/>5 pipelines of up to<br/>50 projects a request,<br/>with If-None-Match"]

@@ -27,6 +27,19 @@ public class DurationHistoryTests
     }
 
     [Test]
+    public async Task RangeOfTheLastTen()
+    {
+        var history = new DurationHistory();
+        for (var index = 1; index <= 12; index++)
+        {
+            history.Record("p", TimeSpan.FromMinutes(index));
+        }
+
+        // 3..12 remain.
+        await Assert.That(history.Ranges()["p"]).IsEqualTo(new DurationRange(TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(12)));
+    }
+
+    [Test]
     public async Task IgnoresNonPositive()
     {
         var history = new DurationHistory();

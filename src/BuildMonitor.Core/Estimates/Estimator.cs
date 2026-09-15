@@ -18,4 +18,20 @@ static class Estimator
 
         return null;
     }
+
+    /// <summary>
+    /// The stretch of its run in which a build is expected to finish. The provider's own duration
+    /// wins, as it does for <see cref="Estimate"/>, from three quarters of it to all of it, since one
+    /// number says nothing of how runs vary; otherwise the fastest to the slowest of the pipeline's
+    /// recent successful runs.
+    /// </summary>
+    public static DurationRange? Window(Build build, ImmutableDictionary<string, DurationRange> ranges)
+    {
+        if (build.Estimate?.Duration is { } duration)
+        {
+            return new(duration * 0.75, duration);
+        }
+
+        return ranges.TryGetValue(build.PipelineKey, out var range) ? range : null;
+    }
 }

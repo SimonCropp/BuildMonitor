@@ -574,7 +574,7 @@ sealed class ConnectionPoller
             groups,
             memory,
             Filters.Apply(settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
-            state.Medians,
+            history.Ranges(),
             interval,
             Min(TimeSpan.FromSeconds(Math.Max(5, settings.RunningPollIntervalSeconds)), interval),
             budget.State,

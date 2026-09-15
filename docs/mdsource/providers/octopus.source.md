@@ -40,11 +40,13 @@ flowchart TD
     listed -- "no" --> discover["GET spaces, then the<br/>projects of the default<br/>or named space"]
     listed -- "yes" --> interval["One schedule for every<br/>project, set by the busiest"]
     discover --> interval
-    interval --> finishing["A deployment executing<br/>with 90 s or less left, or<br/>no estimate: every 10 s"]
-    interval --> running["Any other executing<br/>or queued deployment:<br/>every 30 s"]
+    interval --> finishing["A deployment executing with<br/>90 s or less left, up to 90 s<br/>over, or no estimate:<br/>every 10 s"]
+    interval --> running["A queued deployment, or<br/>one executing with more<br/>than 90 s left: every 30 s"]
+    interval --> overrun["A deployment executing<br/>over 90 s past Octopus's<br/>estimate: the time beyond<br/>that ÷ 10, 30 s to 5 minutes"]
     interval --> quiet["Otherwise the shortest of<br/>each project's time since<br/>its last deployment ÷ 30,<br/>or ÷ 120 when that failed,<br/>30 s to 5 minutes"]
     finishing --> due{"Due?"}
     running --> due
+    overrun --> due
     quiet --> due
     due -- "no" --> sleep(["Sleep until the connection<br/>or the listing is due"])
     due -- "yes" --> fetch["GET {space}/dashboard/dynamic,<br/>the current and previous<br/>deployment of every project<br/>to every environment"]
