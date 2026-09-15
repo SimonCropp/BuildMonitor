@@ -284,7 +284,9 @@ enum BmKey {
     BM_KEY_BACK = 14,
     /* Escape on the builds page. */
     BM_KEY_HIDE = 15,
-    BM_KEY_QUIT = 16
+    BM_KEY_QUIT = 16,
+    /* A click on the footer status, which copies it. */
+    BM_KEY_COPY_STATUS = 17
 };
 
 /* BmInput.changedField for an edit of the filter box, which is not one of BmScreen.fields. */

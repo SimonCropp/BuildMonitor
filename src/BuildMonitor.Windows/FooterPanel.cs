@@ -1,5 +1,6 @@
 /// <summary>
-/// The footer: real buttons, one per <see cref="Button"/>, and the status line.
+/// The footer: real buttons, one per <see cref="Button"/>, and the status line, which a click
+/// copies, as a label's text can not be selected and an error in it can run past its end.
 /// </summary>
 sealed class FooterPanel : Panel
 {
@@ -8,6 +9,7 @@ sealed class FooterPanel : Panel
     readonly List<FormsButton> pool = [];
     string signature = "";
     int clicked = -1;
+    bool statusClicked;
 
     public FooterPanel()
     {
@@ -28,8 +30,10 @@ sealed class FooterPanel : Panel
             Padding = DpiScale.Spacing(this, 0, 0, 12, 0),
             ForeColor = Palette.Dim,
             AutoEllipsis = true,
-            UseMnemonic = false
+            UseMnemonic = false,
+            Cursor = Cursors.Hand
         };
+        status.Click += (_, _) => statusClicked = true;
         Controls.Add(status);
         Controls.Add(buttons);
     }
@@ -92,6 +96,13 @@ sealed class FooterPanel : Panel
     {
         var value = clicked;
         clicked = -1;
+        return value;
+    }
+
+    public bool DrainStatusClicked()
+    {
+        var value = statusClicked;
+        statusClicked = false;
         return value;
     }
 }

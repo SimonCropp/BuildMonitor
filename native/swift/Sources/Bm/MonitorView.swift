@@ -99,6 +99,11 @@ final class MonitorView: NSView {
             return
         }
 
+        if renderer.statusRect.contains(point) {
+            runtime.input.key = Int32(BM_KEY_COPY_STATUS.rawValue)
+            return
+        }
+
         guard let model, !model.isForm else {
             return
         }

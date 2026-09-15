@@ -41,5 +41,6 @@ enum CommandKind
     RaiseIssue,
     Update,
     Hide,
-    Quit
+    Quit,
+    CopyStatus
 }

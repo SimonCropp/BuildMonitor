@@ -13,9 +13,11 @@ static class InputApplier
             state = MonitorSession.Resize(state, input.Columns, input.Rows);
         }
 
-        if (input.Any)
+        // The last message has been seen, unless the input is the click that copies it: cleared
+        // first, the copy would take whatever the footer falls back to, "Polled 3s ago".
+        if (input.Any &&
+            input.Key != CommandKind.CopyStatus)
         {
-            // The last message has been seen.
             state = MonitorSession.SetStatus(state, "");
         }
 
@@ -266,6 +268,12 @@ static class InputApplier
                 }
 
                 return state;
+            case CommandKind.CopyStatus:
+                // The footer as shown, and left as it is: a status saying it was copied would replace
+                // the error being copied, often before it was read in full.
+                return ScreenBuilder.Status(state, DateTimeOffset.UtcNow) is { Length: > 0 } status
+                    ? state with { Clipboard = status }
+                    : state;
             case CommandKind.CopyLog:
                 return MonitorSession.SelectedBuild(state) is { } logged ? CopyLog(state, logged, actions) : state;
             case CommandKind.Retry:

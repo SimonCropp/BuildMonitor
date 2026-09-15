@@ -45,6 +45,8 @@ final class BuildsRenderer {
     private(set) var rowRects: [CGRect] = []
     private(set) var chips: [Hit] = []
     private(set) var buttonRects: [CGRect] = []
+    // Where the footer status was drawn, which a click copies.
+    private(set) var statusRect = CGRect.zero
     private(set) var bodyRect = CGRect.zero
 
     init(fontData: Data?, size: CGFloat) {
@@ -410,9 +412,9 @@ final class BuildsRenderer {
 
         let attributes: [NSAttributedString.Key: Any] = [.font: smallFont, .foregroundColor: Palette.dim]
         let statusSize = (frame.status as NSString).size(withAttributes: attributes)
-        (frame.status as NSString).draw(
-            at: CGPoint(x: size.width - statusSize.width - padding, y: top + footerHeight / 2 - statusSize.height / 2),
-            withAttributes: attributes)
+        let statusOrigin = CGPoint(x: size.width - statusSize.width - padding, y: top + footerHeight / 2 - statusSize.height / 2)
+        statusRect = CGRect(origin: statusOrigin, size: statusSize)
+        (frame.status as NSString).draw(at: statusOrigin, withAttributes: attributes)
     }
 
     private func measure(_ text: String) -> CGFloat {

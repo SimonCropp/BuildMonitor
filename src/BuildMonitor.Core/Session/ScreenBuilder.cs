@@ -300,7 +300,7 @@ static class ScreenBuilder
         return buttons;
     }
 
-    static string Status(SessionState state, DateTimeOffset now)
+    public static string Status(SessionState state, DateTimeOffset now)
     {
         if (state.Status.Length > 0)
         {

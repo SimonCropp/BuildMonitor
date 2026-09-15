@@ -213,8 +213,10 @@ sealed class MonitorForm : Form
 
     public MonitorInput Drain()
     {
-        var input = canvas.Drain() with
+        var drained = canvas.Drain();
+        var input = drained with
         {
+            Key = footer.DrainStatusClicked() ? CommandKind.CopyStatus : drained.Key,
             ClickedButton = footer.DrainClickedButton(),
             FieldChanges = formPanel.DrainChanges(),
             ClickedField = formPanel.DrainClickedField(),

@@ -892,6 +892,15 @@ void DrawFooter(const BmScreen& screen) {
     float width = ImGui::CalcTextSize(status.c_str()).x;
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - width - 12.0f);
     ImGui::TextColored(dim, "%s", status.c_str());
+    // A click copies the status, as text drawn by ImGui can not be selected and an error in it can
+    // run past the window's edge.
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    }
+
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+        g.input.key = BM_KEY_COPY_STATUS;
+    }
 }
 
 void Frame(const BmScreen& screen, int width, int height, bool feed) {

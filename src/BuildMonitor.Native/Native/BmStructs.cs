@@ -168,7 +168,8 @@ enum BmKey
     Copy = 13,
     Back = 14,
     Hide = 15,
-    Quit = 16
+    Quit = 16,
+    CopyStatus = 17
 }
 
 static class BmFlags
