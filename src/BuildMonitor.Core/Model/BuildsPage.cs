@@ -23,4 +23,7 @@ record BuildsPage(
     string Search,
     // What the body says when it has no rows, composed once so every head says the same: loading,
     // nothing matching the filter, or nothing yet. Empty while there are rows.
-    string Empty);
+    string Empty,
+    // Every distinct author shown across all failed builds, to size the author column from. Null or
+    // empty when no failed build names anyone, and then the column is not drawn.
+    IReadOnlyList<string>? Authors = null);

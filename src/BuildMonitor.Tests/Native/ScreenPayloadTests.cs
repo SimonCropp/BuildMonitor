@@ -8,14 +8,14 @@ public class ScreenPayloadTests
         return Verify(payload.Describe())
             .Snapshot(
                 """
-                page: 0 rows: 6 details: 5 chips: 7 spans: 11 fields: 0 options: 0 buttons: 4 menu: 0 tray: 8 strings: 674 bytes
+                page: 0 rows: 6 details: 5 chips: 7 spans: 11 fields: 0 options: 0 buttons: 4 menu: 0 tray: 8 strings: 694 bytes
                 search='' empty=''
-                row status=1 flags=0 progress=0.20 'build-all' link=None 'Build all main' spans=Build:'Build all',None:' main' provider='jenkins' '04:00 left' chips=Cancel:Cancel
-                row status=1 flags=0 progress=0.40 'Deploy Web' link=Build '' spans= provider='octopus' '02:15 left' chips=Cancel:Cancel
-                row status=1 flags=1 progress=0.50 'DiffEngine' link=None 'test.yml main' spans=Build:'test.yml',None:' ',Branch:'main' provider='github' '03:00 left' chips=Cancel:Cancel
-                row status=0 flags=0 progress=-1.00 'nightly' link=Build '' spans= provider='jenkins' 'queued' chips=Cancel:Cancel
-                row status=3 flags=0 progress=-1.00 'Verify' link=None 'test.yml feature/inline' spans=Build:'test.yml',None:' ',Branch:'feature/inline' provider='github' '25m ago' chips=PullRequest:PR 42,Retry:Retry,CopyLog:Copy log
-                row status=2 flags=0 progress=-1.00 'DiffEngine' link=None 'docs.yml main' spans=Build:'docs.yml',None:' ',Branch:'main' provider='github' '23h ago' chips=
+                row status=1 flags=0 progress=0.20 'build-all' link=None 'Build all main' spans=Build:'Build all',None:' main' provider='jenkins' '04:00 left' author='' chips=Cancel:Cancel
+                row status=1 flags=0 progress=0.40 'Deploy Web' link=Build '' spans= provider='octopus' '02:15 left' author='' chips=Cancel:Cancel
+                row status=1 flags=1 progress=0.50 'DiffEngine' link=None 'test.yml main' spans=Build:'test.yml',None:' ',Branch:'main' provider='github' '03:00 left' author='' chips=Cancel:Cancel
+                row status=0 flags=0 progress=-1.00 'nightly' link=Build '' spans= provider='jenkins' 'queued' author='' chips=Cancel:Cancel
+                row status=3 flags=0 progress=-1.00 'Verify' link=None 'test.yml feature/inline' spans=Build:'test.yml',None:' ',Branch:'feature/inline' provider='github' '25m ago' author='SimonCropp' chips=PullRequest:PR 42,Retry:Retry,CopyLog:Copy log
+                row status=2 flags=0 progress=-1.00 'DiffEngine' link=None 'docs.yml main' spans=Build:'docs.yml',None:' ',Branch:'main' provider='github' '23h ago' author='' chips=
                 button flags=1 'Refresh'
                 button flags=1 'Options'
                 button flags=1 'Filters'

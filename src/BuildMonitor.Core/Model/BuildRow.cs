@@ -19,6 +19,8 @@
 /// <param name="Expanded">Whether a group's members follow its row.</param>
 /// <param name="Chips">The buttons, in the order they are drawn. Empty for a group's own row:
 /// which of its builds they would act on is ambiguous.</param>
+/// <param name="Author">Who broke a failed build, as <see cref="AuthorNames"/> calls them; empty
+/// for any other row.</param>
 record BuildRow(
     RowKind Kind,
     BuildStatus Status,
@@ -30,7 +32,8 @@ record BuildRow(
     string Timing,
     bool Selected,
     bool Expanded,
-    IReadOnlyList<RowChip> Chips)
+    IReadOnlyList<RowChip> Chips,
+    string Author = "")
 {
     /// <summary>
     /// The runs of <see cref="Detail"/> joined, for a head that measures or prints the cell whole.

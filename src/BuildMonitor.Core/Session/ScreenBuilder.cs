@@ -29,13 +29,16 @@ static class ScreenBuilder
         var body = MonitorSession.BodyRows(state);
         var top = Math.Clamp(state.ScrollTop, 0, Math.Max(0, rows.Length - body));
         var visible = rows.Skip(top).Take(body).ToList();
+        var builds = RowProjection.Builds(state);
+        // Across every failed build rather than the visible rows, so a name does not grow and shrink
+        // while scrolling past someone who shares it.
+        var authors = AuthorNames.Of(builds.Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
         var composed = new List<BuildRow>(visible.Count);
         for (var index = 0; index < visible.Count; index++)
         {
-            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now));
+            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now, authors));
         }
 
-        var builds = RowProjection.Builds(state);
         var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
         var running = builds.Count(_ => _.IsActive);
         var selected = state.SelectedRow >= top && state.SelectedRow < top + visible.Count
@@ -54,7 +57,7 @@ static class ScreenBuilder
         return new(
             Title,
             Page.Builds,
-            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized), loading, state.Search, Empty(state, rows.Length, loading)),
+            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized), loading, state.Search, Empty(state, rows.Length, loading), authors.Values.Distinct().ToList()),
             null,
             Buttons(state),
             status,
@@ -211,7 +214,7 @@ static class ScreenBuilder
         return $"{Plural(pipelines, "pipeline")}, {failing} failing, {running} running";
     }
 
-    static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now)
+    static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now, IReadOnlyDictionary<string, string> authors)
     {
         if (row.Build is not { } build)
         {
@@ -220,6 +223,12 @@ static class ScreenBuilder
 
         var estimate = Estimator.Estimate(build, state.Medians);
         var (fraction, timing) = Progress.Compute(build, estimate, now);
+        // Only the build that broke names anyone: on a pass or a run the name says nothing wrong.
+        var author = build.Status == BuildStatus.Failed &&
+                     build.Author is not null &&
+                     authors.TryGetValue(build.Author.Trim(), out var shown)
+            ? shown
+            : "";
         return new(
             row.Kind,
             build.Status,
@@ -231,7 +240,8 @@ static class ScreenBuilder
             timing,
             selected,
             false,
-            RowChips.Of(build));
+            RowChips.Of(build),
+            author);
     }
 
     /// <summary>

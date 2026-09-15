@@ -117,6 +117,8 @@ typedef struct BmRow {
      */
     int32_t spanOffset;
     int32_t spanCount;
+    /* Who broke a failed build, drawn after the timing, or empty for any other row. */
+    BmString author;
 } BmRow;
 
 /* Keep in sync with FieldKind.cs */
@@ -223,6 +225,10 @@ typedef struct BmScreen {
        width these want, up to a readable maximum, before the details are cut short. */
     const BmString* details;
     int32_t detailCount;
+    /* Every distinct author across all failed builds, to size the author column from. With none the
+       column is not drawn. */
+    const BmString* authors;
+    int32_t authorCount;
     /* Every visible row's chips, which BmRow.chipOffset and chipCount index. */
     const BmChip* chips;
     int32_t chipCount;
@@ -337,7 +343,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 5
+#define BM_VERSION 6
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

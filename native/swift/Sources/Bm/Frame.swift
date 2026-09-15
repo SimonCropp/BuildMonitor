@@ -28,6 +28,7 @@ struct Frame {
         let timing: String
         let chips: [Chip]
         let progress: Float
+        let author: String
 
         var isGroup: Bool { flags & Int32(BM_ROW_GROUP.rawValue) != 0 }
         var isSelected: Bool { flags & Int32(BM_ROW_SELECTED.rawValue) != 0 }
@@ -70,6 +71,7 @@ struct Frame {
     let names: [String]
     let groupNames: [String]
     let details: [String]
+    let authors: [String]
     let search: String
     let empty: String
     let formTitle: String
@@ -121,7 +123,8 @@ struct Frame {
                 provider: text(row.provider),
                 timing: text(row.timing),
                 chips: start >= 0 && start < end ? Array(chips[start..<end]) : [],
-                progress: row.progress)
+                progress: row.progress,
+                author: text(row.author))
         }
 
         let options = UnsafeBufferPointer(start: screen.options, count: Int(screen.optionCount)).map(text)
@@ -155,6 +158,7 @@ struct Frame {
 
         let allNames = UnsafeBufferPointer(start: screen.names, count: Int(screen.nameCount + screen.groupNameCount)).map(text)
         let details = UnsafeBufferPointer(start: screen.details, count: Int(screen.detailCount)).map(text)
+        let authors = UnsafeBufferPointer(start: screen.authors, count: Int(screen.authorCount)).map(text)
 
         return Frame(
             page: screen.page,
@@ -169,6 +173,7 @@ struct Frame {
             names: Array(allNames.prefix(Int(screen.nameCount))),
             groupNames: Array(allNames.dropFirst(Int(screen.nameCount))),
             details: details,
+            authors: authors,
             search: text(screen.search),
             empty: text(screen.empty),
             formTitle: text(screen.formTitle),

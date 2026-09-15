@@ -172,10 +172,13 @@ final class BuildsRenderer {
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.
         let iconWidth: CGFloat = frame.rows.contains { !$0.provider.isEmpty } ? iconSize + gap : 0
+        // The author of a failed build, as wide as the widest name up to twenty characters, and gone
+        // with its gap when no failed build names anyone.
+        let authorWidth = min(frame.authors.map { measure($0).rounded(.up) }.max() ?? 0, measure(String(repeating: "0", count: 20)))
         let textX = rowHeight + gap
-        // What the name, the detail, the bar and the chips share: the row less the square, the timing
-        // and a gap after each of the other four cells.
-        let shared = width - textX - timingWidth - 4 * gap
+        // What the name, the detail, the bar and the chips share: the row less the square, the timing,
+        // the author when shown, and a gap after each cell.
+        let shared = width - textX - timingWidth - 4 * gap - (authorWidth > 0 ? authorWidth + gap : 0)
         // As wide as the widest name across every row, not only those on screen, so it does not shift
         // while scrolling; the detail likewise, up to forty characters, past which a long pipeline or
         // branch is cut short rather than pushing every row's chips into the drop down.
@@ -250,6 +253,11 @@ final class BuildsRenderer {
 
             drawText(row.timing, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: timingWidth)
             x += timingWidth + gap
+            if authorWidth > 0 {
+                drawText(row.author, at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: authorWidth)
+                x += authorWidth + gap
+            }
+
             drawChips(row, index: index, from: x, to: x + chipsWidth, rowRect: rect, overflowWidth: overflowWidth)
         }
     }

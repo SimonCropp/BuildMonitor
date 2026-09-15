@@ -78,12 +78,12 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   ? nightly    jenkins                                                         queued     [Cancel]                   |
-                |   x [-] Verify          2 failing                                              25m ago                               |
-                |   x            github   test.yml feature/inline                                25m ago    PR 42 [Retry] [Copy log]   |
-                |   x            github   release.yml main                                       50m ago    [Retry] [Copy log]         |
-                |   + [+] Verify          2 passing                                              2h ago                                |
-                | > + DiffEngine github   docs.yml main                                          23h ago                               |
+                |   ? nightly    jenkins                                              queued                [Cancel]                   |
+                |   x [-] Verify          2 failing                                   25m ago                                          |
+                |   x            github   test.yml feature/inline                     25m ago    SimonCropp PR 42 [Retry] [Copy log]   |
+                |   x            github   release.yml main                            50m ago               [Retry] [Copy log]         |
+                |   + [+] Verify          2 passing                                   2h ago                                           |
+                | > + DiffEngine github   docs.yml main                               23h ago                                          |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+

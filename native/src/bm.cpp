@@ -477,7 +477,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         ImGui::TextColored(dim, "%s", Str(screen, screen.empty).c_str());
     } else if (screen.rowCount == 0) {
         ImGui::TextColored(dim, "%s", Str(screen, screen.empty).c_str());
-    } else if (ImGui::BeginTable("rows", 5, flags)) {
+    } else if (ImGui::BeginTable("rows", 6, flags)) {
         // The name cell starts with a status square a row height wide, then is as wide as the widest
         // name across every row, not only those on screen, so it does not shift while scrolling.
         float nameText = 0.0f;
@@ -499,6 +499,15 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
         detailText = std::min(detailText, ImGui::CalcTextSize("0000000000000000000000000000000000000000").x);
 
+        // The author of a failed build, as wide as the widest name up to twenty characters, and no
+        // width when no failed build names anyone.
+        float authorWidth = 0.0f;
+        for (int32_t i = 0; i < screen.authorCount; i++) {
+            authorWidth = std::max(authorWidth, ImGui::CalcTextSize(Str(screen, screen.authors[i]).c_str()).x);
+        }
+
+        authorWidth = std::min(authorWidth, ImGui::CalcTextSize("00000000000000000000").x);
+
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.
         const float iconSize = 16.0f;
@@ -514,9 +523,9 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         const float timingWidth = ImGui::CalcTextSize("0:00:00 left").x;
         const float widestChips = ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Copy log") + 2.0f * style.ItemSpacing.x;
         const float overflowWidth = ChipWidth(overflowLabel);
-        // Each boundary between the five columns carries cell padding on both sides of it. What is
+        // Each boundary between the six columns carries cell padding on both sides of it. What is
         // left, the name, the detail, the bar and the chips share.
-        const float shared = tableWidth - timingWidth - 4.0f * 2.0f * style.CellPadding.x;
+        const float shared = tableWidth - timingWidth - authorWidth - 5.0f * 2.0f * style.CellPadding.x;
         const float nameWanted = rowHeight + style.ItemSpacing.x + nameText + 2.0f * style.CellPadding.x;
         const float detailWanted = (anyIcon ? iconSize + style.ItemSpacing.x : 0.0f) + detailText;
         // The bar gives way before anything else, since the timing beside it says the same: it shows
@@ -536,6 +545,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthStretch, 1.0f);
         ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, showBar ? barWidth : 0.0f);
         ImGui::TableSetupColumn("timing", ImGuiTableColumnFlags_WidthFixed, timingWidth);
+        ImGui::TableSetupColumn("author", ImGuiTableColumnFlags_WidthFixed, authorWidth);
         ImGui::TableSetupColumn("chips", ImGuiTableColumnFlags_WidthFixed, chipsWidth);
         g.overflowAnchors.assign(static_cast<size_t>(screen.rowCount), ImVec2(-1.0f, -1.0f));
 
@@ -641,6 +651,12 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
             ImGui::TextColored(dim, "%s", Str(screen, row.timing).c_str());
             ImGui::TableSetColumnIndex(4);
+            if (row.author.length > 0) {
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
+                ImGui::TextUnformatted(Str(screen, row.author).c_str());
+            }
+
+            ImGui::TableSetColumnIndex(5);
             // Moved down only when a chip follows. A cursor moved with no item submitted after it is
             // an error to ImGui, which it reports with a tooltip over the window.
             if (row.chipCount > 0) {

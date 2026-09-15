@@ -248,11 +248,17 @@ sealed class RowsCanvas : Control
     /// without room for all of them puts the last behind an overflow chip, where a fixed chips column
     /// cut the names short instead. Only once no chip but that one fits do the names shrink.
     /// </summary>
-    (int Name, int Detail, int Bar, int Chips) ColumnWidths(BuildsPage builds, int iconWidth)
+    (int Name, int Detail, int Bar, int Author, int Chips) ColumnWidths(BuildsPage builds, int iconWidth)
     {
         var gap = LogicalToDeviceUnits(padding);
-        // After the status square, a gap after each of the name, detail, timing and chips.
-        var available = Width - RowHeight - LogicalToDeviceUnits(timingLength) - 5 * gap;
+        // As wide as the widest name shown, up to twenty characters, and gone with its gap when no
+        // failed build names anyone.
+        var authorWidth = Math.Min(
+            (builds.Authors ?? []).Select(_ => MeasureName(_, Font)).DefaultIfEmpty().Max(),
+            MeasureName(new('0', 20), Font));
+        // After the status square, a gap after each of the name, detail, timing and chips, and the
+        // author and its gap when shown.
+        var available = Width - RowHeight - LogicalToDeviceUnits(timingLength) - 5 * gap - (authorWidth > 0 ? authorWidth + gap : 0);
         // With the padding Draw leaves, so the widest text fits without an ellipsis.
         var nameWanted = builds.Names
             .Select(_ => MeasureName(_, Font))
@@ -277,7 +283,7 @@ sealed class RowsCanvas : Control
         var names = Math.Max(LogicalToDeviceUnits(120), available - chipsWidth);
         var narrowest = LogicalToDeviceUnits(40);
         var nameWidth = Math.Clamp(nameWanted, narrowest, Math.Max(narrowest, names - Math.Min(LogicalToDeviceUnits(minimumDetail), detailWanted)));
-        return (nameWidth, names - nameWidth, barWidth, chipsWidth);
+        return (nameWidth, names - nameWidth, barWidth, authorWidth, chipsWidth);
     }
 
     static string DisplayName(BuildRow row) =>
@@ -289,7 +295,7 @@ sealed class RowsCanvas : Control
     Font NameFont(BuildRow row) =>
         row.Kind == RowKind.Group ? bold : Font;
 
-    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, (int Name, int Detail, int Bar, int Chips) layout)
+    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, (int Name, int Detail, int Bar, int Author, int Chips) layout)
     {
         // The full height of the row and flush with its neighbours, so a run of rows in one status
         // reads as one block rather than a column of dots.
@@ -338,6 +344,12 @@ sealed class RowsCanvas : Control
 
         Draw(graphics, row.Timing, Font, x, bounds, timingWidth, Palette.Dim);
         x += timingWidth + gap;
+        if (layout.Author > 0)
+        {
+            Draw(graphics, row.Author, Font, x, bounds, layout.Author, Palette.Text);
+            x += layout.Author + gap;
+        }
+
         DrawChips(graphics, row, index, x, x + layout.Chips, centreY);
     }
 

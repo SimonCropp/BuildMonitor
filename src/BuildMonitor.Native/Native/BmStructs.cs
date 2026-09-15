@@ -23,6 +23,7 @@ struct BmRow
     public int NameLink;
     public int SpanOffset;
     public int SpanCount;
+    public BmString Author;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -96,6 +97,8 @@ struct BmScreen
     public int GroupNameCount;
     public BmString* Details;
     public int DetailCount;
+    public BmString* Authors;
+    public int AuthorCount;
     public BmChip* Chips;
     public int ChipCount;
     public BmSpan* Spans;

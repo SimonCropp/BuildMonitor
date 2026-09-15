@@ -13,6 +13,8 @@ static class AsciiRenderer
     // Past this a long pipeline or branch is cut short rather than pushing every row's chips into
     // the drop down.
     const int maximumDetail = 40;
+    // Past this a long name is cut short.
+    const int maximumAuthor = 20;
     const string overflow = "[...]";
     // The chips cell is this wide while there is room, so the columns before it do not move as
     // builds gain and lose chips.
@@ -73,7 +75,8 @@ static class AsciiRenderer
             page.Names.Select(_ => _.Length).DefaultIfEmpty().Max(),
             page.GroupNames.Select(_ => _.Length + 4).DefaultIfEmpty().Max());
         var longestDetail = page.Details.Select(_ => _.Length).DefaultIfEmpty().Max();
-        var layout = Layout(inner, page.Rows.Any(_ => _.Provider.Length > 0), longestName, longestDetail);
+        var author = Math.Min((page.Authors ?? []).Select(_ => _.Length).DefaultIfEmpty().Max(), maximumAuthor);
+        var layout = Layout(inner, page.Rows.Any(_ => _.Provider.Length > 0), longestName, longestDetail, author);
         return page.Rows.Select(_ => RowLine(_, layout)).ToList();
     }
 
@@ -89,27 +92,27 @@ static class AsciiRenderer
     /// chip rather than cutting the names short. Only once no chip but that one fits does the bar
     /// go, and then the names shrink.
     /// </summary>
-    static (int Name, int Detail, bool Provider, bool Bar, int Chips) Layout(int inner, bool provider, int longestName, int longestDetail)
+    static (int Name, int Detail, bool Provider, bool Bar, int Author, int Chips) Layout(int inner, bool provider, int longestName, int longestDetail, int author)
     {
         var name = Math.Max(minimumName, longestName);
         var detail = Math.Min(longestDetail, maximumDetail);
         var bar = true;
         while (true)
         {
-            // Marker, glyph and timing, the provider and the bar when shown, and a space before
-            // every cell but the first.
-            var cells = 2 + timingWidth + (provider ? providerWidth + 1 : 0) + (bar ? barWidth + 1 : 0) + 5;
+            // Marker, glyph and timing, the provider, the bar and the author when shown, and a space
+            // before every cell but the first.
+            var cells = 2 + timingWidth + (provider ? providerWidth + 1 : 0) + (bar ? barWidth + 1 : 0) + (author > 0 ? author + 1 : 0) + 5;
             // What the name, detail and chips share.
             var available = inner - cells;
             var spare = available - name - detail;
             if (spare >= widestChips.Length)
             {
-                return (name, available - name - widestChips.Length, provider, bar, widestChips.Length);
+                return (name, available - name - widestChips.Length, provider, bar, author, widestChips.Length);
             }
 
             if (spare >= overflow.Length)
             {
-                return (name, detail, provider, bar, spare);
+                return (name, detail, provider, bar, author, spare);
             }
 
             if (bar)
@@ -120,11 +123,11 @@ static class AsciiRenderer
 
             var names = available - overflow.Length;
             var shrunk = Math.Clamp(name, minimumName, Math.Max(minimumName, names - Math.Min(minimumDetail, detail)));
-            return (shrunk, Math.Max(1, names - shrunk), provider, false, overflow.Length);
+            return (shrunk, Math.Max(1, names - shrunk), provider, false, author, overflow.Length);
         }
     }
 
-    static string RowLine(BuildRow row, (int Name, int Detail, bool Provider, bool Bar, int Chips) layout)
+    static string RowLine(BuildRow row, (int Name, int Detail, bool Provider, bool Bar, int Author, int Chips) layout)
     {
         var marker = row.Selected ? '>' : ' ';
         var cells = new List<string>
@@ -147,6 +150,11 @@ static class AsciiRenderer
         }
 
         cells.Add(Fit(row.Timing, timingWidth));
+        if (layout.Author > 0)
+        {
+            cells.Add(Fit(row.Author, layout.Author));
+        }
+
         cells.Add(Fit(Chips(row.Chips, layout.Chips), layout.Chips));
         return string.Join(' ', cells);
     }

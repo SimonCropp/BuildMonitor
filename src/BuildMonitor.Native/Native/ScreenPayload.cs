@@ -8,6 +8,7 @@ sealed unsafe class ScreenPayload
     readonly List<BmRow> rows = [];
     readonly List<BmString> names = [];
     readonly List<BmString> details = [];
+    readonly List<BmString> authors = [];
     readonly List<BmChip> chips = [];
     readonly List<BmSpan> spans = [];
     readonly List<BmField> fields = [];
@@ -32,6 +33,7 @@ sealed unsafe class ScreenPayload
         rows.Clear();
         names.Clear();
         details.Clear();
+        authors.Clear();
         chips.Clear();
         spans.Clear();
         fields.Clear();
@@ -78,6 +80,11 @@ sealed unsafe class ScreenPayload
                 details.Add(Add(detail));
             }
 
+            foreach (var author in builds.Authors ?? [])
+            {
+                authors.Add(Add(author));
+            }
+
             foreach (var row in builds.Rows)
             {
                 var chipOffset = chips.Count;
@@ -116,7 +123,8 @@ sealed unsafe class ScreenPayload
                     Progress = (float) row.Progress,
                     NameLink = (int) row.NameLink,
                     SpanOffset = spanOffset,
-                    SpanCount = row.Detail.Count
+                    SpanCount = row.Detail.Count,
+                    Author = Add(row.Author)
                 });
             }
         }
@@ -204,6 +212,7 @@ sealed unsafe class ScreenPayload
         var rowArray = rows.ToArray();
         var nameArray = names.ToArray();
         var detailArray = details.ToArray();
+        var authorArray = authors.ToArray();
         var chipArray = chips.ToArray();
         var spanArray = spans.ToArray();
         var fieldArray = fields.ToArray();
@@ -215,6 +224,7 @@ sealed unsafe class ScreenPayload
         fixed (BmRow* rowPointer = rowArray)
         fixed (BmString* namePointer = nameArray)
         fixed (BmString* detailPointer = detailArray)
+        fixed (BmString* authorPointer = authorArray)
         fixed (BmChip* chipPointer = chipArray)
         fixed (BmSpan* spanPointer = spanArray)
         fixed (BmField* fieldPointer = fieldArray)
@@ -231,6 +241,8 @@ sealed unsafe class ScreenPayload
             frame.Names = namePointer;
             frame.Details = detailPointer;
             frame.DetailCount = detailArray.Length;
+            frame.Authors = authorPointer;
+            frame.AuthorCount = authorArray.Length;
             frame.Chips = chipPointer;
             frame.ChipCount = chipArray.Length;
             frame.Spans = spanPointer;
@@ -263,7 +275,7 @@ sealed unsafe class ScreenPayload
         {
             var rowChips = chips.Skip(row.ChipOffset).Take(row.ChipCount).Select(_ => $"{(ChipKind) _.Kind}:{Text(_.Label)}");
             var rowSpans = spans.Skip(row.SpanOffset).Take(row.SpanCount).Select(_ => $"{(ChipKind) _.Link}:'{Text(_.Text)}'");
-            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' link={(ChipKind) row.NameLink} '{Text(row.Detail)}' spans={string.Join(',', rowSpans)} provider='{Text(row.Provider)}' '{Text(row.Timing)}' chips={string.Join(',', rowChips)}");
+            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' link={(ChipKind) row.NameLink} '{Text(row.Detail)}' spans={string.Join(',', rowSpans)} provider='{Text(row.Provider)}' '{Text(row.Timing)}' author='{Text(row.Author)}' chips={string.Join(',', rowChips)}");
         }
 
         foreach (var field in fields)
