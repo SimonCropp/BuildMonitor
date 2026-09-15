@@ -16,7 +16,7 @@ public class BuildToolsTests
                 _.GetCustomAttribute<McpServerToolAttribute>()!.Name,
                 _.GetCustomAttribute<DescriptionAttribute>()?.Description,
                 Parameters = _.GetParameters()
-                    .Where(parameter => parameter.ParameterType != typeof(Cancel))
+                    .Where(_ => _.ParameterType != typeof(Cancel))
                     .Select(parameter => new
                     {
                         parameter.Name,
