@@ -36,7 +36,7 @@ public class DurationHistoryTests
         }
 
         // 3..12 remain.
-        await Assert.That(history.Ranges()["p"]).IsEqualTo(new DurationRange(TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(12)));
+        await Assert.That(history.Ranges()["p"]).IsEqualTo(new(TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(12)));
     }
 
     [Test]

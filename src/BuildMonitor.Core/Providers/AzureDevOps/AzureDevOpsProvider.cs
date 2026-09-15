@@ -229,8 +229,11 @@ sealed class AzureDevOpsProvider : ProviderBase
         // Log ids are handed out as the logs are written, so this is the order the build ran in.
         foreach (var record in chosen.OrderBy(_ => _.Log!.Id))
         {
-            var name = record.Type == "Task" &&
-                       record.ParentId is { } parent &&
+            var name = record is
+                       {
+                           Type: "Task",
+                           ParentId: { } parent
+                       } &&
                        byId.TryGetValue(parent, out var job)
                 ? $"{job.Name} / {record.Name}"
                 : record.Name ?? "";

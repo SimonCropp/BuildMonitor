@@ -10,9 +10,10 @@ public class MonitorFormTests
     public Task Builds() =>
         Capture(Fixtures.WithBuilds());
 
+    // What the readme shows: running builds, a failure, a closed group and the filter box in use.
     [Test]
     public Task Searched() =>
-        Capture(MonitorSession.Search(Fixtures.WithBuilds(), "main"));
+        Capture(MonitorSession.Search(Fixtures.WithFailedGroup(), "main"));
 
     [Test]
     public Task Empty() =>

@@ -13,14 +13,14 @@ public class BuildToolsTests
             .Select(_ => new
             {
                 _.GetCustomAttribute<McpServerToolAttribute>()!.Name,
-                Description = _.GetCustomAttribute<DescriptionAttribute>()?.Description,
+                _.GetCustomAttribute<DescriptionAttribute>()?.Description,
                 Parameters = _.GetParameters()
                     .Where(parameter => parameter.ParameterType != typeof(Cancel))
                     .Select(parameter => new
                     {
                         parameter.Name,
                         Type = parameter.ParameterType.Name,
-                        Description = parameter.GetCustomAttribute<DescriptionAttribute>()?.Description
+                        parameter.GetCustomAttribute<DescriptionAttribute>()?.Description
                     })
             })
             .OrderBy(_ => _.Name);

@@ -11,7 +11,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 A build/CI monitor that runs in the system tray on Windows, macOS and Linux. It polls the CI services a developer cares about, shows one row per pipeline with a progress bar and countdown for running builds, links straight to the build, the branch and the pull request, can retry or cancel a build, and copies the log of a failed one. A local [MCP](/docs/mcp.md) server lets an AI assistant read and act on the same list.
 
-<img src="/src/BuildMonitor.Windows.Tests/MonitorFormTests.Builds.verified.png">
+<img src="/src/BuildMonitor.Windows.Tests/MonitorFormTests.Searched.verified.png">
 
 **See [Milestones](../../milestones?state=closed) for release notes.**
 
