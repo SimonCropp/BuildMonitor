@@ -45,6 +45,15 @@ Off by default. GitHub then watches the repositories owned by the signed in acco
 Pops a desktop notification when a poll finds a build that has failed since the previous poll. The first poll after starting is silent, so a red pipeline that has been red for a week is not announced every login. On Windows this is a balloon from the tray icon, on macOS a Notification Center banner, on Linux whatever `notify-send` reaches.
 
 
+## Show builds from the last (days)
+
+How far back a finished build is shown, 30 days unless changed, from 1 to 365. A pipeline whose last run is older has no row. Running and queued builds always show.
+
+Where the service can filter by date the limit is part of the request, so a poll of a busy account returns less: GitHub Actions (`created`), Azure DevOps (`minTime`), GitLab CI (`updatedAfter`, or `updated_after` over REST) and TeamCity (`queuedDate`). AppVeyor, Bitbucket Pipelines, GoCD, Jenkins, Octopus Deploy and Travis CI have no such filter, so their older builds are dropped as they arrive.
+
+The date sent is the start of a UTC day, so a request's URL stays the same all day and the services that answer an unchanged list with a cheap "not modified" keep doing so.
+
+
 ## Poll intervals
 
 How often a repository, project or pipeline that built recently is polled, in seconds, and the shorter interval used while a running build is expected to finish.

@@ -284,7 +284,8 @@ sealed class ConnectionPoller
         var context = Providers.Context(connection, secret, handler, etags, budget) with
         {
             Progress = visible ? progress => host.Mutate(_ => MonitorSession.SetProgress(_, connectionId, progress)) : _ => { },
-            ShowForksAndCollaborations = host.State.Settings.ShowForksAndCollaborations
+            ShowForksAndCollaborations = host.State.Settings.ShowForksAndCollaborations,
+            Since = HistoryCutoff.Of(clock(), host.State.Settings.HistoryDays)
         };
         var descriptor = provider.Descriptor;
         var now = clock();

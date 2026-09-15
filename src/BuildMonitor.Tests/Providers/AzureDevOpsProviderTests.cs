@@ -28,6 +28,16 @@ public class AzureDevOpsProviderTests
         await Verify(new { builds, handler.Requests });
     }
 
+    [Test]
+    public async Task HistoryLimitIsSentAsMinTime()
+    {
+        var handler = Handler()
+            .Get($"{organization}/Web/_apis/build/builds", """{"count":0,"value":[]}""");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso")) with { Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero) };
+        await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        await Assert.That(handler.Requests.Any(_ => _.Contains("queryOrder=queueTimeDescending&minTime=2026-08-16T00"))).IsTrue();
+    }
+
     static PollGroup Web() =>
         new("Web", [new("Web/1", "CI", "Web", "Web", "https://dev.azure.com/contoso/Web"), new("Web/2", "Nightly", "Web", "Web", "https://dev.azure.com/contoso/Web")]);
 

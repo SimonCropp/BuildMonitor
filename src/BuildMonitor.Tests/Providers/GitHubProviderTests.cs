@@ -39,6 +39,16 @@ public class GitHubProviderTests
     }
 
     [Test]
+    public async Task HistoryLimitIsSentAsCreated()
+    {
+        var handler = Handler()
+            .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs", """{"total_count":0,"workflow_runs":[]}""");
+        var context = ProviderTestHelpers.Context("github", handler) with { Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero) };
+        await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        await Assert.That(handler.Requests.Any(_ => _.Contains("/actions/runs?per_page=5&created=") && _.Contains("2026-08-16"))).IsTrue();
+    }
+
+    [Test]
     public async Task ForksAndCollaborationsAreDiscoveredWhenAskedFor()
     {
         var handler = new FakeHttpHandler()

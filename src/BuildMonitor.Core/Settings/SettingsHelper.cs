@@ -18,7 +18,16 @@ static class SettingsHelper
             return new();
         }
 
-        return JsonSerializer.Deserialize(json, SettingsContext.Default.Settings) ?? new();
+        var settings = JsonSerializer.Deserialize(json, SettingsContext.Default.Settings) ?? new();
+        // The generated reader sets an init property the file does not name to its type's default,
+        // not the initializer's, so a file written before HistoryDays existed read it as 0 and hid
+        // every build older than today.
+        if (settings.HistoryDays < 1)
+        {
+            settings = settings with { HistoryDays = new Settings().HistoryDays };
+        }
+
+        return settings;
     }
 
     /// <summary>

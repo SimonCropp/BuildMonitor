@@ -42,8 +42,13 @@ sealed class TeamCityProvider : ProviderBase
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
     {
         var byType = pipelines.ToDictionary(_ => _.Id);
+        // Queued rather than started, which sinceDate counts from, so a build still in the queue is
+        // not left out. The + of the offset is escaped, or it arrives as a space.
+        var queued = context.Since is { } since
+            ? $",queuedDate:(date:{since.UtcDateTime.ToString("yyyyMMdd'T'HHmmss", CultureInfo.InvariantCulture)}%2B0000,condition:after)"
+            : "";
         var response = await context.Http.Get(
-            $"buildTypes?locator=affectedProject:(id:{Encode(Project(context))})&fields=buildType(id,builds($locator(branch:default:any,state:any,canceled:any,failedToStart:any,count:{perPipeline}),{buildFields}))",
+            $"buildTypes?locator=affectedProject:(id:{Encode(Project(context))})&fields=buildType(id,builds($locator(branch:default:any,state:any,canceled:any,failedToStart:any,count:{perPipeline}{queued}),{buildFields}))",
             TeamCityContext.Default.TeamCityBuildTypes,
             cancel);
         var builds = new List<Build>();

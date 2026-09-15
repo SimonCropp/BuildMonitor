@@ -18,6 +18,13 @@ static class OptionsDraft
             return false;
         }
 
+        if (!int.TryParse(form.Value(FormFields.HistoryDays), out var days) ||
+            days is < 1 or > 365)
+        {
+            error = "The days of builds to show must be between 1 and 365.";
+            return false;
+        }
+
         if (!int.TryParse(form.Value(FormFields.Port), out var port) ||
             port is < 1024 or > 65535)
         {
@@ -36,6 +43,7 @@ static class OptionsDraft
             Theme = Enum.TryParse<Theme>(form.Value(FormFields.Theme), out var theme) ? theme : current.Theme,
             PollIntervalSeconds = poll,
             RunningPollIntervalSeconds = running,
+            HistoryDays = days,
             Port = port
         };
         return true;

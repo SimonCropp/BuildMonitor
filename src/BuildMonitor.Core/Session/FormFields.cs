@@ -13,6 +13,7 @@ static class FormFields
     public const string Theme = "theme";
     public const string PollInterval = "pollInterval";
     public const string RunningPollInterval = "runningPollInterval";
+    public const string HistoryDays = "historyDays";
     public const string Port = "port";
     public const string AddConnection = "addConnection";
     public const string Version = "version";

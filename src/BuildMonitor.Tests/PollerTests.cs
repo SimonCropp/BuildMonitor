@@ -2,13 +2,18 @@ public class PollerTests
 {
     const string runsUrl = "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5";
 
+    // The poller asks for runs since the history cutoff, a date in the query, so a canned response
+    // is keyed by the path, which the handler falls back to, and a request is matched by its start.
+    static string Path(string url) =>
+        url[..url.IndexOf('?')];
+
     static FakeHttpHandler GitHubHandler() =>
         new FakeHttpHandler()
             .Get("https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
                 """[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"}]""")
             .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows?per_page=100",
                 """{"total_count":1,"workflows":[{"id":10,"name":"Test","path":".github/workflows/test.yml","state":"active"}]}""")
-            .Map("GET", runsUrl,
+            .Map("GET", Path(runsUrl),
                 """
                 {"total_count":2,"workflow_runs":[
                   {"id":500,"workflow_id":10,"run_number":2,"status":"in_progress","head_branch":"main","html_url":"https://github.com/x/500","created_at":"2026-01-01T11:56:00Z","updated_at":"2026-01-01T11:57:00Z","run_started_at":"2026-01-01T11:57:00Z","pull_requests":[]},
@@ -35,7 +40,8 @@ public class PollerTests
     public async Task ASuccessfulPollAppliesBuildsAndRecordsDurations()
     {
         var (host, secrets, history) = Setup();
-        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, GitHubHandler(), null);
+        // The runs are from the day of Fixtures.Now, so the clock is too, or they fall outside the history.
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, GitHubHandler(), null, () => Fixtures.Now);
 
         var health = await poller.PollOnce(Cancel.None);
 
@@ -64,15 +70,17 @@ public class PollerTests
     {
         var (host, secrets, history) = Setup();
         var handler = GitHubHandler();
-        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null);
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => Fixtures.Now);
         await poller.PollOnce(Cancel.None);
 
         // An unchanged repository answers an empty 304; the rows come from the body the first poll kept.
-        handler.Map("GET", runsUrl, "", HttpStatusCode.NotModified);
+        handler.Map("GET", Path(runsUrl), "", HttpStatusCode.NotModified);
         var health = await poller.PollOnce(Cancel.None);
 
         await Assert.That(health).IsEqualTo(ConnectionHealth.Ok);
-        await Assert.That(handler.Requests[^1]).IsEqualTo($"GET {runsUrl}\n  If-None-Match: \"runs\"");
+        // The cutoff is a day, so the second poll asks for the same URL and revalidates it.
+        await Assert.That(handler.Requests[^1]).StartsWith($"GET {runsUrl}&created=");
+        await Assert.That(handler.Requests[^1]).EndsWith("\n  If-None-Match: \"runs\"");
         await Assert.That(host.State.Builds.Length).IsEqualTo(2);
     }
 
@@ -204,9 +212,9 @@ public class PollerTests
                 """{"total_count":1,"workflows":[{"id":1,"name":"Busy","path":".github/workflows/busy.yml","state":"active"}]}""")
             .Get("https://api.github.com/repos/VerifyTests/Quiet/actions/workflows?per_page=100",
                 """{"total_count":1,"workflows":[{"id":2,"name":"Quiet","path":".github/workflows/quiet.yml","state":"active"}]}""")
-            .Get(busyRuns,
+            .Get(Path(busyRuns),
                 """{"total_count":1,"workflow_runs":[{"id":10,"workflow_id":1,"run_number":5,"status":"in_progress","head_branch":"main","html_url":"https://github.com/x/10","created_at":"2026-01-01T11:59:00Z","updated_at":"2026-01-01T11:59:30Z","run_started_at":"2026-01-01T11:59:00Z","pull_requests":[]}]}""")
-            .Get(quietRuns,
+            .Get(Path(quietRuns),
                 """{"total_count":1,"workflow_runs":[{"id":20,"workflow_id":2,"run_number":3,"status":"completed","conclusion":"success","head_branch":"main","html_url":"https://github.com/x/20","created_at":"2025-12-31T12:00:00Z","updated_at":"2025-12-31T12:05:00Z","run_started_at":"2025-12-31T12:00:00Z","pull_requests":[]}]}""");
 
     static int Fetches(FakeHttpHandler handler, string url) =>
@@ -234,7 +242,7 @@ public class PollerTests
     public async Task AFailingRepositoryDoesNotHideTheOthers()
     {
         var (host, secrets, history) = Setup();
-        var handler = TwoRepositories().Map("GET", quietRuns, "boom", HttpStatusCode.InternalServerError);
+        var handler = TwoRepositories().Map("GET", Path(quietRuns), "boom", HttpStatusCode.InternalServerError);
         var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => Fixtures.Now);
 
         var health = await poller.PollOnce(Cancel.None);
@@ -248,7 +256,7 @@ public class PollerTests
     public async Task AFailingRepositoryBacksOffAlone()
     {
         var (host, secrets, history) = Setup();
-        var handler = TwoRepositories().Map("GET", quietRuns, "boom", HttpStatusCode.InternalServerError);
+        var handler = TwoRepositories().Map("GET", Path(quietRuns), "boom", HttpStatusCode.InternalServerError);
         var now = Fixtures.Now;
         var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
         await poller.PollOnce(Cancel.None);

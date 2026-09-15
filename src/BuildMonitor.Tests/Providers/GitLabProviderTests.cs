@@ -39,6 +39,15 @@ public class GitLabProviderTests
     }
 
     [Test]
+    public async Task HistoryLimitIsSentAsUpdatedAfter()
+    {
+        var handler = Handler();
+        var context = ProviderTestHelpers.Context("gitlab", handler) with { Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero) };
+        await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        await Assert.That(handler.Requests.Any(_ => _.Contains("updatedAfter") && _.Contains("2026-08-16T00"))).IsTrue();
+    }
+
+    [Test]
     public async Task GraphQLErrorsFallBackToRest()
     {
         var handler = Rest(Handler().Get(graph, """{"errors":[{"message":"Field 'startedAt' doesn't exist on type 'Pipeline'"}]}"""));

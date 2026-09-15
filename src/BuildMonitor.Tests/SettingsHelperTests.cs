@@ -54,6 +54,15 @@ public class SettingsHelperTests :
         await Assert.That(read.PollIntervalSeconds).IsEqualTo(12);
     }
 
+    [Test]
+    public async Task AFileWrittenBeforeHistoryDaysGetsTheDefault()
+    {
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(AppPaths.Settings, """{"PollIntervalSeconds": 12}""");
+        var read = SettingsHelper.Read();
+        await Assert.That(read.HistoryDays).IsEqualTo(30);
+    }
+
     public void Dispose()
     {
         AppPaths.Directory = original;

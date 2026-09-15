@@ -16,6 +16,12 @@ record Settings
     public Theme Theme { get; init; }
     public int PollIntervalSeconds { get; init; } = 30;
     public int RunningPollIntervalSeconds { get; init; } = 10;
+
+    /// <summary>
+    /// How far back a finished build is shown. Sent to the service where it can filter by date, so a
+    /// busy account does not return years of runs on every poll only for most to be ignored.
+    /// </summary>
+    public int HistoryDays { get; init; } = 30;
     public int Port { get; init; } = global::Port.Default;
     public ImmutableArray<Connection> Connections { get; init; } = [];
     public ImmutableArray<Filter> Filters { get; init; } = [];

@@ -9,6 +9,7 @@
 | Theme: <System>                                                                                                      |
 | Poll interval (seconds): [30    ]                                                                                    |
 | Poll interval while a build is running (seconds): [10    ]                                                           |
+| Show builds from the last (days): [30    ]                                                                           |
 | Local port: [3796  ]                                                                                                 |
 | Connections:                                                                                                         |
 | - GitHub: GitHub Actions, ok [x]                                                                                     |
@@ -20,7 +21,6 @@
 | [ Open logs ]                                                                                                        |
 | [ Raise issue ]                                                                                                      |
 | [ Update ]                                                                                                           |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

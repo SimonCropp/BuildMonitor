@@ -160,8 +160,12 @@ sealed class GitHubProvider : ProviderBase
             {
                 var byWorkflow = repository.ToDictionary(_ => long.Parse(_.Id[(_.Id.LastIndexOf('/') + 1)..]));
                 var count = Math.Min(100, perPipeline * byWorkflow.Count);
+                // A day, not a moment, so the URL and the ETag cached against it hold between polls.
+                var created = context.Since is { } since
+                    ? $"&created=%3E%3D{since.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}"
+                    : "";
                 var runs = await context.Http.Get(
-                    $"repos/{repository.Key}/actions/runs?per_page={count}",
+                    $"repos/{repository.Key}/actions/runs?per_page={count}{created}",
                     GitHubContext.Default.GitHubRuns,
                     token);
                 var builds = new List<Build>();

@@ -357,6 +357,7 @@ static class MonitorSession
         values[FormFields.Theme] = settings.Theme.ToString();
         values[FormFields.PollInterval] = settings.PollIntervalSeconds.ToString();
         values[FormFields.RunningPollInterval] = settings.RunningPollIntervalSeconds.ToString();
+        values[FormFields.HistoryDays] = settings.HistoryDays.ToString();
         values[FormFields.Port] = settings.Port.ToString();
         return state with
         {
@@ -680,6 +681,10 @@ static class MonitorSession
     {
         var discovered = outcome.Pipelines.Select(_ => _.Id).ToHashSet();
         var previous = state.Builds.Where(_ => _.ConnectionId == connectionId).ToImmutableArray();
+        // Dropped here as well as left out of the request: for a service that can not filter by date,
+        // and for a response served from an ETag cached before the cutoff moved on.
+        var cutoff = HistoryCutoff.Of(now, state.Settings.HistoryDays);
+        var arrived = outcome.Builds.Where(_ => HistoryCutoff.Keeps(_, cutoff)).ToImmutableArray();
         var next = UpdateConnection(
             state,
             connectionId,
@@ -695,7 +700,7 @@ static class MonitorSession
         var notification = state.Notification;
         if (state.Settings.NotifyOnFailure)
         {
-            var news = outcome.Builds.Where(_ => !outcome.FirstFetch.Contains(_.PipelineId)).ToImmutableArray();
+            var news = arrived.Where(_ => !outcome.FirstFetch.Contains(_.PipelineId)).ToImmutableArray();
             notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, news)) ?? notification;
         }
 
@@ -704,8 +709,8 @@ static class MonitorSession
             Builds =
             [
                 ..next.Builds.Where(_ => _.ConnectionId != connectionId),
-                ..previous.Where(_ => discovered.Contains(_.PipelineId) && !outcome.Fetched.Contains(_.PipelineId)),
-                ..outcome.Builds
+                ..previous.Where(_ => discovered.Contains(_.PipelineId) && !outcome.Fetched.Contains(_.PipelineId) && HistoryCutoff.Keeps(_, cutoff)),
+                ..arrived
             ],
             Notification = notification
         });

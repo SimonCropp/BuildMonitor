@@ -6,6 +6,7 @@
   NotifyOnFailure: true,
   PollIntervalSeconds: 45,
   RunningPollIntervalSeconds: 10,
+  HistoryDays: 30,
   Port: 3796,
   Connections: [
     {

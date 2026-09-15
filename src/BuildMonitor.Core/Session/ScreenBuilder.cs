@@ -224,8 +224,7 @@ static class ScreenBuilder
         var estimate = Estimator.Estimate(build, state.Medians);
         var (fraction, timing) = Progress.Compute(build, estimate, now);
         // Only the build that broke names anyone: on a pass or a run the name says nothing wrong.
-        var author = build.Status == BuildStatus.Failed &&
-                     build.Author is not null &&
+        var author = build is { Status: BuildStatus.Failed, Author: not null } &&
                      authors.TryGetValue(build.Author.Trim(), out var shown)
             ? shown
             : "";
@@ -382,6 +381,7 @@ static class ScreenBuilder
             new(FormFields.Theme, FieldKind.Select, "Theme", form.Value(FormFields.Theme), Options: Enum.GetNames<Theme>()),
             new(FormFields.PollInterval, FieldKind.Number, "Poll interval (seconds)", form.Value(FormFields.PollInterval)),
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),
+            new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Hint: "Running and queued builds always show."),
             new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Hint: "Used by the launcher and the MCP server. Takes effect after a restart."),
             new("connectionsLabel", FieldKind.Label, "Connections", "")
         };

@@ -40,6 +40,15 @@ public class TeamCityProviderTests
     }
 
     [Test]
+    public async Task HistoryLimitIsSentAsQueuedDate()
+    {
+        var handler = Handler();
+        var context = ProviderTestHelpers.Context("teamcity", handler, server) with { Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero) };
+        await ProviderTestHelpers.DiscoverAndFetch("teamcity", context);
+        await Assert.That(handler.Requests.Any(_ => _.Contains("count:5,queuedDate:(date:20260816T000000"))).IsTrue();
+    }
+
+    [Test]
     public async Task AQueueDoesNotHideAQuietConfiguration()
     {
         var queued = string.Join(',', Enumerable.Range(1, 5).Select(_ => $$"""{"id":{{_}},"state":"queued","buildTypeId":"Verify_Build","queuedDate":"20260101T115900+0000"}"""));

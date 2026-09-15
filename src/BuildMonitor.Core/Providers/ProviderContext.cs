@@ -17,6 +17,14 @@ record ProviderContext(Connection Connection, HttpJson Http)
     /// </summary>
     public bool ShowForksAndCollaborations { get; init; }
 
+    /// <summary>
+    /// The oldest a build may be to be asked for, or null for no limit. Set only when polling, to
+    /// the start of a UTC day by <see cref="HistoryCutoff"/>, so a URL carrying it keeps its cached
+    /// ETag all day. A provider whose service can not filter by date ignores it, and the older
+    /// builds are dropped as they arrive.
+    /// </summary>
+    public DateTimeOffset? Since { get; init; }
+
     public string Scope(string id) =>
         Connection.ScopeValue(id);
 }

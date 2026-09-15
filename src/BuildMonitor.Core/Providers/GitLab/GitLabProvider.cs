@@ -68,6 +68,7 @@ sealed class GitLabProvider : ProviderBase
             chunk.Length.ToString(CultureInfo.InvariantCulture),
             "){nodes{id pipelines(first:",
             perPipeline.ToString(CultureInfo.InvariantCulture),
+            context.Since is { } since ? $",updatedAfter:\"{Iso(since)}\"" : "",
             "){nodes{",
             pipelineFields,
             "}}}}}");
@@ -106,10 +107,18 @@ sealed class GitLabProvider : ProviderBase
         return covered;
     }
 
+    /// <summary>
+    /// Updated rather than created, the one date both the GraphQL field and the REST listing take on
+    /// every supported GitLab, so a retry of an older pipeline still shows.
+    /// </summary>
+    static string Iso(DateTimeOffset since) =>
+        since.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+
     static async Task<List<Build>> Rest(ProviderContext context, Pipeline pipeline, int perPipeline, Cancel cancel)
     {
         var builds = new List<Build>();
-        var runs = await context.Http.Get($"projects/{pipeline.Id}/pipelines?per_page={perPipeline}", GitLabContext.Default.ListGitLabPipeline, cancel);
+        var updated = context.Since is { } since ? $"&updated_after={Encode(Iso(since))}" : "";
+        var runs = await context.Http.Get($"projects/{pipeline.Id}/pipelines?per_page={perPipeline}{updated}", GitLabContext.Default.ListGitLabPipeline, cancel);
         foreach (var run in runs)
         {
             // The listing carries no timings; only a live run is worth the second call.
