@@ -40,7 +40,7 @@
       Finished: DateTimeOffset_5,
       BuildUrl: https://octopus.example.com/app#/Spaces-1/deployments/Deployments-9,
       CommitMessage: Deploy Web release 1.2.3 to Staging,
-      CanRetry: true,
+      CanRetry: false,
       CanCancel: false,
       ProviderRef: ServerTasks-99|Spaces-1/tasks/rerun/ServerTasks-99|Spaces-1/tasks/ServerTasks-99/cancel|Spaces-1/tasks/ServerTasks-99/raw,
       ProjectUrl: https://octopus.example.com/app#/Spaces-1/projects/web,

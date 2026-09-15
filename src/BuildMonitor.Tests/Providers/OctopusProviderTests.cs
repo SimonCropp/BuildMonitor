@@ -54,22 +54,19 @@ public class OctopusProviderTests
     }
 
     [Test]
-    public async Task RetryAndCancelTheTask()
+    public async Task CancelTheTaskAndNeverRetry()
     {
         var handler = Handler()
-            .Map("POST", $"{server}/api/Spaces-1/tasks/rerun/ServerTasks-99", "{}")
             .Map("POST", $"{server}/api/Spaces-1/tasks/ServerTasks-100/cancel", "{}");
         var context = ProviderTestHelpers.Context("octopus", handler, server);
         var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
         handler.Requests.Clear();
-        var provider = ProviderTestHelpers.Provider("octopus");
-        await provider.Retry(context, builds.Single(_ => _.Branch == "Staging"), Cancel.None);
-        await provider.Cancel(context, builds.Single(_ => _.Branch == "Production"), Cancel.None);
+        await Assert.That(builds.Any(_ => _.CanRetry)).IsFalse();
+        await ProviderTestHelpers.Provider("octopus").Cancel(context, builds.Single(_ => _.Branch == "Production"), Cancel.None);
         await Verify(handler.Requests)
             .Snapshot(
                 """
                 [
-                  POST https://octopus.example.com/api/Spaces-1/tasks/rerun/ServerTasks-99,
                   POST https://octopus.example.com/api/Spaces-1/tasks/ServerTasks-100/cancel
                 ]
                 """);

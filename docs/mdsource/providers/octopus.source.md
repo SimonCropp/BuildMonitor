@@ -20,8 +20,9 @@ One per project, showing the latest deployment. The project stands in for the re
 
 ## Actions
 
- * Retry re-runs the deployment task
  * Cancel cancels a queued or executing task
+
+There is no retry: Octopus refuses to re-run a deployment task.
  * Copy log copies the deployment task's log
 
 
@@ -41,7 +42,7 @@ config:
     wrappingWidth: 400
 ---
 flowchart TD
-    wake(["Wake: the connection is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed projects in<br/>the last 10 minutes?"}
+    wake(["Wake: the connection is due,<br/>or Refresh or Cancel"]) --> listed{"Listed projects in<br/>the last 10 minutes?"}
     listed -- "no" --> discover["GET spaces, then the<br/>projects of the default<br/>or named space"]
     listed -- "yes" --> interval["One schedule for every<br/>project, set by the busiest"]
     discover --> interval

@@ -100,7 +100,7 @@ sealed class OctopusProvider : ProviderBase
                 null,
                 $"Deploy {pipeline.Name} release {item.ReleaseVersion} to {environment}",
                 null,
-                CanRetry: status is not (BuildStatus.Running or BuildStatus.Queued),
+                CanRetry: false,
                 CanCancel: status is BuildStatus.Running or BuildStatus.Queued,
                 Join(item.TaskId, $"{spaceId}/tasks/rerun/{item.TaskId}", $"{spaceId}/tasks/{item.TaskId}/cancel", $"{spaceId}/tasks/{item.TaskId}/raw"),
                 pipeline.Url));
@@ -222,7 +222,7 @@ sealed class OctopusProvider : ProviderBase
             null,
             task.Description,
             null,
-            CanRetry: rerun is not null && status is not (BuildStatus.Running or BuildStatus.Queued),
+            CanRetry: false,
             CanCancel: cancel is not null && status is BuildStatus.Running or BuildStatus.Queued,
             Join(task.Id, rerun, cancel, task.Links?.Raw is { } raw ? Link(raw) : $"{spaceId}/tasks/{task.Id}/raw"),
             pipeline.Url);
@@ -249,8 +249,12 @@ sealed class OctopusProvider : ProviderBase
         return end < 0 ? rest.Trim() : rest[..end].Trim();
     }
 
+    /// <summary>
+    /// Never offered: Octopus answers a rerun of a deployment task with 400 "This task cannot be
+    /// re-run". Deploying the release again would be a new deployment, not a retry of this one.
+    /// </summary>
     public override Task Retry(ProviderContext context, Build build, Cancel cancel) =>
-        context.Http.Send(HttpMethod.Post, Split(build)[1], null, cancel);
+        throw new NotSupportedException("Octopus deployments can not be retried");
 
     public override Task Cancel(ProviderContext context, Build build, Cancel cancel) =>
         context.Http.Send(HttpMethod.Post, Split(build)[2], null, cancel);
