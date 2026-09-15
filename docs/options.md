@@ -47,11 +47,11 @@ Pops a desktop notification when a poll finds a build that has failed since the 
 
 ## Show builds from the last (days)
 
-How far back a finished build is shown, 30 days unless changed, from 1 to 365. A pipeline whose last run is older has no row. Running and queued builds always show.
+How far back a finished build is shown, 30 days unless changed, from 1 to 365. A pipeline whose last run is older has no row. Running and queued builds always show, however long ago they were queued, and a build that started before the limit shows once it finishes inside it.
 
-Where the service can filter by date the limit is part of the request, so a poll of a busy account returns less: GitHub Actions (`created`), Azure DevOps (`minTime`), GitLab CI (`updatedAfter`, or `updated_after` over REST) and TeamCity (`queuedDate`). AppVeyor, Bitbucket Pipelines, GoCD, Jenkins, Octopus Deploy and Travis CI have no such filter, so their older builds are dropped as they arrive.
+GitLab CI takes the limit as part of the request (`updatedAfter`, or `updated_after` over REST), so a poll of a busy account returns less. The date sent is the start of a UTC day, so the request's URL stays the same all day and a cheap "not modified" answer keeps working.
 
-The date sent is the start of a UTC day, so a request's URL stays the same all day and the services that answer an unchanged list with a cheap "not modified" keep doing so.
+Every other service's older builds are dropped as they arrive. GitHub Actions, Azure DevOps and TeamCity can filter by date, but only on when a build was created or queued, which would also leave out a build from before the limit that is still running or was re-run.
 
 
 ## Poll intervals

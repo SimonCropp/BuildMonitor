@@ -681,8 +681,9 @@ static class MonitorSession
     {
         var discovered = outcome.Pipelines.Select(_ => _.Id).ToHashSet();
         var previous = state.Builds.Where(_ => _.ConnectionId == connectionId).ToImmutableArray();
-        // Dropped here as well as left out of the request: for a service that can not filter by date,
-        // and for a response served from an ETag cached before the cutoff moved on.
+        // Dropped here rather than left out of most requests: a service that filters on when a build was
+        // created or queued would also leave out one from before the cutoff that is still running.
+        // Also covers a response served from an ETag cached before the cutoff moved on.
         var cutoff = HistoryCutoff.Of(now, state.Settings.HistoryDays);
         var arrived = outcome.Builds.Where(_ => HistoryCutoff.Keeps(_, cutoff)).ToImmutableArray();
         var next = UpdateConnection(

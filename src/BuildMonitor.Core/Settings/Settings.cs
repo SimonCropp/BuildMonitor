@@ -18,8 +18,9 @@ record Settings
     public int RunningPollIntervalSeconds { get; init; } = 10;
 
     /// <summary>
-    /// How far back a finished build is shown. Sent to the service where it can filter by date, so a
-    /// busy account does not return years of runs on every poll only for most to be ignored.
+    /// How far back a finished build is shown. Older builds are dropped as they arrive rather than
+    /// left out of the request, except on GitLab: a service filtering on when a build was created or
+    /// queued would also leave out one from before the cutoff that is still running.
     /// </summary>
     public int HistoryDays { get; init; } = 30;
     public int Port { get; init; } = global::Port.Default;

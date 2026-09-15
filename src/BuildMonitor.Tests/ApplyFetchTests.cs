@@ -73,6 +73,37 @@ public class ApplyFetchTests
     }
 
     [Test]
+    [Arguments("Running", 40, null, true)]
+    [Arguments("Queued", 40, null, true)]
+    [Arguments("Succeeded", 40, 10, true)]
+    [Arguments("Succeeded", 40, 35, false)]
+    public async Task ABuildFromBeforeTheHistory(string name, int startedDaysAgo, int? finishedDaysAgo, bool shown)
+    {
+        var status = Enum.Parse<BuildStatus>(name);
+        var old = Fixtures.Build(
+            Fixtures.GitHub.Id,
+            "Verify/test.yml",
+            "test.yml",
+            "VerifyTests/Verify",
+            "main",
+            "78",
+            status,
+            started: Fixtures.Now - TimeSpan.FromDays(startedDaysAgo),
+            finished: finishedDaysAgo is { } days ? Fixtures.Now - TimeSpan.FromDays(days) : null);
+        var next = MonitorSession.ApplyFetch(Fixtures.WithBuilds(), Fixtures.GitHub.Id, Outcome(pipelines, ["Verify/test.yml"], [old]), Fixtures.Now);
+        await Assert.That(Runs(next).Contains("Verify/test.yml#78")).IsEqualTo(shown);
+    }
+
+    [Test]
+    public async Task ARunningBuildFromBeforeTheHistoryStaysWhenItsPipelineIsNotDue()
+    {
+        var old = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "main", "78", BuildStatus.Running, started: Fixtures.Now - TimeSpan.FromDays(40));
+        var running = MonitorSession.ApplyFetch(Fixtures.WithBuilds(), Fixtures.GitHub.Id, Outcome(pipelines, ["Verify/test.yml"], [old]), Fixtures.Now);
+        var next = MonitorSession.ApplyFetch(running, Fixtures.GitHub.Id, Outcome(pipelines, ["DiffEngine/test.yml"], []), Fixtures.Now + TimeSpan.FromDays(1));
+        await Assert.That(Runs(next)).Contains("Verify/test.yml#78");
+    }
+
+    [Test]
     public async Task AFirstFetchIsNotNews()
     {
         var discovered = pipelines.Add(new("New/ci.yml", "ci.yml", "VerifyTests/New", "VerifyTests/New", "https://github.com/VerifyTests/New"));

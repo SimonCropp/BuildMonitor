@@ -29,13 +29,15 @@ public class AzureDevOpsProviderTests
     }
 
     [Test]
-    public async Task HistoryLimitIsSentAsMinTime()
+    public async Task HistoryLimitIsNotSentAsMinTime()
     {
+        // minTime filters on queue time, so it would hide a build queued before the cutoff that is still running.
         var handler = Handler()
             .Get($"{organization}/Web/_apis/build/builds", """{"count":0,"value":[]}""");
         var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso")) with { Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero) };
         await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
-        await Assert.That(handler.Requests.Any(_ => _.Contains("queryOrder=queueTimeDescending&minTime=2026-08-16T00"))).IsTrue();
+        await Assert.That(handler.Requests.Any(_ => _.Contains("_apis/build/builds?definitions="))).IsTrue();
+        await Assert.That(handler.Requests.Any(_ => _.Contains("_apis/build/builds?definitions=") && _.Contains("minTime"))).IsFalse();
     }
 
     static PollGroup Web() =>

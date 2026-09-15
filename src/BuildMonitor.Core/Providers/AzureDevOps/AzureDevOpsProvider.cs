@@ -52,12 +52,10 @@ sealed class AzureDevOpsProvider : ProviderBase
             var byDefinition = project.ToDictionary(_ => long.Parse(_.Id[(_.Id.LastIndexOf('/') + 1)..]));
             // Per definition rather than a total: $top filled with the busiest definitions and hid
             // the quiet ones of a project with more than a few dozen.
-            // Queue time, which queueTimeDescending orders by, and what minTime filters on under it.
-            var minTime = context.Since is { } since
-                ? $"&minTime={Encode(since.ToString("O", CultureInfo.InvariantCulture))}"
-                : "";
+            // No minTime for the history limit: under queueTimeDescending it filters on queue time,
+            // so a build queued before the cutoff and still running would never be returned.
             var response = await context.Http.Get(
-                $"{Encode(project.Key)}/_apis/build/builds?definitions={string.Join(',', byDefinition.Keys)}&maxBuildsPerDefinition={perPipeline}&queryOrder=queueTimeDescending{minTime}&{apiVersion}",
+                $"{Encode(project.Key)}/_apis/build/builds?definitions={string.Join(',', byDefinition.Keys)}&maxBuildsPerDefinition={perPipeline}&queryOrder=queueTimeDescending&{apiVersion}",
                 AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsBuild,
                 cancel);
             var taken = new Dictionary<long, int>();

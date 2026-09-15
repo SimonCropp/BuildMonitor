@@ -21,6 +21,10 @@ public class HistoryCutoffTests
     }
 
     [Test]
+    public async Task KeepsABuildStartedBeforeTheCutoffThatFinishedAfter() =>
+        await Assert.That(HistoryCutoff.Keeps(Build(BuildStatus.Succeeded, now.AddDays(-40), now.AddDays(-10)), HistoryCutoff.Of(now, 30))).IsTrue();
+
+    [Test]
     public async Task KeepsABuildWithNoTime() =>
         await Assert.That(HistoryCutoff.Keeps(Build(BuildStatus.Succeeded, null, null), HistoryCutoff.Of(now, 30))).IsTrue();
 

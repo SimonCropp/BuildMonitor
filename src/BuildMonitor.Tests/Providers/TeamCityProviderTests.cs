@@ -40,12 +40,14 @@ public class TeamCityProviderTests
     }
 
     [Test]
-    public async Task HistoryLimitIsSentAsQueuedDate()
+    public async Task HistoryLimitIsNotSentAsQueuedDate()
     {
+        // A queuedDate filter would hide a build queued before the cutoff that is still queued or running.
         var handler = Handler();
         var context = ProviderTestHelpers.Context("teamcity", handler, server) with { Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero) };
         await ProviderTestHelpers.DiscoverAndFetch("teamcity", context);
-        await Assert.That(handler.Requests.Any(_ => _.Contains("count:5,queuedDate:(date:20260816T000000"))).IsTrue();
+        await Assert.That(handler.Requests.Any(_ => _.Contains("count:5)"))).IsTrue();
+        await Assert.That(handler.Requests.Any(_ => _.Contains("queuedDate:("))).IsFalse();
     }
 
     [Test]
