@@ -77,7 +77,8 @@ static class Concurrently
             {
                 results[slot] = new(await work(items[slot], cancel), null);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException || !cancel.IsCancellationRequested)
+            catch (Exception exception)
+                when (exception is not OperationCanceledException || !cancel.IsCancellationRequested)
             {
                 results[slot] = new(default, exception);
             }

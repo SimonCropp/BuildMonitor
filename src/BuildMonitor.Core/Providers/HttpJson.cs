@@ -35,20 +35,21 @@ sealed class HttpJson : IDisposable
             // and a thirty second timeout turned that delay into an error.
             Timeout = TimeSpan.FromSeconds(75)
         };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("BuildMonitor");
-        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        var defaultHeaders = client.DefaultRequestHeaders;
+        defaultHeaders.UserAgent.ParseAdd("BuildMonitor");
+        defaultHeaders.Accept.ParseAdd("application/json");
         if (headers is not null)
         {
             foreach (var (name, value) in headers)
             {
-                client.DefaultRequestHeaders.Remove(name);
-                client.DefaultRequestHeaders.TryAddWithoutValidation(name, value);
+                defaultHeaders.Remove(name);
+                defaultHeaders.TryAddWithoutValidation(name, value);
             }
         }
 
         if (secret is not null)
         {
-            Credential.Apply(client.DefaultRequestHeaders, scheme, secret, user);
+            Credential.Apply(defaultHeaders, scheme, secret, user);
         }
     }
 
@@ -172,7 +173,10 @@ sealed class HttpJson : IDisposable
 
         using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, cancel);
         var requested = Resolve(path);
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests ||
+        if (response.StatusCode is
+                HttpStatusCode.Unauthorized or
+                HttpStatusCode.Forbidden or
+                HttpStatusCode.TooManyRequests ||
             SignInPage(response, requested))
         {
             await Throw(response, requested, cancel);
@@ -213,9 +217,10 @@ sealed class HttpJson : IDisposable
 
     static async Task Throw(HttpResponseMessage response, Uri requested, Cancel cancel)
     {
+        var status = response.StatusCode;
         if (SignInPage(response, requested))
         {
-            throw new AuthException($"{(int) response.StatusCode} {response.ReasonPhrase}: answered with a sign in page");
+            throw new AuthException($"{(int) status} {response.ReasonPhrase}: answered with a sign in page");
         }
 
         if (response.IsSuccessStatusCode)
@@ -226,19 +231,19 @@ sealed class HttpJson : IDisposable
         var text = await Text(response, cancel);
         var now = DateTimeOffset.UtcNow;
         var observation = RateHeaders.Read(response.Headers, now);
-        if (response.StatusCode == HttpStatusCode.TooManyRequests ||
-            (response.StatusCode == HttpStatusCode.Forbidden && RateLimited(observation, text)))
+        if (status == HttpStatusCode.TooManyRequests ||
+            (status == HttpStatusCode.Forbidden && RateLimited(observation, text)))
         {
             throw new RateLimitException(RetryAfter(observation, now));
         }
 
         var body = Snippet(text);
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {
-            throw new AuthException($"{(int) response.StatusCode} {response.ReasonPhrase}{body}", response.StatusCode);
+            throw new AuthException($"{(int) status} {response.ReasonPhrase}{body}", status);
         }
 
-        throw new HttpRequestException($"{(int) response.StatusCode} {response.ReasonPhrase} from {response.RequestMessage?.RequestUri}{body}", null, response.StatusCode);
+        throw new HttpRequestException($"{(int) status} {response.ReasonPhrase} from {response.RequestMessage?.RequestUri}{body}", null, status);
     }
 
     /// <summary>

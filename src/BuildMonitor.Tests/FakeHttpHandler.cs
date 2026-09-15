@@ -15,7 +15,9 @@ class FakeHttpHandler : HttpMessageHandler
         return this;
     }
 
-    public FakeHttpHandler Get(string url, string body) =>
+    public FakeHttpHandler Get(
+        string url,
+        string body) =>
         Map("GET", url, body);
 
     /// <summary>
