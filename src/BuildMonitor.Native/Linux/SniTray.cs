@@ -9,11 +9,11 @@ sealed class SniTray : ITray
     public const string WatcherName = "org.kde.StatusNotifierWatcher";
     public static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
 
-    readonly DBusConnection connection;
-    readonly string busName = $"org.kde.StatusNotifierItem-{Environment.ProcessId}-1";
-    readonly ConcurrentQueue<TrayInput> events = new();
-    readonly StatusNotifierItemHandler item;
-    readonly DbusMenuHandler menu;
+    DBusConnection connection;
+    string busName = $"org.kde.StatusNotifierItem-{Environment.ProcessId}-1";
+    ConcurrentQueue<TrayInput> events = new();
+    StatusNotifierItemHandler item;
+    DbusMenuHandler menu;
     TrayIconKind? shownIcon;
     string? shownTooltip;
 

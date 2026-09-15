@@ -22,8 +22,15 @@ sealed class DbusMenuLayout
     /// </summary>
     public string Signature { get; }
 
-    public DbusMenuNode? Find(int id) =>
-        id == 0 ? Root : All.FirstOrDefault(_ => _.Id == id);
+    public DbusMenuNode? Find(int id)
+    {
+        if (id == 0)
+        {
+            return Root;
+        }
+
+        return All.FirstOrDefault(_ => _.Id == id);
+    }
 
     public static DbusMenuLayout Build(IReadOnlyList<TrayMenuItem> items)
     {

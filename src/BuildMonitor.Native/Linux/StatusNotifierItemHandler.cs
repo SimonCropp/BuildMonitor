@@ -8,8 +8,8 @@ sealed class StatusNotifierItemHandler(SniTray owner) : IPathMethodHandler
     public const string Interface = "org.kde.StatusNotifierItem";
     public const string ObjectPath = "/StatusNotifierItem";
     const string properties = "org.freedesktop.DBus.Properties";
-    static readonly int[] pixmapSizes = [16, 22, 24, 32, 48];
-    static readonly string[] propertyNames = ["Category", "Id", "Title", "Status", "WindowId", "IconName", "IconThemePath", "OverlayIconName", "AttentionIconName", "AttentionMovieName", "IconPixmap", "OverlayIconPixmap", "AttentionIconPixmap", "ToolTip", "Menu", "ItemIsMenu"];
+    static int[] pixmapSizes = [16, 22, 24, 32, 48];
+    static string[] propertyNames = ["Category", "Id", "Title", "Status", "WindowId", "IconName", "IconThemePath", "OverlayIconName", "AttentionIconName", "AttentionMovieName", "IconPixmap", "OverlayIconPixmap", "AttentionIconPixmap", "ToolTip", "Menu", "ItemIsMenu"];
 
     public TrayIconKind Icon { get; set; } = TrayIconKind.Idle;
     public string Tooltip { get; set; } = ScreenBuilder.Title;
