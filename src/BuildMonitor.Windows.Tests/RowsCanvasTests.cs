@@ -67,7 +67,8 @@ public class RowsCanvasTests
     [Test]
     public async Task ANarrowRowPutsItsLastChipsBehindAnOverflowChip()
     {
-        using var canvas = Drawn(640);
+        // Narrow enough that the bar has already given way and the chips still do not all fit.
+        using var canvas = Drawn(520);
         var row = FailedRow();
         var input = ClickAlong(canvas, row, _ => _.ClickedOverflowRow >= 0);
         await Assert.That(input.ClickedOverflowRow).IsEqualTo(row);

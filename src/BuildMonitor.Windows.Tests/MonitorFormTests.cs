@@ -51,11 +51,16 @@ public class MonitorFormTests
     public Task BuildsLight() =>
         Capture(Fixtures.WithBuilds(), Theme.Light);
 
+    // Too narrow for the bar, which gives way before the chips or the names.
+    [Test]
+    public Task Narrow() =>
+        Capture(Fixtures.WithBuilds(), width: 760);
+
     // Pinned rather than System, so a capture does not depend on the theme of whoever ran it.
-    static async Task Capture(SessionState state, Theme theme = Theme.Dark)
+    static async Task Capture(SessionState state, Theme theme = Theme.Dark, int width = 1000)
     {
         state = state with { Settings = state.Settings with { Theme = theme } };
-        using var form = new MonitorForm(ScreenBuilder.Title, 1000, 640);
+        using var form = new MonitorForm(ScreenBuilder.Title, width, 640);
         // Shown, off screen: a drop down list only paints its text once it has a handle and has
         // been laid out, and DrawToBitmap of a form that was never shown leaves it blank.
         form.StartPosition = FormStartPosition.Manual;

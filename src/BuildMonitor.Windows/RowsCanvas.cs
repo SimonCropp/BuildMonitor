@@ -243,15 +243,16 @@ sealed class RowsCanvas : Control
     /// <summary>
     /// The widths every row shares, so the columns line up. The name column is as wide as the
     /// widest name and the detail column as the widest pipeline and branch, up to a readable
-    /// maximum, and the chips give way first: a row without room for all of them puts the last
-    /// behind an overflow chip, where a fixed chips column cut the names short instead. Only once no
-    /// chip but that one fits do the names shrink.
+    /// maximum. The bar gives way before anything else, since the timing beside it says the same:
+    /// it shows only while the names, the detail and every chip still fit. Then the chips: a row
+    /// without room for all of them puts the last behind an overflow chip, where a fixed chips column
+    /// cut the names short instead. Only once no chip but that one fits do the names shrink.
     /// </summary>
-    (int Name, int Detail, int Chips) ColumnWidths(BuildsPage builds, int iconWidth)
+    (int Name, int Detail, int Bar, int Chips) ColumnWidths(BuildsPage builds, int iconWidth)
     {
         var gap = LogicalToDeviceUnits(padding);
-        // After the status square, a gap after each of the name, detail, bar, timing and chips.
-        var available = Width - RowHeight - LogicalToDeviceUnits(barLength) - LogicalToDeviceUnits(timingLength) - 6 * gap;
+        // After the status square, a gap after each of the name, detail, timing and chips.
+        var available = Width - RowHeight - LogicalToDeviceUnits(timingLength) - 5 * gap;
         // With the padding Draw leaves, so the widest text fits without an ellipsis.
         var nameWanted = builds.Names
             .Select(_ => MeasureName(_, Font))
@@ -264,12 +265,19 @@ sealed class RowsCanvas : Control
             builds.Details.Select(_ => MeasureName(_, Font)).DefaultIfEmpty().Max(),
             MeasureName(new('0', 40), Font));
         var widest = widestChips.Sum(ChipWidth) + (widestChips.Length - 1) * LogicalToDeviceUnits(chipSpacing);
+        var bar = LogicalToDeviceUnits(barLength);
+        var barWidth = available - bar - gap - nameWanted - detailWanted >= widest ? bar : 0;
+        if (barWidth > 0)
+        {
+            available -= bar + gap;
+        }
+
         var spare = available - nameWanted - detailWanted;
         var chipsWidth = spare >= widest ? widest : Math.Max(ChipWidth(overflowLabel), spare);
         var names = Math.Max(LogicalToDeviceUnits(120), available - chipsWidth);
         var narrowest = LogicalToDeviceUnits(40);
         var nameWidth = Math.Clamp(nameWanted, narrowest, Math.Max(narrowest, names - Math.Min(LogicalToDeviceUnits(minimumDetail), detailWanted)));
-        return (nameWidth, names - nameWidth, chipsWidth);
+        return (nameWidth, names - nameWidth, barWidth, chipsWidth);
     }
 
     static string DisplayName(BuildRow row) =>
@@ -281,7 +289,7 @@ sealed class RowsCanvas : Control
     Font NameFont(BuildRow row) =>
         row.Kind == RowKind.Group ? bold : Font;
 
-    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, (int Name, int Detail, int Chips) layout)
+    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, (int Name, int Detail, int Bar, int Chips) layout)
     {
         // The full height of the row and flush with its neighbours, so a run of rows in one status
         // reads as one block rather than a column of dots.
@@ -293,7 +301,6 @@ sealed class RowsCanvas : Control
         var gap = LogicalToDeviceUnits(padding);
         var x = bounds.Height + gap;
         var centreY = bounds.Top + bounds.Height / 2;
-        var barWidth = LogicalToDeviceUnits(barLength);
         var timingWidth = LogicalToDeviceUnits(timingLength);
 
         DrawName(graphics, row, index, x, bounds, layout.Name);
@@ -314,17 +321,21 @@ sealed class RowsCanvas : Control
         DrawDetail(graphics, row, index, x + iconWidth, bounds, layout.Detail - iconWidth);
         x += layout.Detail + gap;
 
-        if (row.Progress >= 0)
+        if (layout.Bar > 0)
         {
-            var trackHeight = LogicalToDeviceUnits(8);
-            var track = new Rectangle(x, centreY - trackHeight / 2, barWidth, trackHeight);
-            using var trackBrush = new SolidBrush(Palette.BarTrack);
-            graphics.FillRectangle(trackBrush, track);
-            using var fillBrush = new SolidBrush(Palette.Status(BuildStatus.Running));
-            graphics.FillRectangle(fillBrush, new(track.Left, track.Top, (int) (track.Width * row.Progress), track.Height));
+            if (row.Progress >= 0)
+            {
+                var trackHeight = LogicalToDeviceUnits(8);
+                var track = new Rectangle(x, centreY - trackHeight / 2, layout.Bar, trackHeight);
+                using var trackBrush = new SolidBrush(Palette.BarTrack);
+                graphics.FillRectangle(trackBrush, track);
+                using var fillBrush = new SolidBrush(Palette.Status(BuildStatus.Running));
+                graphics.FillRectangle(fillBrush, new(track.Left, track.Top, (int) (track.Width * row.Progress), track.Height));
+            }
+
+            x += layout.Bar + gap;
         }
 
-        x += barWidth + gap;
         Draw(graphics, row.Timing, Font, x, bounds, timingWidth, Palette.Dim);
         x += timingWidth + gap;
         DrawChips(graphics, row, index, x, x + layout.Chips, centreY);

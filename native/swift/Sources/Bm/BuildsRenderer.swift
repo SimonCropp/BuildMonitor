@@ -171,9 +171,9 @@ final class BuildsRenderer {
         // name in line with the rows under it.
         let iconWidth: CGFloat = frame.rows.contains { !$0.provider.isEmpty } ? iconSize + gap : 0
         let textX = rowHeight + gap
-        // What the name, the detail and the chips share: the row less the square, the bar, the
-        // timing and a gap after each of the five cells.
-        let available = width - textX - barWidth - timingWidth - 5 * gap
+        // What the name, the detail, the bar and the chips share: the row less the square, the timing
+        // and a gap after each of the other four cells.
+        let shared = width - textX - timingWidth - 4 * gap
         // As wide as the widest name across every row, not only those on screen, so it does not shift
         // while scrolling; the detail likewise, up to forty characters, past which a long pipeline or
         // branch is cut short rather than pushing every row's chips into the drop down.
@@ -183,7 +183,11 @@ final class BuildsRenderer {
         let detailWanted = iconWidth + min(
             frame.details.map { measure($0).rounded(.up) }.max() ?? 0,
             measure(String(repeating: "0", count: 40)))
-        // The chips give way first: a row without room for all of them puts the last behind an
+        // The bar gives way before anything else, since the timing beside it says the same: it shows
+        // only while the names, the detail and every chip still fit.
+        let showBar = shared - barWidth - gap - nameWanted - detailWanted >= widestChips
+        let available = showBar ? shared - barWidth - gap : shared
+        // Then the chips: a row without room for all of them puts the last behind an
         // overflow chip, rather than the names being cut short. Only once no chip but that one fits
         // do the names shrink.
         let spare = available - nameWanted - detailWanted
@@ -229,16 +233,19 @@ final class BuildsRenderer {
 
             drawDetail(row, index: index, from: x + iconWidth, width: detailWidth - iconWidth, textY: textY)
             x += detailWidth + gap
-            if row.progress >= 0 {
-                let track = CGRect(x: x, y: rect.midY - 4, width: barWidth, height: 8)
-                Palette.barTrack.setFill()
-                NSBezierPath(roundedRect: track, xRadius: 4, yRadius: 4).fill()
-                let filled = CGRect(x: track.minX, y: track.minY, width: track.width * CGFloat(min(1, max(0, row.progress))), height: track.height)
-                Palette.status(Int32(BM_STATUS_RUNNING.rawValue)).setFill()
-                NSBezierPath(roundedRect: filled, xRadius: 4, yRadius: 4).fill()
+            if showBar {
+                if row.progress >= 0 {
+                    let track = CGRect(x: x, y: rect.midY - 4, width: barWidth, height: 8)
+                    Palette.barTrack.setFill()
+                    NSBezierPath(roundedRect: track, xRadius: 4, yRadius: 4).fill()
+                    let filled = CGRect(x: track.minX, y: track.minY, width: track.width * CGFloat(min(1, max(0, row.progress))), height: track.height)
+                    Palette.status(Int32(BM_STATUS_RUNNING.rawValue)).setFill()
+                    NSBezierPath(roundedRect: filled, xRadius: 4, yRadius: 4).fill()
+                }
+
+                x += barWidth + gap
             }
 
-            x += barWidth + gap
             drawText(row.timing, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: timingWidth)
             x += timingWidth + gap
             drawChips(row, index: index, from: x, to: x + chipsWidth, rowRect: rect, overflowWidth: overflowWidth)

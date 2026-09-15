@@ -515,11 +515,16 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         const float widestChips = ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Copy log") + 2.0f * style.ItemSpacing.x;
         const float overflowWidth = ChipWidth(overflowLabel);
         // Each boundary between the five columns carries cell padding on both sides of it. What is
-        // left, the name, the detail and the chips share.
-        const float available = tableWidth - barWidth - timingWidth - 4.0f * 2.0f * style.CellPadding.x;
+        // left, the name, the detail, the bar and the chips share.
+        const float shared = tableWidth - timingWidth - 4.0f * 2.0f * style.CellPadding.x;
         const float nameWanted = rowHeight + style.ItemSpacing.x + nameText + 2.0f * style.CellPadding.x;
         const float detailWanted = (anyIcon ? iconSize + style.ItemSpacing.x : 0.0f) + detailText;
-        // The chips give way first: a row without room for all of them puts the last behind an
+        // The bar gives way before anything else, since the timing beside it says the same: it shows
+        // only while the names, the detail and every chip still fit. Hidden, its column is kept at no
+        // width, so the columns after it keep their indexes.
+        const bool showBar = shared - barWidth - nameWanted - detailWanted >= widestChips;
+        const float available = showBar ? shared - barWidth : shared;
+        // Then the chips: a row without room for all of them puts the last behind an
         // overflow chip, rather than the names being cut short. Only once no chip but that one fits
         // do the names shrink.
         const float spare = available - nameWanted - detailWanted;
@@ -529,7 +534,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         const float nameWidth = std::max(40.0f, std::min(nameWanted, names - std::min(minimumDetail, detailWanted)));
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, nameWidth);
         ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, barWidth);
+        ImGui::TableSetupColumn("bar", ImGuiTableColumnFlags_WidthFixed, showBar ? barWidth : 0.0f);
         ImGui::TableSetupColumn("timing", ImGuiTableColumnFlags_WidthFixed, timingWidth);
         ImGui::TableSetupColumn("chips", ImGuiTableColumnFlags_WidthFixed, chipsWidth);
         g.overflowAnchors.assign(static_cast<size_t>(screen.rowCount), ImVec2(-1.0f, -1.0f));
@@ -622,7 +627,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             DrawDetail(screen, row, i);
             ImGui::PopClipRect();
             ImGui::TableSetColumnIndex(2);
-            if (row.progress >= 0.0f) {
+            if (showBar && row.progress >= 0.0f) {
                 // Drawn rather than submitted as a ProgressBar. That is a framed item, which moves the
                 // row's text baseline down by the frame padding, and the timing text in the next cell
                 // would follow it to sit below the rest of the row.
