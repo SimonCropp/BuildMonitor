@@ -81,7 +81,8 @@ static class ProviderDescriptors
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
         // Half the secondary limit of 900 points a minute, which counts a 304 like any GET.
-        Quota: new(450, TimeSpan.FromMinutes(1), 450));
+        Quota: new(450, TimeSpan.FromMinutes(1), 450),
+        ActionPermission: "Actions read and write, or the repo scope on a classic token");
 
     public static readonly ProviderDescriptor AzureDevOps = new(
         Id: "azure-devops",
@@ -105,7 +106,8 @@ static class ProviderDescriptors
         Notes: "The token needs Build (Read & execute).",
         FetchUnit: FetchUnit.Repository,
         // Half the 200 throughput units a user may spend in any five minutes.
-        Quota: new(100, TimeSpan.FromMinutes(5), 100, ChargeByCost: true));
+        Quota: new(100, TimeSpan.FromMinutes(5), 100, ChargeByCost: true),
+        ActionPermission: "Build (Read & execute)");
 
     public static readonly ProviderDescriptor TeamCity = new(
         Id: "teamcity",
@@ -149,7 +151,8 @@ static class ProviderDescriptors
         CustomClientId: true,
         Notes: "The token needs the api scope to retry and cancel, or read_api to only watch.",
         // One GraphQL request covers fifty projects.
-        FetchUnit: FetchUnit.Connection);
+        FetchUnit: FetchUnit.Connection,
+        ActionPermission: "the api scope");
 
     public static readonly ProviderDescriptor GoCd = new(
         Id: "gocd",
@@ -190,7 +193,8 @@ static class ProviderDescriptors
         // A thousand requests an hour, or the scaled limit the workspace reports.
         Quota: new(1000, TimeSpan.FromHours(1), 250, LearnLimit: true),
         IdleCap: TimeSpan.FromMinutes(30),
-        ProbeInterval: TimeSpan.FromMinutes(1));
+        ProbeInterval: TimeSpan.FromMinutes(1),
+        ActionPermission: "write:pipeline:bitbucket");
 
     public static readonly ProviderDescriptor Octopus = new(
         Id: "octopus",

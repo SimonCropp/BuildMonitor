@@ -61,6 +61,7 @@
       LearnLimit: false,
       ChargeByCost: true
     },
+    ActionPermission: Build (Read & execute),
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md
   },
   {
@@ -96,6 +97,7 @@
     },
     IdleCap: 00:30:00,
     ProbeInterval: 00:01:00,
+    ActionPermission: write:pipeline:bitbucket,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/bitbucket.md
   },
   {
@@ -129,6 +131,7 @@
       LearnLimit: false,
       ChargeByCost: false
     },
+    ActionPermission: Actions read and write, or the repo scope on a classic token,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/github.md
   },
   {
@@ -156,6 +159,7 @@
     Notes: The token needs the api scope to retry and cancel, or read_api to only watch.,
     FetchUnit: Connection,
     FetchConcurrency: 1,
+    ActionPermission: the api scope,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/gitlab.md
   },
   {

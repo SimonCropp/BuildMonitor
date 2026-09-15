@@ -17,12 +17,14 @@ static class RealActions
                 () => poller.Retry(build, Cancel.None),
                 host,
                 $"Retrying {build.PipelineName}",
-                $"Retried {build.PipelineName} {build.RunNumberLabel()}".TrimEnd()),
+                $"Retried {build.PipelineName} {build.RunNumberLabel()}".TrimEnd(),
+                build.ConnectionId),
             Cancel: build => Background(
                 () => poller.Cancel(build, Cancel.None),
                 host,
                 $"Cancelling {build.PipelineName}",
-                $"Cancelled {build.PipelineName} {build.RunNumberLabel()}".TrimEnd()),
+                $"Cancelled {build.PipelineName} {build.RunNumberLabel()}".TrimEnd(),
+                build.ConnectionId),
             CopyLog: build => _ = Task.Run(async () =>
             {
                 var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
@@ -73,7 +75,7 @@ static class RealActions
                 }
             });
 
-    static void Background(Func<Task> work, SessionHost host, string what, string? done = null) =>
+    static void Background(Func<Task> work, SessionHost host, string what, string? done = null, string? connectionId = null) =>
         _ = Task.Run(async () =>
         {
             try
@@ -87,7 +89,7 @@ static class RealActions
             catch (Exception exception)
             {
                 Log.Error(exception, "{What} failed", what);
-                host.Mutate(_ => MonitorSession.SetStatus(_, $"{what} failed: {exception.Message}"));
+                host.Mutate(_ => MonitorSession.SetStatus(_, ActionFailure.Describe(_, connectionId, what, exception)));
             }
         });
 }

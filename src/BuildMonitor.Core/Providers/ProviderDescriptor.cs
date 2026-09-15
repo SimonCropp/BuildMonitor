@@ -7,6 +7,8 @@
 /// or Bitbucket; null when the token stands alone.</param>
 /// <param name="CustomClientId">Whether a user may supply their own OAuth client id, which a self
 /// hosted instance with its own application registration needs.</param>
+/// <param name="ActionPermission">What a credential needs to retry and cancel, named in the
+/// status when one is refused; null when the provider does not document it.</param>
 /// <param name="FetchUnit">What one fetch covers, which the poller schedules as one group.</param>
 /// <param name="FetchConcurrency">How many groups are fetched at once.</param>
 /// <param name="Quota">A request budget the service enforces, or null when its headers are enough.</param>
@@ -34,7 +36,8 @@ record ProviderDescriptor(
     int FetchConcurrency = 1,
     RequestQuota? Quota = null,
     TimeSpan? IdleCap = null,
-    TimeSpan? ProbeInterval = null)
+    TimeSpan? ProbeInterval = null,
+    string? ActionPermission = null)
 {
     /// <summary>
     /// The provider's page in the docs, which the connection editor links so the server and scope
