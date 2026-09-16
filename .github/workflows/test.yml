@@ -107,15 +107,19 @@ jobs:
           mkdir -p src/BuildMonitor.Native/runtimes/linux-x64/native
           cp native/build/linux-x64/libbuildmonitor_ui.so src/BuildMonitor.Native/runtimes/linux-x64/native/
 
-      # Only this runner's own architecture, because this is the only thing that loads it. The
-      # committed universal binary is still loaded and checked by the native job below.
+      # Over both macOS RIDs, not just this runner's. NativeResolver falls through to the next RID
+      # when one will not load, and the committed osx-x64 binary is universal, so it answers on an
+      # arm64 runner just as well: leaving it in place lets the job render from the committed shim
+      # rather than from the source it just built, and the pixel baselines stop tracking native/.
       - name: Build native renderer
         if: runner.os == 'macOS' && hashFiles('native/swift/Package.swift') != ''
         run: |
           swift build -c release --package-path native/swift
-          mkdir -p src/BuildMonitor.Native/runtimes/osx-arm64/native
-          cp "$(swift build -c release --package-path native/swift --show-bin-path)/libbuildmonitor_ui.dylib" \
-            src/BuildMonitor.Native/runtimes/osx-arm64/native/
+          built="$(swift build -c release --package-path native/swift --show-bin-path)/libbuildmonitor_ui.dylib"
+          for rid in osx-arm64 osx-x64; do
+            mkdir -p "src/BuildMonitor.Native/runtimes/$rid/native"
+            cp "$built" "src/BuildMonitor.Native/runtimes/$rid/native/"
+          done
 
       # Release-NotWindows drops the WinForms tests from the solution. The Windows head itself
       # still builds, because the launcher bundles it for the win RIDs.
