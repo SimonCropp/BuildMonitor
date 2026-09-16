@@ -3,14 +3,26 @@
 /// </summary>
 sealed class ProtocolClient(int port) : IProtocolClient
 {
-    static TimeSpan timeout = TimeSpan.FromSeconds(3);
-
     int Port { get; } = port;
+
+    /// <summary>
+    /// How long the verb may take. A read is answered from the state at once, but a retry or a
+    /// cancel is a call to the CI service, and a log is a call for the jobs and then one a job.
+    /// The tray sends nothing until it has the answer, so this is also how long the read waits.
+    /// </summary>
+    static TimeSpan Limit(Verb verb) =>
+        verb switch
+        {
+            Verb.Retry or Verb.Cancel => TimeSpan.FromSeconds(30),
+            Verb.Log => TimeSpan.FromSeconds(60),
+            _ => TimeSpan.FromSeconds(3)
+        };
 
     public async Task<Response> Send(Message message, Cancel cancel)
     {
+        var limit = Limit(message.Verb);
         using var timeout = CancelSource.CreateLinkedTokenSource(cancel);
-        timeout.CancelAfter(message.Verb is Verb.Retry or Verb.Cancel ? TimeSpan.FromSeconds(30) : ProtocolClient.timeout);
+        timeout.CancelAfter(limit);
         using var client = new TcpClient();
         try
         {
@@ -18,7 +30,7 @@ sealed class ProtocolClient(int port) : IProtocolClient
             await using var stream = client.GetStream();
             await stream.WriteAsync(Encoding.UTF8.GetBytes(message.Build()), timeout.Token);
             await stream.FlushAsync(timeout.Token);
-            var text = await LocalServer.ReadMessage(stream, timeout.Token);
+            var text = await LocalServer.ReadMessage(stream, timeout.Token, limit);
             if (Response.TryParse(text, out var response))
             {
                 return response;

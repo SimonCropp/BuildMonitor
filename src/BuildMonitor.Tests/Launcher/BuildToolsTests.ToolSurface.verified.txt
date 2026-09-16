@@ -22,6 +22,22 @@
     ]
   },
   {
+    Name: get_build_log,
+    Description: The log of a build, fetched from the CI service: the logs of the jobs, steps or tasks that failed, each under a line naming it, or the whole build's log where the service keeps one log a build. Only the end of each is returned, under a count of the lines dropped before it. Fails when the build has no log, as a run that failed before starting a job has none.,
+    Parameters: [
+      {
+        Name: key,
+        Type: String,
+        Description: The build key from list_builds.
+      },
+      {
+        Name: maxLines,
+        Type: Int32,
+        Description: How many lines to keep from the end of each section. Defaults to 200.
+      }
+    ]
+  },
+  {
     Name: list_builds,
     Description: Lists the latest build of every monitored pipeline across every CI connection, with status, timing, progress and links. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it.,
     Parameters: [
@@ -41,6 +57,22 @@
     Name: list_failing,
     Description: Lists only the pipelines whose latest build failed.,
     Parameters: []
+  },
+  {
+    Name: list_pipelines,
+    Description: Every pipeline being monitored, including ones that have run nothing lately and so appear in no build list. Each carries a key that list_runs takes, and a count of the runs held for it.,
+    Parameters: []
+  },
+  {
+    Name: list_runs,
+    Description: The recent runs of one pipeline, newest first, where list_builds shows only the latest: this is what says whether a failure is the first or the fourth in a row. Covers every branch the pipeline ran on, as far back as the tray has polled. Runs on one branch share the build key and are told apart by their run number.,
+    Parameters: [
+      {
+        Name: key,
+        Type: String,
+        Description: A build key from list_builds, or a pipeline key from list_pipelines.
+      }
+    ]
   },
   {
     Name: open_build_in_browser,

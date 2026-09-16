@@ -26,6 +26,26 @@ sealed class BuildTools(MonitorTools tools)
         Cancel cancel = default) =>
         tools.GetBuild(key, cancel);
 
+    [McpServerTool(Name = "list_runs", ReadOnly = true, UseStructuredContent = true)]
+    [Description("The recent runs of one pipeline, newest first, where list_builds shows only the latest: this is what says whether a failure is the first or the fourth in a row. Covers every branch the pipeline ran on, as far back as the tray has polled. Runs on one branch share the build key and are told apart by their run number.")]
+    public Task<List<BuildDto>> ListRuns(
+        [Description("A build key from list_builds, or a pipeline key from list_pipelines.")] string key,
+        Cancel cancel = default) =>
+        tools.ListRuns(key, cancel);
+
+    [McpServerTool(Name = "list_pipelines", ReadOnly = true, UseStructuredContent = true)]
+    [Description("Every pipeline being monitored, including ones that have run nothing lately and so appear in no build list. Each carries a key that list_runs takes, and a count of the runs held for it.")]
+    public Task<List<PipelineDto>> ListPipelines(Cancel cancel = default) =>
+        tools.ListPipelines(cancel);
+
+    [McpServerTool(Name = "get_build_log", ReadOnly = true)]
+    [Description("The log of a build, fetched from the CI service: the logs of the jobs, steps or tasks that failed, each under a line naming it, or the whole build's log where the service keeps one log a build. Only the end of each is returned, under a count of the lines dropped before it. Fails when the build has no log, as a run that failed before starting a job has none.")]
+    public Task<string> GetBuildLog(
+        [Description("The build key from list_builds.")] string key,
+        [Description("How many lines to keep from the end of each section. Defaults to 200.")] int maxLines = LogTail.DefaultLines,
+        Cancel cancel = default) =>
+        tools.GetLog(key, maxLines, cancel);
+
     [McpServerTool(Name = "summary", ReadOnly = true, UseStructuredContent = true)]
     [Description("Counts of failing and running builds, the tray icon state, and the health of every connection.")]
     public Task<SummaryDto> Summary(Cancel cancel = default) =>

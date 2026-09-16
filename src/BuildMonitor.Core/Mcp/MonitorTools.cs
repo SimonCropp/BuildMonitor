@@ -32,6 +32,16 @@ sealed class MonitorTools(IProtocolClient client)
     public Task<BuildDto> GetBuild(string key, Cancel cancel) =>
         Read(new(Verb.Get, key), DtoContext.Default.BuildDto, cancel);
 
+    /// <summary>
+    /// The runs of one pipeline rather than the one row it shows. Runs on the same branch share
+    /// a key, which is the row's, and are told apart by their run number.
+    /// </summary>
+    public Task<List<BuildDto>> ListRuns(string key, Cancel cancel) =>
+        Read(new(Verb.Runs, key), DtoContext.Default.ListBuildDto, cancel);
+
+    public Task<List<PipelineDto>> ListPipelines(Cancel cancel) =>
+        Read(new(Verb.Pipelines), DtoContext.Default.ListPipelineDto, cancel);
+
     public Task<SummaryDto> Summary(Cancel cancel) =>
         Read(new(Verb.Summary), DtoContext.Default.SummaryDto, cancel);
 
@@ -52,6 +62,13 @@ sealed class MonitorTools(IProtocolClient client)
 
     public Task<string> OpenBuild(string key, string which, Cancel cancel) =>
         Send(new(Verb.Open, key, which), cancel);
+
+    /// <summary>
+    /// The log as the text the CI service wrote, rather than JSON: its sections and indentation
+    /// are what an assistant reads the failure out of, and escaping them buys nothing.
+    /// </summary>
+    public Task<string> GetLog(string key, int maxLines, Cancel cancel) =>
+        Send(new(Verb.Log, key, maxLines.ToString(CultureInfo.InvariantCulture)), cancel);
 
     async Task<T> Read<T>(Message message, JsonTypeInfo<T> info, Cancel cancel)
     {

@@ -96,12 +96,14 @@ sealed class LocalServer : IDisposable
     }
 
     /// <summary>
-    /// Reads until the empty line that ends a message, or the client stops sending.
+    /// Reads until the empty line that ends a message, or the client stops sending. The wait is
+    /// <see cref="ReadTimeout"/> unless the caller allows longer, which the side waiting on an
+    /// answer the tray has to fetch from a CI service does.
     /// </summary>
-    public static async Task<string> ReadMessage(Stream stream, Cancel cancel)
+    public static async Task<string> ReadMessage(Stream stream, Cancel cancel, TimeSpan? readTimeout = null)
     {
         using var timeout = CancelSource.CreateLinkedTokenSource(cancel);
-        timeout.CancelAfter(ReadTimeout);
+        timeout.CancelAfter(readTimeout ?? ReadTimeout);
         var buffer = new byte[4096];
         var builder = new StringBuilder();
         while (true)
@@ -113,9 +115,7 @@ sealed class LocalServer : IDisposable
             }
 
             builder.Append(Encoding.UTF8.GetString(buffer, 0, read));
-            var text = builder.ToString();
-            if (text.EndsWith("\n\n", StringComparison.Ordinal) ||
-                text.EndsWith("\r\n\r\n", StringComparison.Ordinal))
+            if (EndsMessage(builder))
             {
                 break;
             }
@@ -123,6 +123,16 @@ sealed class LocalServer : IDisposable
 
         return builder.ToString();
     }
+
+    /// <summary>
+    /// Whether what has been read ends in the empty line. Read off the last characters rather
+    /// than off the whole text, which a log of a few megabytes would copy once a chunk.
+    /// </summary>
+    static bool EndsMessage(StringBuilder builder) =>
+        builder.Length >= 2 &&
+        builder[^1] == '\n' &&
+        (builder[^2] == '\n' ||
+         builder.Length >= 4 && builder[^2] == '\r' && builder[^3] == '\n' && builder[^4] == '\r');
 
     public void Dispose() =>
         listener.Stop();

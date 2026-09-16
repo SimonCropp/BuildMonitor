@@ -10,7 +10,11 @@ public class LocalServerTests
         var host = new SessionHost(Fixtures.WithBuilds());
         var secrets = new MemorySecretStore();
         var handler = new FakeHttpHandler()
-            .Map("POST", "https://api.github.com/repos/VerifyTests/Verify/actions/runs/77/rerun-failed-jobs", "", HttpStatusCode.Created);
+            .Map("POST", "https://api.github.com/repos/VerifyTests/Verify/actions/runs/77/rerun-failed-jobs", "", HttpStatusCode.Created)
+            .Get(
+                "https://api.github.com/repos/VerifyTests/Verify/actions/runs/77/jobs?filter=latest&per_page=100&page=1",
+                """{"total_count":1,"jobs":[{"id":72,"name":"build","conclusion":"failure"}]}""")
+            .Get("https://api.github.com/repos/VerifyTests/Verify/actions/jobs/72/logs", "restoring\nbuilding\nerror CS1002: ; expected\n");
         var poller = new Poller(host, secrets, new(), handler);
         var opened = new List<string>();
         var windows = new List<WindowCommand>();
@@ -130,6 +134,33 @@ public class LocalServerTests
             await Assert.That(started.Host.State.Status).IsEqualTo("Retried test.yml #77");
             var running = await started.Client.Send(new(Verb.Retry, "gh/DiffEngine/test.yml/main"), Cancel.None);
             await Assert.That(running).IsEqualTo(Response.Error("That build cannot be retried"));
+        }
+        finally
+        {
+            await Stop(started);
+        }
+    }
+
+    /// <summary>
+    /// A log is the one answer with newlines in it, which the base64 body is what keeps from
+    /// ending the message early.
+    /// </summary>
+    [Test]
+    public async Task LogComesBackWholeOverTheSocket()
+    {
+        var started = await Start();
+        try
+        {
+            started.Host.Mutate(_ => _ with
+            {
+                Builds = _.Builds.Replace(
+                    _.Builds.Single(build => build.Key == "gh/Verify/test.yml/feature/inline"),
+                    _.Builds.Single(build => build.Key == "gh/Verify/test.yml/feature/inline") with { ProviderRef = "VerifyTests/Verify|77|failure" })
+            });
+            var response = await started.Client.Send(new(Verb.Log, "gh/Verify/test.yml/feature/inline", "2"), Cancel.None);
+            await Assert.That(response.Body).IsEqualTo("==> build <==\n... 1 earlier line dropped\nbuilding\nerror CS1002: ; expected");
+            var missing = await started.Client.Send(new(Verb.Log, "nope"), Cancel.None);
+            await Assert.That(missing).IsEqualTo(Response.Error("No build with key nope"));
         }
         finally
         {

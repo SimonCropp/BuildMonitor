@@ -25,6 +25,20 @@ record BuildDto(
     bool CanRetry,
     bool CanCancel);
 
+/// <summary>
+/// One monitored pipeline, including one that has produced no build inside the history window
+/// and so has no row. <see cref="Runs"/> is how many of its runs the tray holds, and a zero is
+/// the thing a list of builds cannot say: watched, but quiet.
+/// </summary>
+record PipelineDto(
+    string Key,
+    string Connection,
+    string Name,
+    string Repo,
+    string? Group,
+    string Url,
+    int Runs);
+
 record ConnectionDto(
     string Id,
     string Name,
@@ -47,5 +61,6 @@ record SummaryDto(
 [JsonSerializable(typeof(BuildDto))]
 [JsonSerializable(typeof(List<BuildDto>))]
 [JsonSerializable(typeof(List<ConnectionDto>))]
+[JsonSerializable(typeof(List<PipelineDto>))]
 [JsonSerializable(typeof(SummaryDto))]
 partial class DtoContext : JsonSerializerContext;

@@ -46,6 +46,9 @@ VS Code, in `.vscode/mcp.json`:
 | `list_builds` | The latest build of every pipeline, with status, timing, progress and links. Optional substring filter on pipeline, repository, branch or connection. |
 | `list_failing` | The pipelines whose latest build failed. |
 | `get_build` | One build by key. |
+| `list_runs` | The recent runs of one pipeline, newest first, where `list_builds` shows only the latest. Takes a build key or a pipeline key. Runs on one branch share the build key and differ by run number. |
+| `list_pipelines` | Every pipeline being monitored, including ones that have run nothing lately and so appear in no build list, each with a count of the runs held for it. |
+| `get_build_log` | The log of a build, fetched from the CI service: each failed job, step or task under a line naming it, or the whole build's log where the service keeps one. Only the end of each section is returned, under a count of the lines dropped before it; `maxLines` sets how much, and defaults to 200. |
 | `summary` | Counts of failing and running builds, the tray state, and each connection's health. |
 | `list_connections` | The connections and whether polling them works. Never returns credentials. |
 | `refresh` | Polls now. |

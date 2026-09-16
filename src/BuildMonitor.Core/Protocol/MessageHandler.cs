@@ -35,6 +35,18 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
 
                 return Response.Success(JsonSerializer.Serialize(build, DtoContext.Default.BuildDto));
             }
+            case Verb.Runs:
+            {
+                if (message.Key is null ||
+                    Snapshot.Runs(state, message.Key, now) is not { } runs)
+                {
+                    return Response.Error($"No pipeline with key {message.Key}");
+                }
+
+                return Response.Success(JsonSerializer.Serialize(runs, DtoContext.Default.ListBuildDto));
+            }
+            case Verb.Pipelines:
+                return Response.Success(JsonSerializer.Serialize(Snapshot.Pipelines(state), DtoContext.Default.ListPipelineDto));
             case Verb.Refresh:
                 poller.Refresh(string.IsNullOrEmpty(message.Key) ? null : message.Key);
                 return Response.Success();
@@ -94,8 +106,33 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 openUrl(url);
                 return Response.Success(url);
             }
+            case Verb.Log:
+            {
+                var build = state.Builds.FirstOrDefault(_ => _.Key == message.Key);
+                if (build is null)
+                {
+                    return Response.Error($"No build with key {message.Key}");
+                }
+
+                var log = await poller.FetchLog(build, Cancel.None);
+                if (log.Length == 0)
+                {
+                    return Response.Error("That build has no log");
+                }
+
+                return Response.Success(LogTail.Take(log, Lines(message.Body)));
+            }
             default:
                 return Response.Error($"Unknown verb {message.Verb}");
         }
     }
+
+    /// <summary>
+    /// How much of the log was asked for. A body that is missing or not a size, as one from a
+    /// launcher too old to send one is, takes the default rather than the whole log.
+    /// </summary>
+    static int Lines(string? body) =>
+        int.TryParse(body, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lines) && lines > 0
+            ? lines
+            : LogTail.DefaultLines;
 }
