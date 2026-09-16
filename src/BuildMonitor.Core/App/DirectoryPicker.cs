@@ -42,7 +42,7 @@ static class DirectoryPicker
     /// </summary>
     static string? Mac(string? start)
     {
-        var from = Directory.Exists(start) ? $" default location POSIX file \"{start!.Replace("\"", "")}\"" : "";
+        var from = Directory.Exists(start) ? $" default location POSIX file \"{start.Replace("\"", "")}\"" : "";
         var (code, output) = ProcessRunner.Run(
             "osascript",
             ["-e", $"POSIX path of (choose folder with prompt \"Choose your code directory\"{from})"],
@@ -74,7 +74,7 @@ static class DirectoryPicker
 
         var (kdialogCode, kdialogOutput) = ProcessRunner.Run(
             "kdialog",
-            ["--getexistingdirectory", Directory.Exists(start) ? start! : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)],
+            ["--getexistingdirectory", Directory.Exists(start) ? start : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)],
             timeout: patience);
         return kdialogCode == 0 ? kdialogOutput : null;
     }
