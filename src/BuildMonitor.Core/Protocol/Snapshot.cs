@@ -54,11 +54,11 @@ static class Snapshot
         return state.Connections
             .SelectMany(_ => _.Pipelines
                 .Where(pipeline => !Filters.ExcludesPipeline(state.Settings.Filters, pipeline))
-                .Select(pipeline => Pipeline(builds, _.Connection, pipeline)))
+                .Select(pipeline => Pipeline(builds, _.Connection, pipeline, state.LocalRepos)))
             .ToList();
     }
 
-    static PipelineDto Pipeline(ImmutableArray<Build> builds, Connection connection, Pipeline pipeline)
+    static PipelineDto Pipeline(ImmutableArray<Build> builds, Connection connection, Pipeline pipeline, ImmutableDictionary<string, string> localRepos)
     {
         var key = $"{connection.Id}/{pipeline.Id}";
         return new(
@@ -68,7 +68,8 @@ static class Snapshot
             pipeline.RepoName,
             pipeline.Group,
             pipeline.Url,
-            builds.Count(_ => _.PipelineKey == key));
+            builds.Count(_ => _.PipelineKey == key),
+            LocalRepos.Find(localRepos, pipeline.RepoName));
     }
 
     static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now)
@@ -95,7 +96,8 @@ static class Snapshot
             build.CommitMessage,
             build.Author,
             build.Retryable(),
-            build.CanCancel);
+            build.CanCancel,
+            LocalRepos.Find(state.LocalRepos, build));
     }
 
     public static List<ConnectionDto> Connections(SessionState state) =>

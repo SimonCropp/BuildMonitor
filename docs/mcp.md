@@ -64,3 +64,5 @@ VS Code, in `.vscode/mcp.json`:
 | `open_build_in_browser` | Opens the build, its branch or its pull request. |
 
 Every build carries a `key`, which is what the acting tools take.
+
+A build or pipeline whose repository is checked out under the [code directory](options.md#code-directory) also carries a `directory`, the path it is checked out at, so the code behind a failure can be opened without asking where it lives. The field is absent rather than empty where no checkout was found, which is every build until that option is set.

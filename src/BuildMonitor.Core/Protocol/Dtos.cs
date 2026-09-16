@@ -23,7 +23,11 @@ record BuildDto(
     string? CommitMessage,
     string? Author,
     bool CanRetry,
-    bool CanCancel);
+    bool CanCancel,
+    // Where this repository is checked out under the code directory, or absent when it is not one
+    // the tray found. An assistant reading a failure can open the code it broke without being told
+    // where it lives.
+    string? Directory = null);
 
 /// <summary>
 /// One monitored pipeline, including one that has produced no build inside the history window
@@ -37,7 +41,9 @@ record PipelineDto(
     string Repo,
     string? Group,
     string Url,
-    int Runs);
+    int Runs,
+    // As on a build: where this pipeline's repository is checked out, or absent.
+    string? Directory = null);
 
 record ConnectionDto(
     string Id,

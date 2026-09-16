@@ -141,6 +141,29 @@ public class MonitorToolsTests
                 """);
     }
 
+    /// <summary>
+    /// So an assistant reading a failure can open the code that broke without being told where the
+    /// checkout is. Absent, rather than null, for a repository the tray has not found: the code
+    /// directory is unset for most users and an empty field on every build would be noise.
+    /// </summary>
+    [Test]
+    public async Task BuildsAndPipelinesCarryTheLocalCheckout()
+    {
+        var (tools, host, _) = Create();
+        WithPipelines(host);
+        host.Mutate(_ => MonitorSession.ApplyLocalRepos(_, Fixtures.LocalRepoIndex()));
+
+        var builds = await tools.ListBuilds(null, Cancel.None);
+        await Assert.That(builds.Single(_ => _.Key == "gh/DiffEngine/test.yml/main").Directory).IsEqualTo("/code/DiffEngine");
+        // Jenkins reports a job name rather than a slug, so this one matched on the folder's name.
+        await Assert.That(builds.Single(_ => _.Key == "jenkins/build-all/main").Directory).IsEqualTo("/code/build-all");
+        await Assert.That(builds.Single(_ => _.Key == "gh/Verify/test.yml/feature/inline").Directory).IsNull();
+
+        var pipelines = await tools.ListPipelines(Cancel.None);
+        await Assert.That(pipelines.Single(_ => _.Key == "gh/DiffEngine/docs.yml").Directory).IsEqualTo("/code/DiffEngine");
+        await Assert.That(pipelines.Single(_ => _.Key == "gh/Verify/release.yml").Directory).IsNull();
+    }
+
     [Test]
     public async Task SummaryConnectionsAndOpen()
     {
