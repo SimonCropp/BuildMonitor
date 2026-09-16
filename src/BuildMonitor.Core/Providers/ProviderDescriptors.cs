@@ -126,7 +126,10 @@ static class ProviderDescriptors
         // The probe asks each project for builds queued since the newest one seen, so a quiet
         // project need not be fetched every five minutes.
         IdleCap: TimeSpan.FromMinutes(30),
-        ActionPermission: "Build (Read & execute)");
+        ActionPermission: "Build (Read & execute)",
+        // Microsoft's REST samples send a Microsoft Entra token as a Bearer token, and describe Basic
+        // for a personal access token.
+        SignInScheme: AuthScheme.Bearer);
 
     public static readonly ProviderDescriptor TeamCity = new(
         Id: "teamcity",

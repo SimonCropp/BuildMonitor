@@ -12,7 +12,7 @@ Watches the pipelines of one organization, across every project or one named pro
 
 ## Credential
 
-A [personal access token](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) with Build: Read & execute. Or sign in through Microsoft Entra ID, once an application is registered; see [Authentication](../auth.md). Personal Microsoft accounts cannot sign in that way.
+A [personal access token](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) with Build: Read & execute, sent as Basic authentication with an empty user name. Or sign in through Microsoft Entra ID, once an application is registered; see [Authentication](../auth.md). Personal Microsoft accounts cannot sign in that way. A sign in's token is sent as `Authorization: Bearer`, as Microsoft's REST samples send one.
 
 For Azure DevOps Server enter the server URL and the collection as the organization.
 
@@ -128,9 +128,19 @@ None. Builds, definitions and pipelines lists send no ETag or Last-Modified, and
  * The builds list needs a project in the path [docs].
 
 
+### Authentication
+
+Checked 2026-09-16.
+
+ * A personal access token goes as Basic authentication with an empty user name, as in `curl -u :{PAT}` [docs].
+ * Microsoft's REST samples send a Microsoft Entra token as `Authorization: Bearer`. The personal access token page says an Entra token works anywhere a personal access token does, and one of its samples passes one to curl as Basic [docs].
+ * A personal access token cannot read its own scopes: the PAT Lifecycle Management APIs, like the organization and profile APIs, take Microsoft Entra tokens only [docs].
+
+
 ### Sources
 
  * [Rate and usage limits](https://learn.microsoft.com/en-us/azure/devops/integrate/concepts/rate-limits)
+ * [Use personal access tokens](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) and [REST API samples](https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/rest/samples)
  * [Builds - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-7.1)
  * [Definitions - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/definitions/list?view=azure-devops-rest-7.1)
  * [Pushes - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pushes/list?view=azure-devops-rest-7.1)

@@ -12,16 +12,31 @@ public class ProviderCatalogTests
     public Task Descriptors() =>
         Verify(ProviderDescriptors.All);
 
+    /// <summary>
+    /// A sign in gets an OAuth token, which each service with a sign in shows sent as a Bearer
+    /// token, whatever a pasted token goes as. GitLab refuses one in PRIVATE-TOKEN.
+    /// </summary>
     [Test]
-    public async Task OnlyGitLabSendsASignInsTokenOtherwise()
+    public async Task ASignInsTokenIsABearerToken()
     {
-        var changed = ProviderDescriptors.All
-            .Where(descriptor => descriptor.AuthMethods().Any(_ => descriptor.SchemeFor(_) != descriptor.Scheme))
-            .Select(_ => $"{_.Id}: {_.SchemeFor(AuthMethod.Device)}");
-        await Assert.That(changed).IsEquivalentTo(["gitlab: Bearer"]);
-        await Assert.That(ProviderDescriptors.GitLab.SchemeFor(AuthMethod.Browser)).IsEqualTo(AuthScheme.Bearer);
-        await Assert.That(ProviderDescriptors.GitLab.SchemeFor(AuthMethod.Token)).IsEqualTo(AuthScheme.HeaderPrivateToken);
+        var signIns = ProviderDescriptors.All
+            .SelectMany(descriptor => descriptor.AuthMethods()
+                .Where(_ => _ != AuthMethod.Token)
+                .Select(_ => $"{descriptor.Id} {_}: {descriptor.SchemeFor(_)}"));
+        await Assert.That(signIns).IsEquivalentTo(
+        [
+            "azure-devops Browser: Bearer",
+            "azure-devops Device: Bearer",
+            "github Browser: Bearer",
+            "github Device: Bearer",
+            "gitlab Browser: Bearer",
+            "gitlab Device: Bearer"
+        ]);
     }
+
+    [Test]
+    public async Task APastedTokenGoesAsItsProvidersScheme() =>
+        await Assert.That(ProviderDescriptors.All.Where(_ => _.SchemeFor(AuthMethod.Token) != _.Scheme)).IsEmpty();
 
     [Test]
     [Arguments(AuthScheme.Bearer, "Bearer secret")]

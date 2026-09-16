@@ -3,13 +3,14 @@
 /// </summary>
 public enum AuthScheme
 {
-    // Authorization: Bearer {token}. OAuth tokens, GitLab's included.
+    // Authorization: Bearer {token}. OAuth tokens, GitLab's and Azure DevOps' included.
     Bearer,
     // Authorization: token {token}. Travis.
     Token,
     // Authorization: Basic base64(user:token). Jenkins.
     BasicUserToken,
-    // Authorization: Basic base64(:token). Azure DevOps personal access tokens.
+    // Authorization: Basic base64(:token). Azure DevOps personal access tokens. Its Microsoft Entra
+    // tokens go as Bearer tokens, the way Microsoft's REST samples send them.
     BasicEmptyUserToken,
     // Authorization: Basic base64(email:token). Bitbucket API tokens.
     BasicEmailToken,

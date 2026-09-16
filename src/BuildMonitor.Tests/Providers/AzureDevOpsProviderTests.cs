@@ -167,4 +167,16 @@ public class AzureDevOpsProviderTests
         var expected = Convert.ToBase64String(":secret"u8.ToArray());
         await Assert.That(handler.RequestHeaders.Single().Authorization!.ToString()).IsEqualTo($"Basic {expected}");
     }
+
+    [Test]
+    [Arguments(nameof(AuthMethod.Browser))]
+    [Arguments(nameof(AuthMethod.Device))]
+    public async Task ASignInsTokenIsABearerToken(string method)
+    {
+        // The way Microsoft's REST samples send a Microsoft Entra token.
+        var handler = new FakeHttpHandler().Get($"{organization}/_apis/projects?api-version=7.1&$top=100", """{"count":0,"value":[]}""");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, auth: Enum.Parse<AuthMethod>(method), scope: ("organization", "contoso"));
+        await ProviderTestHelpers.Provider("azure-devops").Test(context, Cancel.None);
+        await Assert.That(handler.RequestHeaders.Single().Authorization!.ToString()).IsEqualTo("Bearer secret");
+    }
 }

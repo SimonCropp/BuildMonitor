@@ -64,6 +64,7 @@
     },
     IdleCap: 00:30:00,
     ActionPermission: Build (Read & execute),
+    SignInScheme: Bearer,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md
   },
   {
