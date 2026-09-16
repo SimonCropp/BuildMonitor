@@ -242,6 +242,6 @@ public class HttpJsonTests
         var handler = new FakeHttpHandler()
             .Map("GET", "https://api.github.com/user", """{"message":"Bad credentials"}""", HttpStatusCode.Unauthorized);
         using var client = GitHub(handler);
-        await Assert.That(async () => await client.GetHeader("user", "X-OAuth-Scopes", Cancel.None)).Throws<AuthException>();
+        await Assert.That(() => client.GetHeader("user", "X-OAuth-Scopes", Cancel.None)).Throws<AuthException>();
     }
 }

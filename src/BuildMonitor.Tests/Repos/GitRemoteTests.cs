@@ -19,61 +19,41 @@ public class GitRemoteTests
     [Test]
     public async Task ReadsTheOriginPastOtherRemotes()
     {
-        var directory = TempDirectory();
-        try
-        {
-            Config(
-                directory,
-                """
-                [core]
-                	repositoryformatversion = 0
-                [remote "upstream"]
-                	url = https://github.com/Someone/Fork.git
-                [remote "origin"]
-                	url = https://github.com/VerifyTests/DiffEngine.git
-                	fetch = +refs/heads/*:refs/remotes/origin/*
-                [branch "main"]
-                	remote = origin
-                """);
+        using var directory = new TempDirectory();
 
-            await Assert.That(GitRemote.Of(directory)).IsEqualTo("VerifyTests/DiffEngine");
-        }
-        finally
-        {
-            Directory.Delete(directory, true);
-        }
+        Config(
+            directory,
+            """
+            [core]
+            	repositoryformatversion = 0
+            [remote "upstream"]
+            	url = https://github.com/Someone/Fork.git
+            [remote "origin"]
+            	url = https://github.com/VerifyTests/DiffEngine.git
+            	fetch = +refs/heads/*:refs/remotes/origin/*
+            [branch "main"]
+            	remote = origin
+            """);
+
+        await Assert.That(GitRemote.Of(directory)).IsEqualTo("VerifyTests/DiffEngine");
     }
 
     [Test]
     public async Task ACheckoutWithNoOriginHasNoRemote()
     {
-        var directory = TempDirectory();
-        try
-        {
-            Config(directory, "[core]\n\trepositoryformatversion = 0\n");
+        using var directory = new TempDirectory();
+        Config(directory, "[core]\n\trepositoryformatversion = 0\n");
 
-            await Assert.That(GitRemote.Of(directory)).IsNull();
-        }
-        finally
-        {
-            Directory.Delete(directory, true);
-        }
+        await Assert.That(GitRemote.Of(directory)).IsNull();
     }
 
     [Test]
     public async Task ACheckoutWithNoConfigHasNoRemote()
     {
-        var directory = TempDirectory();
-        try
-        {
-            Directory.CreateDirectory(Path.Combine(directory, ".git"));
+        using var directory = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(directory, ".git"));
 
-            await Assert.That(GitRemote.Of(directory)).IsNull();
-        }
-        finally
-        {
-            Directory.Delete(directory, true);
-        }
+        await Assert.That(GitRemote.Of(directory)).IsNull();
     }
 
     /// <summary>
@@ -82,35 +62,21 @@ public class GitRemoteTests
     [Test]
     public async Task FollowsTheGitdirOfAWorktree()
     {
-        var root = TempDirectory();
-        try
-        {
-            var main = Path.Combine(root, "main");
-            Config(main, "[remote \"origin\"]\n\turl = git@github.com:VerifyTests/Verify.git\n");
-            var worktree = Path.Combine(root, "feature");
-            Directory.CreateDirectory(worktree);
-            File.WriteAllText(
-                Path.Combine(worktree, ".git"),
-                $"gitdir: {Path.Combine(main, ".git", "worktrees", "feature")}");
+        using var root = new TempDirectory();
+        var main = Path.Combine(root, "main");
+        Config(main, "[remote \"origin\"]\n\turl = git@github.com:VerifyTests/Verify.git\n");
+        var worktree = Path.Combine(root, "feature");
+        Directory.CreateDirectory(worktree);
+        await File.WriteAllTextAsync(
+            Path.Combine(worktree, ".git"),
+            $"gitdir: {Path.Combine(main, ".git", "worktrees", "feature")}");
 
-            await Assert.That(GitRemote.Of(worktree)).IsEqualTo("VerifyTests/Verify");
-        }
-        finally
-        {
-            Directory.Delete(root, true);
-        }
+        await Assert.That(GitRemote.Of(worktree)).IsEqualTo("VerifyTests/Verify");
     }
 
     static void Config(string directory, string config)
     {
         Directory.CreateDirectory(Path.Combine(directory, ".git"));
         File.WriteAllText(Path.Combine(directory, ".git", "config"), config);
-    }
-
-    static string TempDirectory()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), $"BuildMonitorRemote_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(directory);
-        return directory;
     }
 }

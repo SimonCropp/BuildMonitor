@@ -490,7 +490,12 @@ public class PollerTests
             Name = "GitLab",
             Auth = AuthMethod.Device
         };
-        var host = new SessionHost(SessionState.Start(new Settings { Connections = [connection] }));
+        var host = new SessionHost(
+            SessionState.Start(
+                new()
+                {
+                    Connections = [connection]
+                }));
         var secrets = new MemorySecretStore();
         secrets.Write(SecretKeys.Token(connection.Id), "signed-in");
         var handler = new FakeHttpHandler()
