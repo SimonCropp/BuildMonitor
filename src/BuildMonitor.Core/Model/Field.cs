@@ -4,7 +4,7 @@
 /// </summary>
 /// <param name="Value">A checkbox carries "true"/"false", a select carries the chosen option,
 /// a label carries its text.</param>
-/// <param name="Command">What a Button, Link or ListRow does when clicked.</param>
+/// <param name="Command">What a Button, Link, ListRow or EditRow does when clicked.</param>
 record Field(
     string Id,
     FieldKind Kind,

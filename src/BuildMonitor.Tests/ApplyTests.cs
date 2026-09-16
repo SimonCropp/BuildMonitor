@@ -258,7 +258,7 @@ public class ApplyTests
     }
 
     [Test]
-    public async Task ListRowClickEditsTheConnection()
+    public async Task EditRowClickEditsTheConnection()
     {
         var state = Apply(Fixtures.Options(), new(ClickedField: FormFields.Connection(Fixtures.Octopus.Id)), new());
         await Assert.That(state.Page).IsEqualTo(Page.Connection);

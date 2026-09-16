@@ -397,7 +397,7 @@ static class ScreenBuilder
             var descriptor = ProviderDescriptors.Get(connection.Connection.ProviderId);
             fields.Add(new(
                 FormFields.Connection(connection.Connection.Id),
-                FieldKind.ListRow,
+                FieldKind.EditRow,
                 connection.Connection.Name,
                 $"{descriptor.Name}, {HealthWord(connection.Health)}",
                 Command: CommandKind.EditConnection));

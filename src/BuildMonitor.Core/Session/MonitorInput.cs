@@ -20,7 +20,7 @@ readonly record struct MonitorInput(
     bool MenuClosed = false,
     // Edits made to form fields since the last poll, oldest first.
     IReadOnlyList<FieldChange>? FieldChanges = null,
-    // A Button, Link or ListRow field that was clicked, by id.
+    // A Button, Link, ListRow or EditRow field that was clicked, by id.
     string? ClickedField = null,
     // The filter box's text when it was edited, or null.
     string? Search = null,

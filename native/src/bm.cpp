@@ -908,6 +908,16 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
 
                 break;
             }
+            case BM_FIELD_EDIT_ROW: {
+                std::string line = label.empty() ? value : label + ": " + value;
+                // Selectable rather than a button, so the whole line highlights and answers the
+                // click without reading as a row of buttons.
+                if (ImGui::Selectable(line.c_str())) {
+                    g.input.clickedField = i;
+                }
+
+                break;
+            }
             default: {
                 std::string line = label.empty() ? value : label + ": " + value;
                 ImGui::PushStyleColor(ImGuiCol_Text, id == "error" ? errorText : text);

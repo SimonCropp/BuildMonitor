@@ -114,6 +114,13 @@ final class FormView: NSView {
             button.alignment = .left
             button.contentTintColor = Palette.text
             return button
+        case BM_FIELD_EDIT_ROW.rawValue:
+            let button = NSButton(title: field.label.isEmpty ? field.value : "\(field.label): \(field.value)", target: self, action: #selector(clicked(_:)))
+            button.tag = index
+            button.isBordered = false
+            button.alignment = .left
+            button.contentTintColor = Palette.text
+            return button
         default:
             let label = NSTextField(wrappingLabelWithString: "")
             label.tag = index

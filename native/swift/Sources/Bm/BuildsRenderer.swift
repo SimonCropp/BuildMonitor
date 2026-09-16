@@ -378,6 +378,10 @@ final class BuildsRenderer {
                 let line = field.label.isEmpty ? field.value : "\(field.label): \(field.value)"
                 drawText("✕  " + line, at: CGPoint(x: padding, y: y + 4), font: font, colour: Palette.text)
                 y += lineHeight + 8
+            case BM_FIELD_EDIT_ROW.rawValue:
+                let line = field.label.isEmpty ? field.value : "\(field.label): \(field.value)"
+                drawText(line, at: CGPoint(x: padding, y: y + 4), font: font, colour: Palette.text)
+                y += lineHeight + 8
             default:
                 let line = field.label.isEmpty ? field.value : (field.value.isEmpty ? field.label : "\(field.label): \(field.value)")
                 drawText(line, at: CGPoint(x: padding, y: y + 4), font: font, colour: field.id == "error" ? Palette.error : Palette.text, width: bodyRect.width - padding * 2)

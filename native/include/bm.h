@@ -131,7 +131,8 @@ enum BmFieldKind {
     BM_FIELD_SELECT = 5,
     BM_FIELD_BUTTON = 6,
     BM_FIELD_LINK = 7,
-    BM_FIELD_LIST_ROW = 8
+    BM_FIELD_LIST_ROW = 8,
+    BM_FIELD_EDIT_ROW = 9
 };
 
 enum BmFieldFlags {

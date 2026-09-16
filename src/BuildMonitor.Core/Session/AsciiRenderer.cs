@@ -251,6 +251,8 @@ static class AsciiRenderer
                 return field.Label == field.Value ? field.Value : $"{field.Label} -> {field.Value}";
             case FieldKind.ListRow:
                 return $"- {label}{field.Value} [x]";
+            case FieldKind.EditRow:
+                return $"- [ {label}{field.Value} ]";
             default:
                 return $"{label}{field.Value}";
         }

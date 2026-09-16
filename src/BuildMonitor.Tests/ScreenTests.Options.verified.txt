@@ -12,9 +12,9 @@
 | Show builds from the last (days): [30    ]                                                                           |
 | Local port: [3796  ]                                                                                                 |
 | Connections:                                                                                                         |
-| - GitHub: GitHub Actions, ok [x]                                                                                     |
-| - Jenkins: Jenkins, ok [x]                                                                                           |
-| - Octopus: Octopus Deploy, ok [x]                                                                                    |
+| - [ GitHub: GitHub Actions, ok ]                                                                                     |
+| - [ Jenkins: Jenkins, ok ]                                                                                           |
+| - [ Octopus: Octopus Deploy, ok ]                                                                                    |
 | [ Add connection ]                                                                                                   |
 | Version: TheVersion                                                                                                  |
 | Documentation -> https://github.com/SimonCropp/BuildMonitor                                                          |

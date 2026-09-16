@@ -174,6 +174,15 @@ sealed class FormPanel : Panel
                 link.LinkClicked += (_, _) => clickedField = field.Id;
                 return (null, link);
             }
+            case FieldKind.EditRow:
+            {
+                var row = new EditRowLink
+                {
+                    Margin = DpiScale.Spacing(this, 3, 6, 3, 6)
+                };
+                row.LinkClicked += (_, _) => clickedField = field.Id;
+                return (null, row);
+            }
             case FieldKind.ListRow:
             {
                 var panel = new FlowLayoutPanel
@@ -197,8 +206,7 @@ sealed class FormPanel : Panel
                     Margin = DpiScale.Spacing(this, 0, 2, 0, 0),
                     FlatStyle = FlatStyle.Flat,
                     ForeColor = Palette.Dim,
-                    BackColor = Palette.Background,
-                    Tag = "remove"
+                    BackColor = Palette.Background
                 };
                 remove.FlatAppearance.BorderSize = 0;
                 remove.Click += (_, _) => clickedField = field.Id;
@@ -252,6 +260,9 @@ sealed class FormPanel : Panel
                 break;
             case SelectControl select:
                 select.Value = field.Value;
+                break;
+            case EditRowLink row:
+                row.Text = field.Label.Length == 0 ? field.Value : $"{field.Label}: {field.Value}";
                 break;
             case FlowLayoutPanel panel when panel.Controls[0] is FormsLabel text:
                 text.Text = field.Label.Length == 0 ? field.Value : $"{field.Label}: {field.Value}";

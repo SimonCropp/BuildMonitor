@@ -43,6 +43,23 @@ public class FormPanelTests
         await Assert.That(panel.DrainClickedField()).IsNull();
     }
 
+    /// <summary>
+    /// The row itself, not a cross beside it: a connection row opens its editor, and the head drew
+    /// the only click target as a remove button.
+    /// </summary>
+    [Test]
+    public async Task ConnectionRowsReportTheirField()
+    {
+        using var panel = new FormPanel();
+        var screen = ScreenBuilder.Build(Fixtures.Options(), Fixtures.Now);
+        panel.Apply(screen.Form!);
+        var rows = Descendants(panel).OfType<EditRowLink>().ToList();
+        await Assert.That(rows.Select(_ => _.Text)).IsEquivalentTo(["GitHub: GitHub Actions, ok", "Jenkins: Jenkins, ok", "Octopus: Octopus Deploy, ok"]);
+
+        rows[1].PerformClick();
+        await Assert.That(panel.DrainClickedField()).IsEqualTo(FormFields.Connection(Fixtures.Jenkins.Id));
+    }
+
     [Test]
     public async Task ControlsAreRebuiltOnlyWhenFieldsChange()
     {
