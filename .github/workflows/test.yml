@@ -126,21 +126,6 @@ jobs:
       - name: Build
         run: dotnet build src --configuration Release-NotWindows
 
-      # TEMPORARY. The macOS pixel snapshots render from a shim that predates the source in this
-      # checkout, so the one the tests load is not the one built above. Says which file each stage
-      # holds. Revert once that is understood.
-      - name: Which shim
-        if: runner.os == 'macOS'
-        run: |
-          echo "--- built by swift ---"
-          shasum -a 256 "$(swift build -c release --package-path native/swift --show-bin-path)/libbuildmonitor_ui.dylib" || true
-          echo "--- in the source tree ---"
-          find src/BuildMonitor.Native/runtimes -name '*.dylib' -exec shasum -a 256 {} \; || true
-          echo "--- in the test output ---"
-          find src/BuildMonitor.Tests/bin -name '*.dylib' -exec shasum -a 256 {} \; || true
-          echo "--- runtime identifier ---"
-          dotnet --info | head -20
-
       - name: Test
         run: dotnet test --solution src/BuildMonitor.slnx --configuration Release-NotWindows --no-build --no-restore
 

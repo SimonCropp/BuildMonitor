@@ -25,6 +25,11 @@ final class BuildsRenderer {
     let gap: CGFloat = 10
     let chipPadding: CGFloat = 8
     let chipGap: CGFloat = 6
+    /// The button beside a directory field's box. Matches FormView, which draws the same field
+    /// with real controls for the window this one only captures.
+    let browseLabel = "Browse"
+    let browseWidth: CGFloat = 82
+    let browseGap: CGFloat = 8
     let iconSize: CGFloat = 16
     /// The filter box at the right of the header.
     let searchWidth: CGFloat = 240
@@ -350,9 +355,17 @@ final class BuildsRenderer {
             let kind = UInt32(field.kind)
             let colour = field.enabled ? Palette.text : Palette.dim
             switch kind {
-            case BM_FIELD_TEXT.rawValue, BM_FIELD_PASSWORD.rawValue, BM_FIELD_NUMBER.rawValue, BM_FIELD_SELECT.rawValue:
+            case BM_FIELD_TEXT.rawValue, BM_FIELD_PASSWORD.rawValue, BM_FIELD_NUMBER.rawValue, BM_FIELD_SELECT.rawValue, BM_FIELD_DIRECTORY.rawValue:
                 drawText(field.label, at: CGPoint(x: padding, y: y + 4), font: font, colour: Palette.dim, width: 240)
-                let width: CGFloat = kind == BM_FIELD_NUMBER.rawValue ? 100 : 420
+                let width: CGFloat
+                if kind == BM_FIELD_NUMBER.rawValue {
+                    width = 100
+                } else if kind == BM_FIELD_DIRECTORY.rawValue {
+                    width = 420 - browseWidth - browseGap
+                } else {
+                    width = 420
+                }
+
                 let box = CGRect(x: 260, y: y, width: width, height: fieldHeight)
                 Palette.surface.setFill()
                 NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4).fill()
@@ -369,6 +382,15 @@ final class BuildsRenderer {
 
                 if kind == BM_FIELD_SELECT.rawValue {
                     drawText("▾", at: CGPoint(x: box.maxX - 20, y: y + 4), font: font, colour: Palette.dim)
+                }
+
+                // The button beside the box rather than under it, on the width the box gave up for
+                // it, so the field ends where every other one does.
+                if kind == BM_FIELD_DIRECTORY.rawValue {
+                    let browse = CGRect(x: box.maxX + browseGap, y: y, width: browseWidth, height: fieldHeight)
+                    Palette.chip.setFill()
+                    NSBezierPath(roundedRect: browse, xRadius: 4, yRadius: 4).fill()
+                    drawText(browseLabel, at: CGPoint(x: browse.minX + 12, y: y + 4), font: font, colour: Palette.text)
                 }
 
                 y += fieldHeight + 10
