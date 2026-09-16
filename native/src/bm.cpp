@@ -910,9 +910,15 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
             }
             case BM_FIELD_EDIT_ROW: {
                 std::string line = label.empty() ? value : label + ": " + value;
-                // Selectable rather than a button, so the whole line highlights and answers the
-                // click without reading as a row of buttons.
-                if (ImGui::Selectable(line.c_str())) {
+                // Drawn as a link, the same as BM_FIELD_LINK: a Selectable shows nothing until it
+                // is hovered, so a row that opens an editor read as plain text until the pointer
+                // happened to cross it.
+                ImGui::TextColored(chipText, "%s", line.c_str());
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                }
+
+                if (ImGui::IsItemClicked()) {
                     g.input.clickedField = i;
                 }
 

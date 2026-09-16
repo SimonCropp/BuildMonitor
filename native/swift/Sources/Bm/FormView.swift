@@ -119,7 +119,9 @@ final class FormView: NSView {
             button.tag = index
             button.isBordered = false
             button.alignment = .left
-            button.contentTintColor = Palette.text
+            // The link colour, as BM_FIELD_LINK uses: in Palette.text a borderless button is
+            // indistinguishable from the labels around it, so the row read as plain text.
+            button.contentTintColor = Palette.chipText
             return button
         default:
             let label = NSTextField(wrappingLabelWithString: "")
