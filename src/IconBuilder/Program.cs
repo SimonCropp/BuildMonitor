@@ -16,6 +16,10 @@ static class Program
     // Heavier than Lucide's 2, so a mark scaled into sixteen pixels is still more than a pixel wide.
     const string markStroke = "2.5";
 
+    // Above the 200 pixels GitHub recommends. Its largest badge draws the logo 70 across, so this stays
+    // sharp at any display density.
+    const int logoSize = 512;
+
     /// <summary>
     /// Bare marks rather than circled ones: the disc is the circle already, and a circled mark drew a
     /// second ring inside it, which left the tick or the cross a few pixels across at sixteen.
@@ -116,9 +120,38 @@ static class Program
             }
         }
 
-        File.Copy(Path.Combine(images, "tray-idle-256.png"), Path.Combine(root, "src", "icon.png"), true);
+        var idle = tray.Single(_ => _.Name == "idle");
+        File.WriteAllBytes(Path.Combine(root, "src", "icon.png"), Logo(idle.Svg, idle.Background));
         Console.WriteLine($"Wrote {Directory.GetFiles(images).Length} files to {images}");
+        Console.WriteLine($"Upload src/icon.png as the GitHub OAuth App's logo, with badge background color {Hex(idle.Background)}");
         return 0;
+    }
+
+    /// <summary>
+    /// src/icon.png: the package's icon, the readme's, and the GitHub OAuth App's logo, which the
+    /// authorize page shows in place of an identicon. GitHub draws the logo at 55% of a disc in the
+    /// app's badge colour, so the tray icon would come out as a smaller disc inside GitHub's, its
+    /// mark a third of the way across. This is the mark alone, filling the square, which is painted
+    /// the disc's colour rather than left clear: a white mark on a clear square vanishes on a light
+    /// page, the readme's included. With the badge colour set to the same, the square's edges vanish
+    /// into the disc.
+    /// </summary>
+    static byte[] Logo(string svg, SKColor background)
+    {
+        using var mark = Load(Heavier(svg), SKColors.White, "logo");
+        var painted = Painted(mark.Picture!);
+        using var bitmap = new SKBitmap(logoSize, logoSize, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using (var canvas = new SKCanvas(bitmap))
+        {
+            canvas.Clear(background);
+            var centre = logoSize / 2f;
+            canvas.Translate(centre, centre);
+            canvas.Scale(logoSize / Math.Max(painted.Width, painted.Height));
+            canvas.Translate(-painted.MidX, -painted.MidY);
+            canvas.DrawPicture(mark.Picture!);
+        }
+
+        return Png(bitmap);
     }
 
     /// <summary>
@@ -239,9 +272,8 @@ static class Program
     /// </summary>
     static SKSvg Load(string svg, SKColor colour, string name)
     {
-        var hex = $"#{colour.Red:x2}{colour.Green:x2}{colour.Blue:x2}";
         var loaded = new SKSvg();
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(svg.Replace("currentColor", hex)));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(svg.Replace("currentColor", $"#{Hex(colour)}")));
         if (loaded.Load(stream) is null)
         {
             loaded.Dispose();
@@ -250,6 +282,9 @@ static class Program
 
         return loaded;
     }
+
+    static string Hex(SKColor colour) =>
+        $"{colour.Red:x2}{colour.Green:x2}{colour.Blue:x2}";
 
     static byte[] Png(SKBitmap bitmap)
     {

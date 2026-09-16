@@ -53,7 +53,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
             case Verb.Retry:
             case Verb.Cancel:
             {
-                var build = state.Builds.FirstOrDefault(_ => _.Key == message.Key);
+                var build = state.Builds.FirstOrDefault(_ => _.HasKey(message.Key));
                 if (build is null)
                 {
                     return Response.Error($"No build with key {message.Key}");
@@ -86,7 +86,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 return Response.Success(JsonSerializer.Serialize(Snapshot.Summary(state, now), DtoContext.Default.SummaryDto));
             case Verb.Open:
             {
-                var build = state.Builds.FirstOrDefault(_ => _.Key == message.Key);
+                var build = state.Builds.FirstOrDefault(_ => _.HasKey(message.Key));
                 if (build is null)
                 {
                     return Response.Error($"No build with key {message.Key}");
@@ -108,7 +108,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
             }
             case Verb.Log:
             {
-                var build = state.Builds.FirstOrDefault(_ => _.Key == message.Key);
+                var build = state.Builds.FirstOrDefault(_ => _.HasKey(message.Key));
                 if (build is null)
                 {
                     return Response.Error($"No build with key {message.Key}");

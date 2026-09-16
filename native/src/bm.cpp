@@ -604,7 +604,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         const float timingWidth = ImGui::CalcTextSize("0:00:00 left").x;
         // Every labelled chip at its longest, then the open folder chip's square, with a gap
         // between each, so the columns before them do not move as builds gain and lose chips.
-        const float widestChips = ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Copy log") + IconChipWidth() + 3.0f * style.ItemSpacing.x;
+        const float widestChips = ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Log") + IconChipWidth() + 3.0f * style.ItemSpacing.x;
         const float overflowWidth = ChipWidth(overflowLabel);
         // Each boundary between the six columns carries cell padding on both sides of it. What is
         // left, the name, the detail, the bar and the chips share.

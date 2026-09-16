@@ -24,7 +24,7 @@ One per build configuration. Branches named `pull/n` or `n/merge`, as the pull r
 
  * Retry queues a new build of the configuration on the same branch
  * Cancel cancels a queued or running build
- * Copy log copies the build log
+ * Log copies the build log
 
 
 ## Estimates

@@ -24,7 +24,7 @@ One per pipeline. The stages of an instance fold into one status: building while
 
  * Retry re-runs the failed jobs of the failed stage, or schedules the pipeline when nothing failed
  * Cancel cancels the running stage
- * Copy log copies the consoles of the failed jobs of the failed stages
+ * Log copies the consoles of the failed jobs of the failed stages
 
 Neither is offered without operate permission on the pipeline's group. Scheduling also needs it on the first stage, and re-running or cancelling a stage needs it on that stage, so a build whose stage the user may not operate offers neither.
 

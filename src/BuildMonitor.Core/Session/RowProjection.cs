@@ -26,28 +26,33 @@ static class RowProjection
         var search = state.Search.Trim();
         var builds = sorted.Where(_ => Matches(_, search)).ToImmutableArray();
         var connections = state.Connections.ToDictionary(_ => _.Connection.Id);
-        var groups = builds
-            .Where(_ => GroupKey.Of(_) is not null)
-            .GroupBy(_ => GroupKey.Of(_)!.Id)
+        // Each build's group id once, and a key only for a group's row. Making a key for every
+        // finished build at every step cost each of them a handful of strings a projection.
+        var ids = builds.Select(GroupKey.IdOf).ToArray();
+        var groups = Enumerable.Range(0, builds.Length)
+            .Where(_ => ids[_] is not null)
+            .GroupBy(_ => ids[_]!, _ => builds[_])
             .Where(_ => _.Count() > 1)
             .ToDictionary(_ => _.Key, _ => _.ToImmutableArray());
         var rows = ImmutableArray.CreateBuilder<Row>();
         var added = new HashSet<string>();
-        foreach (var build in builds)
+        for (var index = 0; index < builds.Length; index++)
         {
+            var build = builds[index];
             // A group of one saves nothing and hides that build's links.
-            if (GroupKey.Of(build) is not { } key ||
-                !groups.TryGetValue(key.Id, out var members))
+            if (ids[index] is not { } id ||
+                !groups.TryGetValue(id, out var members))
             {
                 rows.Add(new(RowKind.Build, connections[build.ConnectionId], build, null, false, []));
                 continue;
             }
 
-            if (!added.Add(key.Id))
+            if (!added.Add(id))
             {
                 continue;
             }
 
+            var key = GroupKey.Of(build)!;
             var expanded = IsExpanded(state, key);
             rows.Add(new(RowKind.Group, null, null, key, expanded, members));
             if (!expanded)
@@ -80,7 +85,7 @@ static class RowProjection
     /// </summary>
     public static bool Matches(Build build, string search) =>
         search.Length == 0 ||
-        build.ShortRepoName().Contains(search, StringComparison.OrdinalIgnoreCase) ||
+        BuildExtensions.ShortRepoName(build.RepoName.AsSpan()).Contains(search, StringComparison.OrdinalIgnoreCase) ||
         build.PipelineName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
         build.ShortBranchName().Contains(search, StringComparison.OrdinalIgnoreCase);
 
@@ -99,7 +104,7 @@ static class RowProjection
             .ThenBy(_ => _.Key, StringComparer.Ordinal)
     ];
 
-    static IEnumerable<Build> Selected(SessionState state, string connectionId) =>
+    static ImmutableArray<Build> Selected(SessionState state, string connectionId) =>
         BuildSelection.Select(
             Filters.Apply(state.Settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
             state.Settings.ShowOtherBranches);

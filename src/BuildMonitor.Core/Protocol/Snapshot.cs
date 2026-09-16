@@ -12,10 +12,15 @@ static class Snapshot
             .Select(_ => Build(state, state.Connection(_.ConnectionId)!.Connection, _, now))
             .ToList();
 
-    public static BuildDto? Find(SessionState state, string key, DateTimeOffset now) =>
-        RowProjection.Builds(state).FirstOrDefault(_ => _.Key == key) is { } build
-            ? Build(state, state.Connection(build.ConnectionId)!.Connection, build, now)
-            : null;
+    public static BuildDto? Find(SessionState state, string key, DateTimeOffset now)
+    {
+        if (RowProjection.Builds(state).FirstOrDefault(_ => _.HasKey(key)) is { } build)
+        {
+            return Build(state, state.Connection(build.ConnectionId)!.Connection, build, now);
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Every run of one pipeline the tray holds, newest first, which is what the rows collapse to
@@ -30,13 +35,13 @@ static class Snapshot
     public static List<BuildDto>? Runs(SessionState state, string key, DateTimeOffset now)
     {
         var builds = Filters.Apply(state.Settings.Filters, state.Builds);
-        if (PipelineKey(builds, key) is not { } pipeline)
+        if (RunOf(builds, key) is not { } run)
         {
             return null;
         }
 
         return builds
-            .Where(_ => _.PipelineKey == pipeline)
+            .Where(_ => _.SamePipeline(run))
             // A stable sort, so runs that started at the same moment keep the order the provider
             // listed them in, which is newest first.
             .OrderByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)
@@ -44,9 +49,12 @@ static class Snapshot
             .ToList();
     }
 
-    static string? PipelineKey(ImmutableArray<Build> builds, string key) =>
-        builds.FirstOrDefault(_ => _.Key == key)?.PipelineKey ??
-        builds.FirstOrDefault(_ => _.PipelineKey == key)?.PipelineKey;
+    /// <summary>
+    /// A run of the pipeline the key names, as a build key or as a pipeline key.
+    /// </summary>
+    static Build? RunOf(ImmutableArray<Build> builds, string key) =>
+        builds.FirstOrDefault(_ => _.HasKey(key)) ??
+        builds.FirstOrDefault(_ => _.HasPipelineKey(key));
 
     public static List<PipelineDto> Pipelines(SessionState state)
     {
@@ -58,19 +66,16 @@ static class Snapshot
             .ToList();
     }
 
-    static PipelineDto Pipeline(ImmutableArray<Build> builds, Connection connection, Pipeline pipeline, ImmutableDictionary<string, string> localRepos)
-    {
-        var key = $"{connection.Id}/{pipeline.Id}";
-        return new(
-            key,
+    static PipelineDto Pipeline(ImmutableArray<Build> builds, Connection connection, Pipeline pipeline, ImmutableDictionary<string, string> localRepos) =>
+        new(
+            $"{connection.Id}/{pipeline.Id}",
             connection.Name,
             pipeline.Name,
             pipeline.RepoName,
             pipeline.Group,
             pipeline.Url,
-            builds.Count(_ => _.PipelineKey == key),
+            builds.Count(_ => _.ConnectionId == connection.Id && _.PipelineId == pipeline.Id),
             LocalRepos.Find(localRepos, pipeline.RepoName));
-    }
 
     static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now)
     {

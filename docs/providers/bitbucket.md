@@ -24,7 +24,7 @@ One per repository. Pull request pipelines link to the pull request.
 
  * Retry starts a new pipeline for the same commit; Bitbucket has no rerun
  * Cancel stops a pending or running pipeline
- * Copy log copies the logs of the failed steps
+ * Log copies the logs of the failed steps
 
 
 ## Estimates

@@ -6,11 +6,12 @@
 public class SessionBenchmarks
 {
     SessionState state = LargeAccount.State();
+    ImmutableArray<Pipeline> pipelines = LargeAccount.Pipelines();
     ImmutableArray<Build> builds = LargeAccount.Builds();
 
     [Benchmark]
     public object ApplyPoll() =>
-        MonitorSession.ApplyPoll(state, LargeAccount.ConnectionId, [], builds, LargeAccount.Now);
+        MonitorSession.ApplyPoll(state, LargeAccount.ConnectionId, pipelines, builds, LargeAccount.Now);
 
     [Benchmark]
     public object NextRow() =>

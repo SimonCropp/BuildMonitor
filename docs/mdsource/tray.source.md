@@ -32,7 +32,7 @@ Each row carries:
  * links in the text: the pipeline opens the run and the branch opens the branch in the repository. Where the pipeline is left out, the repository opens the run instead
  * PR, which opens the pull request
  * Retry, for a failed or cancelled run; Cancel, for a queued or running one. Neither shows where the provider reports that the credential or its user may not do it
- * Copy log, for a failed run, which fetches the log of what failed and puts it on the clipboard. The status line says when it has arrived
+ * Log, for a failed run, which fetches the log of what failed and puts it on the clipboard. The status line says when it has arrived
 
 When the window is too narrow for a row's buttons, the repository, pipeline and branch keep their width and the buttons that do not fit go behind a … button at the end of the row, which lists them in a drop down. A pipeline and branch longer than about forty characters are cut short before that happens.
 

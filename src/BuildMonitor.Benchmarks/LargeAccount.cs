@@ -7,7 +7,9 @@
 /// </summary>
 static class LargeAccount
 {
-    public const string ConnectionId = "github";
+    // Shaped like the ids the connection editor mints, which every build key starts with. A short id
+    // understated what building a key costs.
+    public const string ConnectionId = "5f0c9a2e7b3d4e8f9a1b2c3d4e5f6a7b";
 
     public static readonly DateTimeOffset Now = new(2026, 9, 15, 12, 0, 0, TimeSpan.Zero);
 
@@ -25,7 +27,36 @@ static class LargeAccount
     public static SessionState State()
     {
         var state = MonitorSession.Resize(SessionState.Start(new() { Connections = [connection] }), 120, 30);
-        return MonitorSession.ApplyPoll(state, ConnectionId, [], Builds(), Now);
+        return MonitorSession.ApplyPoll(state, ConnectionId, Pipelines(), Builds(), Now);
+    }
+
+    /// <summary>
+    /// What discovery found: a workflow for each the builds ran, as the GitHub provider describes
+    /// one. Without them, what reads the pipelines had nothing to read.
+    /// </summary>
+    public static ImmutableArray<Pipeline> Pipelines() =>
+    [
+        ..Builds()
+            .DistinctBy(_ => _.PipelineId)
+            .Select(_ => new Pipeline(_.PipelineId, _.PipelineName, _.RepoName, _.RepoName, $"https://github.com/{_.RepoName}/actions/workflows/{_.PipelineName}"))
+    ];
+
+    /// <summary>
+    /// The ten runs the history keeps of every pipeline, as it holds them once the account has run
+    /// for a while.
+    /// </summary>
+    public static DurationHistory History()
+    {
+        var history = new DurationHistory();
+        foreach (var pipeline in Pipelines())
+        {
+            for (var run = 0; run < 10; run++)
+            {
+                history.Record($"{ConnectionId}/{pipeline.Id}", TimeSpan.FromSeconds(200 + run * 37 % 60));
+            }
+        }
+
+        return history;
     }
 
     public static ImmutableArray<Build> Builds()

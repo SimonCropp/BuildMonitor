@@ -107,7 +107,7 @@ public class ApplyTests
         var row = FailedRow(builds);
         var state = Apply(builds, new(ClickedOverflowRow: row, OverflowFrom: ChipKind.Retry), actions);
         await Assert.That(state.Menu!.Overflow).IsTrue();
-        await Assert.That(state.Menu.Items.Select(_ => _.Label)).IsEquivalentTo(["Retry", "Copy log"]);
+        await Assert.That(state.Menu.Items.Select(_ => _.Label)).IsEquivalentTo(["Retry", "Log"]);
         await Assert.That(state.SelectedRow).IsEqualTo(row);
 
         state = Apply(state, new(ClickedMenuItem: 1), actions);

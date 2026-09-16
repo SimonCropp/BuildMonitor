@@ -24,7 +24,7 @@ One per project. Merge request pipelines show the merge request number and link 
 
  * Retry retries the failed jobs of the pipeline
  * Cancel cancels a pending or running pipeline
- * Copy log copies the traces of the failed jobs, leaving out jobs allowed to fail
+ * Log copies the traces of the failed jobs, leaving out jobs allowed to fail
 
 A token with `read_api` and not `api`, pasted or from a sign in, offers neither Retry nor Cancel, and the connection shows as watch only in [Options](../options.md#connections). Nor does a project where the user is only a Reporter, unless the user is an administrator.
 

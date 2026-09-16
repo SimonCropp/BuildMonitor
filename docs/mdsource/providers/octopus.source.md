@@ -21,7 +21,7 @@ One per project, showing the latest deployment. The project stands in for the re
 ## Actions
 
  * Cancel cancels a queued or executing task
- * Copy log copies the deployment task's log
+ * Log copies the deployment task's log
 
 There is no retry: Octopus refuses to re-run a deployment task.
 

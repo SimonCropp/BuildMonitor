@@ -174,7 +174,7 @@ final class BuildsRenderer {
         let timingWidth = measure("0:00:00 left")
         // Every labelled chip at its longest, then the open folder chip's square, with a gap
         // between each, so the columns before them do not move as builds gain and lose chips.
-        let widestChips = ["PR 9999", "Retry", "Copy log"].map(chipWidth).reduce(0, +) + iconChipWidth + 3 * chipGap
+        let widestChips = ["PR 9999", "Retry", "Log"].map(chipWidth).reduce(0, +) + iconChipWidth + 3 * chipGap
         let overflowWidth = chipWidth(overflowLabel)
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.

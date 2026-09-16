@@ -321,7 +321,7 @@ public class SessionTests
         var builds = Fixtures.WithBuilds();
         var row = Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
         var state = MonitorSession.OpenOverflow(builds, row, ChipKind.PullRequest);
-        await Assert.That(state.Menu!.Items.Select(_ => $"{_.Label} {_.Command}")).IsEquivalentTo(["PR 42 OpenPullRequest", "Retry Retry", "Copy log CopyLog"]);
+        await Assert.That(state.Menu!.Items.Select(_ => $"{_.Label} {_.Command}")).IsEquivalentTo(["PR 42 OpenPullRequest", "Retry Retry", "Log CopyLog"]);
         await Assert.That(state.Menu.Overflow).IsTrue();
         await Assert.That(state.Menu.Row).IsEqualTo(row);
     }

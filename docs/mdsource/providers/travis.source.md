@@ -17,7 +17,7 @@ One per repository. Pull request builds link to the pull request on GitHub.
 
  * Retry restarts the build
  * Cancel cancels a queued or running build
- * Copy log copies the logs of the failed and errored jobs, leaving out jobs allowed to fail
+ * Log copies the logs of the failed and errored jobs, leaving out jobs allowed to fail
 
 Each build says whether the user may restart and cancel it, and a build that says no offers neither.
 

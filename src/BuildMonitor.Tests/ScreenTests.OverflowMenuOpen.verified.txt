@@ -6,10 +6,10 @@
 |   > DiffEngine github   test.yml main           [####----] 03:00 left            [...] |
 |   ? nightly    jenkins                                     queued 30s            [...] |
 | > x Verify     github   test.yml feature/inline            25m ago    SimonCropp [...] |
-|   + DiffEngine github   docs.yml main                      23h ago         +----------+|
-|                                                                            | Retry    ||
-|                                                                            | Copy log ||
-|                                                                            +----------+|
+|   + DiffEngine github   docs.yml main                      23h ago            +-------+|
+|                                                                               | Retry ||
+|                                                                               | Log   ||
+|                                                                               +-------+|
 |                                                                                        |
 |                                                                                        |
 |                                                                                        |

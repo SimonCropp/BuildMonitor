@@ -1,9 +1,10 @@
 /// <summary>
-/// What a row calls a Dependabot branch: the name without the ecosystem Dependabot puts second, so
-/// dependabot/nuget/src/Foo-1.0 reads dependabot/src/Foo-1.0. The package already says which
-/// ecosystem it is, and the segment widened the column for every Dependabot row. Only a known
-/// ecosystem is dropped, not whatever comes second: a multi-ecosystem group puts its group name or
-/// target branch there, a branch name template can put anything there, and the row would lose it.
+/// What a row, a failure notification and the status verb call a Dependabot branch: the name without
+/// the ecosystem Dependabot puts second, so dependabot/nuget/src/Foo-1.0 reads dependabot/src/Foo-1.0.
+/// The package already says which ecosystem it is, and the segment widened the column for every
+/// Dependabot row. Only a known ecosystem is dropped, not whatever comes second: a multi-ecosystem
+/// group puts its group name or target branch there, a branch name template can put anything there,
+/// and the name would lose it.
 /// </summary>
 static class DependabotBranches
 {

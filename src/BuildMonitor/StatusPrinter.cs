@@ -23,13 +23,13 @@ static class StatusPrinter
         // workflow repeats across repositories and tells the lines apart by nothing.
         var repoWidth = Math.Min(30, builds.Max(_ => BuildExtensions.ShortRepoName(_.Repo).Length));
         var pipelineWidth = Math.Min(40, builds.Max(_ => _.Pipeline.Length));
-        var branchWidth = Math.Min(30, builds.Max(_ => (_.Branch ?? "").Length));
+        var branchWidth = Math.Min(30, builds.Max(_ => BuildExtensions.ShortBranchName(_.Branch).Length));
         foreach (var build in builds)
         {
             var run = build.Run.Length == 0 ? "" : $"#{build.Run}";
             var repo = Fit(BuildExtensions.ShortRepoName(build.Repo), repoWidth);
             var pipeline = Fit(build.Pipeline, pipelineWidth);
-            var branch = Fit(build.Branch ?? "", branchWidth);
+            var branch = Fit(BuildExtensions.ShortBranchName(build.Branch), branchWidth);
             builder.AppendLine($"  {repo}  {pipeline}  {branch}  {run,-8} {build.Status,-10} {build.Timing,-12} {build.BuildUrl}");
         }
 

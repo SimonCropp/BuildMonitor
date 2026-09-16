@@ -95,9 +95,14 @@ sealed class DurationHistory
             return null;
         }
 
-        var sorted = list.Order().ToList();
-        var middle = sorted.Count / 2;
-        var median = sorted.Count % 2 == 0
+        // Sorted on the stack: a poll takes every pipeline's median while the window is open, and a
+        // sorted copy of each list was several allocations a pipeline. A loaded history is only
+        // trimmed to keep once its pipeline runs again, so a list can be longer.
+        var sorted = list.Count <= 64 ? stackalloc double[list.Count] : new double[list.Count];
+        list.CopyTo(sorted);
+        sorted.Sort();
+        var middle = sorted.Length / 2;
+        var median = sorted.Length % 2 == 0
             ? (sorted[middle - 1] + sorted[middle]) / 2
             : sorted[middle];
         return TimeSpan.FromSeconds(median);

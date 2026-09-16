@@ -30,7 +30,7 @@ static class RowChips
 
         if (build.LogCopyable())
         {
-            chips.Add(new(ChipKind.CopyLog, "Copy log"));
+            chips.Add(new(ChipKind.CopyLog, "Log"));
         }
 
         // Through the same lookup the click goes through, so a row cannot show a button that then

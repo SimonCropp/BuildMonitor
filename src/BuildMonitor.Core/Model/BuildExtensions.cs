@@ -55,8 +55,19 @@ static class BuildExtensions
         repoName[(repoName.LastIndexOf('/') + 1)..];
 
     /// <summary>
-    /// The branch as a row names it, empty for a build with none. See <see cref="DependabotBranches"/>.
+    /// For a caller that only compares the name. The string overload copies it out of the full
+    /// name, which grouping and searching did for every build on every projection of the rows.
+    /// </summary>
+    public static ReadOnlySpan<char> ShortRepoName(ReadOnlySpan<char> repoName) =>
+        repoName[(repoName.LastIndexOf('/') + 1)..];
+
+    /// <summary>
+    /// The branch as a row, a failure notification and the status verb name it, empty for a build with
+    /// none. See <see cref="DependabotBranches"/>.
     /// </summary>
     public static string ShortBranchName(this Build build) =>
-        DependabotBranches.Short(build.Branch ?? "");
+        ShortBranchName(build.Branch);
+
+    public static string ShortBranchName(string? branch) =>
+        DependabotBranches.Short(branch ?? "");
 }

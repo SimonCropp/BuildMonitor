@@ -1,3 +1,5 @@
+using RowIdentity = (string? ConnectionId, string? PipelineId, string? Branch, string? Group);
+
 /// <summary>
 /// Every transition, as a pure function from one <see cref="SessionState"/> to the next. No IO:
 /// the applier decides what to do in the world and calls back in with the result.
@@ -104,7 +106,7 @@ static class MonitorSession
     {
         var previous = RowProjection.Rows(before);
         var rows = RowProjection.Rows(after);
-        var indexes = new Dictionary<string, int>();
+        var indexes = new Dictionary<RowIdentity, int>();
         for (var index = 0; index < rows.Length; index++)
         {
             indexes.TryAdd(Identity(rows[index]), index);
@@ -123,7 +125,7 @@ static class MonitorSession
         return followed;
     }
 
-    static int Locate(ImmutableArray<Row> previous, ImmutableArray<Row> rows, Dictionary<string, int> indexes, int selected)
+    static int Locate(ImmutableArray<Row> previous, ImmutableArray<Row> rows, Dictionary<RowIdentity, int> indexes, int selected)
     {
         if (selected < 0 ||
             selected >= previous.Length)
@@ -142,7 +144,8 @@ static class MonitorSession
         {
             for (var candidate = 0; candidate < rows.Length; candidate++)
             {
-                if (rows[candidate].Build?.Key == build.Key)
+                if (rows[candidate].Build is { } shown &&
+                    shown.SameKey(build))
                 {
                     return candidate;
                 }
@@ -153,7 +156,7 @@ static class MonitorSession
         {
             for (var candidate = 0; candidate < rows.Length; candidate++)
             {
-                if (rows[candidate].Builds.Any(_ => _.Key == build.Key))
+                if (rows[candidate].Builds.Any(_ => _.SameKey(build)))
                 {
                     return candidate;
                 }
@@ -164,7 +167,7 @@ static class MonitorSession
         {
             for (var candidate = 0; candidate < rows.Length; candidate++)
             {
-                if (rows[candidate].Builds.Any(_ => _.PipelineKey == build.PipelineKey))
+                if (rows[candidate].Builds.Any(_ => _.SamePipeline(build)))
                 {
                     return candidate;
                 }
@@ -184,12 +187,19 @@ static class MonitorSession
 
     /// <summary>
     /// A build is the same row whether it stands alone or under its open group, so a build joining
-    /// a group, or a group opening around the selection, keeps the selection on that build.
+    /// a group, or a group opening around the selection, keeps the selection on that build. The
+    /// key's parts rather than the key, which cost every build's row two strings each time the rows
+    /// moved. A group keeps its <see cref="GroupKey.Id"/>, which is what ignores the project's case.
     /// </summary>
-    static string Identity(Row row) =>
-        row.Build is { } build
-            ? $"build:{build.Key}"
-            : $"group:{row.Group!.Id}";
+    static RowIdentity Identity(Row row)
+    {
+        if (row.Build is { } build)
+        {
+            return (build.ConnectionId, build.PipelineId, build.Branch ?? "", null);
+        }
+
+        return (null, null, null, row.Group!.Id);
+    }
 
     public static Row? SelectedRow(SessionState state)
     {

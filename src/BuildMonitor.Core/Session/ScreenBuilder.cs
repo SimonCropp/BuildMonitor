@@ -118,7 +118,7 @@ static class ScreenBuilder
         return [..RowProjection.Rows(state with { Search = "" }, builds), ..rows];
     }
 
-    static IReadOnlyList<string> Names(ImmutableArray<Row> rows, RowKind kind) =>
+    static List<string> Names(ImmutableArray<Row> rows, RowKind kind) =>
         rows.Where(_ => _.Kind == kind).Select(NameOf).Distinct().ToList();
 
     /// <summary>
@@ -144,9 +144,9 @@ static class ScreenBuilder
             : ChipKind.None;
 
     static bool NamedAfterProject(Build build) =>
-        string.Equals(build.ShortRepoName(), build.PipelineName, StringComparison.OrdinalIgnoreCase);
+        MemoryExtensions.Equals(BuildExtensions.ShortRepoName(build.RepoName.AsSpan()), build.PipelineName, StringComparison.OrdinalIgnoreCase);
 
-    static IReadOnlyList<string> Details(ImmutableArray<Row> rows) =>
+    static List<string> Details(ImmutableArray<Row> rows) =>
         rows.Select(_ => string.Concat(DetailOf(_).Select(span => span.Text))).Distinct().ToList();
 
     /// <summary>
@@ -155,7 +155,7 @@ static class ScreenBuilder
     /// page. A branch the provider gave no page is plain text, as a link that opened nothing would
     /// read as broken.
     /// </summary>
-    static IReadOnlyList<DetailSpan> DetailOf(Row row)
+    static List<DetailSpan> DetailOf(Row row)
     {
         if (row.Build is not { } build)
         {
@@ -297,11 +297,11 @@ static class ScreenBuilder
             ]
         };
 
-    static IReadOnlyList<Button> ConnectionButtons(SessionState state)
+    static List<Button> ConnectionButtons(SessionState state)
     {
         var form = state.Form!;
         var method = ConnectionDraft.Method(form);
-        var buttons = new List<Button>
+        var buttons = new List<Button>(5)
         {
             new("Sign in", method != AuthMethod.Token, CommandKind.SignIn),
             new("Test", true, CommandKind.TestConnection),

@@ -24,7 +24,7 @@ sealed class RowsCanvas : Control
     const string overflowLabel = "…";
     // The labelled chips of the widest row, which the chips column is as wide as while there is
     // room. The open folder chip is not among them: it is a picture, so WidestChips adds its square.
-    static string[] widestChips = ["PR 9999", "Retry", "Copy log"];
+    static string[] widestChips = ["PR 9999", "Retry", "Log"];
 
     BuildsPage? page;
     int menuShownForRow = -1;

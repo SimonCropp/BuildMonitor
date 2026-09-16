@@ -140,7 +140,7 @@ sealed class LocalRepoWatcher : IDisposable
     /// changes below it is the user's work, and one watch per folder of every repository is the
     /// recursive cost this class exists to avoid.
     /// </summary>
-    static IEnumerable<string> Watchable(string root)
+    static List<string> Watchable(string root)
     {
         var directories = new List<string> { root };
         var level = new List<string> { root };

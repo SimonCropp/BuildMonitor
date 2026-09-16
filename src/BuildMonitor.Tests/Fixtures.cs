@@ -254,6 +254,35 @@ static class Fixtures
             Now - TimeSpan.FromSeconds(12));
 
     /// <summary>
+    /// <see cref="WithBuilds"/> plus a Dependabot pull request failing on a pipeline of its own, so the
+    /// poll announces it. The package is short enough that only the full branch name overflows the
+    /// status verb's branch column.
+    /// </summary>
+    public static SessionState WithDependabotFailure()
+    {
+        const string branch = "dependabot/nuget/src/Polyfill-9.1.0";
+        return MonitorSession.ApplyPoll(
+            WithBuilds(),
+            GitHub.Id,
+            [],
+            [
+                ..GitHubBuilds(),
+                Build(
+                    GitHub.Id,
+                    "Reports/build.yml",
+                    "build.yml",
+                    "VerifyTests/Reports",
+                    branch,
+                    "9",
+                    BuildStatus.Failed,
+                    started: Now - TimeSpan.FromMinutes(10),
+                    finished: Now - TimeSpan.FromMinutes(8),
+                    branchUrl: $"https://github.com/VerifyTests/Reports/tree/{branch}")
+            ],
+            Now - TimeSpan.FromSeconds(12));
+    }
+
+    /// <summary>
     /// <see cref="WithGreenProject"/> plus a failing release workflow, so Verify has an open red
     /// group of two beside its closed green one.
     /// </summary>

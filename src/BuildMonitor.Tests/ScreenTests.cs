@@ -91,12 +91,12 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   ? nightly    jenkins                                     queued 30s            [Cancel]                            |
-                |   x [-] Verify          2 failing                          25m ago                                                   |
-                |   x            github   test.yml feature/inline            25m ago    SimonCropp PR 42 [Retry] [Copy log]            |
-                |   x            github   release.yml main                   50m ago               [Retry] [Copy log]                  |
-                |   + [+] Verify          2 passing                          2h ago                                                    |
-                | > + DiffEngine github   docs.yml main                      23h ago                                                   |
+                |   ? nightly    jenkins                                        queued 30s            [Cancel]                         |
+                |   x [-] Verify          2 failing                             25m ago                                                |
+                |   x            github   test.yml feature/inline               25m ago    SimonCropp PR 42 [Retry] [Log]              |
+                |   x            github   release.yml main                      50m ago               [Retry] [Log]                    |
+                |   + [+] Verify          2 passing                             2h ago                                                 |
+                | > + DiffEngine github   docs.yml main                         23h ago                                                |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+
@@ -151,29 +151,9 @@ public class ScreenTests
     [Test]
     public async Task DependabotBranchesDropTheEcosystem()
     {
-        const string branch = "dependabot/nuget/src/Syncfusion.XlsIO.Net.Core-31.1.17";
-        var state = MonitorSession.ApplyPoll(
-            Fixtures.WithBuilds(),
-            Fixtures.GitHub.Id,
-            [],
-            [
-                ..Fixtures.GitHubBuilds(),
-                Fixtures.Build(
-                    Fixtures.GitHub.Id,
-                    "Reports/build.yml",
-                    "build.yml",
-                    "VerifyTests/Reports",
-                    branch,
-                    "9",
-                    BuildStatus.Failed,
-                    started: Fixtures.Now - TimeSpan.FromMinutes(10),
-                    finished: Fixtures.Now - TimeSpan.FromMinutes(8),
-                    branchUrl: $"https://github.com/VerifyTests/Reports/tree/{branch}")
-            ],
-            Fixtures.Now - TimeSpan.FromSeconds(12));
-
-        await Assert.That(DetailsOf(MonitorSession.Search(state, "syncfusion")))
-            .IsEqualTo("Reports | build.yml dependabot/src/Syncfusion.XlsIO.Net.Core-31.1.17");
+        var state = Fixtures.WithDependabotFailure();
+        await Assert.That(DetailsOf(MonitorSession.Search(state, "polyfill")))
+            .IsEqualTo("Reports | build.yml dependabot/src/Polyfill-9.1.0");
         // The filter box matches the name the row shows, so the ecosystem no longer finds the row.
         await Assert.That(DetailsOf(MonitorSession.Search(state, "nuget"))).IsEqualTo("");
     }

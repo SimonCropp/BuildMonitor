@@ -10,7 +10,9 @@ static class BuildSelection
     public static ImmutableArray<Build> Select(IEnumerable<Build> builds, bool showOtherBranches)
     {
         var result = ImmutableArray.CreateBuilder<Build>();
-        foreach (var pipeline in builds.GroupBy(_ => _.PipelineKey))
+        // By the parts of the pipeline key, which would otherwise be built for every build on every
+        // projection of the rows.
+        foreach (var pipeline in builds.GroupBy(_ => (_.ConnectionId, _.PipelineId)))
         {
             var ordered = pipeline
                 .OrderByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)

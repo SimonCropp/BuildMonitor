@@ -24,7 +24,7 @@ One per job. A job with a queued build shows a queued row until it starts.
 
  * Retry queues a new build of the job; Jenkins has no rerun. A parameterized job is built with its default parameters
  * Cancel stops a running build, or removes a queued one from the queue
- * Copy log copies the build's console
+ * Log copies the build's console
 
 
 ## Estimates

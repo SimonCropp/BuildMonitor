@@ -768,6 +768,7 @@ sealed class ConnectionPoller
     /// </summary>
     void RecordDurations(IReadOnlyList<Build> builds)
     {
+        var lookup = recorded.GetAlternateLookup<ReadOnlySpan<char>>();
         foreach (var build in builds)
         {
             if (build.Status != BuildStatus.Succeeded ||
@@ -777,12 +778,24 @@ sealed class ConnectionPoller
                 continue;
             }
 
-            var key = $"{build.PipelineKey}/{build.RunNumber}/{build.ProviderRef}";
-            if (recorded.Add(key))
+            if (AddRecorded(lookup, build))
             {
                 history.Record(build.PipelineKey, build.Finished.Value - build.Started.Value);
             }
         }
+    }
+
+    /// <summary>
+    /// Whether the run is new to <see cref="recorded"/>, adding it if so. The key is written on the
+    /// stack and becomes a string only when it is added: most runs were recorded by an earlier poll,
+    /// and building the key to find that out cost every finished run two strings a poll.
+    /// </summary>
+    static bool AddRecorded(HashSet<string>.AlternateLookup<ReadOnlySpan<char>> lookup, Build build)
+    {
+        var length = build.ConnectionId.Length + build.PipelineId.Length + build.RunNumber.Length + build.ProviderRef.Length + 3;
+        var key = length <= 256 ? stackalloc char[length] : new char[length];
+        key.TryWrite($"{build.ConnectionId}/{build.PipelineId}/{build.RunNumber}/{build.ProviderRef}", out _);
+        return lookup.Add(key);
     }
 
     void Set(ConnectionHealth health, string? error, DateTimeOffset? retryAfter = null) =>
