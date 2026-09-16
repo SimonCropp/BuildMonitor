@@ -46,7 +46,7 @@ Closing the window hides it; the tray keeps running. Exit is in the tray menu.
 ## Keyboard
 
  * Up and Down move the selection, PageUp, PageDown, Home and End scroll
- * Enter opens the selected build, or expands a shared green row, R retries it, Ctrl+C copies its URL
+ * Enter opens the selected build, or opens or closes the selected group, R retries the selected build, Ctrl+C copies its URL
  * Ctrl+F (Cmd+F on macOS) moves to the Filter box. Up, Down, PageUp, PageDown and Enter still work from there, and Escape empties the box before it hides the window
  * F5 refreshes
  * Escape hides the window, or cancels a form
