@@ -129,10 +129,9 @@ sealed class LocalServer : IDisposable
     /// than off the whole text, which a log of a few megabytes would copy once a chunk.
     /// </summary>
     static bool EndsMessage(StringBuilder builder) =>
-        builder.Length >= 2 &&
-        builder[^1] == '\n' &&
+        builder is [.., _, '\n'] &&
         (builder[^2] == '\n' ||
-         builder.Length >= 4 && builder[^2] == '\r' && builder[^3] == '\n' && builder[^4] == '\r');
+         builder is [.., '\r', '\n', '\r', _]);
 
     public void Dispose() =>
         listener.Stop();

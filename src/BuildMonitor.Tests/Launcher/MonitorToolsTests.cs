@@ -11,7 +11,14 @@ public class MonitorToolsTests
         var host = new SessionHost(Fixtures.WithBuilds());
         var poller = new Poller(host, new MemorySecretStore(), new(), http ?? new FakeHttpHandler());
         var opened = new List<string>();
-        var handler = new MessageHandler(host, poller, opened.Add, _ => { }, () => Fixtures.Now);
+        var handler = new MessageHandler(
+            host,
+            poller,
+            opened.Add,
+            _ =>
+            {
+            },
+            () => Fixtures.Now);
         return (new(new InProcessClient(handler)), host, opened);
     }
 
@@ -23,8 +30,11 @@ public class MonitorToolsTests
         host.Mutate(_ => _ with
         {
             Builds = _.Builds.Replace(
-                _.Builds.Single(build => build.Key == failingBuild),
-                _.Builds.Single(build => build.Key == failingBuild) with { ProviderRef = "VerifyTests/Verify|77|failure" })
+                _.Builds.Single(_ => _.Key == failingBuild),
+                _.Builds.Single(_ => _.Key == failingBuild) with
+                {
+                    ProviderRef = "VerifyTests/Verify|77|failure"
+                })
         });
 
     /// <summary>
@@ -94,7 +104,13 @@ public class MonitorToolsTests
         var (tools, _, _) = Create();
         var builds = await tools.ListBuilds(null, Cancel.None);
         var runs = await tools.ListRuns(failingBuild, Cancel.None);
-        await Assert.That(builds.Count(_ => _.Pipeline == "test.yml" && _.Repo == "VerifyTests/Verify")).IsEqualTo(1);
+        await Assert.That(
+            builds.Count(_ => _ is
+            {
+                Pipeline: "test.yml",
+                Repo: "VerifyTests/Verify"
+            }))
+            .IsEqualTo(1);
         await Assert.That(string.Join(", ", runs.Select(_ => $"{_.Run} {_.Branch} {_.Status}")))
             .IsEqualTo("77 feature/inline Failed, 76 main Succeeded");
     }
@@ -115,7 +131,7 @@ public class MonitorToolsTests
         var (tools, host, _) = Create();
         WithPipelines(host);
         var pipelines = await tools.ListPipelines(Cancel.None);
-        await Assert.That(string.Join("\n", pipelines.Select(_ => $"{_.Key} {_.Repo} {_.Runs}")))
+        await Assert.That(string.Join('\n', pipelines.Select(_ => $"{_.Key} {_.Repo} {_.Runs}")))
             .IsEqualTo(
                 """
                 gh/DiffEngine/test.yml VerifyTests/DiffEngine 1
@@ -133,7 +149,12 @@ public class MonitorToolsTests
         var connections = await tools.ListConnections(Cancel.None);
         var url = await tools.OpenBuild("gh/Verify/test.yml/feature/inline", "pr", Cancel.None);
         await Assert.That(opened).IsEquivalentTo([url]);
-        await Verify(new { summary, connections, url });
+        await Verify(new
+        {
+            summary,
+            connections,
+            url
+        });
     }
 
     [Test]
