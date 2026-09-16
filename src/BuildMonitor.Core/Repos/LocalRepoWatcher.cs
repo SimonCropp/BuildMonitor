@@ -12,11 +12,11 @@
 /// </summary>
 sealed class LocalRepoWatcher : IDisposable
 {
-    readonly SessionHost host;
-    readonly TimeSpan settle;
-    readonly Lock gate = new();
-    readonly List<FileSystemWatcher> watchers = [];
-    readonly Timer debounce;
+    SessionHost host;
+    TimeSpan settle;
+    Lock gate = new();
+    List<FileSystemWatcher> watchers = [];
+    Timer debounce;
     string? root;
     bool disposed;
 
@@ -25,7 +25,7 @@ sealed class LocalRepoWatcher : IDisposable
     /// Rescanning on each would walk the tree dozens of times for one clone, so events settle for
     /// this long first.
     /// </summary>
-    static readonly TimeSpan defaultSettle = TimeSpan.FromMilliseconds(750);
+    static TimeSpan defaultSettle = TimeSpan.FromMilliseconds(750);
 
     /// <param name="settle">Shortened by tests, which would otherwise wait out the debounce of
     /// every scan they trigger.</param>
