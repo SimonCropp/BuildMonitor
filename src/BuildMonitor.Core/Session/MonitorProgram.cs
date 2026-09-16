@@ -8,10 +8,29 @@ static class MonitorProgram
     public const int WindowHeight = 640;
 
     /// <summary>
+    /// Starts the tray with no window, whatever ShowWindowAtStart says. That setting answers "the
+    /// user started BuildMonitor, should a window appear", and a tray started as a side effect of
+    /// something else was not started by the user: the MCP server needs one running to answer a
+    /// question, and taking the screen to do it is not what was asked for.
+    /// </summary>
+    public const string HiddenArgument = "--hidden";
+
+    /// <summary>
     /// How long the loop sleeps between frames when the window is hidden. Nothing is drawn, so
     /// the only thing to keep up with is the tray, which does not need sixty a second.
     /// </summary>
     public static readonly TimeSpan HiddenFrame = TimeSpan.FromMilliseconds(100);
+    /// <summary>
+    /// What the run starts from. <paramref name="hidden"/> wins over ShowWindowAtStart, and does it
+    /// on the state rather than on the settings: the setting is the user's, and one written back
+    /// here would be saved for good by the next save of the options page.
+    /// </summary>
+    public static SessionState StartState(Settings settings, bool hidden)
+    {
+        var state = SessionState.Start(settings);
+        return hidden ? MonitorSession.Hide(state) : state;
+    }
+
     public static int Run(string[] args, OpenWindow openWindow, OpenTray openTray)
     {
         Logging.Init();
@@ -28,9 +47,18 @@ static class MonitorProgram
             return 2;
         }
 
+        var hidden = args.Contains(HiddenArgument);
         var port = Port.Resolve(settings);
         if (!LocalServer.TryBind(port, out var server))
         {
+            // A tray started to answer a question races one the user started; whichever loses the
+            // port must not then pull the winner's window up, which is the thing --hidden is for.
+            if (hidden)
+            {
+                Log.Information("A tray already owns port {Port}. Leaving it as it is.", port);
+                return 0;
+            }
+
             // Another tray owns the port: hand it the show and leave.
             Log.Information("A tray already owns port {Port}. Asking it to show.", port);
             try
@@ -48,13 +76,13 @@ static class MonitorProgram
 
         using (server)
         {
-            return RunOwned(args, settings, server, openWindow, openTray);
+            return RunOwned(args, settings, hidden, server, openWindow, openTray);
         }
     }
 
-    static int RunOwned(string[] args, Settings settings, LocalServer server, OpenWindow openWindow, OpenTray openTray)
+    static int RunOwned(string[] args, Settings settings, bool hidden, LocalServer server, OpenWindow openWindow, OpenTray openTray)
     {
-        var host = new SessionHost(SessionState.Start(settings));
+        var host = new SessionHost(StartState(settings, hidden));
         var secrets = new CachingSecretStore(SecretStores.ForPlatform(AppPaths.Secrets));
         var history = DurationHistory.Load(AppPaths.History);
         var handler = new SocketsHttpHandler
@@ -68,8 +96,12 @@ static class MonitorProgram
         host.Mutate(_ => MonitorSession.ApplyMedians(_, history.Medians()));
 
         var tray = openTray(out var trayError);
-        if (tray is null)
+        if (tray is null &&
+            !hidden)
         {
+            // With no icon the window is the only way back to it, so it opens whatever the setting
+            // says. Except when this tray is only here to answer the socket: nothing was asked for
+            // on screen, and `buildmonitor` still brings it up.
             Log.Warning("No tray: {Error}. Running with the window only.", trayError);
             host.Mutate(MonitorSession.Show);
         }
