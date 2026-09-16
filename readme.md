@@ -26,7 +26,7 @@ A build/CI monitor that runs in the system tray on Windows, macOS and Linux. It 
 ## Install
 
 ```
-dotnet tool install --global BuildMonitor
+dotnet tool install --global BuildMonitor --prerelease
 ```
 
 Run `buildmonitor` to start the tray app. One install works on every operating system: the package carries a head for each platform and the launcher starts the right one.
