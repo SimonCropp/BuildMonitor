@@ -159,7 +159,9 @@ final class FormView: NSView {
             button.contentTintColor = Palette.chipText
             return button
         default:
-            let label = NSTextField(wrappingLabelWithString: "")
+            // TEMPORARY DIAGNOSTIC: names the kind that fell through, so a render says whether a
+            // directory reached this case. Revert once the macOS blank is understood.
+            let label = NSTextField(wrappingLabelWithString: "default kind=\(field.kind)")
             label.tag = index
             return label
         }
@@ -188,7 +190,9 @@ final class FormView: NSView {
             }
         case BM_FIELD_LABEL.rawValue:
             if let label = control as? NSTextField {
-                label.stringValue = field.label.isEmpty ? field.value : (field.value.isEmpty ? field.label : "\(field.label): \(field.value)")
+                // TEMPORARY DIAGNOSTIC: the kind this case matched on. A directory drawn as a
+                // label will say which number got it here. Revert with the one in make.
+                label.stringValue = "[\(field.kind)] " + (field.label.isEmpty ? field.value : (field.value.isEmpty ? field.label : "\(field.label): \(field.value)"))
                 label.textColor = field.id == "error" ? Palette.error : Palette.text
             }
         default:
