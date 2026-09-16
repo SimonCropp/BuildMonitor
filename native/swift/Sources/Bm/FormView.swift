@@ -11,6 +11,7 @@ final class FormView: NSView {
     /// end where every other box does.
     private let boxWidth: CGFloat = 420
     private let browseWidth: CGFloat = 82
+    private let browseGap: CGFloat = 8
     private var controls: [NSView] = []
     private var editing: String?
 
@@ -63,7 +64,28 @@ final class FormView: NSView {
                 label.frame = NSRect(x: 12, y: y + 4, width: 240, height: 20)
                 label.lineBreakMode = .byTruncatingTail
                 addSubview(label)
-                control.frame = NSRect(x: 260, y: y, width: field.kind == Int32(BM_FIELD_NUMBER.rawValue) ? 100 : boxWidth, height: 24)
+                // A directory gives up the width of its button, so the box and the button together
+                // end where every other box does.
+                let isDirectory = field.kind == Int32(BM_FIELD_DIRECTORY.rawValue)
+                let width: CGFloat
+                if field.kind == Int32(BM_FIELD_NUMBER.rawValue) {
+                    width = 100
+                } else if isDirectory {
+                    width = boxWidth - browseWidth - browseGap
+                } else {
+                    width = boxWidth
+                }
+
+                control.frame = NSRect(x: 260, y: y, width: width, height: 24)
+                if isDirectory {
+                    let browse = NSButton(title: "Browse", target: self, action: #selector(clicked(_:)))
+                    // The field's own index: a directory reports an edit from its box and a click
+                    // from its button, and the applier tells those apart without a second id.
+                    browse.tag = index
+                    browse.bezelStyle = .rounded
+                    browse.frame = NSRect(x: 260 + boxWidth - browseWidth, y: y, width: browseWidth, height: 24)
+                    addSubview(browse)
+                }
             } else {
                 control.frame = NSRect(x: 12, y: y, width: 620, height: 24)
             }
@@ -95,21 +117,14 @@ final class FormView: NSView {
             text.placeholderString = field.hint
             return text
         case BM_FIELD_DIRECTORY.rawValue:
-            // The box and its button in one view, so the button sits beside the path rather than
-            // on the line below it. Both carry the field's index: an edit comes from the box and a
-            // click from the button, which is the whole of what a directory field reports.
-            let row = NSView(frame: NSRect(x: 0, y: 0, width: boxWidth, height: 24))
-            let text = NSTextField(frame: NSRect(x: 0, y: 0, width: boxWidth - browseWidth - 8, height: 24))
+            // Only the box. Its Browse button is laid out beside it in rebuild, as a sibling
+            // rather than a child: every control here is a direct subview of the form, and a
+            // directory has no business being the one that nests.
+            let text = NSTextField()
             text.tag = index
             text.delegate = self
             text.placeholderString = field.hint
-            let browse = NSButton(title: "Browse", target: self, action: #selector(clicked(_:)))
-            browse.tag = index
-            browse.bezelStyle = .rounded
-            browse.frame = NSRect(x: boxWidth - browseWidth, y: 0, width: browseWidth, height: 24)
-            row.addSubview(text)
-            row.addSubview(browse)
-            return row
+            return text
         case BM_FIELD_SELECT.rawValue:
             let popup = NSPopUpButton(frame: .zero, pullsDown: false)
             popup.tag = index
@@ -158,14 +173,8 @@ final class FormView: NSView {
         switch UInt32(field.kind) {
         case BM_FIELD_CHECKBOX.rawValue:
             (control as? NSButton)?.state = field.value == "true" ? .on : .off
-        case BM_FIELD_TEXT.rawValue, BM_FIELD_NUMBER.rawValue, BM_FIELD_PASSWORD.rawValue:
+        case BM_FIELD_TEXT.rawValue, BM_FIELD_NUMBER.rawValue, BM_FIELD_PASSWORD.rawValue, BM_FIELD_DIRECTORY.rawValue:
             if let text = control as? NSTextField, editing != field.id, text.stringValue != field.value {
-                text.stringValue = field.value
-            }
-        case BM_FIELD_DIRECTORY.rawValue:
-            // The box is inside the row, so it is reached through the container rather than cast
-            // from it.
-            if let text = control.subviews.first as? NSTextField, editing != field.id, text.stringValue != field.value {
                 text.stringValue = field.value
             }
         case BM_FIELD_SELECT.rawValue:
