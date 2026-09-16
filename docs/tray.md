@@ -15,7 +15,7 @@ BuildMonitor runs in the system tray. The icon shows the overall state:
  * red: a latest build failed
  * amber: a connection needs attention, because its credential was refused or polling failed
 
-Left click the icon to open the window. Right click it for the menu: every failing or running build, repository first, with its own open, retry and cancel entries, then Open, Refresh, Options, Filters, Open logs, Raise issue, Update and Exit. When the connections span more than one CI service, each build shows its provider's logo.
+Left click the icon to open the window. Right click it for the menu: every failing or running build, repository first, with its own open, retry and cancel entries, then Open, Refresh, Options, Filters, Open logs, Raise issue, Update and Exit. Open code directory sits above Open logs once a [code directory](options.md#code-directory) is set, and opens that folder; it is left out entirely while the option is empty. When the connections span more than one CI service, each build shows its provider's logo.
 
 
 ## The window

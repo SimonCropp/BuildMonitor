@@ -556,12 +556,23 @@ static class ScreenBuilder
             new(TrayMenu.Open, "Open", IconName: "open"),
             new(TrayMenu.Refresh, "Refresh", Enabled: state.Connections.Length > 0, IconName: "refresh"),
             new(TrayMenu.Options, "Options", IconName: "options"),
-            new(TrayMenu.Filters, "Filters", IconName: "filters"),
+            new(TrayMenu.Filters, "Filters", IconName: "filters")
+        ];
+        // Above Open logs, the other item that opens a folder. Left out entirely rather than
+        // disabled where the option is unset: an item that opens nothing is worse than one that is
+        // not there, and most users never set it.
+        if (state.Settings.CodeDirectory.Length > 0)
+        {
+            items.Add(new(TrayMenu.CodeDirectory, "Open code directory", IconName: "folder"));
+        }
+
+        items.AddRange(
+        [
             new(TrayMenu.Logs, "Open logs", IconName: "logs"),
             new(TrayMenu.Issue, "Raise issue", IconName: "issue"),
             new(TrayMenu.Update, "Update", IconName: "update"),
             new(TrayMenu.Exit, "Exit", IconName: "exit")
-        ];
+        ]);
         return new(icon, tooltip, items);
     }
 

@@ -197,6 +197,7 @@ static class InputApplier
             TrayMenu.Refresh => Execute(state, CommandKind.Refresh, null, actions, window),
             TrayMenu.Options => Show(Execute(state, CommandKind.OpenOptions, null, actions, window), window),
             TrayMenu.Filters => Show(Execute(state, CommandKind.OpenFilters, null, actions, window), window),
+            TrayMenu.CodeDirectory => Execute(state, CommandKind.OpenCodeDirectory, null, actions, window),
             TrayMenu.Logs => Execute(state, CommandKind.OpenLogs, null, actions, window),
             TrayMenu.Issue => Execute(state, CommandKind.RaiseIssue, null, actions, window),
             TrayMenu.Update => Execute(state, CommandKind.Update, null, actions, window),
@@ -410,6 +411,15 @@ static class InputApplier
             }
             case CommandKind.OpenLogs:
                 actions.OpenLogs();
+                return state;
+            case CommandKind.OpenCodeDirectory:
+                // Only offered while the option holds something, so an empty one here is a menu
+                // built before a save that cleared it.
+                if (state.Settings.CodeDirectory is { Length: > 0 } code)
+                {
+                    actions.OpenDirectory(code);
+                }
+
                 return state;
             case CommandKind.RaiseIssue:
                 actions.RaiseIssue();

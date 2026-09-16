@@ -73,6 +73,8 @@ A checkout is matched to a pipeline by its `origin` remote first: `git@github.co
 
 Scanning stops at a checkout rather than going through it, so a submodule or a vendored dependency is not listed as a repository of its own. Nothing in the checkout is read but `.git/config`, and nothing is written.
 
+The tray menu gains an Open code directory item while this is set, above Open logs, which opens the folder itself rather than any one checkout.
+
 The list is kept current while BuildMonitor runs: a repository cloned into the directory gets its button without a restart. Only the folders that could hold a checkout are watched, not everything below them, so a directory full of repositories and their build output costs a bounded number of watches. An empty field watches nothing.
 
 

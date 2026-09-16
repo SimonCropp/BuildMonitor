@@ -22,6 +22,7 @@ enum CommandKind
     Retry,
     Cancel,
     OpenRepoDirectory,
+    OpenCodeDirectory,
     BrowseCodeDirectory,
     Refresh,
     ToggleGroup,

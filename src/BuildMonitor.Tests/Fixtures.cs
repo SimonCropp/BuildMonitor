@@ -313,6 +313,14 @@ static class Fixtures
     public static SessionState WithLocalRepos() =>
         MonitorSession.ApplyLocalRepos(WithBuilds(), LocalRepoIndex());
 
+    /// <summary>
+    /// The code directory set, as well as the checkouts found under it. The setting is what the
+    /// tray menu's Open code directory keys off, and it is unset in every other fixture, so no
+    /// other snapshot carries that item.
+    /// </summary>
+    public static SessionState WithCodeDirectory() =>
+        MonitorSession.ApplySettings(WithLocalRepos(), Settings() with { CodeDirectory = "/code" });
+
     public static ImmutableDictionary<string, string> LocalRepoIndex() =>
         LocalRepos.Index(
         [
