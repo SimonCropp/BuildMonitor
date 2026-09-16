@@ -23,7 +23,7 @@
     <PackageVersion Include="Svg.Skia" Version="5.2.3" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <PackageVersion Include="Tmds.DBus.Protocol" Version="0.95.1" />
-    <PackageVersion Include="TUnit" Version="1.68.0" />
+    <PackageVersion Include="TUnit" Version="1.68.4" />
     <PackageVersion Include="Verify" Version="33.0.2" />
     <PackageVersion Include="Verify.TUnit" Version="33.0.2" />
     <PackageVersion Include="Verify.WinForms" Version="6.0.0" />
