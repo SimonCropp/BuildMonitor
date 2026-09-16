@@ -53,4 +53,10 @@ static class BuildExtensions
 
     public static string ShortRepoName(string repoName) =>
         repoName[(repoName.LastIndexOf('/') + 1)..];
+
+    /// <summary>
+    /// The branch as a row names it, empty for a build with none. See <see cref="DependabotBranches"/>.
+    /// </summary>
+    public static string ShortBranchName(this Build build) =>
+        DependabotBranches.Short(build.Branch ?? "");
 }

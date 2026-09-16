@@ -26,7 +26,7 @@ One list of pipelines across every connection, showing the latest run on any bra
 
 Rows sort what is happening now to the top: running, then queued, then failed, then everything else by age.
 
-Type in the Filter box at the top right to show only the builds whose repository, pipeline or branch contain the text, ignoring case. A group keeps only the builds that match, so a filter reaches a build inside a closed group. The counts in the header and the tray icon still describe every build. The filter is not saved; to hide a pipeline for good, use [Filters](filters.md).
+Type in the Filter box at the top right to show only the builds whose repository, pipeline or branch, as the row names them, contain the text, ignoring case. A group keeps only the builds that match, so a filter reaches a build inside a closed group. The counts in the header and the tray icon still describe every build. The filter is not saved; to hide a pipeline for good, use [Filters](filters.md).
 
 Two or more failed builds of one project share a group, and so do two or more that passed; a group never mixes the two. The group's row names the project and says how many builds it holds and how long since the latest. Failed groups start open, with each build on a row beneath, its project column left blank; passed groups start closed. Click a group, press Enter on it or right click it to open or close it; right click a build inside it to close it again. Projects are matched by repository name, so the same repository on two CI services is one group.
 
@@ -34,7 +34,7 @@ Each row carries:
 
  * a status square; the squares of neighbouring rows touch, so a run of failures reads as one block
  * the provider's logo, when the connections span more than one CI service
- * the repository, then the pipeline and branch; the pipeline is left out when it is named after the repository, as an AppVeyor project is
+ * the repository, then the pipeline and branch; the pipeline is left out when it is named after the repository, as an AppVeyor project is. A Dependabot branch leaves out the ecosystem it names second, so `dependabot/nuget/src/Foo-1.0` reads `dependabot/src/Foo-1.0`
  * a progress bar and a countdown while the build runs, from the provider's own estimate where it gives one and otherwise from the median of the pipeline's last ten successful runs. A build that runs past its estimate shows how far over it is. Without any estimate the elapsed time is shown
  * links in the text: the pipeline opens the run and the branch opens the branch in the repository. Where the pipeline is left out, the repository opens the run instead
  * PR, which opens the pull request

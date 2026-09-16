@@ -149,6 +149,40 @@ public class ScreenTests
         link == ChipKind.None ? text : $"[{text}]({link})";
 
     [Test]
+    public async Task DependabotBranchesDropTheEcosystem()
+    {
+        const string branch = "dependabot/nuget/src/Syncfusion.XlsIO.Net.Core-31.1.17";
+        var state = MonitorSession.ApplyPoll(
+            Fixtures.WithBuilds(),
+            Fixtures.GitHub.Id,
+            [],
+            [
+                ..Fixtures.GitHubBuilds(),
+                Fixtures.Build(
+                    Fixtures.GitHub.Id,
+                    "Reports/build.yml",
+                    "build.yml",
+                    "VerifyTests/Reports",
+                    branch,
+                    "9",
+                    BuildStatus.Failed,
+                    started: Fixtures.Now - TimeSpan.FromMinutes(10),
+                    finished: Fixtures.Now - TimeSpan.FromMinutes(8),
+                    branchUrl: $"https://github.com/VerifyTests/Reports/tree/{branch}")
+            ],
+            Fixtures.Now - TimeSpan.FromSeconds(12));
+
+        await Assert.That(DetailsOf(MonitorSession.Search(state, "syncfusion")))
+            .IsEqualTo("Reports | build.yml dependabot/src/Syncfusion.XlsIO.Net.Core-31.1.17");
+        // The filter box matches the name the row shows, so the ecosystem no longer finds the row.
+        await Assert.That(DetailsOf(MonitorSession.Search(state, "nuget"))).IsEqualTo("");
+    }
+
+    static string DetailsOf(SessionState state) =>
+        string.Join(", ", ScreenBuilder.Build(state, Fixtures.Now).Builds!.Rows
+            .Select(_ => $"{_.Name} | {string.Concat(_.Detail.Select(span => span.Text))}"));
+
+    [Test]
     public Task OverflowMenuOpen()
     {
         // Ninety columns leave the failed row room for its pull request but not for its actions.

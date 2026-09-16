@@ -170,7 +170,7 @@ static class ScreenBuilder
             Append(spans, build.PipelineName, ChipKind.Build);
         }
 
-        Append(spans, build.Branch ?? "", build.BranchUrl is null ? ChipKind.None : ChipKind.Branch);
+        Append(spans, build.ShortBranchName(), build.BranchUrl is null ? ChipKind.None : ChipKind.Branch);
         return spans;
     }
 

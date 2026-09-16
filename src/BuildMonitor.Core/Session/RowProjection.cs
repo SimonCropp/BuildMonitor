@@ -74,14 +74,15 @@ static class RowProjection
 
     /// <summary>
     /// Whether the build's project, pipeline or branch contains the text, ignoring case. The project
-    /// by its short name, the one a row shows: the full repository name would keep every repository
-    /// of an owner whose name holds the text, on rows showing nothing that matched.
+    /// and the branch by the short names a row shows: the full repository name would keep every
+    /// repository of an owner whose name holds the text, and a Dependabot branch's full name every
+    /// update in an ecosystem, on rows showing nothing that matched.
     /// </summary>
     public static bool Matches(Build build, string search) =>
         search.Length == 0 ||
         build.ShortRepoName().Contains(search, StringComparison.OrdinalIgnoreCase) ||
         build.PipelineName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-        (build.Branch?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
+        build.ShortBranchName().Contains(search, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Every connection's builds: filtered, reduced to the runs worth a row, and sorted so what is
