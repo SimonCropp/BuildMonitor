@@ -10,6 +10,14 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>BuildMonitor</AssemblyName>
+    <!--
+    The Win32 FileDescription, which is what a process list shows, and which defaults to the
+    assembly name. One exe serves every verb, so a row cannot say which one it is running: a
+    session that registered the MCP server leaves one of these per client, and "BuildMonitor" six
+    times over reads as six trays rather than six adapters to the one. Description, in
+    Directory.Build.props, is a different field: it lands in Comments, which no process list shows.
+    -->
+    <AssemblyTitle>BuildMonitor launcher and MCP server</AssemblyTitle>
     <PackageId>BuildMonitor</PackageId>
     <ToolCommandName>buildmonitor</ToolCommandName>
     <PackAsTool>true</PackAsTool>
