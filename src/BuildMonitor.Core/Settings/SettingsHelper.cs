@@ -29,8 +29,10 @@ static class SettingsHelper
 
         // Same reason, and a string's type default is null rather than the empty its initializer
         // says: a file written before CodeDirectory existed would put a null through the options
-        // page and into the form, where everything downstream takes it for a string.
-        if (settings.CodeDirectory is null)
+        // page and into the form, where everything downstream takes it for a string. The property
+        // is not nullable, so an is null here reads as dead code; IsNullOrEmpty says the same thing
+        // and is honest about the annotation being a compile time promise the reader does not keep.
+        if (string.IsNullOrEmpty(settings.CodeDirectory))
         {
             settings = settings with { CodeDirectory = "" };
         }
