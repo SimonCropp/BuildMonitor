@@ -246,7 +246,7 @@ static class ScreenBuilder
             timing,
             selected,
             false,
-            RowChips.Of(build),
+            RowChips.Of(build, state.LocalRepos),
             author);
     }
 
@@ -390,6 +390,8 @@ static class ScreenBuilder
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),
             new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Hint: "Running and queued builds always show."),
             new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Hint: "Used by the launcher and the MCP server. Takes effect after a restart."),
+            new(FormFields.CodeDirectory, FieldKind.Text, "Code directory", form.Value(FormFields.CodeDirectory), Hint: "The folder your checkouts live in"),
+            new(FormFields.BrowseCodeDirectory, FieldKind.Button, "Browse", "", Command: CommandKind.BrowseCodeDirectory),
             new("connectionsLabel", FieldKind.Label, "Connections", "")
         };
         foreach (var connection in state.Connections.OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase))

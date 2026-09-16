@@ -24,6 +24,7 @@ class RecordingActions
             (key, _) => Calls.Add($"StoreSecret {key}"),
             _ => Calls.Add($"DeleteSecret {_}"),
             () => Calls.Add("OpenLogs"),
+            _ => Calls.Add($"OpenDirectory {_}"),
             () => Calls.Add("RaiseIssue"),
             () => Calls.Add("Update"),
             _ => Calls.Add($"SetRunAtLogin {_}"));

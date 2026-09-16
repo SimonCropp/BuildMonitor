@@ -24,6 +24,13 @@ record Settings
     /// </summary>
     public int HistoryDays { get; init; } = 30;
     public int Port { get; init; } = global::Port.Default;
+
+    /// <summary>
+    /// Where the user's checkouts live. Every git repository up to two folders below it gets an
+    /// open folder button on the rows of the pipelines it builds. Empty when unset, which watches
+    /// nothing.
+    /// </summary>
+    public string CodeDirectory { get; init; } = "";
     public ImmutableArray<Connection> Connections { get; init; } = [];
     public ImmutableArray<Filter> Filters { get; init; } = [];
 }

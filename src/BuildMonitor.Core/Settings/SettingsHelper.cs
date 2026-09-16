@@ -27,6 +27,14 @@ static class SettingsHelper
             settings = settings with { HistoryDays = new Settings().HistoryDays };
         }
 
+        // Same reason, and a string's type default is null rather than the empty its initializer
+        // says: a file written before CodeDirectory existed would put a null through the options
+        // page and into the form, where everything downstream takes it for a string.
+        if (settings.CodeDirectory is null)
+        {
+            settings = settings with { CodeDirectory = "" };
+        }
+
         return settings;
     }
 

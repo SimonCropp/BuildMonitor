@@ -11,6 +11,8 @@
 | Poll interval while a build is running (seconds): [10    ]                                                           |
 | Show builds from the last (days): [30    ]                                                                           |
 | Local port: [3796  ]                                                                                                 |
+| Code directory: [                                        ] (The folder your checkouts live in)                       |
+| [ Browse ]                                                                                                           |
 | Connections:                                                                                                         |
 | - [ GitHub: GitHub Actions, ok ]                                                                                     |
 | - [ Jenkins: Jenkins, ok ]                                                                                           |
@@ -21,8 +23,6 @@
 | [ Open logs ]                                                                                                        |
 | [ Raise issue ]                                                                                                      |
 | [ Update ]                                                                                                           |
-|                                                                                                                      |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+

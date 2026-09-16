@@ -167,7 +167,9 @@ final class BuildsRenderer {
         // Measured rather than fixed, so each cell holds its widest text at whatever size the font
         // is: a countdown past an hour, and the widest set of chips a row carries.
         let timingWidth = measure("0:00:00 left")
-        let widestChips = ["PR 9999", "Retry", "Copy log"].map(chipWidth).reduce(0, +) + 2 * chipGap
+        // Every labelled chip at its longest, then the open folder chip's square, with a gap
+        // between each, so the columns before them do not move as builds gain and lose chips.
+        let widestChips = ["PR 9999", "Retry", "Copy log"].map(chipWidth).reduce(0, +) + iconChipWidth + 3 * chipGap
         let overflowWidth = chipWidth(overflowLabel)
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.
@@ -290,14 +292,16 @@ final class BuildsRenderer {
         var x = start
         for (position, chip) in row.chips.enumerated() {
             let reserve = position == row.chips.count - 1 ? 0 : chipGap + overflowWidth
-            if x + chipWidth(chip.label) + reserve > right {
+            if x + width(of: chip) + reserve > right {
                 let chipRect = drawChip(overflowLabel, x: x, rowRect: rowRect, fill: Palette.chip, textColour: Palette.text)
                 chips.append(Hit(row: index, chip: chip.kind, overflow: true, rect: chipRect))
                 return
             }
 
             let (fill, textColour) = colours(chip.kind)
-            let chipRect = drawChip(chip.label, x: x, rowRect: rowRect, fill: fill, textColour: textColour)
+            let chipRect = isIconChip(chip.kind)
+                ? drawIconChip("folder", x: x, rowRect: rowRect, fill: fill)
+                : drawChip(chip.label, x: x, rowRect: rowRect, fill: fill, textColour: textColour)
             chips.append(Hit(row: index, chip: chip.kind, overflow: false, rect: chipRect))
             x = chipRect.maxX + chipGap
         }
@@ -316,6 +320,21 @@ final class BuildsRenderer {
 
     private func chipWidth(_ label: String) -> CGFloat {
         measure(label) + 2 * chipPadding
+    }
+
+    /// The picture stands where the label would, so the pill is padded the same.
+    private var iconChipWidth: CGFloat {
+        iconSize + 2 * chipPadding
+    }
+
+    private func width(of chip: Frame.Chip) -> CGFloat {
+        isIconChip(chip.kind) ? iconChipWidth : chipWidth(chip.label)
+    }
+
+    /// Which chips are drawn as a picture. The label is kept for the drop down, where there is
+    /// room for words.
+    private func isIconChip(_ kind: Int32) -> Bool {
+        UInt32(kind) == BM_CHIP_OPEN_DIRECTORY.rawValue
     }
 
     private func displayName(_ row: Frame.Row) -> String {
@@ -388,6 +407,26 @@ final class BuildsRenderer {
                 y += lineHeight + 8
             }
         }
+    }
+
+    /// A chip whose picture is its label, for an action a folder says better than a word. Hit
+    /// tested like any other chip, so the click path does not know the difference. A missing image
+    /// still leaves a clickable pill: a chip that vanished because the icons were never built
+    /// would be worse than an empty one.
+    private func drawIconChip(_ icon: String, x: CGFloat, rowRect: CGRect, fill: NSColor) -> CGRect {
+        let rect = CGRect(x: x, y: rowRect.midY - chipHeight / 2, width: iconChipWidth, height: chipHeight)
+        fill.setFill()
+        NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
+        if let image = RowIcons.images[icon] {
+            let square = CGRect(
+                x: rect.midX - iconSize / 2,
+                y: rect.midY - iconSize / 2,
+                width: iconSize,
+                height: iconSize)
+            image.draw(in: square, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        }
+
+        return rect
     }
 
     /// In the row's font, as tall as a line of it, so a chip reads at the size of the row it sits in.

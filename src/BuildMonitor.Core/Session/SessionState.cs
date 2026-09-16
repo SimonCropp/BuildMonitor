@@ -14,6 +14,9 @@ record SessionState(
     ImmutableArray<Build> Builds,
     // Pipeline key to median duration of recent successful runs, from DurationHistory.
     ImmutableDictionary<string, TimeSpan> Medians,
+    // Repository name to the directory it is checked out in, from LocalRepoWatcher. See
+    // LocalRepos.Index for what a repository is keyed by.
+    ImmutableDictionary<string, string> LocalRepos,
     Page Page,
     FormState? Form,
     SignInState? SignIn,
@@ -43,6 +46,7 @@ record SessionState(
             Connections: [..settings.Connections.Select(ConnectionState.Start)],
             Builds: [],
             Medians: [],
+            LocalRepos: ImmutableDictionary<string, string>.Empty,
             Page: Page.Builds,
             Form: null,
             SignIn: null,

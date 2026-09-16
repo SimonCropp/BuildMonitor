@@ -22,7 +22,8 @@ sealed class RowsCanvas : Control
                                      TextFormatFlags.NoPadding;
     // Stands in for the chips a row has no room for, and opens the drop down that holds them.
     const string overflowLabel = "…";
-    // The chips of the widest row, which the chips column is as wide as while there is room.
+    // The labelled chips of the widest row, which the chips column is as wide as while there is
+    // room. The open folder chip is not among them: it is a picture, so WidestChips adds its square.
     static string[] widestChips = ["PR 9999", "Retry", "Copy log"];
 
     BuildsPage? page;
@@ -298,7 +299,7 @@ sealed class RowsCanvas : Control
         var detailWanted = iconWidth + Math.Min(
             builds.Details.Select(_ => MeasureName(_, Font)).DefaultIfEmpty().Max(),
             MeasureName(new('0', 40), Font));
-        var widest = widestChips.Sum(ChipWidth) + (widestChips.Length - 1) * LogicalToDeviceUnits(chipSpacing);
+        var widest = WidestChips();
         var bar = LogicalToDeviceUnits(barLength);
         var barWidth = available - bar - gap - nameWanted - detailWanted >= widest ? bar : 0;
         if (barWidth > 0)
@@ -464,10 +465,16 @@ sealed class RowsCanvas : Control
         {
             var chip = row.Chips[position];
             var reserve = position == row.Chips.Count - 1 ? 0 : chipGap + overflowWidth;
-            if (x + ChipWidth(chip.Label) + reserve > right)
+            if (x + ChipWidth(chip) + reserve > right)
             {
                 Chip(graphics, overflowLabel, x, centreY, Palette.Chip, Palette.Text, index, chip.Kind, overflow: true);
                 return;
+            }
+
+            if (IsIcon(chip.Kind))
+            {
+                x = IconChip(graphics, "folder", x, centreY, index, chip.Kind) + chipGap;
+                continue;
             }
 
             var (background, foreground) = Colours(chip.Kind);
@@ -512,8 +519,65 @@ sealed class RowsCanvas : Control
         return bounds.Right;
     }
 
+    /// <summary>
+    /// A chip whose picture is its label. Recorded in the same hit list as any other, so the click
+    /// path does not know the difference.
+    /// </summary>
+    int IconChip(Graphics graphics, string glyph, int x, int centreY, int row, ChipKind kind)
+    {
+        var bounds = new Rectangle(x, centreY - ChipHeight / 2, IconChipWidth, ChipHeight);
+        using (var brush = new SolidBrush(Palette.Chip))
+        using (var path = RoundedRectangle(bounds, LogicalToDeviceUnits(6)))
+        {
+            graphics.FillPath(brush, path);
+        }
+
+        // A checkout with no glyph to draw is still clickable: an empty pill is odd, but a chip
+        // that vanished because IconBuilder never ran would be worse.
+        if (Icons.Glyph(glyph) is { } icon)
+        {
+            var side = LogicalToDeviceUnits(iconSize);
+            graphics.DrawImage(
+                icon,
+                new Rectangle(
+                    bounds.Left + (bounds.Width - side) / 2,
+                    bounds.Top + (bounds.Height - side) / 2,
+                    side,
+                    side));
+        }
+
+        chips.Add((row, kind, false, bounds));
+        return bounds.Right;
+    }
+
     int ChipWidth(string label) =>
         Measure(label) + 2 * LogicalToDeviceUnits(chipPadding);
+
+    int ChipWidth(RowChip chip) =>
+        IsIcon(chip.Kind) ? IconChipWidth : ChipWidth(chip.Label);
+
+    /// <summary>
+    /// The icon stands where the label would, so the pill is padded the same and the row of chips
+    /// keeps one rhythm.
+    /// </summary>
+    int IconChipWidth =>
+        LogicalToDeviceUnits(iconSize) + 2 * LogicalToDeviceUnits(chipPadding);
+
+    /// <summary>
+    /// The whole chips column at its widest: every labelled chip at its longest, then the open
+    /// folder chip's square, with a gap between each.
+    /// </summary>
+    int WidestChips() =>
+        widestChips.Sum(ChipWidth) +
+        IconChipWidth +
+        widestChips.Length * LogicalToDeviceUnits(chipSpacing);
+
+    /// <summary>
+    /// Which chips are drawn as a picture. A folder says what "Open dir" would, in the width the
+    /// row has to spare; the label is kept for the drop down, where there is room for words.
+    /// </summary>
+    static bool IsIcon(ChipKind kind) =>
+        kind == ChipKind.OpenDirectory;
 
     static GraphicsPath RoundedRectangle(Rectangle bounds, int radius)
     {

@@ -44,7 +44,10 @@ static class OptionsDraft
             PollIntervalSeconds = poll,
             RunningPollIntervalSeconds = running,
             HistoryDays = days,
-            Port = port
+            Port = port,
+            // Not checked for existence: reading it back is a pure transition, and a path that is
+            // not there scans to nothing, which is the same as leaving it empty.
+            CodeDirectory = form.Value(FormFields.CodeDirectory).Trim()
         };
         return true;
     }

@@ -13,6 +13,8 @@
   glyph-failed-32.png,
   glyph-filters-16.png,
   glyph-filters-32.png,
+  glyph-folder-16.png,
+  glyph-folder-32.png,
   glyph-issue-16.png,
   glyph-issue-32.png,
   glyph-logs-16.png,

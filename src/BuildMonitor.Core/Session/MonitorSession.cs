@@ -291,6 +291,11 @@ static class MonitorSession
                 items.Add(new("Cancel build", CommandKind.Cancel));
             }
 
+            if (LocalRepos.Find(state.LocalRepos, build) is not null)
+            {
+                items.Add(new("Open directory", CommandKind.OpenRepoDirectory));
+            }
+
             if (target is { Kind: RowKind.Member, Group: { } group })
             {
                 items.Add(new($"Collapse {group.Project}", CommandKind.ToggleGroup));
@@ -319,7 +324,7 @@ static class MonitorSession
             return state;
         }
 
-        var items = RowChips.Of(build)
+        var items = RowChips.Of(build, state.LocalRepos)
             .Where(_ => _.Kind >= from)
             .Select(_ => new MenuItem(_.Label, RowChips.Command(_.Kind)))
             .ToImmutableArray();
@@ -365,6 +370,7 @@ static class MonitorSession
         values[FormFields.RunningPollInterval] = settings.RunningPollIntervalSeconds.ToString();
         values[FormFields.HistoryDays] = settings.HistoryDays.ToString();
         values[FormFields.Port] = settings.Port.ToString();
+        values[FormFields.CodeDirectory] = settings.CodeDirectory;
         return state with
         {
             Page = Page.Options,
@@ -728,6 +734,9 @@ static class MonitorSession
 
     public static SessionState ApplyMedians(SessionState state, ImmutableDictionary<string, TimeSpan> medians) =>
         state with { Medians = medians };
+
+    public static SessionState ApplyLocalRepos(SessionState state, ImmutableDictionary<string, string> repos) =>
+        state with { LocalRepos = repos };
 
     static SessionState UpdateConnection(SessionState state, string connectionId, Func<ConnectionState, ConnectionState> change)
     {

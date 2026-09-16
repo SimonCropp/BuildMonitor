@@ -58,6 +58,14 @@ public class PixelTests
     public Task Filters() =>
         Capture(Fixtures.Filters());
 
+    // The rows of the repositories found under the code directory, whose chip is a folder rather
+    // than a word. The only native baseline that shows it drawn.
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 5)]
+    public Task LocalRepos() =>
+        Capture(Fixtures.WithLocalRepos());
+
     static async Task Capture(SessionState state)
     {
         // Pinned rather than System, so a capture does not depend on the theme of whoever ran it.

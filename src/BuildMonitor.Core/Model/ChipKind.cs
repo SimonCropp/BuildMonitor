@@ -18,5 +18,8 @@ enum ChipKind
     Cancel = 5,
     CopyLog = 6,
     // The provider icon, which opens the project page. Clicked like a chip, never among a row's chips.
-    Project = 7
+    Project = 7,
+    // Opens the local checkout of the build's repository in the file manager. Only on a row whose
+    // repository was found under the code directory, so it is the one chip a poll cannot add.
+    OpenDirectory = 8
 }

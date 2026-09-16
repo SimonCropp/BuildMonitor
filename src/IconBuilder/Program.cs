@@ -44,6 +44,7 @@ static class Program
         ("cancel", Lucide.Ban),
         ("branch", Lucide.GitBranch),
         ("pull-request", Lucide.GitPullRequest),
+        ("folder", Lucide.Folder),
         ("queued", Lucide.Clock),
         ("running", Lucide.LoaderCircle),
         ("succeeded", Lucide.CircleCheck),

@@ -391,6 +391,48 @@ float ChipHeight() {
     return ImGui::GetTextLineHeight() + 2.0f;
 }
 
+// The side of a chip's picture, matching the provider logo that leads the detail cell.
+const float chipIconSize = 16.0f;
+
+// Which chips are drawn as a picture rather than a label. A folder says what "Open dir" would in
+// the width a row has to spare; the label is kept for the drop down, where there is room for words.
+bool IsIconChip(int32_t kind) {
+    return kind == BM_CHIP_OPEN_DIRECTORY;
+}
+
+// The picture stands where the label would, so the pill is padded the same and the chips keep one
+// rhythm across the row.
+float IconChipWidth() {
+    return chipIconSize + 2.0f * ImGui::GetStyle().FramePadding.x;
+}
+
+// A chip whose picture is its label. An invisible button under a hand drawn pill, rather than
+// ImGui::Button, because a button's label is text and this one's is a texture. Clicked through the
+// same path as any other chip.
+bool IconChip(const char* icon, const ImVec4& colour) {
+    const ImVec2 size(IconChipWidth(), ChipHeight());
+    const ImVec2 at = ImGui::GetCursorScreenPos();
+    const bool clicked = ImGui::InvisibleButton("##icon", size);
+    const bool hovered = ImGui::IsItemHovered();
+    const ImVec4 fill = hovered
+        ? ImVec4(colour.x + 0.08f, colour.y + 0.08f, colour.z + 0.08f, 1.0f)
+        : colour;
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    draw->AddRectFilled(at, ImVec2(at.x + size.x, at.y + size.y), ImGui::GetColorU32(fill), ImGui::GetStyle().FrameRounding);
+    auto found = g.rowIcons.find(icon);
+    if (found != g.rowIcons.end()) {
+        const float left = at.x + (size.x - chipIconSize) / 2.0f;
+        const float top = at.y + (size.y - chipIconSize) / 2.0f;
+        draw->AddImage(static_cast<ImTextureID>(found->second.id), ImVec2(left, top), ImVec2(left + chipIconSize, top + chipIconSize));
+    }
+
+    if (hovered) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    }
+
+    return clicked;
+}
+
 // Text that opens something: an invisible button the size of the text, which takes the click from the
 // row's selectable beneath it, with the text drawn over it in the link colour and underlined while the
 // pointer is over it. The button is the last item, so the cursor is never left moved with nothing
@@ -560,7 +602,9 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         // was loaded: a countdown past an hour, and the widest set of chips a row carries.
         const float barWidth = 104.0f;
         const float timingWidth = ImGui::CalcTextSize("0:00:00 left").x;
-        const float widestChips = ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Copy log") + 2.0f * style.ItemSpacing.x;
+        // Every labelled chip at its longest, then the open folder chip's square, with a gap
+        // between each, so the columns before them do not move as builds gain and lose chips.
+        const float widestChips = ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Copy log") + IconChipWidth() + 3.0f * style.ItemSpacing.x;
         const float overflowWidth = ChipWidth(overflowLabel);
         // Each boundary between the six columns carries cell padding on both sides of it. What is
         // left, the name, the detail, the bar and the chips share.
@@ -715,7 +759,8 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
                 ImGui::PushID(c);
                 const float reserve = c == row.chipCount - 1 ? 0.0f : style.ItemSpacing.x + overflowWidth;
-                if (ImGui::GetCursorScreenPos().x + ChipWidth(label.c_str()) + reserve > chipsRight) {
+                const float width = IsIconChip(item.kind) ? IconChipWidth() : ChipWidth(label.c_str());
+                if (ImGui::GetCursorScreenPos().x + width + reserve > chipsRight) {
                     if (Chip("...##overflow", chip, text)) {
                         g.input.clickedOverflowRow = i;
                         g.input.overflowFrom = item.kind;
@@ -726,7 +771,10 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                     break;
                 }
 
-                if (Chip(label.c_str(), ChipColour(item.kind), ChipTextColour(item.kind))) {
+                const bool clicked = IsIconChip(item.kind)
+                    ? IconChip("folder", ChipColour(item.kind))
+                    : Chip(label.c_str(), ChipColour(item.kind), ChipTextColour(item.kind));
+                if (clicked) {
                     g.input.clickedChipRow = i;
                     g.input.clickedChip = item.kind;
                 }

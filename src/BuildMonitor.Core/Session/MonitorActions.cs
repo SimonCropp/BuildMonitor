@@ -19,6 +19,8 @@ record MonitorActions(
     Action<string, string> StoreSecret,
     Action<string> DeleteSecret,
     Action OpenLogs,
+    // Opens a local checkout in the desktop's file manager.
+    Action<string> OpenDirectory,
     Action RaiseIssue,
     Action Update,
     Action<bool> SetRunAtLogin)
@@ -40,6 +42,7 @@ record MonitorActions(
         (_, _) => throw new InvalidOperationException("StoreSecret"),
         _ => throw new InvalidOperationException("DeleteSecret"),
         () => throw new InvalidOperationException("OpenLogs"),
+        _ => throw new InvalidOperationException("OpenDirectory"),
         () => throw new InvalidOperationException("RaiseIssue"),
         () => throw new InvalidOperationException("Update"),
         _ => throw new InvalidOperationException("SetRunAtLogin"));

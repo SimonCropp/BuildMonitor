@@ -32,6 +32,15 @@ interface IMonitorWindow : IDisposable
     void SetClipboard(string text);
 
     /// <summary>
+    /// Asks the desktop for a directory, starting at <paramref name="start"/> where it is one.
+    /// Null when the user cancelled, or when this desktop has no chooser to ask, which is why the
+    /// field beside the button can still be typed into. Here rather than in
+    /// <see cref="MonitorActions"/> for the same reason as <see cref="SetClipboard"/>: a file
+    /// dialog belongs to a toolkit the way a clipboard does.
+    /// </summary>
+    string? PickDirectory(string? start);
+
+    /// <summary>
     /// Renders one frame offscreen to a PNG. Only the pixel snapshots use this.
     /// </summary>
     bool Capture(Screen screen, int width, int height, string pngPath);

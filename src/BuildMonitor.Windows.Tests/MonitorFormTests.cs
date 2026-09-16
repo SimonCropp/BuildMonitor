@@ -23,6 +23,12 @@ public class MonitorFormTests
     public Task Groups() =>
         Capture(Fixtures.WithFailedGroup());
 
+    // The rows of the repositories found under the code directory, whose chip is a folder rather
+    // than a word. The only baseline that shows it drawn.
+    [Test]
+    public Task LocalRepos() =>
+        Capture(Fixtures.WithLocalRepos());
+
     [Test]
     public Task NeedsAuth() =>
         Capture(Fixtures.NeedsAuth());

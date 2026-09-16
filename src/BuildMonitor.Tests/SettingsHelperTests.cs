@@ -15,6 +15,7 @@ public class SettingsHelperTests :
         {
             RunAtStartup = true,
             PollIntervalSeconds = 45,
+            CodeDirectory = "/code",
             Filters = [new(FilterKind.Suffix, FilterTarget.Branch, "-wip")]
         };
         await SettingsHelper.Write(settings);
@@ -61,6 +62,19 @@ public class SettingsHelperTests :
         await File.WriteAllTextAsync(AppPaths.Settings, """{"PollIntervalSeconds": 12}""");
         var read = SettingsHelper.Read();
         await Assert.That(read.HistoryDays).IsEqualTo(30);
+    }
+
+    /// <summary>
+    /// A string the file does not name reads as null rather than the empty the initializer says,
+    /// which is what every scan and every options page would then have to guard against.
+    /// </summary>
+    [Test]
+    public async Task AFileWrittenBeforeCodeDirectoryReadsAsEmpty()
+    {
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(AppPaths.Settings, """{"PollIntervalSeconds": 12}""");
+        var read = SettingsHelper.Read();
+        await Assert.That(read.CodeDirectory).IsEqualTo("");
     }
 
     public void Dispose()

@@ -2,8 +2,9 @@
 /// The WinForms <see cref="IMonitorWindow"/>. Pumped, not inverted: <see cref="MonitorProgram"/>
 /// owns the loop, so a frame is one <see cref="Application.DoEvents"/> rather than
 /// <see cref="Application.Run()"/>. That is what keeps the loop shared with the native heads.
-/// DoEvents is safe here because nothing opens a modal dialog or nests a loop, and the state
-/// is behind <see cref="SessionHost"/>.
+/// DoEvents is safe here because the state is behind <see cref="SessionHost"/>. The one thing that
+/// nests a loop is <see cref="PickDirectory"/>, and it is called from the applier rather than from a
+/// paint: the frame loop is simply stopped while the chooser is up, which is what a modal means.
 /// </summary>
 sealed class FormsMonitorWindow : IMonitorWindow
 {
@@ -88,6 +89,30 @@ sealed class FormsMonitorWindow : IMonitorWindow
         catch (Exception exception)
         {
             Log.Warning(exception, "Clipboard");
+        }
+    }
+
+    public string? PickDirectory(string? start)
+    {
+        try
+        {
+            using var dialog = new FolderBrowserDialog
+            {
+                Description = "Choose your code directory",
+                UseDescriptionForTitle = true,
+                ShowNewFolderButton = false
+            };
+            if (Directory.Exists(start))
+            {
+                dialog.SelectedPath = start;
+            }
+
+            return dialog.ShowDialog(form) == DialogResult.OK ? dialog.SelectedPath : null;
+        }
+        catch (Exception exception)
+        {
+            Log.Warning(exception, "Could not ask for a directory");
+            return null;
         }
     }
 

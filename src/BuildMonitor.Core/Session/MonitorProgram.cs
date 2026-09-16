@@ -85,8 +85,12 @@ static class MonitorProgram
 
         using var cancel = new CancelSource();
         var poller = new Poller(host, secrets, history, handler, new(secrets, handler));
-        var actions = RealActions.Create(host, poller, secrets, signIn, runAtLogin, () => host.Mutate(MonitorSession.Quit));
+        using var repos = new LocalRepoWatcher(host);
+        var actions = RealActions.Create(host, poller, repos, secrets, signIn, runAtLogin, () => host.Mutate(MonitorSession.Quit));
         poller.Start();
+        // Scans off the loop's thread, so a code directory on a slow or absent network share
+        // delays the checkouts being found rather than the window appearing.
+        repos.Sync(settings.CodeDirectory);
         var listening = server.Listen(new MessageHandler(host, poller, LinkLauncher.OpenUrl, windowCommands.Enqueue).Handle, cancel.Token);
 
         try

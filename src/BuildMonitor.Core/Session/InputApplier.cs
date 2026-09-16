@@ -91,7 +91,7 @@ static class InputApplier
 
         if (input.ClickedField is { } field)
         {
-            state = ClickField(state, field, actions);
+            state = ClickField(state, field, actions, window);
         }
 
         // After the clicks, which index the rows that were on screen, and before the keys, so an
@@ -141,7 +141,11 @@ static class InputApplier
         return Execute(MonitorSession.SelectRow(state, row), RowChips.Command(chip), null, actions, window);
     }
 
-    static SessionState ClickField(SessionState state, string id, MonitorActions actions)
+    /// <summary>
+    /// The window is passed on only where a field needs it. Browse is the one that does: a folder
+    /// chooser belongs to the toolkit, the way the clipboard does.
+    /// </summary>
+    static SessionState ClickField(SessionState state, string id, MonitorActions actions, IMonitorWindow? window)
     {
         if (id.StartsWith(FormFields.ConnectionPrefix, StringComparison.Ordinal))
         {
@@ -155,6 +159,8 @@ static class InputApplier
 
         switch (id)
         {
+            case FormFields.BrowseCodeDirectory:
+                return Execute(state, CommandKind.BrowseCodeDirectory, null, actions, window);
             case FormFields.AddConnection:
                 return Execute(state, CommandKind.AddConnection, null, actions, null);
             case FormFields.AddFilter:
@@ -280,6 +286,29 @@ static class InputApplier
                 return MonitorSession.SelectedBuild(state) is { } retry ? Retry(state, retry, actions) : state;
             case CommandKind.Cancel:
                 return MonitorSession.SelectedBuild(state) is { } cancel ? Cancel(state, cancel, actions) : state;
+            case CommandKind.OpenRepoDirectory:
+            {
+                // Resolved through the same lookup that decided to offer the chip, so the two
+                // cannot disagree about which checkout the row belongs to.
+                if (MonitorSession.SelectedBuild(state) is not { } local ||
+                    LocalRepos.Find(state.LocalRepos, local) is not { } directory)
+                {
+                    return state;
+                }
+
+                actions.OpenDirectory(directory);
+                return MonitorSession.SetStatus(state, $"Opened {directory}");
+            }
+            case CommandKind.BrowseCodeDirectory:
+            {
+                if (state.Form is not { } browsing ||
+                    window?.PickDirectory(Started(browsing)) is not { } picked)
+                {
+                    return state;
+                }
+
+                return MonitorSession.FieldChanged(state, FormFields.CodeDirectory, picked);
+            }
             case CommandKind.Refresh:
                 actions.Refresh(null);
                 return MonitorSession.SetStatus(state, "Refreshing");
@@ -395,6 +424,13 @@ static class InputApplier
                 return state;
         }
     }
+
+    /// <summary>
+    /// Where the chooser opens: what is typed in the field, so a second Browse starts where the
+    /// first one left off rather than at the desktop's idea of home.
+    /// </summary>
+    static string? Started(FormState form) =>
+        form.Value(FormFields.CodeDirectory) is { Length: > 0 } typed ? typed : null;
 
     static SessionState Retry(SessionState state, Build build, MonitorActions actions)
     {

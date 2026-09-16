@@ -1,8 +1,8 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                           8 pipelines, 1 failing, 4 running  Filter: [docs            ] |
 +----------------------------------------------------------------------------------------------------------------------+
-| > + Verify     github   docs.yml main                               2h ago                                           |
-|   + DiffEngine github   docs.yml main                               23h ago                                          |
+| > + Verify     github   docs.yml main                      2h ago                                                    |
+|   + DiffEngine github   docs.yml main                      23h ago                                                   |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

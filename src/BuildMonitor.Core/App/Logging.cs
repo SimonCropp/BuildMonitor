@@ -45,6 +45,13 @@ static class Logging
 #endif
     }
 
-    public static void OpenDirectory() =>
+    /// <summary>
+    /// Created first: nothing has been logged yet on a run that has only ever succeeded, and an
+    /// Open logs that opened nothing would read as broken.
+    /// </summary>
+    public static void OpenDirectory()
+    {
+        Directory.CreateDirectory(LogsDirectory);
         RevealFile.OpenDirectory(LogsDirectory);
+    }
 }

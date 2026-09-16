@@ -10,7 +10,7 @@ static class RowChips
     /// <summary>
     /// In <see cref="ChipKind"/> order, which is the order a head draws them in.
     /// </summary>
-    public static IReadOnlyList<RowChip> Of(Build build)
+    public static IReadOnlyList<RowChip> Of(Build build, ImmutableDictionary<string, string> localRepos)
     {
         List<RowChip> chips = [];
         if (build.PullRequestUrl is not null)
@@ -33,6 +33,13 @@ static class RowChips
             chips.Add(new(ChipKind.CopyLog, "Copy log"));
         }
 
+        // Through the same lookup the click goes through, so a row cannot show a button that then
+        // opens nothing.
+        if (LocalRepos.Find(localRepos, build) is not null)
+        {
+            chips.Add(new(ChipKind.OpenDirectory, "Open dir"));
+        }
+
         return chips;
     }
 
@@ -46,6 +53,7 @@ static class RowChips
             ChipKind.Cancel => CommandKind.Cancel,
             ChipKind.CopyLog => CommandKind.CopyLog,
             ChipKind.Project => CommandKind.OpenProject,
+            ChipKind.OpenDirectory => CommandKind.OpenRepoDirectory,
             _ => CommandKind.None
         };
 }

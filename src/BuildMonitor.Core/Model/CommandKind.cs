@@ -21,6 +21,8 @@ enum CommandKind
     CopyLog,
     Retry,
     Cancel,
+    OpenRepoDirectory,
+    BrowseCodeDirectory,
     Refresh,
     ToggleGroup,
     ExcludePipeline,

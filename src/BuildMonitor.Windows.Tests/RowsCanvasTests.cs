@@ -43,6 +43,20 @@ public class RowsCanvasTests
         await Assert.That(input.ClickedChipRow).IsEqualTo(row);
     }
 
+    /// <summary>
+    /// The folder chip is a picture rather than a label, so it is the one whose width does not come
+    /// from measuring text. This says it still lands somewhere a click can reach.
+    /// </summary>
+    [Test]
+    public async Task ARowReportsItsFolderChip()
+    {
+        var state = Fixtures.WithLocalRepos();
+        using var canvas = Drawn(1000, state);
+        var row = Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main");
+        var input = ClickAlong(canvas, row, _ => _.ClickedChip == ChipKind.OpenDirectory);
+        await Assert.That(input.ClickedChipRow).IsEqualTo(row);
+    }
+
     [Test]
     [Arguments(nameof(ChipKind.Build))]
     [Arguments(nameof(ChipKind.Branch))]
@@ -102,13 +116,16 @@ public class RowsCanvasTests
         return stream.ToArray();
     }
 
-    static RowsCanvas Drawn(int width)
+    static RowsCanvas Drawn(int width) =>
+        Drawn(width, Fixtures.WithBuilds());
+
+    static RowsCanvas Drawn(int width, SessionState state)
     {
         var canvas = new RowsCanvas
         {
             Size = new(width, 400)
         };
-        canvas.Apply(ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now).Builds!, null);
+        canvas.Apply(ScreenBuilder.Build(state, Fixtures.Now).Builds!, null);
         using var bitmap = new Bitmap(width, 400);
         canvas.DrawToBitmap(bitmap, new(0, 0, width, 400));
         return canvas;

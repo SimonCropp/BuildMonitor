@@ -18,7 +18,7 @@ static class AsciiRenderer
     const string overflow = "[...]";
     // The chips cell is this wide while there is room, so the columns before it do not move as
     // builds gain and lose chips.
-    const string widestChips = "PR 9999 [Retry] [Copy log]";
+    const string widestChips = "PR 9999 [Retry] [Copy log] [Open dir]";
     // Inside the filter box's brackets.
     const int searchWidth = 16;
 
@@ -204,7 +204,7 @@ static class AsciiRenderer
     /// Links bare and actions bracketed, as the pixel heads colour the two apart.
     /// </summary>
     static string ChipText(RowChip chip) =>
-        chip.Kind is ChipKind.Retry or ChipKind.Cancel or ChipKind.CopyLog
+        chip.Kind is ChipKind.Retry or ChipKind.Cancel or ChipKind.CopyLog or ChipKind.OpenDirectory
             ? $"[{chip.Label}]"
             : chip.Label;
 

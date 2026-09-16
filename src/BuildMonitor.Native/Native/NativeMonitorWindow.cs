@@ -60,16 +60,26 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     {
         foreach (var descriptor in ProviderDescriptors.All)
         {
-            var bytes = Images.Glyph($"provider-{descriptor.Id}", 32);
-            if (bytes is null)
-            {
-                continue;
-            }
+            SetRowIcon(descriptor.Id, $"provider-{descriptor.Id}");
+        }
 
-            fixed (byte* pointer = bytes)
-            {
-                Bm.SetRowIcon(descriptor.Id, pointer, bytes.Length);
-            }
+        // Not a provider logo but registered the same way: the open folder chip is drawn as a
+        // picture rather than a label, so the head needs its texture before the first frame. The
+        // name is what bm.cpp and BuildsRenderer.swift look the chip's image up by.
+        SetRowIcon("folder", "folder");
+    }
+
+    static void SetRowIcon(string name, string glyph)
+    {
+        var bytes = Images.Glyph(glyph, 32);
+        if (bytes is null)
+        {
+            return;
+        }
+
+        fixed (byte* pointer = bytes)
+        {
+            Bm.SetRowIcon(name, pointer, bytes.Length);
         }
     }
 
@@ -175,6 +185,9 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
 
     public void SetClipboard(string text) =>
         Bm.SetClipboard(text);
+
+    public string? PickDirectory(string? start) =>
+        DirectoryPicker.Pick(start);
 
     public void Dispose()
     {

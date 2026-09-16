@@ -1,13 +1,13 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
-| BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
+| BuildMonitor                                           6 pipelines, 1 failing, 4 running  Filter: [                ] |
 +----------------------------------------------------------------------------------------------------------------------+
-|   > build-all  jenkins  Build all main        [##------] 04:00 left            [Cancel]                              |
-|   > Deploy Web octopus                        [###-----] 02:15 left            [Cancel]                              |
-|   > DiffEngine github   test.yml main         [####----] 03:00 left            [Cancel]                              |
-|   ? nightly    jenkins                                   queued 30s            [Cancel]                              |
-| > x [+] Verify          2 failing                        25m ago                                                     |
-|   + [+] Verify          2 passing                        2h ago                                                      |
-|   + DiffEngine github   docs.yml main                    23h ago                                                     |
+|   > build-all  jenkins  Build all main          [##------] 04:00 left            [Cancel] [Open dir]                 |
+|   > Deploy Web octopus                          [###-----] 02:15 left            [Cancel]                            |
+| > > DiffEngine github   test.yml main           [####----] 03:00 left            [Cancel] [Open dir]                 |
+|   ? nightly    jenkins                                     queued 30s            [Cancel]                            |
+|   x Verify     github   test.yml feature/inline            25m ago    SimonCropp PR 42 [Retry] [Copy log]            |
+|   + DiffEngine github   docs.yml main                      23h ago               [Open dir]                          |
+|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
@@ -28,7 +28,7 @@
 +----------------------------------------------------------------------------------------------------------------------+
 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
 +----------------------------------------------------------------------------------------------------------------------+
-tray: Failed "BuildMonitor: 2 failing, 4 running"
+tray: Failed "BuildMonitor: 1 failing, 4 running"
   Open
   Refresh
   Options
@@ -37,4 +37,3 @@ tray: Failed "BuildMonitor: 2 failing, 4 running"
   Raise issue
   Update
   Exit
-notify: "release.yml failed" "VerifyTests/Verify main #9"

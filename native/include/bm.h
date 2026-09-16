@@ -72,7 +72,10 @@ enum BmChipKind {
     BM_CHIP_CANCEL = 5,
     BM_CHIP_COPY_LOG = 6,
     /* The provider icon: the repository or project page. Clicked like a chip, never among a row's chips. */
-    BM_CHIP_PROJECT = 7
+    BM_CHIP_PROJECT = 7,
+    /* The local checkout of the build's repository, in the file manager. Drawn as the row icon
+       registered under "folder" rather than as its label, which is only for the overflow menu. */
+    BM_CHIP_OPEN_DIRECTORY = 8
 };
 
 /* One button on a row. */

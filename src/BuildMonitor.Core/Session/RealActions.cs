@@ -4,12 +4,13 @@
 /// </summary>
 static class RealActions
 {
-    public static MonitorActions Create(SessionHost host, Poller poller, ISecretStore secrets, SignInCoordinator signIn, IRunAtLogin runAtLogin, Action exit) =>
+    public static MonitorActions Create(SessionHost host, Poller poller, LocalRepoWatcher repos, ISecretStore secrets, SignInCoordinator signIn, IRunAtLogin runAtLogin, Action exit) =>
         new(
             OpenUrl: LinkLauncher.OpenUrl,
             SaveSettings: settings =>
             {
                 poller.Sync(settings);
+                repos.Sync(settings.CodeDirectory);
                 Background(() => SettingsHelper.Write(settings), host, "Saving settings");
             },
             Refresh: poller.Refresh,
@@ -60,6 +61,7 @@ static class RealActions
             StoreSecret: secrets.Write,
             DeleteSecret: secrets.Delete,
             OpenLogs: Logging.OpenDirectory,
+            OpenDirectory: RevealFile.OpenDirectory,
             RaiseIssue: IssueLauncher.Launch,
             Update: () => Updater.Run(exit),
             SetRunAtLogin: enabled =>

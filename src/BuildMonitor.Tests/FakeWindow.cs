@@ -29,6 +29,18 @@ class FakeWindow : IMonitorWindow
     public void SetClipboard(string text) =>
         Calls.Add($"SetClipboard {text}");
 
+    /// <summary>
+    /// What the chooser returns next, or null for a cancel, which is the default so a test that
+    /// never sets one cannot accidentally pick a directory.
+    /// </summary>
+    public string? Picked { get; set; }
+
+    public string? PickDirectory(string? start)
+    {
+        Calls.Add($"PickDirectory {start}");
+        return Picked;
+    }
+
     public bool Capture(Screen screen, int width, int height, string pngPath) =>
         false;
 

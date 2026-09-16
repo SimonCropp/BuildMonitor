@@ -307,6 +307,70 @@ public class ApplyTests
         await Assert.That(RowProjection.Rows(expanded).Count(_ => _.Kind == RowKind.Member)).IsEqualTo(2);
     }
 
+    [Test]
+    public async Task ClickingTheFolderChipOpensTheCheckout()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithLocalRepos();
+        var row = RunningRow(builds);
+        var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.OpenDirectory), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["OpenDirectory /code/DiffEngine"]);
+        await Assert.That(state.Status).IsEqualTo("Opened /code/DiffEngine");
+    }
+
+    /// <summary>
+    /// The chip is only offered where the lookup hits, so a build with no checkout has none to
+    /// click. Asking anyway, which a stale frame could, must still do nothing.
+    /// </summary>
+    [Test]
+    public async Task ABuildWithNoCheckoutHasNoFolderChipAndOpensNothing()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithLocalRepos();
+        var row = FailedRow(builds);
+        var chips = MonitorSession.SelectedBuild(MonitorSession.SelectRow(builds, row))!;
+        await Assert.That(RowChips.Of(chips, builds.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.OpenDirectory);
+
+        var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.OpenDirectory), actions);
+        await Assert.That(actions.Calls).IsEmpty();
+        await Assert.That(state.Status).IsEqualTo(builds.Status);
+    }
+
+    /// <summary>
+    /// Jenkins reports a job name rather than a slug, so the only thing a checkout of it can match
+    /// on is the folder's own name.
+    /// </summary>
+    [Test]
+    public async Task ACheckoutMatchedByFolderNameOpensToo()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithLocalRepos();
+        var row = Fixtures.RowOf(builds, _ => _.Build?.Key == "jenkins/build-all/main");
+        Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.OpenDirectory), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["OpenDirectory /code/build-all"]);
+    }
+
+    [Test]
+    public async Task BrowsingPutsTheChosenDirectoryInTheField()
+    {
+        var window = new FakeWindow { Picked = "/code" };
+        var state = MonitorSession.OpenOptions(Fixtures.WithBuilds());
+        state = InputApplier.Apply(state, new(ClickedField: FormFields.BrowseCodeDirectory), new RecordingActions().Actions, window);
+        await Assert.That(state.Form!.Value(FormFields.CodeDirectory)).IsEqualTo("/code");
+        await Assert.That(window.Calls).IsEquivalentTo(["PickDirectory "]);
+    }
+
+    [Test]
+    public async Task CancellingTheChooserLeavesTheFieldAlone()
+    {
+        var window = new FakeWindow();
+        var state = MonitorSession.OpenOptions(Fixtures.WithBuilds());
+        state = MonitorSession.FieldChanged(state, FormFields.CodeDirectory, "/was/here");
+        var after = InputApplier.Apply(state, new(ClickedField: FormFields.BrowseCodeDirectory), new RecordingActions().Actions, window);
+        await Assert.That(after.Form!.Value(FormFields.CodeDirectory)).IsEqualTo("/was/here");
+        await Assert.That(window.Calls).IsEquivalentTo(["PickDirectory /was/here"]);
+    }
+
     static SessionState Apply(SessionState state, MonitorInput input, RecordingActions actions) =>
         InputApplier.Apply(state, input, actions.Actions, new FakeWindow());
 }

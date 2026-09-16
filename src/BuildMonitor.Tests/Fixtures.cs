@@ -305,6 +305,21 @@ static class Fixtures
     public static SessionState Narrow() =>
         MonitorSession.Resize(WithBuilds(), 80, 30);
 
+    /// <summary>
+    /// Two of the watched repositories checked out under the code directory, so their rows carry
+    /// the open folder chip and the rest do not. DiffEngine matches on its origin, build-all on
+    /// the folder's name, which is all Jenkins reports.
+    /// </summary>
+    public static SessionState WithLocalRepos() =>
+        MonitorSession.ApplyLocalRepos(WithBuilds(), LocalRepoIndex());
+
+    public static ImmutableDictionary<string, string> LocalRepoIndex() =>
+        LocalRepos.Index(
+        [
+            new("/code/DiffEngine", "DiffEngine", "VerifyTests/DiffEngine"),
+            new("/code/build-all", "build-all", null)
+        ]);
+
     public static SessionState Options() =>
         MonitorSession.OpenOptions(WithBuilds());
 

@@ -20,6 +20,19 @@ public class ScreenTests
     public Task Polling() =>
         Verify(Fixtures.Render(Fixtures.Polling()));
 
+    /// <summary>
+    /// The rows of the two repositories found under the code directory carry the open folder chip;
+    /// the rest are as they were. Drawn as a picture by every pixel head, so this is the one place
+    /// the label it keeps for the drop down is visible.
+    /// </summary>
+    [Test]
+    public Task LocalRepos() =>
+        Verify(Fixtures.Render(Fixtures.WithLocalRepos()));
+
+    [Test]
+    public Task LocalReposNarrow() =>
+        Verify(Fixtures.Render(MonitorSession.Resize(Fixtures.WithLocalRepos(), 80, 30)));
+
     [Test]
     public async Task ProgressIsDroppedWhenThePollEnds()
     {
@@ -78,12 +91,12 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   ? nightly    jenkins                                              queued 30s            [Cancel]                   |
-                |   x [-] Verify          2 failing                                   25m ago                                          |
-                |   x            github   test.yml feature/inline                     25m ago    SimonCropp PR 42 [Retry] [Copy log]   |
-                |   x            github   release.yml main                            50m ago               [Retry] [Copy log]         |
-                |   + [+] Verify          2 passing                                   2h ago                                           |
-                | > + DiffEngine github   docs.yml main                               23h ago                                          |
+                |   ? nightly    jenkins                                     queued 30s            [Cancel]                            |
+                |   x [-] Verify          2 failing                          25m ago                                                   |
+                |   x            github   test.yml feature/inline            25m ago    SimonCropp PR 42 [Retry] [Copy log]            |
+                |   x            github   release.yml main                   50m ago               [Retry] [Copy log]                  |
+                |   + [+] Verify          2 passing                          2h ago                                                    |
+                | > + DiffEngine github   docs.yml main                      23h ago                                                   |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+

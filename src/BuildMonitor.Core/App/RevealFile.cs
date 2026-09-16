@@ -1,5 +1,6 @@
 /// <summary>
-/// Opens a directory in the desktop's file manager.
+/// Opens a directory in the desktop's file manager. Does not create it: a checkout that has been
+/// deleted since its row was drawn should open nothing, not leave an empty folder behind.
 /// </summary>
 static class RevealFile
 {
@@ -7,7 +8,12 @@ static class RevealFile
     {
         try
         {
-            Directory.CreateDirectory(directory);
+            if (!Directory.Exists(directory))
+            {
+                Log.Debug("{Directory} is gone, so there is nothing to open", directory);
+                return;
+            }
+
             if (OperatingSystem.IsWindows())
             {
                 using var explorer = Process.Start(

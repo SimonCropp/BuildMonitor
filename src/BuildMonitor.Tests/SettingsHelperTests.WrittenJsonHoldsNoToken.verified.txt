@@ -9,6 +9,7 @@
   "RunningPollIntervalSeconds": 10,
   "HistoryDays": 30,
   "Port": 3796,
+  "CodeDirectory": "",
   "Connections": [
     {
       "Id": "gh",

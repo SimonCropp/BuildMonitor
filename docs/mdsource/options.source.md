@@ -63,6 +63,19 @@ A repository that keeps failing backs off on its own without holding up the rest
 The loopback port the tray listens on. The `buildmonitor` command and the [MCP server](mcp.md) use it to reach the running tray, and it is what stops a second tray starting. Change it when something else already uses 3796. Takes effect after a restart, and can be overridden for one run with the `BuildMonitor_Port` environment variable.
 
 
+## Code directory
+
+Where the checkouts live. Browse picks it, or a path can be typed. Every git repository up to two folders below it, so both `code/DiffEngine` and `code/VerifyTests/DiffEngine`, gets a folder button on the rows of the pipelines it builds, which opens it in the file manager.
+
+<img src="../src/BuildMonitor.Windows.Tests/MonitorFormTests.LocalRepos.verified.png">
+
+A checkout is matched to a pipeline by its `origin` remote first: `git@github.com:VerifyTests/DiffEngine.git` matches the repository GitHub Actions, Travis CI, Bitbucket Pipelines and AppVeyor name, and GitLab CI's namespaced path. Where that does not match, the folder's own name does, which is all there is to go on for Azure DevOps, TeamCity, Octopus Deploy, GoCd and Jenkins, none of which report a repository. A folder never wins a row from a checkout whose remote matched it.
+
+Scanning stops at a checkout rather than going through it, so a submodule or a vendored dependency is not listed as a repository of its own. Nothing in the checkout is read but `.git/config`, and nothing is written.
+
+The list is kept current while BuildMonitor runs: a repository cloned into the directory gets its button without a restart. Only the folders that could hold a checkout are watched, not everything below them, so a directory full of repositories and their build output costs a bounded number of watches. An empty field watches nothing.
+
+
 ## Connections
 
 The CI services being watched. Click one to edit it, or Add connection for a new one. See [Authentication](auth.md) for what each provider needs.
