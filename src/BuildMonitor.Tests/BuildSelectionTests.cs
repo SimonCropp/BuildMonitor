@@ -29,6 +29,21 @@ public class BuildSelectionTests
     }
 
     [Test]
+    public async Task OtherBranchIgnoresActiveRunSupersededOnThatBranch()
+    {
+        var builds = Fixtures.GitHubBuilds();
+        var stuck = builds[2] with
+        {
+            RunNumber = "40",
+            Status = BuildStatus.Queued,
+            Finished = null,
+            Started = Fixtures.Now - TimeSpan.FromDays(3)
+        };
+        var selected = BuildSelection.Select(builds.Add(stuck), true);
+        await Assert.That(selected.Count(_ => _.PipelineId == "Verify/test.yml")).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task DefaultBranchOnlyDropsTheExtras()
     {
         var builds = Fixtures.GitHubBuilds();
