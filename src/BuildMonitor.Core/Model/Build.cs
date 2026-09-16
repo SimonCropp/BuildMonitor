@@ -2,6 +2,13 @@
 /// One run of one pipeline, as every provider reports it. Immutable: a poll replaces the builds
 /// of its connection wholesale rather than patching them.
 /// </summary>
+/// <param name="CanRetry">
+/// Whether this connection may retry the run: its state allows it and, where the service says,
+/// so do the credential and its user's rights. Every surface that offers a retry reads this.
+/// </param>
+/// <param name="CanCancel">
+/// Whether this connection may cancel the run, on the same terms as <paramref name="CanRetry"/>.
+/// </param>
 /// <param name="ProviderRef">
 /// Whatever the provider needs to retry or cancel this run: a numeric build id, a task link, a
 /// stage locator. Opaque to everything but the provider that wrote it.

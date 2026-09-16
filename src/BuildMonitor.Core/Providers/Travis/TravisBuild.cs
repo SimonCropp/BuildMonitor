@@ -8,4 +8,8 @@
     public long? PullRequestNumber { get; set; }
     public TravisBranch? Branch { get; set; }
     public TravisCommit? Commit { get; set; }
+
+    // What the token's user may do to the build, which a listing sends with every build.
+    [JsonPropertyName("@permissions")]
+    public TravisPermissions? Permissions { get; set; }
 }

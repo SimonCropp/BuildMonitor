@@ -169,6 +169,20 @@ public class ScreenTests
     public Task Options() =>
         Verify(Fixtures.Render(Fixtures.Options()));
 
+    /// <summary>
+    /// The GitHub rows lose Retry and Cancel; Jenkins and Octopus keep theirs.
+    /// </summary>
+    [Test]
+    public Task WatchOnly() =>
+        Verify(Fixtures.Render(Fixtures.WatchOnly()));
+
+    /// <summary>
+    /// The connection says why its rows offer no retry or cancel.
+    /// </summary>
+    [Test]
+    public Task OptionsWatchOnly() =>
+        Verify(Fixtures.Render(MonitorSession.OpenOptions(Fixtures.WatchOnly())));
+
     [Test]
     public Task Filters() =>
         Verify(Fixtures.Render(Fixtures.Filters()));

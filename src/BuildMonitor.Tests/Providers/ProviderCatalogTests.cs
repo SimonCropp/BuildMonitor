@@ -13,6 +13,17 @@ public class ProviderCatalogTests
         Verify(ProviderDescriptors.All);
 
     [Test]
+    public async Task OnlyGitLabSendsASignInsTokenOtherwise()
+    {
+        var changed = ProviderDescriptors.All
+            .Where(descriptor => descriptor.AuthMethods().Any(_ => descriptor.SchemeFor(_) != descriptor.Scheme))
+            .Select(_ => $"{_.Id}: {_.SchemeFor(AuthMethod.Device)}");
+        await Assert.That(changed).IsEquivalentTo(["gitlab: Bearer"]);
+        await Assert.That(ProviderDescriptors.GitLab.SchemeFor(AuthMethod.Browser)).IsEqualTo(AuthScheme.Bearer);
+        await Assert.That(ProviderDescriptors.GitLab.SchemeFor(AuthMethod.Token)).IsEqualTo(AuthScheme.HeaderPrivateToken);
+    }
+
+    [Test]
     [Arguments(AuthScheme.Bearer, "Bearer secret")]
     [Arguments(AuthScheme.Token, "token secret")]
     [Arguments(AuthScheme.BasicUserToken, "Basic c2ltb246c2VjcmV0")]

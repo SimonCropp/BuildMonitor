@@ -111,4 +111,30 @@ public class ApplyFetchTests
         var next = MonitorSession.ApplyFetch(Fixtures.WithBuilds(), Fixtures.GitHub.Id, Outcome(discovered, ["New/ci.yml"], [failed], ["New/ci.yml"]), Fixtures.Now);
         await Assert.That(next.Notification).IsNull();
     }
+
+    static bool Offers(SessionState state, string connectionId) =>
+        state.Builds.Any(_ => _.ConnectionId == connectionId && (_.CanRetry || _.CanCancel));
+
+    [Test]
+    public async Task AConnectionThatCanOnlyWatchOffersNoRetryOrCancel()
+    {
+        // The kept builds too, or their rows would offer what the connection may not do until their
+        // group came due.
+        var state = Fixtures.WithBuilds();
+        var running = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "main", "78", BuildStatus.Running, started: Fixtures.Now);
+        var next = MonitorSession.ApplyFetch(state, Fixtures.GitHub.Id, Outcome(pipelines, ["Verify/test.yml"], [running]) with { Access = BuildAccess.Watch }, Fixtures.Now);
+        await Assert.That(Offers(state, Fixtures.GitHub.Id)).IsTrue();
+        await Assert.That(Offers(next, Fixtures.GitHub.Id)).IsFalse();
+        await Assert.That(Offers(next, Fixtures.Jenkins.Id)).IsTrue();
+        await Assert.That(next.Connection(Fixtures.GitHub.Id)!.Access).IsEqualTo(BuildAccess.Watch);
+    }
+
+    [Test]
+    public async Task AConnectionThatMayChangeBuildsKeepsWhatItsProviderOffers()
+    {
+        var running = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "main", "78", BuildStatus.Running, started: Fixtures.Now);
+        var next = MonitorSession.ApplyFetch(Fixtures.WatchOnly(), Fixtures.GitHub.Id, Outcome(pipelines, ["Verify/test.yml"], [running]) with { Access = BuildAccess.Change }, Fixtures.Now);
+        await Assert.That(next.Builds.Single(_ => _.RunNumber == "78").CanCancel).IsTrue();
+        await Assert.That(next.Connection(Fixtures.GitHub.Id)!.Access).IsEqualTo(BuildAccess.Change);
+    }
 }

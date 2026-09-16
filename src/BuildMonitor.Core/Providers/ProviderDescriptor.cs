@@ -3,6 +3,7 @@
 /// </summary>
 /// <param name="TokenLabel">What the provider calls its credential: "API token", "Personal access token".</param>
 /// <param name="TokenHelpUrl">Where a user creates one.</param>
+/// <param name="Scheme">How a token the user pastes goes on the wire.</param>
 /// <param name="UserLabel">Set when the scheme pairs the token with a user name, such as Jenkins
 /// or Bitbucket; null when the token stands alone.</param>
 /// <param name="CustomClientId">Whether a user may supply their own OAuth client id, which a self
@@ -17,6 +18,8 @@
 /// <param name="IdleCap">The longest a quiet group waits between fetches; null for the default.</param>
 /// <param name="ProbeInterval">How often <see cref="IProvider.RecentActivity"/> is asked; null for
 /// the poll interval.</param>
+/// <param name="SignInScheme">How a token from the browser or device sign in goes on the wire,
+/// where that differs from <paramref name="Scheme"/>; null where it does not.</param>
 record ProviderDescriptor(
     string Id,
     string Name,
@@ -39,13 +42,31 @@ record ProviderDescriptor(
     RequestQuota? Quota = null,
     TimeSpan? IdleCap = null,
     TimeSpan? ProbeInterval = null,
-    string? ActionPermission = null)
+    string? ActionPermission = null,
+    AuthScheme? SignInScheme = null)
 {
     /// <summary>
     /// The provider's page in the docs, which the connection editor links so the server and scope
     /// formats are one click away when a test fails.
     /// </summary>
     public string DocsUrl => $"https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/{Id}.md";
+
+    /// <summary>
+    /// How the credential of a connection authenticated by <paramref name="method"/> goes on the
+    /// wire. The one place that decides it, for polls, actions, tests and sign ins alike. GitLab
+    /// looks for an access token in PRIVATE-TOKEN but for an OAuth token only in the Authorization
+    /// header, so one scheme for both had every request of a signed in connection refused.
+    /// </summary>
+    public AuthScheme SchemeFor(AuthMethod method)
+    {
+        if (method != AuthMethod.Token &&
+            SignInScheme is { } signIn)
+        {
+            return signIn;
+        }
+
+        return Scheme;
+    }
 
     public IEnumerable<AuthMethod> AuthMethods()
     {

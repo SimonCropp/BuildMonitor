@@ -176,7 +176,9 @@ static class ProviderDescriptors
         Notes: "The token needs the api scope to retry and cancel, or read_api to only watch.",
         // One GraphQL request covers fifty projects.
         FetchUnit: FetchUnit.Connection,
-        ActionPermission: "the api scope");
+        ActionPermission: "the api scope",
+        // GitLab finds an OAuth token only in the Authorization header or a query parameter.
+        SignInScheme: AuthScheme.Bearer);
 
     public static readonly ProviderDescriptor GoCd = new(
         Id: "gocd",
@@ -244,7 +246,8 @@ static class ProviderDescriptors
         HasEstimate: true,
         HasBranches: false,
         HasPullRequests: false,
-        FetchUnit: FetchUnit.Connection);
+        FetchUnit: FetchUnit.Connection,
+        ActionPermission: "the TaskCancel permission in the space");
 
     public static readonly IReadOnlyList<ProviderDescriptor> All =
     [

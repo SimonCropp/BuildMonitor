@@ -19,6 +19,8 @@ One per repository. Pull request builds link to the pull request on GitHub.
  * Cancel cancels a queued or running build
  * Copy log copies the logs of the failed and errored jobs, leaving out jobs allowed to fail
 
+Each build says whether the user may restart and cancel it, and a build that says no offers neither.
+
 
 ## Estimates
 
@@ -100,7 +102,15 @@ None beyond one build per repository.
  * A build has no `created_at`, and its commit has no author unless requested with `include=build.commit` [live].
 
 
+### Permissions
+
+Checked 2026-09-16. A token has no scopes and acts as its user.
+
+ * An object with permissions carries `@permissions` in any representation but the minimal one, and a listing renders its builds in the standard one [docs, source].
+ * A build's are `read`, `cancel`, `restart` and `prioritize`. `cancel` and `restart` are the checks the cancel and restart endpoints make, from the user's rights on the repository [source].
+
+
 ### Sources
 
- * [builds](https://developer.travis-ci.com/resource/builds), [repository](https://developer.travis-ci.com/resource/repository) and [repositories](https://developer.travis-ci.com/resource/repositories)
- * Source: [attack.rb](https://github.com/travis-ci/travis-api/blob/master/lib/travis/api/attack.rb), [builds.rb](https://github.com/travis-ci/travis-api/blob/master/lib/travis/api/v3/queries/builds.rb), [repositories.rb](https://github.com/travis-ci/travis-api/blob/master/lib/travis/api/v3/queries/repositories.rb) and [rack-attack](https://github.com/rack/rack-attack)
+ * [builds](https://developer.travis-ci.com/resource/builds), [repository](https://developer.travis-ci.com/resource/repository), [repositories](https://developer.travis-ci.com/resource/repositories) and [the payload format](https://developer.travis-ci.com/format)
+ * Source: [attack.rb](https://github.com/travis-ci/travis-api/blob/master/lib/travis/api/attack.rb), [builds.rb](https://github.com/travis-ci/travis-api/blob/master/lib/travis/api/v3/queries/builds.rb), [repositories.rb](https://github.com/travis-ci/travis-api/blob/master/lib/travis/api/v3/queries/repositories.rb), [model_renderer.rb](https://github.com/travis-ci/travis-api/blob/master/lib/travis/api/v3/model_renderer.rb), [permissions/build.rb](https://github.com/travis-ci/travis-api/blob/master/lib/travis/api/v3/permissions/build.rb) and [rack-attack](https://github.com/rack/rack-attack)

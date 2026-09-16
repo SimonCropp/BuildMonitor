@@ -29,6 +29,11 @@ sealed class ConnectionPoller
     // The option the pipelines above were discovered under. Changing it rediscovers at once, or
     // hidden repositories would linger, or shown ones stay missing, until the next rediscovery.
     bool? discoveredWithForks;
+    // The credential the pipelines were discovered with. Another one, as after the user pastes a new
+    // token, may see other pipelines and have other rights, so it is discovered with at once.
+    string? discoveredWithSecret;
+    // What the credential may do to builds, as asked before the last discovery.
+    BuildAccess access;
     int discoveryFailures;
     ImmutableDictionary<string, GroupMemory> memory = ImmutableDictionary<string, GroupMemory>.Empty;
     // Nudges and refreshes arrive from other threads, and a cycle in flight must not lose them.
@@ -293,7 +298,11 @@ sealed class ConnectionPoller
         var now = clock();
         Rotate(descriptor, now);
 
-        var rediscovered = await Discover(provider, context, connection, now, cancel);
+        var (rediscovered, accessChanged) = await Discover(provider, context, connection, secret, now, cancel);
+        context = context with { Access = access };
+        // Every group, so no row keeps offering what the connection may no longer do, or keeps
+        // hiding what it now may, until its group comes due.
+        everything |= accessChanged;
         var state = host.State;
         var pipelines = discoveredPipelines.Where(_ => !Filters.ExcludesPipeline(state.Settings.Filters, _)).ToImmutableArray();
         var groups = PollGroup.Of(descriptor.FetchUnit, pipelines);
@@ -394,13 +403,14 @@ sealed class ConnectionPoller
         RecordDurations(builds);
         failures = 0;
         var (health, error, retryAfter) = await Health(connection, groups, rateLimit, unauthorized, attempted, forbidden, fetched.Count, cancel);
-        var outcome = new FetchOutcome(pipelines, fetched.ToImmutable(), firstFetch.ToImmutable(), [..builds], health, error, retryAfter);
+        var outcome = new FetchOutcome(pipelines, fetched.ToImmutable(), firstFetch.ToImmutable(), [..builds], health, error, retryAfter, access);
         var current = host.State.Connection(connectionId);
         if (fetched.Count > 0 ||
             rediscovered ||
             visible ||
             current?.Health != health ||
-            current.Error != error)
+            current.Error != error ||
+            current.Access != access)
         {
             var medians = history.Medians();
             host.Mutate(_ => MonitorSession.ApplyMedians(MonitorSession.ApplyFetch(_, connectionId, outcome, clock()), medians));
@@ -511,28 +521,42 @@ sealed class ConnectionPoller
         other is { } candidate && candidate < at ? candidate : at;
 
     /// <summary>
-    /// Re-reads the pipeline list when due. A failure keeps the list already known and tries again
-    /// after a backoff; only with nothing known yet does it fail the cycle.
+    /// Re-reads the pipeline list when due, or at once with another credential, after asking what
+    /// the credential may do, which a provider's discovery can narrow per pipeline. A failure keeps
+    /// the list already known and tries again after a backoff; only with nothing known yet does it
+    /// fail the cycle. Says whether it discovered, and whether the answer about the credential changed.
     /// </summary>
-    async Task<bool> Discover(IProvider provider, ProviderContext context, Connection connection, DateTimeOffset now, Cancel cancel)
+    async Task<(bool Rediscovered, bool AccessChanged)> Discover(IProvider provider, ProviderContext context, Connection connection, string secret, DateTimeOffset now, Cancel cancel)
     {
         var due = discoveredPipelines.Length == 0 ||
                   now - discovered > RediscoverAfter ||
-                  discoveredWithForks != context.ShowForksAndCollaborations;
+                  discoveredWithForks != context.ShowForksAndCollaborations ||
+                  discoveredWithSecret != secret;
         var inDebt = bucket is { Tokens: < 0 };
         if (!due ||
             (inDebt && discoveredPipelines.Length > 0))
         {
-            return false;
+            return (false, false);
         }
 
+        var before = access;
+        access = await Access(provider, context, connection, secret, cancel);
+        var changed = access != before;
+        if (changed)
+        {
+            Log.Information("{Connection} build access: {Access}", connection.Name, access);
+        }
+
+        // Set whether discovery succeeds or not, or a failing one would be retried every cycle
+        // rather than after its backoff.
+        discoveredWithSecret = secret;
         try
         {
-            discoveredPipelines = [..await provider.DiscoverPipelines(context, cancel)];
+            discoveredPipelines = [..await provider.DiscoverPipelines(context with { Access = access }, cancel)];
             discovered = now;
             discoveredWithForks = context.ShowForksAndCollaborations;
             discoveryFailures = 0;
-            return true;
+            return (true, changed);
         }
         catch (Exception exception) when (discoveredPipelines.Length > 0 &&
                                           exception is not (AuthException or RateLimitException or OperationCanceledException))
@@ -540,7 +564,32 @@ sealed class ConnectionPoller
             discoveryFailures++;
             discovered = now - RediscoverAfter + Backoff.Next(TimeSpan.FromMinutes(1), discoveryFailures);
             Log.Warning(exception, "Discovering {Connection} failed; keeping the pipelines already known", connection.Name);
-            return false;
+            return (false, changed);
+        }
+    }
+
+    /// <summary>
+    /// Asks the provider what the credential may do. A failure keeps the answer already known for
+    /// the same credential, as a flicker to unknown would offer for a cycle what the connection may
+    /// not do, and drops one about another credential. A rate limit or a refused token is the
+    /// connection's problem and goes up.
+    /// </summary>
+    async Task<BuildAccess> Access(IProvider provider, ProviderContext context, Connection connection, string secret, Cancel cancel)
+    {
+        try
+        {
+            return await provider.Access(context, cancel);
+        }
+        catch (Exception exception) when (exception is not (RateLimitException or AuthException { Status: HttpStatusCode.Unauthorized }) &&
+                                          !cancel.IsCancellationRequested)
+        {
+            Log.Warning(exception, "Asking what {Connection} may do to builds failed", connection.Name);
+            if (discoveredWithSecret == secret)
+            {
+                return access;
+            }
+
+            return BuildAccess.Unknown;
         }
     }
 

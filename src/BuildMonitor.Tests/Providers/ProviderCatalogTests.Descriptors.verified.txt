@@ -162,6 +162,7 @@
     FetchUnit: Connection,
     FetchConcurrency: 1,
     ActionPermission: the api scope,
+    SignInScheme: Bearer,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/gitlab.md
   },
   {
@@ -223,6 +224,7 @@
     CustomClientId: false,
     FetchUnit: Connection,
     FetchConcurrency: 1,
+    ActionPermission: the TaskCancel permission in the space,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/octopus.md
   },
   {

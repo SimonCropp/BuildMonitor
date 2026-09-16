@@ -26,6 +26,8 @@ One per pipeline. The stages of an instance fold into one status: building while
  * Cancel cancels the running stage
  * Copy log copies the consoles of the failed jobs of the failed stages
 
+Neither is offered without operate permission on the pipeline's group. Scheduling also needs it on the first stage, and re-running or cancelling a stage needs it on that stage, so a build whose stage the user may not operate offers neither.
+
 
 ## Estimates
 
@@ -106,7 +108,17 @@ None for history, which is per pipeline. The dashboard has no branch, commit, au
  * A failing stage, where a job failed while others still run, reports the result Failed with a status other than Building [source].
 
 
+### Permissions
+
+Checked 2026-09-16. A token has no scopes and acts as its user.
+
+ * Scheduling, re-running failed jobs and cancelling a stage each answer 403 without operate permission on the pipeline's group [source].
+ * Scheduling also needs operate permission on the pipeline's first stage, and re-running or cancelling a stage needs it on that stage [source]. A stage without its own approval authorization takes the group's operators.
+ * The dashboard gives each pipeline `can_pause`, which is operate permission on its group, and `can_operate`, which is operate permission on its first stage [source].
+ * Pipeline history gives each stage `operate_permission`, the same check a re-run or a cancel of that stage makes [source]. Its `can_run` also depends on the state of the pipeline, such as paused or locked.
+
+
 ### Sources
 
  * [Dashboard](https://api.gocd.org/current/#dashboard), [pipeline history](https://api.gocd.org/current/#get-pipeline-history) and [API versions](https://api.gocd.org/current/#api-versions)
- * Source: [ApiController.java](https://github.com/gocd/gocd/blob/master/api/api-base/src/main/java/com/thoughtworks/go/api/ApiController.java), [PipelineInstanceControllerV1.java](https://github.com/gocd/gocd/blob/master/api/api-pipeline-instance-v1/src/main/java/com/thoughtworks/go/apiv1/pipelineinstance/PipelineInstanceControllerV1.java) and the [dashboard API](https://github.com/gocd/gocd/tree/master/api/api-dashboard-v4)
+ * Source: [ApiController.java](https://github.com/gocd/gocd/blob/master/api/api-base/src/main/java/com/thoughtworks/go/api/ApiController.java), [PipelineInstanceControllerV1.java](https://github.com/gocd/gocd/blob/master/api/api-pipeline-instance-v1/src/main/java/com/thoughtworks/go/apiv1/pipelineinstance/PipelineInstanceControllerV1.java), the [dashboard API](https://github.com/gocd/gocd/tree/master/api/api-dashboard-v4), [PipelineHistoryService.java](https://github.com/gocd/gocd/blob/master/server/src/main/java/com/thoughtworks/go/server/service/PipelineHistoryService.java), [ScheduleService.java](https://github.com/gocd/gocd/blob/master/server/src/main/java/com/thoughtworks/go/server/service/ScheduleService.java), [SchedulingCheckerService.java](https://github.com/gocd/gocd/blob/master/server/src/main/java/com/thoughtworks/go/server/service/SchedulingCheckerService.java) and [GroupSecurity.java](https://github.com/gocd/gocd/blob/master/server/src/main/java/com/thoughtworks/go/config/security/GroupSecurity.java)

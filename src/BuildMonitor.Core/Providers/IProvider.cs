@@ -36,9 +36,17 @@ interface IProvider
     Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel);
 
     /// <summary>
-    /// Proves the credential works, and says who it belongs to when the API tells.
+    /// Proves the credential works, and says who it belongs to and what it may do when the API tells.
     /// </summary>
     Task<ConnectionTest> Test(ProviderContext context, Cancel cancel);
+
+    /// <summary>
+    /// What the credential may do to builds, from its scopes or its user's rights, read without
+    /// trying a change. Asked before each discovery, so a connection that can only watch offers no
+    /// retry or cancel that would be refused after the click. <see cref="BuildAccess.Unknown"/> where
+    /// the service does not say, or says in a way the answer cannot be trusted.
+    /// </summary>
+    Task<BuildAccess> Access(ProviderContext context, Cancel cancel);
 
     /// <summary>
     /// A cheap signal of recent activity: group key to a token that changes when the group has

@@ -98,8 +98,12 @@ sealed class TravisProvider : ProviderBase
             build.Commit?.Sha,
             build.Commit?.Message,
             build.Commit?.Author?.Name,
-            CanRetry: status is BuildStatus.Succeeded or BuildStatus.Failed or BuildStatus.Cancelled,
-            CanCancel: status is BuildStatus.Queued or BuildStatus.Running,
+            // The build's permissions are the checks a restart or a cancel meets, so a false one
+            // would only be refused.
+            CanRetry: build.Permissions?.Restart != false &&
+                      status is BuildStatus.Succeeded or BuildStatus.Failed or BuildStatus.Cancelled,
+            CanCancel: build.Permissions?.Cancel != false &&
+                       status is BuildStatus.Queued or BuildStatus.Running,
             build.Id.ToString(),
             $"https://github.com/{pipeline.RepoName}");
     }

@@ -18,6 +18,9 @@ sealed class GoCdProvider : ProviderBase
     /// </summary>
     const int minimumPageSize = 10;
 
+    // Each dashboard pipeline's rights, as of the last discovery. See Rights.
+    const string rights = "gocd.rights";
+
     public override Uri BaseAddress(Connection connection) =>
         new(base.BaseAddress(connection), "go/api/");
 
@@ -29,6 +32,7 @@ sealed class GoCdProvider : ProviderBase
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
         var dashboard = await Dashboard(context, cancel);
+        context.Memory.Set(rights, Rights(dashboard));
         var pipelines = new List<Pipeline>();
         var server = Server(context);
         foreach (var group in dashboard.PipelineGroups)
@@ -37,6 +41,35 @@ sealed class GoCdProvider : ProviderBase
         }
 
         return pipelines;
+    }
+
+    /// <summary>
+    /// Whether the user may operate each pipeline's group and its first stage. Every change the
+    /// API makes needs the group, which the dashboard gives as can_pause, and each needs a stage
+    /// too: scheduling the pipeline needs its first, the dashboard's can_operate, while re-running
+    /// a stage's failed jobs or cancelling it needs that stage, which the history gives. A pipeline
+    /// the dashboard leaves out, or a flag an older GoCD does not send, takes nothing away.
+    /// </summary>
+    static ImmutableDictionary<string, (bool Group, bool FirstStage)> Rights(GoCdDashboardEmbedded dashboard)
+    {
+        var builder = ImmutableDictionary.CreateBuilder<string, (bool Group, bool FirstStage)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pipeline in dashboard.Pipelines)
+        {
+            builder[pipeline.Name] = (pipeline.CanPause != false, pipeline.CanOperate != false);
+        }
+
+        return builder.ToImmutable();
+    }
+
+    static (bool Group, bool FirstStage) Rights(ProviderContext context, Pipeline pipeline)
+    {
+        if (context.Memory.TryGet<ImmutableDictionary<string, (bool Group, bool FirstStage)>>(rights, out var known) &&
+            known.TryGetValue(pipeline.Id, out var pipelineRights))
+        {
+            return pipelineRights;
+        }
+
+        return (true, true);
     }
 
     /// <summary>
@@ -82,13 +115,14 @@ sealed class GoCdProvider : ProviderBase
         foreach (var pipeline in pipelines)
         {
             var history = await context.Http.Get($"pipelines/{Encode(pipeline.Id)}/history?page_size={pageSize}", GoCdContext.Default.GoCdHistory, cancel);
-            builds.AddRange(history.Pipelines.Take(perPipeline).Select(_ => Convert(context.Connection.Id, server, pipeline, _)));
+            var pipelineRights = Rights(context, pipeline);
+            builds.AddRange(history.Pipelines.Take(perPipeline).Select(_ => Convert(context.Connection.Id, server, pipeline, _, pipelineRights)));
         }
 
         return builds;
     }
 
-    static Build Convert(string connectionId, string server, Pipeline pipeline, GoCdInstance instance)
+    static Build Convert(string connectionId, string server, Pipeline pipeline, GoCdInstance instance, (bool Group, bool FirstStage) rights)
     {
         var stages = instance.Stages;
         var scheduled = stages.Where(_ => _.Scheduled).ToList();
@@ -123,6 +157,10 @@ sealed class GoCdProvider : ProviderBase
 
         var failed = stages.FirstOrDefault(_ => _.Result == "Failed");
         var last = scheduled.LastOrDefault() ?? stages.LastOrDefault();
+        // A retry re-runs the failed jobs of the stage that failed, which needs that stage, or
+        // schedules the pipeline when none did, which needs its first. A cancel stops the last
+        // stage scheduled, which needs that one.
+        var retryStage = failed is null ? rights.FirstStage : failed.OperatePermission != false;
         var modification = instance.BuildCause?.MaterialRevisions
             .SelectMany(_ => _.Modifications)
             .FirstOrDefault();
@@ -154,8 +192,12 @@ sealed class GoCdProvider : ProviderBase
             modification?.Revision,
             modification?.Comment,
             modification?.UserName,
-            CanRetry: status is not (BuildStatus.Running or BuildStatus.Queued),
-            CanCancel: status == BuildStatus.Running,
+            CanRetry: rights.Group &&
+                      retryStage &&
+                      status is not (BuildStatus.Running or BuildStatus.Queued),
+            CanCancel: rights.Group &&
+                       last?.OperatePermission != false &&
+                       status == BuildStatus.Running,
             Join(pipeline.Id, instance.Counter.ToString(), failed?.Name, failed?.Counter, last?.Name, last?.Counter),
             pipeline.Url);
     }

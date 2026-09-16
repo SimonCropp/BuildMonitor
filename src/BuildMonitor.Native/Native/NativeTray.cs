@@ -53,8 +53,7 @@ sealed class NativeTray : ITray
             }
         }
 
-        string[] glyphs = ["open", "refresh", "options", "filters", "logs", "issue", "update", "exit", "build", "retry", "cancel", "queued", "running", "succeeded", "failed", "cancelled", "unknown"];
-        foreach (var name in glyphs.Concat(ProviderDescriptors.All.Select(_ => $"provider-{_.Id}")))
+        foreach (var name in TrayMenu.Glyphs)
         {
             var bytes = Images.Glyph(name, 32);
             if (bytes is null)

@@ -3,7 +3,7 @@
 /// </summary>
 public enum AuthScheme
 {
-    // Authorization: Bearer {token}
+    // Authorization: Bearer {token}. OAuth tokens, GitLab's included.
     Bearer,
     // Authorization: token {token}. Travis.
     Token,
@@ -13,7 +13,8 @@ public enum AuthScheme
     BasicEmptyUserToken,
     // Authorization: Basic base64(email:token). Bitbucket API tokens.
     BasicEmailToken,
-    // PRIVATE-TOKEN: {token}. GitLab personal access tokens.
+    // PRIVATE-TOKEN: {token}. GitLab personal, project and group access tokens, and never its OAuth
+    // tokens, which GitLab does not look for here.
     HeaderPrivateToken,
     // X-Octopus-ApiKey: {token}.
     HeaderOctopusApiKey

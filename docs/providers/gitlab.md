@@ -12,7 +12,7 @@ Watches every project the user is a member of, or the projects of one group and 
 
 ## Credential
 
-A [personal access token](https://gitlab.com/-/user_settings/personal_access_tokens) with `api`, or `read_api` to only watch. Or sign in with PKCE or the device flow, once an application is registered; a self hosted GitLab needs its own application, whose id goes in the connection. See [Authentication](../auth.md).
+A [personal access token](https://gitlab.com/-/user_settings/personal_access_tokens) with `api`, or `read_api` to only watch, sent in the `PRIVATE-TOKEN` header; a project or group access token works the same way. Or sign in with PKCE or the device flow, once an application is registered; a self hosted GitLab needs its own application, whose id goes in the connection. A sign in's token is sent as `Authorization: Bearer`, the only header GitLab finds an OAuth token in. See [Authentication](../auth.md).
 
 
 ## Rows
@@ -25,6 +25,8 @@ One per project. Merge request pipelines show the merge request number and link 
  * Retry retries the failed jobs of the pipeline
  * Cancel cancels a pending or running pipeline
  * Copy log copies the traces of the failed jobs, leaving out jobs allowed to fail
+
+A token with `read_api` and not `api`, pasted or from a sign in, offers neither Retry nor Cancel, and the connection shows as watch only in [Options](../options.md#connections). Nor does a project where the user is only a Reporter, unless the user is an administrator.
 
 
 ## Estimates
@@ -43,8 +45,8 @@ config:
     wrappingWidth: 400
 ---
 flowchart TD
-    wake(["Wake: the connection is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed projects in<br/>the last 10 minutes?"}
-    listed -- "no" --> discover["GET projects with Reporter<br/>access or above, or the<br/>group's, subgroups included"]
+    wake(["Wake: the connection is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed projects in<br/>the last 10 minutes,<br/>with this token?"}
+    listed -- "no" --> discover["GET user and the token's<br/>scopes, then projects with<br/>Reporter access or above,<br/>or the group's, subgroups<br/>included, and again with<br/>Developer access"]
     listed -- "yes" --> interval["One schedule for every<br/>project, set by the busiest"]
     discover --> interval
     interval --> finishing["A pipeline running from its<br/>fastest recent run to 90 s<br/>past its slowest, or with<br/>no history: every 10 s"]
@@ -114,10 +116,22 @@ A page holds at most 100 nodes, a query at most 10,000 characters, and a request
  * `membership=true` includes projects where the user is only a Guest. Their pipelines need `read_pipeline` and answer 403; `min_access_level=20`, Reporter, leaves them out [docs, source].
 
 
+### Permissions
+
+Checked 2026-09-16.
+
+ * `GET personal_access_tokens/self` describes the token a request was made with, `scopes` included, and refuses any token that is not a personal, project or group access token [docs, source]. A granular token, `granular: true`, holds its rights outside its scopes [source].
+ * An OAuth token is found only in `Authorization: Bearer` or the `access_token` parameter. A token in `PRIVATE-TOKEN` is looked up only as an access token, so an OAuth token there is refused [docs, source].
+ * `GET oauth/token/info` reports an OAuth token's scopes as the array `scope`. It sits beside `api/v4`, under the same relative URL root [docs, source].
+ * Retrying and cancelling need the `api` scope and the Developer role or above; a Reporter can do neither. A project can restrict cancelling further, and a protected branch needs the right to merge to it [docs].
+ * `min_access_level=30` lists the projects where the user holds Developer or above through a membership, so an administrator's other projects are left out [source]. `GET user` sends `is_admin` only to an administrator [source].
+
+
 ### Sources
 
  * [GitLab.com rate limits](https://docs.gitlab.com/user/gitlab_com/)
  * [User and IP rate limits](https://docs.gitlab.com/administration/settings/user_and_ip_rate_limits/)
  * [Pipelines API](https://docs.gitlab.com/api/pipelines/), [Projects API](https://docs.gitlab.com/api/projects/), [Events API](https://docs.gitlab.com/api/events/) and [GraphQL API](https://docs.gitlab.com/api/graphql/)
  * [Permissions](https://docs.gitlab.com/user/permissions/)
- * Source: [event.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/models/event.rb), [events_finder.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/finders/events_finder.rb), [pipeline_type.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/graphql/types/ci/pipeline_type.rb), [projects_resolver.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/graphql/resolvers/projects_resolver.rb) and [pipelines.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/api/ci/pipelines.rb)
+ * [Personal access tokens API](https://docs.gitlab.com/api/personal_access_tokens/) and [OAuth 2.0 identity provider API](https://docs.gitlab.com/api/oauth2/)
+ * Source: [event.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/models/event.rb), [events_finder.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/finders/events_finder.rb), [pipeline_type.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/graphql/types/ci/pipeline_type.rb), [projects_resolver.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/graphql/resolvers/projects_resolver.rb), [pipelines.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/api/ci/pipelines.rb), [auth_finders.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/gitlab/auth/auth_finders.rb), [self_information.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/api/personal_access_tokens/self_information.rb), [personal_access_token.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/api/entities/personal_access_token.rb), [users.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/api/users.rb), [projects_finder.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/finders/projects_finder.rb) and [token_info_controller.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/controllers/oauth/token_info_controller.rb)

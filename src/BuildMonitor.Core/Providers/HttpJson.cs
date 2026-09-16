@@ -65,6 +65,24 @@ sealed class HttpJson : IDisposable
         GetParsed(path, json: false, (content, token) => content.ReadAsStringAsync(token), cancel);
 
     /// <summary>
+    /// One header of the answer to a GET, or null when the answer has none. Sent without
+    /// If-None-Match even where an ETag is cached: which headers a 304 repeats is up to the service,
+    /// and one left off would read as a header the service never sends.
+    /// </summary>
+    public async Task<string?> GetHeader(string path, string name, Cancel cancel)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        using var response = await Exchange(request, HttpCompletionOption.ResponseHeadersRead, cancel);
+        await Throw(response, Resolve(path), cancel);
+        if (!response.Headers.TryGetValues(name, out var values))
+        {
+            return null;
+        }
+
+        return string.Join(',', values);
+    }
+
+    /// <summary>
     /// A build log, as text. Never cached: a log can run to megabytes, and the cache would hold it
     /// for as long as the client lives. <paramref name="accept"/> replaces the JSON the client asks
     /// for otherwise, which one service answers with the log's lines as a JSON array and another

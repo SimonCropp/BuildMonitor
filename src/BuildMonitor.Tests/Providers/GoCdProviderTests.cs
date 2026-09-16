@@ -109,4 +109,35 @@ public class GoCdProviderTests
             $"GET {server}/go/files/web/41/test/2/unit/cruise-output/console.log"
         ]);
     }
+
+    /// <summary>
+    /// 42 is running its test stage, 41 failed it, and 40 passed, so a retry of 40 schedules the
+    /// pipeline again, which needs its first stage.
+    /// </summary>
+    [Test]
+    [Arguments(true, true, true, true, true, true)]
+    [Arguments(false, true, true, false, false, false)]
+    [Arguments(true, false, true, true, true, false)]
+    [Arguments(true, true, false, false, false, true)]
+    public async Task RightsOnTheGroupAndTheStagesDecide(bool group, bool firstStage, bool testStage, bool cancelRunning, bool retryFailed, bool retryPassed)
+    {
+        var test = testStage.ToString().ToLowerInvariant();
+        var handler = new FakeHttpHandler()
+            .Get(
+                $"{server}/go/api/dashboard",
+                $$$"""{"_embedded":{"pipeline_groups":[{"name":"apps","pipelines":["web"]}],"pipelines":[{"name":"web","can_pause":{{{group.ToString().ToLowerInvariant()}}},"can_operate":{{{firstStage.ToString().ToLowerInvariant()}}},"_embedded":{"instances":[]}}]}}""")
+            .Get(
+                $"{server}/go/api/pipelines/web/history?page_size=10",
+                $$"""
+                {"pipelines":[
+                  {"name":"web","counter":42,"stages":[{"name":"build","counter":"1","status":"Passed","result":"Passed","scheduled":true,"operate_permission":true,"jobs":[]},{"name":"test","counter":"1","status":"Building","result":"Unknown","scheduled":true,"operate_permission":{{test}},"jobs":[]}]},
+                  {"name":"web","counter":41,"stages":[{"name":"build","counter":"1","status":"Passed","result":"Passed","scheduled":true,"operate_permission":true,"jobs":[]},{"name":"test","counter":"2","status":"Failed","result":"Failed","scheduled":true,"operate_permission":{{test}},"jobs":[]}]},
+                  {"name":"web","counter":40,"stages":[{"name":"build","counter":"1","status":"Passed","result":"Passed","scheduled":true,"operate_permission":true,"jobs":[]},{"name":"test","counter":"1","status":"Passed","result":"Passed","scheduled":true,"operate_permission":{{test}},"jobs":[]}]}
+                ]}
+                """);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gocd", ProviderTestHelpers.Context("gocd", handler, server));
+        await Assert.That(builds.Single(_ => _.RunNumber == "42").CanCancel).IsEqualTo(cancelRunning);
+        await Assert.That(builds.Single(_ => _.RunNumber == "41").CanRetry).IsEqualTo(retryFailed);
+        await Assert.That(builds.Single(_ => _.RunNumber == "40").CanRetry).IsEqualTo(retryPassed);
+    }
 }

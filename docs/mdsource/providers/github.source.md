@@ -21,6 +21,8 @@ One per workflow, showing the latest run. A run on another branch that is queued
  * Cancel cancels a queued or running run
  * Copy log copies the logs of the jobs that failed or timed out in the latest attempt
 
+A classic token or a sign in lists its scopes, and without `repo` its rows offer neither Retry nor Cancel; the connection shows as watch only in [Options](../options.md#connections). With `repo`, a repository the user can only read offers neither. A fine grained token lists nothing, so its rows offer both, and a refusal says what the token needs.
+
 
 ## Estimates
 
@@ -42,8 +44,8 @@ config:
     wrappingWidth: 400
 ---
 flowchart TD
-    wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed repositories in<br/>the last 10 minutes?"}
-    listed -- "no" --> discover["GET user/repos?sort=pushed<br/>or the owner's, up to 5 pages,<br/>then the workflows of each<br/>repository pushed since they<br/>were listed, or of every one<br/>pushed in 90 days each hour"]
+    wake(["Wake: something is due,<br/>or Refresh, Retry or Cancel"]) --> listed{"Listed repositories in<br/>the last 10 minutes,<br/>with this token?"}
+    listed -- "no" --> discover["GET user for the token's<br/>scopes, then user/repos?sort=pushed<br/>or the owner's, up to 5 pages,<br/>then the workflows of each<br/>repository pushed since they<br/>were listed, or of every one<br/>pushed in 90 days each hour"]
     listed -- "yes" --> probed{"Probed in the<br/>last 30 seconds?"}
     probed -- "no" --> probe["GET page 1 of the same list,<br/>a free 304 while<br/>nothing was pushed"]
     probe --> moved{"A repository's<br/>pushed_at moved?"}
@@ -111,6 +113,16 @@ Researched 2026-09-14. [live] means checked with requests against api.github.com
  * `actions/runs` filters on actor, branch, event, status, created, `exclude_pull_requests`, `check_suite_id` and `head_sha`, and returns at most 1,000 results when filtered [docs].
 
 
+### Permissions
+
+Checked 2026-09-16.
+
+ * `X-OAuth-Scopes` lists the scopes of an OAuth App's token or a classic token, comma separated: `gist, read:org, repo, workflow` on `GET user` [docs, live]. The documentation describes it for no other token, so its absence says nothing.
+ * Re-running a run, re-running its failed jobs and cancelling it need the `repo` scope on those tokens, and Actions write on a fine grained one [docs]. With no repository scope a token reads public information only [docs]. Whether `public_repo` alone is enough is not documented.
+ * The repository lists carry `permissions`, with `push` for write access [docs], which re-running and cancelling need. Whether a fine grained token's are its user's or its own is not documented.
+ * `X-Accepted-GitHub-Permissions` names the permissions an endpoint requires, not those a token holds [docs].
+
+
 ### Alternatives considered
 
  * The Events API. `users/{user}/events/orgs/{org}` includes private events, but events arrive 30 seconds to 6 hours late, only 300 events or 30 days are kept, there are no workflow run, check or status events, and a PushEvent carries only `repository_id`, `push_id`, `ref`, `head` and `before` [docs].
@@ -126,3 +138,5 @@ Researched 2026-09-14. [live] means checked with requests against api.github.com
  * [GraphQL rate and query limits](https://docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api)
  * [Workflow runs](https://docs.github.com/en/rest/actions/workflow-runs)
  * [Repositories](https://docs.github.com/en/rest/repos/repos)
+ * [Scopes for OAuth apps](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps)
+ * [Permissions required for fine-grained personal access tokens](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens)

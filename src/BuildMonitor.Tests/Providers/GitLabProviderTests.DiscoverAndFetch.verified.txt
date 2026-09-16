@@ -52,6 +52,7 @@
   ],
   Requests: [
     GET https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100,
+    GET https://gitlab.com/api/v4/projects?membership=true&min_access_level=30&simple=true&archived=false&order_by=last_activity_at&per_page=100,
     GET https://gitlab.com/api/graphql?query={projects%28ids%3A%5B"gid%3A%2F%2Fgitlab%2FProject%2F77"%5D%2Cfirst%3A1%29{nodes{id pipelines%28first%3A5%29{nodes{id iid status ref sha createdAt updatedAt startedAt finishedAt user{name}}}}}}
   ]
 }

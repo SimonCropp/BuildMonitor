@@ -14,6 +14,9 @@ sealed class OctopusProvider : ProviderBase
     const string dashboardLimit = "octopus.dashboard-limit";
     const string environmentNames = "octopus.environments";
 
+    // The grants of TaskCancel in the connection's space, as the last check found them.
+    const string taskCancel = "octopus.task-cancel";
+
     public override Uri BaseAddress(Connection connection) =>
         new(base.BaseAddress(connection), "api/");
 
@@ -77,6 +80,7 @@ sealed class OctopusProvider : ProviderBase
         var web = new Uri(context.Http.BaseAddress, "..").ToString();
         var byProject = pipelines.ToDictionary(_ => _.Id);
         var environments = dashboard.Environments.ToDictionary(_ => _.Id, _ => _.Name);
+        var grants = CancelGrants(context, spaceId);
         var builds = new List<Build>();
         var taken = new Dictionary<string, int>();
         foreach (var item in dashboard.Items.OrderByDescending(_ => _.QueueTime))
@@ -119,7 +123,8 @@ sealed class OctopusProvider : ProviderBase
                 $"Deploy {pipeline.Name} release {item.ReleaseVersion} to {environment}",
                 null,
                 CanRetry: false,
-                CanCancel: status is BuildStatus.Running or BuildStatus.Queued,
+                CanCancel: status is BuildStatus.Running or BuildStatus.Queued &&
+                           MayCancel(grants, item.ProjectId, item.EnvironmentId),
                 Join(item.TaskId, $"{spaceId}/tasks/rerun/{item.TaskId}", $"{spaceId}/tasks/{item.TaskId}/cancel", $"{spaceId}/tasks/{item.TaskId}/raw"),
                 pipeline.Url));
         }
@@ -132,6 +137,7 @@ sealed class OctopusProvider : ProviderBase
         var server = context.Http.BaseAddress.GetLeftPart(UriPartial.Authority);
         var byProject = pipelines.ToDictionary(_ => _.Id);
         var environments = await Environments(context, spaceId, cancel);
+        var grants = CancelGrants(context, spaceId);
         var take = Math.Min(100, perPipeline * pipelines.Count);
         var deployments = await context.Http.Get($"{spaceId}/deployments?take={take}", OctopusContext.Default.OctopusPageOctopusDeployment, cancel);
         var tasks = await context.Http.Get($"{spaceId}/tasks?take={take}&name=Deploy", OctopusContext.Default.OctopusPageOctopusTask, cancel);
@@ -185,7 +191,8 @@ sealed class OctopusProvider : ProviderBase
                 ? await Progress(context, Link(details, "verbose=false&tail=1"), cancel)
                 : null;
             environments.TryGetValue(deployment.EnvironmentId, out var environment);
-            builds.Add(Convert(context.Connection.Id, server, spaceId, pipeline, deployment, task, environment, estimate));
+            var mayCancel = MayCancel(grants, deployment.ProjectId, deployment.EnvironmentId);
+            builds.Add(Convert(context.Connection.Id, server, spaceId, pipeline, deployment, task, environment, estimate, mayCancel));
         }
 
         return builds;
@@ -254,7 +261,7 @@ sealed class OctopusProvider : ProviderBase
             _ => BuildStatus.Unknown
         };
 
-    static Build Convert(string connectionId, string server, string spaceId, Pipeline pipeline, OctopusDeployment deployment, OctopusTask task, string? environment, ProviderEstimate? estimate)
+    static Build Convert(string connectionId, string server, string spaceId, Pipeline pipeline, OctopusDeployment deployment, OctopusTask task, string? environment, ProviderEstimate? estimate, bool mayCancel)
     {
         var status = Status(task.State);
         var rerun = task.Links?.Rerun is { } rerunLink ? Link(rerunLink) : null;
@@ -280,7 +287,7 @@ sealed class OctopusProvider : ProviderBase
             task.Description,
             null,
             CanRetry: false,
-            CanCancel: cancel is not null && status is BuildStatus.Running or BuildStatus.Queued,
+            CanCancel: mayCancel && cancel is not null && status is BuildStatus.Running or BuildStatus.Queued,
             Join(task.Id, rerun, cancel, task.Links?.Raw is { } raw ? Link(raw) : $"{spaceId}/tasks/{task.Id}/raw"),
             pipeline.Url);
     }
@@ -327,6 +334,82 @@ sealed class OctopusProvider : ProviderBase
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("users/me", OctopusContext.Default.OctopusUser, cancel);
-        return new(true, $"Signed in as {user.DisplayName ?? user.Username}");
+        return new(true, $"Signed in as {user.DisplayName ?? user.Username}", await AccessOrUnknown(context, cancel));
     }
+
+    /// <summary>
+    /// An API key acts with its user's permissions, which users/{id}/permissions lists with where
+    /// each grant applies. Cancelling a deployment needs TaskCancel, and a retry is never offered.
+    /// The grants in the connection's space are kept for the fetch, which applies those limited to
+    /// projects or environments per deployment. An answer the server marks incomplete decides
+    /// nothing, and neither does a system administrator's, whose rights in a space it may not list.
+    /// </summary>
+    public override async Task<BuildAccess> Access(ProviderContext context, Cancel cancel)
+    {
+        var user = await context.Http.Get("users/me", OctopusContext.Default.OctopusUser, cancel);
+        var space = await Space(context, cancel);
+        var permissions = await context.Http.Get(
+            $"users/{Encode(user.Id)}/permissions?spaces={Encode(space.Id)}&includeSystem=true",
+            OctopusContext.Default.OctopusPermissions,
+            cancel);
+        if (!permissions.IsPermissionsComplete ||
+            (permissions.SystemPermissions?.Contains("AdministerSystem") ?? false))
+        {
+            context.Memory.Remove(taskCancel);
+            return BuildAccess.Unknown;
+        }
+
+        List<OctopusGrant> grants = [];
+        if (permissions.SpacePermissions?.GetValueOrDefault("TaskCancel") is { } granted)
+        {
+            grants = [..granted.Where(_ => _.SpaceId is null || _.SpaceId == space.Id)];
+        }
+
+        context.Memory.Set(taskCancel, (space.Id, grants));
+        if (grants.Count == 0)
+        {
+            return BuildAccess.Watch;
+        }
+
+        if (grants.Any(Unrestricted))
+        {
+            return BuildAccess.Change;
+        }
+
+        return BuildAccess.Unknown;
+    }
+
+    static bool Unrestricted(OctopusGrant grant) =>
+        grant.RestrictedToProjectIds is not { Count: > 0 } &&
+        grant.RestrictedToEnvironmentIds is not { Count: > 0 } &&
+        grant.RestrictedToTenantIds is not { Count: > 0 } &&
+        grant.RestrictedToProjectGroupIds is not { Count: > 0 };
+
+    /// <summary>
+    /// The grants of TaskCancel the last check found in the space, or null when it found nothing
+    /// to go by.
+    /// </summary>
+    static List<OctopusGrant>? CancelGrants(ProviderContext context, string spaceId)
+    {
+        if (context.Memory.TryGet<(string SpaceId, List<OctopusGrant> Grants)>(taskCancel, out var known) &&
+            known.SpaceId == spaceId)
+        {
+            return known.Grants;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Whether a grant applies to a deployment of the project to the environment. A grant limited
+    /// to tenants or project groups is taken to, as which a deployment belongs to is not known here.
+    /// </summary>
+    static bool MayCancel(List<OctopusGrant>? grants, string projectId, string environmentId) =>
+        grants is null ||
+        grants.Any(_ => Covers(_.RestrictedToProjectIds, projectId) &&
+                        Covers(_.RestrictedToEnvironmentIds, environmentId));
+
+    static bool Covers(List<string>? restriction, string id) =>
+        restriction is not { Count: > 0 } ||
+        restriction.Contains(id);
 }

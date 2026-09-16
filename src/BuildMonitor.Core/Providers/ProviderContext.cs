@@ -32,6 +32,13 @@ record ProviderContext(Connection Connection, HttpJson Http)
     /// </summary>
     public ProviderMemory Memory { get; init; } = new();
 
+    /// <summary>
+    /// What the credential may do to builds, as <see cref="IProvider.Access"/> last said. Set only
+    /// when polling, for a provider whose discovery narrows it by what the user may do to each
+    /// pipeline; any other call leaves it unknown.
+    /// </summary>
+    public BuildAccess Access { get; init; }
+
     public string Scope(string id) =>
         Connection.ScopeValue(id);
 }

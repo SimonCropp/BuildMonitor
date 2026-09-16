@@ -296,6 +296,24 @@ static class Fixtures
     public static SessionState WithMenu() =>
         MonitorSession.OpenMenu(WithBuilds(), 2);
 
+    public static readonly ImmutableArray<Pipeline> GitHubPipelines =
+    [
+        new("DiffEngine/test.yml", "test.yml", "VerifyTests/DiffEngine", "VerifyTests/DiffEngine", "https://github.com/VerifyTests/DiffEngine"),
+        new("DiffEngine/docs.yml", "docs.yml", "VerifyTests/DiffEngine", "VerifyTests/DiffEngine", "https://github.com/VerifyTests/DiffEngine"),
+        new("Verify/test.yml", "test.yml", "VerifyTests/Verify", "VerifyTests/Verify", "https://github.com/VerifyTests/Verify")
+    ];
+
+    /// <summary>
+    /// The GitHub connection found able only to watch, by a cycle that fetched nothing, so its rows
+    /// offer no retry or cancel while the other connections' still do.
+    /// </summary>
+    public static SessionState WatchOnly() =>
+        MonitorSession.ApplyFetch(
+            WithBuilds(),
+            GitHub.Id,
+            new(GitHubPipelines, [], [], [], ConnectionHealth.Ok, null, null, BuildAccess.Watch),
+            Now);
+
     /// <summary>
     /// Nine rows in a body of six, with the last selected, so the first three scroll away.
     /// </summary>

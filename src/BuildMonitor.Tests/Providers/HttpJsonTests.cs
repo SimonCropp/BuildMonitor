@@ -215,4 +215,33 @@ public class HttpJsonTests
         await Assert.That(() => client.Get("_apis/projects", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, Cancel.None)).Throws<HttpRequestException>();
         await Assert.That(client.IsCached("_apis/projects")).IsFalse();
     }
+
+    [Test]
+    public async Task AHeaderIsReadWithoutRevalidating()
+    {
+        // Which headers a 304 repeats is up to the service.
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/user", """{"login":"simon"}""", HttpStatusCode.OK, ("ETag", "\"abc\""), ("X-OAuth-Scopes", "repo, read:org"));
+        using var client = GitHub(handler);
+        await client.Get("user", GitHubContext.Default.GitHubUser, Cancel.None);
+        var scopes = await client.GetHeader("user", "X-OAuth-Scopes", Cancel.None);
+        var missing = await client.GetHeader("user", "X-Accepted-OAuth-Scopes", Cancel.None);
+        await Assert.That(scopes).IsEqualTo("repo, read:org");
+        await Assert.That(missing).IsNull();
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://api.github.com/user",
+            "GET https://api.github.com/user",
+            "GET https://api.github.com/user"
+        ]);
+    }
+
+    [Test]
+    public async Task AHeaderOfARefusedRequestIsAnAuthFailure()
+    {
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/user", """{"message":"Bad credentials"}""", HttpStatusCode.Unauthorized);
+        using var client = GitHub(handler);
+        await Assert.That(async () => await client.GetHeader("user", "X-OAuth-Scopes", Cancel.None)).Throws<AuthException>();
+    }
 }

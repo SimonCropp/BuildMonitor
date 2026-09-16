@@ -1,6 +1,6 @@
 static class ProviderTestHelpers
 {
-    public static ProviderContext Context(string providerId, FakeHttpHandler handler, string? server = null, string? user = null, params (string Id, string Value)[] scope)
+    public static ProviderContext Context(string providerId, FakeHttpHandler handler, string? server = null, string? user = null, AuthMethod auth = AuthMethod.Token, params (string Id, string Value)[] scope)
     {
         var connection = new Connection
         {
@@ -9,6 +9,7 @@ static class ProviderTestHelpers
             Name = providerId,
             Server = server,
             User = user,
+            Auth = auth,
             Scope = scope.ToImmutableDictionary(_ => _.Id, _ => _.Value)
         };
         return Providers.Context(connection, "secret", handler);

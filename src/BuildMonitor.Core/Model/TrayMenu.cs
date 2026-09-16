@@ -1,5 +1,5 @@
 /// <summary>
-/// The ids of the tray menu items.
+/// The ids of the tray menu items, and the glyphs they carry.
 /// </summary>
 static class TrayMenu
 {
@@ -12,4 +12,11 @@ static class TrayMenu
     public const string Issue = "issue";
     public const string Update = "update";
     public const string Exit = "exit";
+
+    /// <summary>
+    /// The glyph of every item the menu can hold. The macOS head is handed these at start and draws
+    /// no other, so a list of its own left Open code directory without its folder there, and went
+    /// on loading the glyphs of the per build items after those left the menu.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Glyphs = ["open", "refresh", "options", "filters", "folder", "logs", "issue", "update", "exit"];
 }

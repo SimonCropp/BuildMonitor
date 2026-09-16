@@ -6,4 +6,6 @@
     public bool Disabled { get; set; }
     public bool Fork { get; set; }
     public DateTimeOffset? PushedAt { get; set; }
+    // The authenticated user's rights on the repository. Absent from a listing that does not say.
+    public GitHubPermissions? Permissions { get; set; }
 }

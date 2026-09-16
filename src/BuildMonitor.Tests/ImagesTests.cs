@@ -16,20 +16,29 @@ public class ImagesTests
         }
     }
 
+    /// <summary>
+    /// At the size each head draws a menu item's glyph: 16 pixels on Windows and Linux, 32 on macOS.
+    /// </summary>
     [Test]
-    [Arguments("open")]
-    [Arguments("refresh")]
-    [Arguments("options")]
-    [Arguments("filters")]
-    [Arguments("logs")]
-    [Arguments("issue")]
-    [Arguments("update")]
-    [Arguments("exit")]
-    [Arguments("build")]
-    [Arguments("retry")]
-    [Arguments("cancel")]
-    public async Task MenuGlyphsExist(string name) =>
-        await Assert.That(Images.Glyph(name, 16)).IsNotNull();
+    public async Task MenuGlyphsExist()
+    {
+        foreach (var name in TrayMenu.Glyphs)
+        {
+            await Assert.That(Images.Glyph(name, 16)).IsNotNull();
+            await Assert.That(Images.Glyph(name, 32)).IsNotNull();
+        }
+    }
+
+    /// <summary>
+    /// The macOS head draws only the glyphs it was handed at start. The code directory adds the
+    /// one item the menu otherwise leaves out.
+    /// </summary>
+    [Test]
+    public async Task TheMenuCarriesOnlyTheGlyphsHandedOver()
+    {
+        var names = ScreenBuilder.Tray(Fixtures.WithCodeDirectory()).Items.Select(_ => _.IconName ?? "");
+        await Assert.That(names).IsEquivalentTo(TrayMenu.Glyphs);
+    }
 
     [Test]
     public async Task MissingIsNull() =>

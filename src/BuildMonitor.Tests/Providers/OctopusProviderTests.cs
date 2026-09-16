@@ -149,6 +149,62 @@ public class OctopusProviderTests
         var handler = new FakeHttpHandler().Get($"{server}/api/users/me", """{"Username":"simon","DisplayName":"Simon"}""");
         var context = ProviderTestHelpers.Context("octopus", handler, server);
         await ProviderTestHelpers.Provider("octopus").Test(context, Cancel.None);
-        await Assert.That(handler.RequestHeaders.Single().GetValues("X-Octopus-ApiKey").Single()).IsEqualTo("secret");
+        // The test's own requests and those asking what the key may do alike.
+        await Assert.That(handler.RequestHeaders.Select(_ => _.GetValues("X-Octopus-ApiKey").Single()).Distinct()).IsEquivalentTo(["secret"]);
+    }
+
+    const string permissions = $"{server}/api/users/Users-1/permissions?spaces=Spaces-1&includeSystem=true";
+
+    static FakeHttpHandler Permissions(FakeHttpHandler handler, string answer) =>
+        handler
+            .Get($"{server}/api/users/me", """{"Id":"Users-1","Username":"simon","DisplayName":"Simon"}""")
+            .Get(permissions, answer);
+
+    [Test]
+    [Arguments("""{"SpacePermissions":{"ProjectView":[{"SpaceId":"Spaces-1"}]},"SystemPermissions":["SpaceView"],"IsPermissionsComplete":true}""", nameof(BuildAccess.Watch))]
+    [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-2"}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Watch))]
+    [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToProjectIds":[],"RestrictedToEnvironmentIds":[],"RestrictedToTenantIds":[],"RestrictedToProjectGroupIds":[]}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Change))]
+    [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToEnvironmentIds":["Environments-2"]}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Unknown))]
+    [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToTenantIds":["Tenants-1"]}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Unknown))]
+    [Arguments("""{"SpacePermissions":{},"IsPermissionsComplete":false}""", nameof(BuildAccess.Unknown))]
+    [Arguments("""{"SpacePermissions":{},"SystemPermissions":["AdministerSystem"],"IsPermissionsComplete":true}""", nameof(BuildAccess.Unknown))]
+    public async Task TaskCancelInTheSpaceDecides(string answer, string expected)
+    {
+        var context = ProviderTestHelpers.Context("octopus", Permissions(Discovery(), answer), server);
+        var access = await ProviderTestHelpers.Provider("octopus").Access(context, Cancel.None);
+        await Assert.That(access.ToString()).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("Environments-1", true)]
+    [Arguments("Environments-2", false)]
+    public async Task AGrantLimitedToEnvironmentsDecidesPerDeployment(string environment, bool cancellable)
+    {
+        var handler = Permissions(Handler(), $$"""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToEnvironmentIds":["{{environment}}"]}]},"IsPermissionsComplete":true}""");
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        await ProviderTestHelpers.Provider("octopus").Access(context, Cancel.None);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
+        // The deployment to Production, Environments-1, is the one executing.
+        await Assert.That(builds.Single(_ => _.Branch == "Production").CanCancel).IsEqualTo(cancellable);
+    }
+
+    [Test]
+    public async Task AGrantLimitedToOtherProjectsTakesCancelOffTheSeparateListings()
+    {
+        var handler = Permissions(Limited(), """{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToProjectIds":["Projects-9"]}]},"IsPermissionsComplete":true}""");
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        await ProviderTestHelpers.Provider("octopus").Access(context, Cancel.None);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
+        await Assert.That(builds.Single().CanCancel).IsFalse();
+    }
+
+    [Test]
+    public async Task TheTestSaysAKeyCanOnlyWatch()
+    {
+        var handler = Permissions(Discovery(), """{"SpacePermissions":{},"IsPermissionsComplete":true}""");
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        var result = await ProviderTestHelpers.Provider("octopus").Test(context, Cancel.None);
+        await Assert.That(result.Describe(ProviderDescriptors.Octopus))
+            .IsEqualTo("Signed in as Simon. The connection can watch builds but not change them. Octopus Deploy needs the TaskCancel permission in the space");
     }
 }

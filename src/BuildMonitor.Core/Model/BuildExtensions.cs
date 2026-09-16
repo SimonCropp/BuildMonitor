@@ -22,6 +22,21 @@ static class BuildExtensions
         };
 
     /// <summary>
+    /// The build as a connection that may only watch it has it: no retry and no cancel, whatever its
+    /// state would allow. Every surface that offers either reads the flags, so clearing them here
+    /// takes both off the chips, the menus, the launcher and the MCP tools at once.
+    /// </summary>
+    public static Build WatchOnly(this Build build)
+    {
+        if (build is { CanRetry: false, CanCancel: false })
+        {
+            return build;
+        }
+
+        return build with { CanRetry = false, CanCancel = false };
+    }
+
+    /// <summary>
     /// Offered only for a failed build. A passing or cancelled run's log answers no question and a
     /// running one's is still being written, so a chip on every row would bury the logs that matter
     /// the way a Retry chip on green rows would.

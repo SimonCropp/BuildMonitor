@@ -8,4 +8,5 @@
 [JsonSerializable(typeof(OctopusTask))]
 [JsonSerializable(typeof(OctopusTaskDetails))]
 [JsonSerializable(typeof(OctopusUser))]
+[JsonSerializable(typeof(OctopusPermissions))]
 partial class OctopusContext : JsonSerializerContext;

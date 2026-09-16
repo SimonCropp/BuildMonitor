@@ -75,7 +75,8 @@ sealed class SignInCoordinator(SessionHost host, ISecretStore secrets, HttpMessa
                 secrets.Delete(SecretKeys.Refresh(connection.Id));
             }
 
-            var who = await WhoAmI(connection, result.AccessToken!, cancel);
+            // Asked as the flow that got the token, so the token goes on the wire as a sign in's.
+            var who = await WhoAmI(connection with { Auth = method }, result.AccessToken!, cancel);
             host.Mutate(_ => MonitorSession.SignInCompleted(_, flowId, who));
         }
         catch (OperationCanceledException)

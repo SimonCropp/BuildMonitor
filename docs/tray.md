@@ -15,7 +15,7 @@ BuildMonitor runs in the system tray. The icon shows the overall state:
  * red: a latest build failed
  * amber: a connection needs attention, because its credential was refused or polling failed
 
-Left click the icon to open the window. Right click it for the menu: every failing or running build, repository first, with its own open, retry and cancel entries, then Open, Refresh, Options, Filters, Open logs, Raise issue, Update and Exit. Open code directory sits above Open logs once a [code directory](options.md#code-directory) is set, and opens that folder; it is left out entirely while the option is empty. When the connections span more than one CI service, each build shows its provider's logo.
+Left click the icon to open the window. Right click it for the menu: Open, Refresh, Options, Filters, Open logs, Raise issue, Update and Exit. On macOS either click opens the menu, and Open shows the window. Open code directory sits above Open logs once a [code directory](options.md#code-directory) is set, and opens that folder; it is left out entirely while the option is empty.
 
 
 ## The window
@@ -38,7 +38,7 @@ Each row carries:
  * a progress bar and a countdown while the build runs, from the provider's own estimate where it gives one and otherwise from the median of the pipeline's last ten successful runs. A build that runs past its estimate shows how far over it is. Without any estimate the elapsed time is shown
  * links in the text: the pipeline opens the run and the branch opens the branch in the repository. Where the pipeline is left out, the repository opens the run instead
  * PR, which opens the pull request
- * Retry, for a failed or cancelled run; Cancel, for a queued or running one
+ * Retry, for a failed or cancelled run; Cancel, for a queued or running one. Neither shows where the provider reports that the credential or its user may not do it
  * Copy log, for a failed run, which fetches the log of what failed and puts it on the clipboard. The status line says when it has arrived
 
 When the window is too narrow for a row's buttons, the repository, pipeline and branch keep their width and the buttons that do not fit go behind a … button at the end of the row, which lists them in a drop down. A pipeline and branch longer than about forty characters are cut short before that happens.

@@ -39,18 +39,7 @@ static class Program
         ("issue", Lucide.Bug),
         ("update", Lucide.CircleArrowUp),
         ("exit", Lucide.LogOut),
-        ("build", Lucide.ExternalLink),
-        ("retry", Lucide.RotateCcw),
-        ("cancel", Lucide.Ban),
-        ("branch", Lucide.GitBranch),
-        ("pull-request", Lucide.GitPullRequest),
-        ("folder", Lucide.Folder),
-        ("queued", Lucide.Clock),
-        ("running", Lucide.LoaderCircle),
-        ("succeeded", Lucide.CircleCheck),
-        ("failed", Lucide.CircleX),
-        ("cancelled", Lucide.CircleSlash),
-        ("unknown", Lucide.CircleDashed)
+        ("folder", Lucide.Folder)
     ];
 
     static SKColor glyphColour = new(0x8A, 0x8A, 0x8A);

@@ -47,6 +47,8 @@ sealed class GitHubProvider : ProviderBase
     // repository's were last listed.
     const string listedWorkflows = "github.workflows";
     const string listedEverything = "github.listed-everything";
+    // The active repositories the user may only read, as of the last discovery.
+    const string readOnly = "github.read-only";
 
     /// <summary>
     /// The workflows of every repository pushed to lately. A repository's are listed again only
@@ -65,6 +67,7 @@ sealed class GitHubProvider : ProviderBase
                         _.PushedAt > cutoff &&
                         (context.ShowForksAndCollaborations || !_.Fork))
             .ToList();
+        context.Memory.Set(readOnly, ReadOnly(context, active));
         var everything = !context.Memory.TryGet<DateTimeOffset>(listedEverything, out var listedAt) ||
                          now - listedAt >= listEverything;
         var known = ImmutableDictionary<string, (string Pushed, List<Pipeline> Pipelines)>.Empty;
@@ -141,6 +144,22 @@ sealed class GitHubProvider : ProviderBase
         $"{repository.PushedAt:O}";
 
     /// <summary>
+    /// The repositories whose runs the user may not re-run or cancel, which needs write access.
+    /// Only for a token that lists its scopes, whose permissions are its user's. GitHub does not say
+    /// whose a fine grained token's are, and its own push can be false where its Actions write lets
+    /// it re-run, so theirs decide nothing.
+    /// </summary>
+    static ImmutableHashSet<string> ReadOnly(ProviderContext context, List<GitHubRepository> repositories)
+    {
+        if (context.Access != BuildAccess.Change)
+        {
+            return [];
+        }
+
+        return [..repositories.Where(_ => _.Permissions is { Push: false }).Select(_ => _.FullName)];
+    }
+
+    /// <summary>
     /// The repository listings discovery reads, most recently pushed first: the repositories the
     /// user owns or reaches through an organization, plus those they only collaborate on when
     /// asked for, or with an owner named, an organization, or a user when no organization of
@@ -212,10 +231,12 @@ sealed class GitHubProvider : ProviderBase
     {
         var started = Stopwatch.GetTimestamp();
         var repositories = pipelines.GroupBy(_ => _.RepoName).ToList();
+        var readOnlyRepositories = context.Memory.TryGet<ImmutableHashSet<string>>(readOnly, out var remembered) ? remembered : [];
         var perRepository = await Concurrently.Map(
             repositories,
             async (repository, token) =>
             {
+                var change = !readOnlyRepositories.Contains(repository.Key);
                 var byWorkflow = repository.ToDictionary(_ => long.Parse(_.Id[(_.Id.LastIndexOf('/') + 1)..]));
                 var count = Math.Min(100, perPipeline * byWorkflow.Count);
                 // No created filter for the history limit: a run keeps its created_at through a re-run,
@@ -241,7 +262,7 @@ sealed class GitHubProvider : ProviderBase
                     }
 
                     taken[run.WorkflowId] = soFar + 1;
-                    builds.Add(Convert(context.Connection.Id, repository.Key, pipeline, run));
+                    builds.Add(Convert(context.Connection.Id, repository.Key, pipeline, run, change));
                 }
 
                 return builds;
@@ -258,7 +279,7 @@ sealed class GitHubProvider : ProviderBase
         return all;
     }
 
-    static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRun run)
+    static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRun run, bool change)
     {
         var status = run.Status switch
         {
@@ -295,8 +316,8 @@ sealed class GitHubProvider : ProviderBase
             run.HeadSha,
             run.HeadCommit?.Message ?? run.DisplayTitle,
             run.Actor?.Login,
-            CanRetry: run.Status == "completed",
-            CanCancel: run.Status != "completed",
+            CanRetry: change && run.Status == "completed",
+            CanCancel: change && run.Status != "completed",
             Join(repository, run.Id.ToString(), run.Conclusion),
             web);
     }
@@ -349,6 +370,36 @@ sealed class GitHubProvider : ProviderBase
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("user", GitHubContext.Default.GitHubUser, cancel);
-        return new(true, $"Signed in as {user.Login}");
+        return new(true, $"Signed in as {user.Login}", await AccessOrUnknown(context, cancel));
+    }
+
+    /// <summary>
+    /// An OAuth App's token and a classic personal access token list their scopes in
+    /// X-OAuth-Scopes. GitHub documents the header for no other token, so a response without it
+    /// says nothing, as for a fine grained token. Re-running and cancelling a run need the repo
+    /// scope, and with none of the repository scopes a token reads public information only.
+    /// public_repo alone is left unknown: the documentation names only repo, so hiding the buttons
+    /// could hide what works.
+    /// </summary>
+    public override async Task<BuildAccess> Access(ProviderContext context, Cancel cancel)
+    {
+        var header = await context.Http.GetHeader("user", "X-OAuth-Scopes", cancel);
+        if (header is null)
+        {
+            return BuildAccess.Unknown;
+        }
+
+        var scopes = header.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (scopes.Contains("repo"))
+        {
+            return BuildAccess.Change;
+        }
+
+        if (scopes.Contains("public_repo"))
+        {
+            return BuildAccess.Unknown;
+        }
+
+        return BuildAccess.Watch;
     }
 }

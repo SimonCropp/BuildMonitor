@@ -688,6 +688,11 @@ static class MonitorSession
     /// A pipeline fetched for the first time is not news. When the request quota defers groups
     /// after a start, their first fetch would otherwise announce every red pipeline at once.
     /// </para>
+    /// <para>
+    /// A connection that can only watch has retry and cancel taken off every build it holds, those
+    /// kept as well as those fetched, so the answer applies with the cycle that brought it rather
+    /// than as each group comes due.
+    /// </para>
     /// </summary>
     public static SessionState ApplyFetch(SessionState state, string connectionId, FetchOutcome outcome, DateTimeOffset now)
     {
@@ -697,7 +702,10 @@ static class MonitorSession
         // created or queued would also leave out one from before the cutoff that is still running.
         // Also covers a response served from an ETag cached before the cutoff moved on.
         var cutoff = HistoryCutoff.Of(now, state.Settings.HistoryDays);
-        var arrived = outcome.Builds.Where(_ => HistoryCutoff.Keeps(_, cutoff)).ToImmutableArray();
+        var arrived = outcome.Builds
+            .Where(_ => HistoryCutoff.Keeps(_, cutoff))
+            .Select(_ => Offered(_, outcome.Access))
+            .ToImmutableArray();
         var next = UpdateConnection(
             state,
             connectionId,
@@ -708,7 +716,8 @@ static class MonitorSession
                 RetryAfter = outcome.RetryAfter,
                 LastPolled = outcome.Fetched.Count > 0 ? now : _.LastPolled,
                 Pipelines = outcome.Pipelines,
-                Progress = null
+                Progress = null,
+                Access = outcome.Access
             });
         var notification = state.Notification;
         if (state.Settings.NotifyOnFailure)
@@ -722,11 +731,23 @@ static class MonitorSession
             Builds =
             [
                 ..next.Builds.Where(_ => _.ConnectionId != connectionId),
-                ..previous.Where(_ => discovered.Contains(_.PipelineId) && !outcome.Fetched.Contains(_.PipelineId) && HistoryCutoff.Keeps(_, cutoff)),
+                ..previous
+                    .Where(_ => discovered.Contains(_.PipelineId) && !outcome.Fetched.Contains(_.PipelineId) && HistoryCutoff.Keeps(_, cutoff))
+                    .Select(_ => Offered(_, outcome.Access)),
                 ..arrived
             ],
             Notification = notification
         });
+    }
+
+    static Build Offered(Build build, BuildAccess access)
+    {
+        if (access == BuildAccess.Watch)
+        {
+            return build.WatchOnly();
+        }
+
+        return build;
     }
 
     public static SessionState ClearNotification(SessionState state) =>

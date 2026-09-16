@@ -9,7 +9,9 @@ record ConnectionState(
     ImmutableArray<Pipeline> Pipelines,
     DateTimeOffset? RetryAfter,
     // How far the poll in progress has got, when the provider counts. Null between polls.
-    PollProgress? Progress = null)
+    PollProgress? Progress = null,
+    // What the credential may do to builds, as the poller last asked.
+    BuildAccess Access = BuildAccess.Unknown)
 {
     public static ConnectionState Start(Connection connection) =>
         new(connection, ConnectionHealth.Unpolled, null, null, [], null);

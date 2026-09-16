@@ -89,4 +89,24 @@ public class TravisProviderTests
         await Assert.That(headers.GetValues("Travis-API-Version").Single()).IsEqualTo("3");
         await Assert.That(headers.Authorization!.ToString()).IsEqualTo("token secret");
     }
+
+    [Test]
+    public async Task ABuildsPermissionsDecideRetryAndCancel()
+    {
+        // They are the checks a restart or a cancel of the build meets.
+        var handler = Handler()
+            .Get(
+                "https://api.travis-ci.com/repo/VerifyTests%2FDiffEngine/builds?limit=5&sort_by=id:desc&include=build.commit",
+                """
+                {"builds":[
+                  {"id":900,"number":"120","state":"started","branch":{"name":"main"},"@permissions":{"read":true,"cancel":false,"restart":false,"prioritize":false}},
+                  {"id":899,"number":"119","state":"failed","branch":{"name":"feature"},"@permissions":{"read":true,"cancel":true,"restart":true,"prioritize":false}},
+                  {"id":898,"number":"118","state":"errored","branch":{"name":"other"},"@permissions":{"read":true,"cancel":true,"restart":false,"prioritize":false}}
+                ]}
+                """);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("travis", ProviderTestHelpers.Context("travis", handler));
+        await Assert.That(builds.Single(_ => _.RunNumber == "120").CanCancel).IsFalse();
+        await Assert.That(builds.Single(_ => _.RunNumber == "119").CanRetry).IsTrue();
+        await Assert.That(builds.Single(_ => _.RunNumber == "118").CanRetry).IsFalse();
+    }
 }

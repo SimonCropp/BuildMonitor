@@ -26,6 +26,26 @@ abstract class ProviderBase : IProvider
 
     public abstract Task<ConnectionTest> Test(ProviderContext context, Cancel cancel);
 
+    public virtual Task<BuildAccess> Access(ProviderContext context, Cancel cancel) =>
+        Task.FromResult(BuildAccess.Unknown);
+
+    /// <summary>
+    /// <see cref="Access"/> for a connection test, whose credential has just been proved to work:
+    /// a check that fails leaves the answer unknown rather than failing the test.
+    /// </summary>
+    protected async Task<BuildAccess> AccessOrUnknown(ProviderContext context, Cancel cancel)
+    {
+        try
+        {
+            return await Access(context, cancel);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Log.Warning(exception, "Asking what {Connection} may do failed", context.Connection.Name);
+            return BuildAccess.Unknown;
+        }
+    }
+
     public virtual Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel) =>
         Task.FromResult<ImmutableDictionary<string, string>?>(null);
 

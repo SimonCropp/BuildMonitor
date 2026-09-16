@@ -400,7 +400,7 @@ static class ScreenBuilder
                 FormFields.Connection(connection.Connection.Id),
                 FieldKind.EditRow,
                 connection.Connection.Name,
-                $"{descriptor.Name}, {HealthWord(connection.Health)}",
+                ConnectionSummary(descriptor, connection),
                 Command: CommandKind.EditConnection));
         }
 
@@ -412,6 +412,21 @@ static class ScreenBuilder
         fields.Add(new(FormFields.Update, FieldKind.Button, "Update", "", Command: CommandKind.Update));
         AddError(fields, form);
         return new("Options", fields);
+    }
+
+    /// <summary>
+    /// A connection's line on the options page. One that can only watch says so, as its rows offer
+    /// no retry or cancel and nothing on the builds page says why.
+    /// </summary>
+    static string ConnectionSummary(ProviderDescriptor descriptor, ConnectionState connection)
+    {
+        var summary = $"{descriptor.Name}, {HealthWord(connection.Health)}";
+        if (connection.Access == BuildAccess.Watch)
+        {
+            return $"{summary}, watch only";
+        }
+
+        return summary;
     }
 
     static string HealthWord(ConnectionHealth health) =>

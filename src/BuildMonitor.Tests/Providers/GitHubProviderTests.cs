@@ -271,14 +271,85 @@ public class GitHubProviderTests
 
         await Assert.That(first.Message).IsEqualTo("Signed in as simon");
         await Assert.That(second.Message).IsEqualTo("Signed in as simon");
+        // Each test also asks for the token's scopes, which is never revalidated.
         await Verify(handler.Requests)
             .Snapshot(
                 """
                 [
                   GET https://api.github.com/user,
+                  GET https://api.github.com/user,
                   GET https://api.github.com/user
-                  If-None-Match: "abc"
+                  If-None-Match: "abc",
+                  GET https://api.github.com/user
                 ]
                 """);
+    }
+
+    [Test]
+    [Arguments("repo, read:org", nameof(BuildAccess.Change))]
+    [Arguments("repo:status, read:org, workflow", nameof(BuildAccess.Watch))]
+    [Arguments("", nameof(BuildAccess.Watch))]
+    [Arguments("public_repo", nameof(BuildAccess.Unknown))]
+    public async Task ATokenListingItsScopesIsJudgedByThem(string scopes, string expected)
+    {
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/user", """{"login":"simon"}""", HttpStatusCode.OK, ("X-OAuth-Scopes", scopes));
+        var context = ProviderTestHelpers.Context("github", handler);
+        var access = await ProviderTestHelpers.Provider("github").Access(context, Cancel.None);
+        await Assert.That(access.ToString()).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task AFineGrainedTokenSaysNothing()
+    {
+        // A fine grained token and a GitHub App's send no scopes header.
+        var handler = new FakeHttpHandler().Get("https://api.github.com/user", """{"login":"simon"}""");
+        var context = ProviderTestHelpers.Context("github", handler);
+        var access = await ProviderTestHelpers.Provider("github").Access(context, Cancel.None);
+        await Assert.That(access).IsEqualTo(BuildAccess.Unknown);
+    }
+
+    [Test]
+    [Arguments(false, nameof(BuildAccess.Change), false)]
+    [Arguments(true, nameof(BuildAccess.Change), true)]
+    [Arguments(false, nameof(BuildAccess.Unknown), true)]
+    public async Task PushDecidesOnlyForATokenListingItsScopes(bool push, string access, bool offered)
+    {
+        // Whose a fine grained token's permissions are is not documented, and it can re-run with
+        // Actions write where push is false.
+        var handler = Handler()
+            .Get(
+                "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
+                $$$"""[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z","permissions":{"admin":false,"maintain":false,"push":{{{push.ToString().ToLowerInvariant()}}},"triage":false,"pull":true}}]""");
+        var context = ProviderTestHelpers.Context("github", handler) with { Access = Enum.Parse<BuildAccess>(access) };
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        await Assert.That(builds.Single(_ => _.RunNumber == "1234").CanCancel).IsEqualTo(offered);
+        await Assert.That(builds.Single(_ => _.RunNumber == "1233").CanRetry).IsEqualTo(offered);
+    }
+
+    [Test]
+    public async Task TheTestSaysATokenCanOnlyWatch()
+    {
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/user", """{"login":"simon"}""", HttpStatusCode.OK, ("X-OAuth-Scopes", "read:org"));
+        var context = ProviderTestHelpers.Context("github", handler);
+        var result = await ProviderTestHelpers.Provider("github").Test(context, Cancel.None);
+        await Assert.That(result.Describe(ProviderDescriptors.GitHub))
+            .IsEqualTo("Signed in as simon. The connection can watch builds but not change them. GitHub Actions needs Actions read and write, or the repo scope on a classic token");
+    }
+
+    [Test]
+    public async Task AFailedScopeCheckDoesNotFailTheTest()
+    {
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/user", """{"login":"simon"}""", HttpStatusCode.OK, ("ETag", "\"abc\""));
+        var context = ProviderTestHelpers.Context("github", handler);
+        var provider = ProviderTestHelpers.Provider("github");
+        await provider.Test(context, Cancel.None);
+        // Revalidated, the user answers 304; the scope check, never revalidated, then fails.
+        handler.Map("GET", "https://api.github.com/user", "", HttpStatusCode.NotModified);
+        var result = await provider.Test(context, Cancel.None);
+        await Assert.That(result.Ok).IsTrue();
+        await Assert.That(result.Access).IsEqualTo(BuildAccess.Unknown);
     }
 }

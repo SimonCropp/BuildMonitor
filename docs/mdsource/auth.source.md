@@ -16,7 +16,7 @@ Credentials are kept in the platform's secret store: the Windows Data Protection
 | GitLab CI | Personal access token | https://gitlab.com/-/user_settings/personal_access_tokens | `api` to retry and cancel, `read_api` to only watch |
 | GoCD | Personal access token | `https://<server>/go/access_tokens` | No scopes |
 | Jenkins | API token | `https://<server>/me/security` | Enter the Jenkins user name as the user |
-| Octopus Deploy | API key | Profile, My API Keys (see [the docs](https://octopus.com/docs/api/authentication/create-an-api-key)) | The user's permissions |
+| Octopus Deploy | API key | Profile, My API Keys (see [the docs](https://octopus.com/docs/api/authentication/create-an-api-key)) | The user's permissions, with TaskCancel to cancel |
 | TeamCity | Access token | Profile, Access Tokens (see [the docs](https://www.jetbrains.com/help/teamcity/configuring-your-user-profile.html#Managing+Access+Tokens)) | Same as the user, or limited to a project |
 | Travis CI | API token | https://app.travis-ci.com/account/preferences | No scopes |
 

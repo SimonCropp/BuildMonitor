@@ -13,6 +13,18 @@ sealed class GitLabProvider : ProviderBase
     const string readsPipelines = "min_access_level=20";
 
     /// <summary>
+    /// Developer, the lowest access level that can retry and cancel pipelines.
+    /// </summary>
+    const string changesPipelines = "min_access_level=30";
+
+    const int pageSize = 100;
+
+    // Whether the user is an administrator, whose rights do not come from a role in each project,
+    // and the projects the user may only watch, as of the last discovery.
+    const string administrator = "gitlab.administrator";
+    const string readOnly = "gitlab.read-only";
+
+    /// <summary>
     /// Projects in one GraphQL request. A query may hold 10,000 characters, and fifty global ids
     /// with the fields stay well inside that.
     /// </summary>
@@ -25,14 +37,67 @@ sealed class GitLabProvider : ProviderBase
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
-        var group = context.Scope("group");
-        var path = group.Length == 0
-            ? $"projects?membership=true&{readsPipelines}&simple=true&archived=false&order_by=last_activity_at&per_page=100"
-            : $"groups/{Encode(group)}/projects?include_subgroups=true&{readsPipelines}&simple=true&archived=false&order_by=last_activity_at&per_page=100";
-        var projects = await context.Http.Get(path, GitLabContext.Default.ListGitLabProject, cancel);
+        var projects = await context.Http.Get(Listing(context, readsPipelines), GitLabContext.Default.ListGitLabProject, cancel);
+        context.Memory.Set(readOnly, await ReadOnly(context, projects, cancel));
         return projects
             .Select(_ => new Pipeline(_.Id.ToString(), _.PathWithNamespace, _.PathWithNamespace, null, $"{_.WebUrl}/-/pipelines"))
             .ToList();
+    }
+
+    static string Listing(ProviderContext context, string accessLevel)
+    {
+        var group = context.Scope("group");
+        if (group.Length == 0)
+        {
+            return $"projects?membership=true&{accessLevel}&simple=true&archived=false&order_by=last_activity_at&per_page={pageSize}";
+        }
+
+        return $"groups/{Encode(group)}/projects?include_subgroups=true&{accessLevel}&simple=true&archived=false&order_by=last_activity_at&per_page={pageSize}";
+    }
+
+    /// <summary>
+    /// The projects where the user is only a Reporter, which answer a retry or a cancel with 403:
+    /// those missing from the same listing at Developer. A full page of that listing can leave out a
+    /// project the first listing has, when activity reorders the two between requests, so then none
+    /// are read only. Not asked when the connection can only watch, which offers nothing anyway, or
+    /// for an administrator. A listing that fails keeps what the last one found.
+    /// </summary>
+    static async Task<ImmutableHashSet<string>> ReadOnly(ProviderContext context, List<GitLabProject> projects, Cancel cancel)
+    {
+        if (context.Access == BuildAccess.Watch ||
+            (context.Memory.TryGet<bool>(administrator, out var isAdministrator) && isAdministrator))
+        {
+            return [];
+        }
+
+        List<GitLabProject> changeable;
+        try
+        {
+            changeable = await context.Http.Get(Listing(context, changesPipelines), GitLabContext.Default.ListGitLabProject, cancel);
+        }
+        catch (HttpRequestException exception)
+        {
+            Log.Warning(exception, "Listing the GitLab projects {Connection} may change failed", context.Connection.Name);
+            return ReadOnly(context);
+        }
+
+        if (changeable.Count >= pageSize)
+        {
+            return [];
+        }
+
+        var ids = changeable.Select(_ => _.Id).ToHashSet();
+        return [..projects.Where(_ => !ids.Contains(_.Id)).Select(_ => _.Id.ToString())];
+    }
+
+    static ImmutableHashSet<string> ReadOnly(ProviderContext context)
+    {
+        if (context.Memory.TryGet<ImmutableHashSet<string>>(readOnly, out var known))
+        {
+            return known;
+        }
+
+        return [];
     }
 
     /// <summary>
@@ -60,7 +125,18 @@ sealed class GitLabProvider : ProviderBase
             builds.AddRange(perProject.SelectMany(_ => _));
         }
 
-        return builds;
+        var readOnlyProjects = ReadOnly(context);
+        return [..builds.Select(_ => Offered(_, readOnlyProjects))];
+    }
+
+    static Build Offered(Build build, ImmutableHashSet<string> readOnlyProjects)
+    {
+        if (readOnlyProjects.Contains(build.PipelineId))
+        {
+            return build.WatchOnly();
+        }
+
+        return build;
     }
 
     /// <summary>
@@ -261,6 +337,60 @@ sealed class GitLabProvider : ProviderBase
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("user", GitLabContext.Default.GitLabUser, cancel);
-        return new(true, $"Signed in as {user.Username}");
+        return new(true, $"Signed in as {user.Username}", await AccessOrUnknown(context, cancel));
+    }
+
+    /// <summary>
+    /// The token's scopes: api may retry and cancel, read_api only watch. A personal, project or
+    /// group access token reads its own from personal_access_tokens/self, which refuses an OAuth
+    /// token, and a sign in's token reads them from oauth/token/info instead. A granular token holds
+    /// its rights outside its scopes, so it is left unknown. Whether the user is an administrator is
+    /// kept for discovery, which otherwise narrows by the user's role in each project. Admin Mode can
+    /// still deny an administrator's token what the role would not, which then only offers what a
+    /// refusal explains.
+    /// </summary>
+    public override async Task<BuildAccess> Access(ProviderContext context, Cancel cancel)
+    {
+        var user = await context.Http.Get("user", GitLabContext.Default.GitLabUser, cancel);
+        context.Memory.Set(administrator, user.IsAdmin);
+        if (context.Connection.Auth != AuthMethod.Token)
+        {
+            // Beside the API, not in it, so a server under a path keeps its path.
+            var info = await context.Http.Get("../../oauth/token/info", GitLabContext.Default.GitLabTokenInfo, cancel);
+            return ByScopes(info.Scope);
+        }
+
+        GitLabToken token;
+        try
+        {
+            token = await context.Http.Get("personal_access_tokens/self", GitLabContext.Default.GitLabToken, cancel);
+        }
+        // An older GitLab has no such route.
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            return BuildAccess.Unknown;
+        }
+
+        if (token.Granular)
+        {
+            return BuildAccess.Unknown;
+        }
+
+        return ByScopes(token.Scopes);
+    }
+
+    static BuildAccess ByScopes(List<string> scopes)
+    {
+        if (scopes.Contains("api"))
+        {
+            return BuildAccess.Change;
+        }
+
+        if (scopes.Contains("read_api"))
+        {
+            return BuildAccess.Watch;
+        }
+
+        return BuildAccess.Unknown;
     }
 }

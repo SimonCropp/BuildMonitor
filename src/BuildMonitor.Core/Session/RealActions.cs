@@ -49,9 +49,10 @@ static class RealActions
                 try
                 {
                     var result = await poller.Test(connection, token, Cancel.None);
+                    var message = result.Describe(ProviderDescriptors.Get(connection.ProviderId));
                     host.Mutate(_ => result.Ok
-                        ? MonitorSession.SetFormMessage(_, result.Message)
-                        : MonitorSession.SetFormError(_, result.Message));
+                        ? MonitorSession.SetFormMessage(_, message)
+                        : MonitorSession.SetFormError(_, message));
                 }
                 catch (Exception exception)
                 {

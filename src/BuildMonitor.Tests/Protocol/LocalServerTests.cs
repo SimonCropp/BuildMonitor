@@ -141,6 +141,24 @@ public class LocalServerTests
         }
     }
 
+    [Test]
+    public async Task AConnectionThatCanOnlyWatchChangesNothingOverTheSocket()
+    {
+        var started = await Start();
+        try
+        {
+            started.Host.Mutate(_ => Fixtures.WatchOnly());
+            var retry = await started.Client.Send(new(Verb.Retry, "gh/Verify/test.yml/feature/inline"), Cancel.None);
+            var cancel = await started.Client.Send(new(Verb.Cancel, "gh/DiffEngine/test.yml/main"), Cancel.None);
+            await Assert.That(retry).IsEqualTo(Response.Error("That build cannot be retried"));
+            await Assert.That(cancel).IsEqualTo(Response.Error("That build cannot be cancelled"));
+        }
+        finally
+        {
+            await Stop(started);
+        }
+    }
+
     /// <summary>
     /// A log is the one answer with newlines in it, which the base64 body is what keeps from
     /// ending the message early.

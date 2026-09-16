@@ -4,4 +4,6 @@
 [JsonSerializable(typeof(GitLabPipeline))]
 [JsonSerializable(typeof(List<GitLabJob>))]
 [JsonSerializable(typeof(GitLabUser))]
+[JsonSerializable(typeof(GitLabToken))]
+[JsonSerializable(typeof(GitLabTokenInfo))]
 partial class GitLabContext : JsonSerializerContext;

@@ -405,6 +405,107 @@ public class PollerTests
         await Assert.That(host.State.Connection(Fixtures.GitHub.Id)!.Error).IsNull();
     }
 
+    const string user = "https://api.github.com/user";
+
+    static FakeHttpHandler WithScopes(FakeHttpHandler handler, string scopes) =>
+        handler.Map("GET", user, """{"login":"simon"}""", HttpStatusCode.OK, ("X-OAuth-Scopes", scopes));
+
+    static Build Running(SessionHost host) =>
+        host.State.Builds.Single(_ => _.RunNumber == "2");
+
+    [Test]
+    public async Task ATokenThatCanOnlyWatchOffersNoRetryOrCancel()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = WithScopes(GitHubHandler(), "read:org");
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => Fixtures.Now);
+
+        await poller.PollOnce(Cancel.None);
+
+        await Assert.That(host.State.Connection(Fixtures.GitHub.Id)!.Access).IsEqualTo(BuildAccess.Watch);
+        await Assert.That(Running(host).CanCancel).IsFalse();
+    }
+
+    [Test]
+    public async Task AnotherTokenIsAskedAboutAtOnce()
+    {
+        // Pasting a token with the repo scope brings retry and cancel back without waiting for the
+        // next rediscovery, or for the repository's group to come due.
+        var (host, secrets, history) = Setup();
+        var handler = WithScopes(GitHubHandler(), "read:org");
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+
+        secrets.Write(SecretKeys.Token(Fixtures.GitHub.Id), "another");
+        WithScopes(handler, "repo");
+        now = now.AddSeconds(3);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(host.State.Connection(Fixtures.GitHub.Id)!.Access).IsEqualTo(BuildAccess.Change);
+        await Assert.That(Running(host).CanCancel).IsTrue();
+    }
+
+    [Test]
+    public async Task TheSameTokenIsNotAskedAboutUntilTheNextDiscovery()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = WithScopes(GitHubHandler(), "read:org");
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Requests.Clear();
+
+        now = now.AddSeconds(3);
+        await poller.PollOnce(Cancel.None);
+
+        await Assert.That(handler.Requests).DoesNotContain($"GET {user}");
+    }
+
+    [Test]
+    public async Task AFailedCheckKeepsTheAnswerAboutTheSameToken()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = WithScopes(GitHubHandler(), "read:org");
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+
+        handler.Map("GET", user, "boom", HttpStatusCode.InternalServerError);
+        now += ConnectionPoller.RediscoverAfter + TimeSpan.FromSeconds(1);
+        var health = await poller.PollOnce(Cancel.None);
+
+        await Assert.That(health).IsEqualTo(ConnectionHealth.Ok);
+        await Assert.That(host.State.Connection(Fixtures.GitHub.Id)!.Access).IsEqualTo(BuildAccess.Watch);
+        await Assert.That(Running(host).CanCancel).IsFalse();
+    }
+
+    [Test]
+    public async Task AGitLabSignInIsPolledWithABearerToken()
+    {
+        var connection = new Connection
+        {
+            Id = "gl",
+            ProviderId = "gitlab",
+            Name = "GitLab",
+            Auth = AuthMethod.Device
+        };
+        var host = new SessionHost(SessionState.Start(new Settings { Connections = [connection] }));
+        var secrets = new MemorySecretStore();
+        secrets.Write(SecretKeys.Token(connection.Id), "signed-in");
+        var handler = new FakeHttpHandler()
+            .Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""")
+            .Get("https://gitlab.com/oauth/token/info", """{"scope":["read_api"]}""")
+            .Get("https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100", "[]");
+        var poller = new ConnectionPoller(connection.Id, host, secrets, new(), handler, null, () => Fixtures.Now);
+
+        var health = await poller.PollOnce(Cancel.None);
+
+        await Assert.That(health).IsEqualTo(ConnectionHealth.Ok);
+        await Assert.That(host.State.Connection(connection.Id)!.Access).IsEqualTo(BuildAccess.Watch);
+        await Assert.That(handler.RequestHeaders.Select(_ => _.Authorization?.ToString() ?? "none").Distinct()).IsEquivalentTo(["Bearer signed-in"]);
+    }
+
     static async Task WaitFor(Func<bool> condition)
     {
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(20);

@@ -2,10 +2,15 @@ public class GitLabProviderTests
 {
     const string graph = "https://gitlab.com/api/graphql";
 
+    const string developerListing = "https://gitlab.com/api/v4/projects?membership=true&min_access_level=30&simple=true&archived=false&order_by=last_activity_at&per_page=100";
+
     static FakeHttpHandler Handler() =>
         new FakeHttpHandler()
             .Get(
                 "https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100",
+                """[{"id":77,"path_with_namespace":"verify/diffengine","web_url":"https://gitlab.com/verify/diffengine"}]""")
+            .Get(
+                developerListing,
                 """[{"id":77,"path_with_namespace":"verify/diffengine","web_url":"https://gitlab.com/verify/diffengine"}]""")
             .Get(
                 graph,
@@ -167,14 +172,16 @@ public class GitLabProviderTests
     public async Task GroupScopeAndSelfHosted()
     {
         var handler = new FakeHttpHandler()
-            .Get("https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100", "[]");
+            .Get("https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100", "[]")
+            .Get("https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&min_access_level=30&simple=true&archived=false&order_by=last_activity_at&per_page=100", "[]");
         var context = ProviderTestHelpers.Context("gitlab", handler, "https://gitlab.example.com/", scope: ("group", "verify"));
         await ProviderTestHelpers.Provider("gitlab").DiscoverPipelines(context, Cancel.None);
         await Verify(handler.Requests)
             .Snapshot(
                 """
                 [
-                  GET https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100
+                  GET https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100,
+                  GET https://gitlab.example.com/api/v4/groups/verify/projects?include_subgroups=true&min_access_level=30&simple=true&archived=false&order_by=last_activity_at&per_page=100
                 ]
                 """);
     }
@@ -185,6 +192,151 @@ public class GitLabProviderTests
         var handler = new FakeHttpHandler().Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""");
         var context = ProviderTestHelpers.Context("gitlab", handler);
         await ProviderTestHelpers.Provider("gitlab").Test(context, Cancel.None);
-        await Assert.That(handler.RequestHeaders.Single().GetValues("PRIVATE-TOKEN").Single()).IsEqualTo("secret");
+        // The test's own requests and those asking what the token may do alike.
+        await Assert.That(handler.RequestHeaders.Select(_ => _.GetValues("PRIVATE-TOKEN").Single()).Distinct()).IsEquivalentTo(["secret"]);
+    }
+
+    [Test]
+    [Arguments(nameof(AuthMethod.Browser))]
+    [Arguments(nameof(AuthMethod.Device))]
+    public async Task ASignInsTokenGoesInTheAuthorizationHeader(string method)
+    {
+        // GitLab finds an OAuth token only as a Bearer token, and looks for an access token in
+        // PRIVATE-TOKEN, so a sign in's token there was refused on every request.
+        var handler = new FakeHttpHandler().Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""");
+        var context = ProviderTestHelpers.Context("gitlab", handler, auth: Enum.Parse<AuthMethod>(method));
+        await ProviderTestHelpers.Provider("gitlab").Test(context, Cancel.None);
+        await Assert.That(handler.RequestHeaders.Select(_ => _.Authorization?.ToString() ?? "none").Distinct()).IsEquivalentTo(["Bearer secret"]);
+        await Assert.That(handler.RequestHeaders.Any(_ => _.Contains("PRIVATE-TOKEN"))).IsFalse();
+    }
+
+    static FakeHttpHandler Token(string token) =>
+        new FakeHttpHandler()
+            .Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""")
+            .Get("https://gitlab.com/api/v4/personal_access_tokens/self", token);
+
+    [Test]
+    [Arguments("""{"scopes":["api","read_user"],"granular":false}""", nameof(BuildAccess.Change))]
+    [Arguments("""{"scopes":["read_api"]}""", nameof(BuildAccess.Watch))]
+    [Arguments("""{"scopes":["read_user"]}""", nameof(BuildAccess.Unknown))]
+    [Arguments("""{"scopes":[],"granular":true}""", nameof(BuildAccess.Unknown))]
+    public async Task AnAccessTokenIsJudgedByItsScopes(string token, string expected)
+    {
+        var context = ProviderTestHelpers.Context("gitlab", Token(token));
+        var access = await ProviderTestHelpers.Provider("gitlab").Access(context, Cancel.None);
+        await Assert.That(access.ToString()).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("""{"resource_owner_id":1,"scope":["read_api","api"],"expires_in":7200,"application":{"uid":"app"},"created_at":1767268800}""", nameof(BuildAccess.Change))]
+    [Arguments("""{"resource_owner_id":1,"scope":["read_api"],"expires_in":7200,"application":{"uid":"app"},"created_at":1767268800}""", nameof(BuildAccess.Watch))]
+    [Arguments("""{"resource_owner_id":1,"scope":["read_user"],"expires_in":7200,"application":{"uid":"app"},"created_at":1767268800}""", nameof(BuildAccess.Unknown))]
+    public async Task ASignInsTokenIsJudgedByItsTokenInfo(string info, string expected)
+    {
+        // personal_access_tokens/self refuses an OAuth token.
+        var handler = new FakeHttpHandler()
+            .Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""")
+            .Get("https://gitlab.com/oauth/token/info", info);
+        var context = ProviderTestHelpers.Context("gitlab", handler, auth: AuthMethod.Device);
+        var access = await ProviderTestHelpers.Provider("gitlab").Access(context, Cancel.None);
+        await Assert.That(access.ToString()).IsEqualTo(expected);
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://gitlab.com/api/v4/user",
+            "GET https://gitlab.com/oauth/token/info"
+        ]);
+    }
+
+    [Test]
+    public async Task TokenInfoIsAskedForUnderTheServersPath()
+    {
+        // GitLab served under a relative URL root serves its OAuth routes under it too.
+        var handler = new FakeHttpHandler()
+            .Get("https://example.com/gitlab/api/v4/user", """{"username":"simon"}""")
+            .Get("https://example.com/gitlab/oauth/token/info", """{"scope":["api"]}""");
+        var context = ProviderTestHelpers.Context("gitlab", handler, "https://example.com/gitlab", auth: AuthMethod.Browser);
+        var access = await ProviderTestHelpers.Provider("gitlab").Access(context, Cancel.None);
+        await Assert.That(access).IsEqualTo(BuildAccess.Change);
+    }
+
+    [Test]
+    public async Task TheTestSaysASignInCanChangeBuilds()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""")
+            .Get("https://gitlab.com/oauth/token/info", """{"scope":["read_api","api"]}""");
+        var context = ProviderTestHelpers.Context("gitlab", handler, auth: AuthMethod.Device);
+        var result = await ProviderTestHelpers.Provider("gitlab").Test(context, Cancel.None);
+        await Assert.That(result.Describe(ProviderDescriptors.GitLab)).IsEqualTo("Signed in as simon. The connection can watch and change builds");
+    }
+
+    [Test]
+    public async Task AGitLabWithoutTheTokenRouteSaysNothing()
+    {
+        var handler = new FakeHttpHandler().Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""");
+        var access = await ProviderTestHelpers.Provider("gitlab").Access(ProviderTestHelpers.Context("gitlab", handler), Cancel.None);
+        await Assert.That(access).IsEqualTo(BuildAccess.Unknown);
+    }
+
+    [Test]
+    public async Task TheTestSaysATokenCanOnlyWatch()
+    {
+        var context = ProviderTestHelpers.Context("gitlab", Token("""{"scopes":["read_api"]}"""));
+        var result = await ProviderTestHelpers.Provider("gitlab").Test(context, Cancel.None);
+        await Assert.That(result.Describe(ProviderDescriptors.GitLab))
+            .IsEqualTo("Signed in as simon. The connection can watch builds but not change them. GitLab CI needs the api scope");
+    }
+
+    [Test]
+    public async Task AProjectWhereTheUserIsOnlyAReporterOffersNoRetryOrCancel()
+    {
+        var handler = Handler().Get(developerListing, "[]");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
+        await Assert.That(builds.Count).IsEqualTo(2);
+        await Assert.That(builds.Any(_ => _.CanRetry || _.CanCancel)).IsFalse();
+    }
+
+    [Test]
+    public async Task AFullPageAtDeveloperTakesNothingAway()
+    {
+        // Activity between the two listings can push a project the first has off a full page.
+        var others = string.Join(',', Enumerable.Range(1000, 100).Select(_ => $$"""{"id":{{_}},"path_with_namespace":"verify/p{{_}}","web_url":"https://gitlab.com/verify/p{{_}}"}"""));
+        var handler = Handler().Get(developerListing, $"[{others}]");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
+        await Assert.That(builds.Single(_ => _.RunNumber == "119").CanRetry).IsTrue();
+        await Assert.That(builds.Single(_ => _.RunNumber == "120").CanCancel).IsTrue();
+    }
+
+    [Test]
+    public async Task AnAdministratorIsNotNarrowedByRole()
+    {
+        var handler = Handler()
+            .Get("https://gitlab.com/api/v4/user", """{"username":"root","is_admin":true}""")
+            .Get(developerListing, "[]");
+        var context = ProviderTestHelpers.Context("gitlab", handler);
+        await ProviderTestHelpers.Provider("gitlab").Access(context, Cancel.None);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        await Assert.That(builds.Single(_ => _.RunNumber == "119").CanRetry).IsTrue();
+        await Assert.That(handler.Requests).DoesNotContain($"GET {developerListing}");
+    }
+
+    [Test]
+    public async Task AConnectionThatCanOnlyWatchIsNotListedAtDeveloper()
+    {
+        var handler = Handler();
+        var context = ProviderTestHelpers.Context("gitlab", handler) with { Access = BuildAccess.Watch };
+        await ProviderTestHelpers.Provider("gitlab").DiscoverPipelines(context, Cancel.None);
+        await Assert.That(handler.Requests).DoesNotContain($"GET {developerListing}");
+    }
+
+    [Test]
+    public async Task AFailedListingAtDeveloperKeepsWhatTheLastOneFound()
+    {
+        var handler = Handler().Get(developerListing, "[]");
+        var context = ProviderTestHelpers.Context("gitlab", handler);
+        await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        handler.Map("GET", developerListing, "boom", HttpStatusCode.InternalServerError);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        await Assert.That(builds.Single(_ => _.RunNumber == "119").CanRetry).IsFalse();
     }
 }

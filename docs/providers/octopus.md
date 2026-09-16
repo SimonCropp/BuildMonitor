@@ -28,9 +28,11 @@ One per project, showing the latest deployment. The project stands in for the re
 ## Actions
 
  * Cancel cancels a queued or executing task
+ * Copy log copies the deployment task's log
 
 There is no retry: Octopus refuses to re-run a deployment task.
- * Copy log copies the deployment task's log
+
+Cancel is offered only where the user has the TaskCancel permission for the deployment's project and environment. A user without it anywhere in the space shows as watch only in [Options](../options.md#connections).
 
 
 ## Estimates
@@ -49,8 +51,8 @@ config:
     wrappingWidth: 400
 ---
 flowchart TD
-    wake(["Wake: the connection is due,<br/>or Refresh or Cancel"]) --> listed{"Listed projects in<br/>the last 10 minutes?"}
-    listed -- "no" --> discover["GET spaces, then the<br/>projects of the default<br/>or named space"]
+    wake(["Wake: the connection is due,<br/>or Refresh or Cancel"]) --> listed{"Listed projects in<br/>the last 10 minutes,<br/>with this key?"}
+    listed -- "no" --> discover["GET users/me, spaces and<br/>the user's permissions in<br/>the space, then spaces and<br/>the projects of the default<br/>or named space"]
     listed -- "yes" --> interval["One schedule for every<br/>project, set by the busiest"]
     discover --> interval
     interval --> finishing["A deployment executing with<br/>90 s or less left, up to 90 s<br/>over, or no estimate:<br/>every 10 s"]
@@ -110,10 +112,19 @@ None seen: the API root sends `Cache-Control: private` and no ETag [live]. Endpo
 Links are URI templates. A task's details link is `Details{?verbose,tail,ranges}` [docs], so expand or strip the template before requesting it. `verbose=false` and a small `tail` shrink the response, which otherwise carries the whole log tree.
 
 
+### Permissions
+
+Checked 2026-09-16. An API key has no scopes and acts as its user.
+
+ * `users/{id}/permissions?spaces={space}&includeSystem=true` lists each space permission with every grant of it, each with its space and any restriction to projects, environments, tenants or project groups. `IsPermissionsComplete` says whether the requesting user could see all of it [OctopusClients].
+ * Cancelling a task needs `TaskCancel`, which can be restricted to projects, environments and tenants [OctopusClients].
+ * Whether a system administrator's grants in a space are listed is not documented.
+
+
 ### Sources
 
  * [REST API](https://octopus.com/docs/octopus-rest-api)
  * [Auditing](https://octopus.com/docs/security/users-and-teams/auditing)
  * Go client: [dashboard](https://pkg.go.dev/github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/dashboard), [tasks](https://pkg.go.dev/github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/tasks) and [events](https://pkg.go.dev/github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/events)
- * [OctopusClients](https://github.com/OctopusDeploy/OctopusClients): `TaskResourceCollection.cs`, `TaskRepository.cs` and its canned task responses
+ * [OctopusClients](https://github.com/OctopusDeploy/OctopusClients): `TaskResourceCollection.cs`, `TaskRepository.cs` and its canned task responses, and `UserPermissionSetResource.cs`, `UserPermissionRestriction.cs`, `UserPermissionsRepository.cs` and `Permission.cs`
  * [Dashboard performance on large installs](https://github.com/OctopusDeploy/Issues/issues/2850)
