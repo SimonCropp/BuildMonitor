@@ -17,7 +17,7 @@ sealed class BuildTools(MonitorTools tools)
     [McpServerTool(Name = "list_failing", ReadOnly = true, UseStructuredContent = true)]
     [Description("Lists only the pipelines whose latest build failed.")]
     public Task<List<BuildDto>> ListFailing(Cancel cancel = default) =>
-        tools.ListFailing(cancel);
+        tools.ListFailing(null, cancel);
 
     [McpServerTool(Name = "get_build", ReadOnly = true, UseStructuredContent = true)]
     [Description("One build by its key, as returned by list_builds: status text, commit, author, links, whether it can be retried or cancelled.")]

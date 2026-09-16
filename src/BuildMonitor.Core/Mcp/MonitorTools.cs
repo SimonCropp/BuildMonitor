@@ -23,10 +23,18 @@ sealed class MonitorTools(IProtocolClient client)
         build.Connection.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
         (build.Branch?.Contains(filter, StringComparison.OrdinalIgnoreCase) ?? false);
 
-    public async Task<List<BuildDto>> ListFailing(Cancel cancel)
+    public async Task<List<BuildDto>> ListFailing(string? filter, Cancel cancel)
     {
         var builds = await Read(new(Verb.List), DtoContext.Default.ListBuildDto, cancel);
-        return builds.Where(_ => _.Status == nameof(BuildStatus.Failed)).ToList();
+        var failed = builds.Where(_ => _.Status == nameof(BuildStatus.Failed));
+        if (string.IsNullOrWhiteSpace(filter))
+        {
+            return failed.ToList();
+        }
+
+        return failed
+            .Where(_ => Matches(_, filter))
+            .ToList();
     }
 
     public Task<BuildDto> GetBuild(string key, Cancel cancel) =>

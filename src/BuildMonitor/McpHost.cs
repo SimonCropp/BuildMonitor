@@ -27,7 +27,8 @@ static class McpHost
                 };
             })
             .WithStdioServerTransport()
-            .WithTools<BuildTools>();
+            .WithTools<BuildTools>()
+            .WithPrompts<BuildPrompts>();
         await builder.Build().RunAsync(cancel);
         return 0;
     }
