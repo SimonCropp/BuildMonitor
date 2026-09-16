@@ -40,8 +40,14 @@ static class NativeResolver
 
         foreach (var candidate in Candidates())
         {
-            if (File.Exists(candidate) &&
-                NativeLibrary.TryLoad(candidate, out var handle))
+            // TEMPORARY DIAGNOSTIC: a candidate that exists but will not load is skipped in
+            // silence, which is how a stale shim one folder along can end up being the one that
+            // answers. Says which was tried and what happened. Revert once that is understood.
+            var handle = nint.Zero;
+            var exists = File.Exists(candidate);
+            var loaded = exists && NativeLibrary.TryLoad(candidate, out handle);
+            Console.Error.WriteLine($"native probe: exists={exists} loaded={loaded} {candidate}");
+            if (loaded)
             {
                 return handle;
             }
