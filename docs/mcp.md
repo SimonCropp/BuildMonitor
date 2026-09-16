@@ -31,6 +31,22 @@ Or in a `.mcp.json` (Claude Code, project scope) or `.cursor/mcp.json` (Cursor):
 }
 ```
 
+Claude Desktop keeps its own registry, separate from the one Claude Code reads, in `claude_desktop_config.json`: under `%APPDATA%\Claude` on Windows, and `~/Library/Application Support/Claude` on macOS. Settings > Developer > Edit Config opens it.
+
+```json
+{
+  "mcpServers": {
+    "buildmonitor": {
+      "command": "buildmonitor",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+That file is read only at startup, and closing the window leaves Claude Desktop running in the tray, so quit it and start it again rather than closing it. It also starts the server with the desktop session's environment rather than a shell's, so where `buildmonitor` resolves only because a shell profile adds it to the path, give the absolute path to the tool shim instead: `%USERPROFILE%\.dotnet\tools\buildmonitor.exe`, or `~/.dotnet/tools/buildmonitor`.
+
+
 VS Code, in `.vscode/mcp.json`:
 
 ```json
