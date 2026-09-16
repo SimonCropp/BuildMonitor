@@ -845,6 +845,10 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
 // A label beside a box: level with the text in the box, and wrapped short of the box when it is
 // wider than the column the boxes line up at.
+// On the button beside a directory's box. Composed here rather than carried in the frame because
+// no other head spells it differently either.
+const char* const browseLabel = "Browse";
+
 void BoxLabel(const std::string& label, float boxX) {
     ImGui::AlignTextToFramePadding();
     ImGui::PushTextWrapPos(boxX - ImGui::GetStyle().ItemSpacing.x);
@@ -863,7 +867,7 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
     float labelWidth = 0.0f;
     for (int32_t i = 0; i < screen.fieldCount; i++) {
         int32_t kind = screen.fields[i].kind;
-        if (kind == BM_FIELD_TEXT || kind == BM_FIELD_PASSWORD || kind == BM_FIELD_NUMBER || kind == BM_FIELD_SELECT) {
+        if (kind == BM_FIELD_TEXT || kind == BM_FIELD_PASSWORD || kind == BM_FIELD_NUMBER || kind == BM_FIELD_SELECT || kind == BM_FIELD_DIRECTORY) {
             labelWidth = std::max(labelWidth, ImGui::CalcTextSize(Str(screen, screen.fields[i].label).c_str()).x);
         }
     }
@@ -888,14 +892,23 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
             }
             case BM_FIELD_TEXT:
             case BM_FIELD_PASSWORD:
-            case BM_FIELD_NUMBER: {
+            case BM_FIELD_NUMBER:
+            case BM_FIELD_DIRECTORY: {
                 std::string& buffer = g.buffers[id];
                 if (g.activeField != id) {
                     buffer = value;
                 }
 
                 BoxLabel(label, boxX);
-                ImGui::SetNextItemWidth(field.kind == BM_FIELD_NUMBER ? 100.0f : 420.0f);
+                // A directory's button comes out of the box's width rather than off the end of the
+                // row, so the field still ends where every other one does.
+                float boxWidth = 420.0f;
+                if (field.kind == BM_FIELD_DIRECTORY) {
+                    const ImGuiStyle& formStyle = ImGui::GetStyle();
+                    boxWidth -= ImGui::CalcTextSize(browseLabel).x + 2.0f * formStyle.FramePadding.x + formStyle.ItemSpacing.x;
+                }
+
+                ImGui::SetNextItemWidth(field.kind == BM_FIELD_NUMBER ? 100.0f : boxWidth);
                 ImGuiInputTextFlags flags = ImGuiInputTextFlags_CallbackResize;
                 if (field.kind == BM_FIELD_PASSWORD) flags |= ImGuiInputTextFlags_Password;
                 if (field.kind == BM_FIELD_NUMBER) flags |= ImGuiInputTextFlags_CharsDecimal;
@@ -909,6 +922,16 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
 
                 if (ImGui::IsItemEdited()) {
                     g.edits.push_back({i, std::string(buffer.c_str())});
+                }
+
+                // Beside the box, not under it: a path is picked far more often than typed. The
+                // click is reported against the field itself, which has no other click to confuse
+                // it with.
+                if (field.kind == BM_FIELD_DIRECTORY) {
+                    ImGui::SameLine();
+                    if (ImGui::Button(browseLabel)) {
+                        g.input.clickedField = i;
+                    }
                 }
 
                 break;

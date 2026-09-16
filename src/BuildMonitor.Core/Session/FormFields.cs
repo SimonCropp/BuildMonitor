@@ -16,7 +16,6 @@ static class FormFields
     public const string HistoryDays = "historyDays";
     public const string Port = "port";
     public const string CodeDirectory = "codeDirectory";
-    public const string BrowseCodeDirectory = "browseCodeDirectory";
     public const string AddConnection = "addConnection";
     public const string Version = "version";
     public const string Documentation = "documentation";

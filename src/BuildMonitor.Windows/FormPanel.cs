@@ -183,6 +183,42 @@ sealed class FormPanel : Panel
                 row.LinkClicked += (_, _) => clickedField = field.Id;
                 return (null, row);
             }
+            case FieldKind.Directory:
+            {
+                var panel = new FlowLayoutPanel
+                {
+                    AutoSize = true,
+                    WrapContents = false,
+                    Margin = DpiScale.Spacing(this, 3, 2, 3, 2),
+                    BackColor = Palette.Background
+                };
+                var path = new TextBox
+                {
+                    Width = LogicalToDeviceUnits(420),
+                    BackColor = Palette.Surface,
+                    ForeColor = Palette.Text,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    PlaceholderText = field.Hint ?? "",
+                    Margin = DpiScale.Spacing(this, 0, 4, 8, 4)
+                };
+                path.TextChanged += (_, _) => Changed(field.Id, path.Text);
+                var browse = new FormsButton
+                {
+                    Text = "Browse",
+                    AutoSize = true,
+                    FlatStyle = FlatStyle.Flat,
+                    ForeColor = Palette.Text,
+                    BackColor = Palette.Chip,
+                    Margin = DpiScale.Spacing(this, 0, 2, 0, 2)
+                };
+                browse.FlatAppearance.BorderColor = Palette.Border;
+                // The whole field is the click target: a Directory reports edits from its box and
+                // a click from its button, so the applier needs no id of its own for the button.
+                browse.Click += (_, _) => clickedField = field.Id;
+                panel.Controls.Add(path);
+                panel.Controls.Add(browse);
+                return (Label(field.Label), panel);
+            }
             case FieldKind.ListRow:
             {
                 var panel = new FlowLayoutPanel
@@ -263,6 +299,14 @@ sealed class FormPanel : Panel
                 break;
             case EditRowLink row:
                 row.Text = field.Label.Length == 0 ? field.Value : $"{field.Label}: {field.Value}";
+                break;
+            case FlowLayoutPanel panel when panel.Controls[0] is TextBox path:
+                if (!path.Focused &&
+                    path.Text != field.Value)
+                {
+                    path.Text = field.Value;
+                }
+
                 break;
             case FlowLayoutPanel panel when panel.Controls[0] is FormsLabel text:
                 text.Text = field.Label.Length == 0 ? field.Value : $"{field.Label}: {field.Value}";

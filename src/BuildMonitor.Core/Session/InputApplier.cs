@@ -159,7 +159,9 @@ static class InputApplier
 
         switch (id)
         {
-            case FormFields.BrowseCodeDirectory:
+            // A click on a Directory field is its Browse button: the box itself reports edits, not
+            // clicks.
+            case FormFields.CodeDirectory:
                 return Execute(state, CommandKind.BrowseCodeDirectory, null, actions, window);
             case FormFields.AddConnection:
                 return Execute(state, CommandKind.AddConnection, null, actions, null);

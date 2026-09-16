@@ -135,7 +135,10 @@ enum BmFieldKind {
     BM_FIELD_BUTTON = 6,
     BM_FIELD_LINK = 7,
     BM_FIELD_LIST_ROW = 8,
-    BM_FIELD_EDIT_ROW = 9
+    BM_FIELD_EDIT_ROW = 9,
+    /* A path, with a Browse button beside the box. Reports an edit when typed in, and a click on
+       the same field when browsed. */
+    BM_FIELD_DIRECTORY = 10
 };
 
 enum BmFieldFlags {

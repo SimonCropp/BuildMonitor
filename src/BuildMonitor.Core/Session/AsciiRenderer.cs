@@ -21,6 +21,8 @@ static class AsciiRenderer
     const string widestChips = "PR 9999 [Retry] [Copy log] [Open dir]";
     // Inside the filter box's brackets.
     const int searchWidth = 16;
+    // Beside a Directory field's box, where every head draws the button that asks for a folder.
+    const string browse = " [ Browse ]";
 
     public static string Render(Screen screen)
     {
@@ -242,6 +244,14 @@ static class AsciiRenderer
                 var box = $"[{Fit(value, width)}]";
                 var hint = field.Value.Length == 0 && field.Hint is not null ? $" ({field.Hint})" : "";
                 return $"{label}{box}{hint}{(field.Enabled ? "" : " (disabled)")}";
+            }
+            case FieldKind.Directory:
+            {
+                // The button sits beside the box, as every head draws it, so the width it takes is
+                // out of the box's rather than off the end of the line.
+                var width = Math.Min(40, Math.Max(10, inner - label.Length - 4 - browse.Length));
+                var hint = field.Value.Length == 0 && field.Hint is not null ? $" ({field.Hint})" : "";
+                return $"{label}[{Fit(field.Value, width)}]{browse}{hint}";
             }
             case FieldKind.Select:
                 return $"{label}<{field.Value}>{(field.Enabled ? "" : " (disabled)")}";

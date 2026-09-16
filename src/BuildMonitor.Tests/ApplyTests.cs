@@ -355,7 +355,7 @@ public class ApplyTests
     {
         var window = new FakeWindow { Picked = "/code" };
         var state = MonitorSession.OpenOptions(Fixtures.WithBuilds());
-        state = InputApplier.Apply(state, new(ClickedField: FormFields.BrowseCodeDirectory), new RecordingActions().Actions, window);
+        state = InputApplier.Apply(state, new(ClickedField: FormFields.CodeDirectory), new RecordingActions().Actions, window);
         await Assert.That(state.Form!.Value(FormFields.CodeDirectory)).IsEqualTo("/code");
         await Assert.That(window.Calls).IsEquivalentTo(["PickDirectory "]);
     }
@@ -366,7 +366,7 @@ public class ApplyTests
         var window = new FakeWindow();
         var state = MonitorSession.OpenOptions(Fixtures.WithBuilds());
         state = MonitorSession.FieldChanged(state, FormFields.CodeDirectory, "/was/here");
-        var after = InputApplier.Apply(state, new(ClickedField: FormFields.BrowseCodeDirectory), new RecordingActions().Actions, window);
+        var after = InputApplier.Apply(state, new(ClickedField: FormFields.CodeDirectory), new RecordingActions().Actions, window);
         await Assert.That(after.Form!.Value(FormFields.CodeDirectory)).IsEqualTo("/was/here");
         await Assert.That(window.Calls).IsEquivalentTo(["PickDirectory /was/here"]);
     }

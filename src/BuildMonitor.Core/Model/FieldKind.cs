@@ -20,5 +20,9 @@ enum FieldKind
     // such as the connections. Distinct from ListRow because a field carries one command, so the
     // affordance has to say which of the two it is: a cross on a row that opens an editor reads
     // as a delete, which is the one thing it does not do.
-    EditRow = 9
+    EditRow = 9,
+    // A path, with a Browse button beside the box that asks the desktop for a directory. One field
+    // rather than a Text and a Button, because two fields are two rows in every head, which put
+    // Browse under the box it belongs to. Reports an edit when typed in and a click when browsed.
+    Directory = 10
 }
