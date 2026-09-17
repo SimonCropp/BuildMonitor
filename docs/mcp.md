@@ -143,7 +143,7 @@ The connections and whether polling them works. Never returns credentials.
 
 ### `refresh`
 
-Polls now rather than waiting for the next interval, for every connection or only one.
+Polls now rather than waiting for the next interval, for every connection or only one. It returns before the poll has run, so the builds change a few seconds later. A running build is already polled often near when it should finish, so refreshing is not needed to wait for one. A refresh fetches every repository, project or pipeline of the connections it covers, where the schedule fetches only those that are due.
 
  * "Check the builds again."
  * "I've pushed a fix, refresh GitHub."

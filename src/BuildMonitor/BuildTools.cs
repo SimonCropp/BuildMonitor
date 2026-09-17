@@ -57,7 +57,7 @@ sealed class BuildTools(MonitorTools tools)
         tools.ListConnections(cancel);
 
     [McpServerTool(Name = "refresh", Idempotent = true)]
-    [Description("Polls the CI services now rather than waiting for the next interval.")]
+    [Description("Polls the CI services now rather than at the next interval. Returns as soon as the poll is asked for, before it has run, so list the builds again after a few seconds to see what it found. A running build is already polled often near when it should finish, so this is not needed to wait for one.")]
     public Task<string> Refresh(
         [Description("A connection id from list_connections, or empty for every connection.")] string? connectionId = null,
         Cancel cancel = default) =>
