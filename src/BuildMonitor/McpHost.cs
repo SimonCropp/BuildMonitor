@@ -25,6 +25,7 @@ static class McpHost
                     Name = "BuildMonitor",
                     Version = VersionReader.VersionString
                 };
+                _.ServerInstructions = McpInstructions.Text;
             })
             .WithStdioServerTransport()
             .WithTools<BuildTools>()
