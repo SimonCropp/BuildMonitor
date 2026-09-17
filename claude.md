@@ -28,6 +28,16 @@ src/BuildMonitor.Tests/bin/Debug/net10.0/BuildMonitor.Tests.exe --treenode-filte
 
 # Benchmarks, on demand and Windows only. Not in the solution, so neither CI nor dotnet test runs them
 dotnet run --configuration Release --project src/BuildMonitor.Benchmarks -- --filter "*"
+
+# Live provider tests against real services: [Explicit], so only these filters run them.
+# Settings come from BUILDMONITOR_* env vars, a local Docker server's .state file, or user secrets (--id BuildMonitor.LiveTests).
+# BUILDMONITOR_LIVE_PROVIDERS=<id> narrows the run to one provider, and BUILDMONITOR_LIVE_ACTIONS=true is also needed to retry and cancel. See docs/live-tests.md
+src/BuildMonitor.Tests/bin/Debug/net10.0/BuildMonitor.Tests.exe --treenode-filter "/*/*/LiveReadTests/*" --output Detailed
+src/BuildMonitor.Tests/bin/Debug/net10.0/BuildMonitor.Tests.exe --treenode-filter "/*/*/LiveActionTests/*" --output Detailed
+
+# Jenkins, TeamCity or GoCD in Docker for those tests, from Git Bash: start and provision, then tear down
+bash src/BuildMonitor.Tests/Providers/Live/Servers/jenkins/provision.sh
+bash src/BuildMonitor.Tests/Providers/Live/Servers/jenkins/provision.sh down
 ```
 
 **Test runner:** TUnit runs on Microsoft.Testing.Platform rather than VSTest. Filters are treenode paths given after `--`, as `/Assembly/Namespace/Class/Test` with `*` for any segment; VSTest's `--filter "FullyQualifiedName~ClassName"` matches nothing and exits 5. `--nologo` makes any run report "Zero tests ran" and exit 5, so leave it off.

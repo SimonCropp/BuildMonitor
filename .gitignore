@@ -16,3 +16,4 @@ native/build/
 /src/TestResults
 *.lnk
 /src/BuildMonitor.Tests/Providers/TestResults
+/src/BuildMonitor.Tests/Providers/Live/Servers/.state/

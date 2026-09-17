@@ -66,7 +66,8 @@ MyGet is not supported: it exposes no build API, only a status badge, a trigger 
  * [Linux](/docs/linux.md)
  * [macOS](/docs/macos.md)
  * [Troubleshooting](/docs/troubleshooting.md)
- * [Provider APIs](/docs/providers/api-comparison.md)<!-- endInclude -->
+ * [Provider APIs](/docs/providers/api-comparison.md)
+ * [Live provider tests](/docs/live-tests.md)<!-- endInclude -->
 
 
 ## Icons

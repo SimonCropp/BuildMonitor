@@ -9,6 +9,7 @@
     <File Path="../.github/workflows/test.yml" />
     <File Path="../.github/workflows/build-native.yml" />
     <File Path="../.github/workflows/publish-nuget.yml" />
+    <File Path="../.github/workflows/live.yml" />
     <File Path="../readme.source.md" />
     <File Path="../.editorconfig" />
     <File Path="Directory.Build.props" />
