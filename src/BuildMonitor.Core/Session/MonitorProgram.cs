@@ -174,11 +174,15 @@ static class MonitorProgram
                     case WindowCommand.Focus:
                         window.Focus();
                         break;
+                    // The state follows the window, as it does when the tray shows or hides it: the
+                    // screen of a hidden window has no rows, and the clock does not tick it.
                     case WindowCommand.Show:
+                        host.Mutate(MonitorSession.Show);
                         window.SetHidden(false);
                         window.Focus();
                         break;
                     case WindowCommand.Hide:
+                        host.Mutate(MonitorSession.Hide);
                         window.SetHidden(true);
                         break;
                 }

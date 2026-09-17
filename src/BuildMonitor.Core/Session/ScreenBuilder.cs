@@ -20,9 +20,35 @@ static class ScreenBuilder
         var status = Status(state, now);
         return state.Page switch
         {
+            Page.Builds when state.Hidden => HiddenScreen(state, builds, tray, status),
             Page.Builds => BuildsScreen(state, now, builds, tray, status),
             _ => FormScreen(state, tray, status)
         };
+    }
+
+    /// <summary>
+    /// The builds page without its rows while the window is hidden. No one sees them, and the tray
+    /// and the notification, all that is read meanwhile, need none, yet every poll composed and
+    /// sized each row of a large account. Showing the window changes the state, which rebuilds the
+    /// page whole.
+    /// </summary>
+    static Screen HiddenScreen(SessionState state, ImmutableArray<Build> builds, TrayModel tray, string status)
+    {
+        var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
+        var running = builds.Count(_ => _.IsActive);
+        return new(
+            Title,
+            Page.Builds,
+            new(Header(state, builds.Length, failing, running), [], 0, 0, -1, failing, running, [], [], [], false, state.Search, ""),
+            null,
+            Buttons(state),
+            status,
+            tray,
+            state.Columns,
+            state.Rows,
+            null,
+            state.Notification,
+            state.Settings.Theme);
     }
 
     static Screen BuildsScreen(SessionState state, DateTimeOffset now, ImmutableArray<Build> builds, TrayModel tray, string status)
@@ -118,8 +144,43 @@ static class ScreenBuilder
         return [..RowProjection.Rows(state with { Search = "" }, builds), ..rows];
     }
 
-    static List<string> Names(ImmutableArray<Row> rows, RowKind kind) =>
-        rows.Where(_ => _.Kind == kind).Select(NameOf).Distinct().ToList();
+    static List<string> Names(ImmutableArray<Row> rows, RowKind kind)
+    {
+        var names = new List<string>();
+        var seen = new HashSet<string>().GetAlternateLookup<ReadOnlySpan<char>>();
+        foreach (var row in rows)
+        {
+            if (row.Kind != kind)
+            {
+                continue;
+            }
+
+            // As NameOf says it, without copying a build's name out of its repository's.
+            if (row is { Kind: RowKind.Build, Build: { } build })
+            {
+                AddDistinct(seen, names, BuildExtensions.ShortRepoName(build.RepoName.AsSpan()));
+                continue;
+            }
+
+            AddDistinct(seen, names, NameOf(row));
+        }
+
+        return names;
+    }
+
+    /// <summary>
+    /// Adds the text unless it is there already, in the order first seen, and makes it a string only
+    /// then. The columns are sized from every row, and building each row's text only for the repeats
+    /// to be dropped cost every row its strings on every rebuild.
+    /// </summary>
+    static void AddDistinct(HashSet<string>.AlternateLookup<ReadOnlySpan<char>> seen, List<string> texts, ReadOnlySpan<char> text)
+    {
+        if (seen.Add(text) &&
+            seen.TryGetValue(text, out var added))
+        {
+            texts.Add(added);
+        }
+    }
 
     /// <summary>
     /// What a row's first cell says. One rule for the composed row and for the names the column is
@@ -146,8 +207,62 @@ static class ScreenBuilder
     static bool NamedAfterProject(Build build) =>
         MemoryExtensions.Equals(BuildExtensions.ShortRepoName(build.RepoName.AsSpan()), build.PipelineName, StringComparison.OrdinalIgnoreCase);
 
-    static List<string> Details(ImmutableArray<Row> rows) =>
-        rows.Select(_ => string.Concat(DetailOf(_).Select(span => span.Text))).Distinct().ToList();
+    static List<string> Details(ImmutableArray<Row> rows)
+    {
+        var details = new List<string>();
+        var seen = new HashSet<string>().GetAlternateLookup<ReadOnlySpan<char>>();
+        foreach (var row in rows)
+        {
+            AddDetail(seen, details, row);
+        }
+
+        return details;
+    }
+
+    /// <summary>
+    /// The text <see cref="DetailOf"/> gives the row, written on the stack rather than as runs that
+    /// are then joined.
+    /// </summary>
+    static void AddDetail(HashSet<string>.AlternateLookup<ReadOnlySpan<char>> seen, List<string> details, Row row)
+    {
+        if (row.Build is not { } build)
+        {
+            AddDistinct(seen, details, GroupDetail(row));
+            return;
+        }
+
+        var (pipeline, branch) = DetailParts(build);
+        var separator = pipeline.Length > 0 && branch.Length > 0 ? " " : "";
+        var length = pipeline.Length + separator.Length + branch.Length;
+        var text = length <= 256 ? stackalloc char[length] : new char[length];
+        text.TryWrite($"{pipeline}{separator}{branch}", out _);
+        AddDistinct(seen, details, text);
+    }
+
+    /// <summary>
+    /// The pipeline and branch a build's second cell names, either empty when left out. The pipeline
+    /// is left out when the provider names it after the repository, as AppVeyor does, rather than
+    /// the same name reading in both columns. The name links to the run instead.
+    /// </summary>
+    static (string Pipeline, string Branch) DetailParts(Build build)
+    {
+        if (NamedAfterProject(build))
+        {
+            return ("", build.ShortBranchName());
+        }
+
+        return (build.PipelineName, build.ShortBranchName());
+    }
+
+    static string GroupDetail(Row row)
+    {
+        if (row.Group!.Failed)
+        {
+            return $"{row.Members.Length} failing";
+        }
+
+        return $"{row.Members.Length} passing";
+    }
 
     /// <summary>
     /// What a row's second cell says, in runs, one rule for the row and for the details the column is
@@ -159,18 +274,13 @@ static class ScreenBuilder
     {
         if (row.Build is not { } build)
         {
-            return [new(row.Group!.Failed ? $"{row.Members.Length} failing" : $"{row.Members.Length} passing")];
+            return [new(GroupDetail(row))];
         }
 
+        var (pipeline, branch) = DetailParts(build);
         var spans = new List<DetailSpan>();
-        // The pipeline is left out when the provider names it after the repository, as AppVeyor
-        // does, rather than the same name reading in both columns. The name links to the run instead.
-        if (!NamedAfterProject(build))
-        {
-            Append(spans, build.PipelineName, ChipKind.Build);
-        }
-
-        Append(spans, build.ShortBranchName(), build.BranchUrl is null ? ChipKind.None : ChipKind.Branch);
+        Append(spans, pipeline, ChipKind.Build);
+        Append(spans, branch, build.BranchUrl is null ? ChipKind.None : ChipKind.Branch);
         return spans;
     }
 

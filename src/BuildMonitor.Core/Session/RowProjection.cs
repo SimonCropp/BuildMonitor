@@ -8,9 +8,20 @@
 /// passes default closed, because a repository with a handful of passing workflows otherwise
 /// buries the red and running rows under ones that need nothing.
 /// </para>
+/// <para>
+/// The last projection is handed back while a state holds the same instances of what it reads. A
+/// poll projected the rows before and after it to keep the selection, and the screen then projected
+/// them again, each a sort and a grouping of every build. The state before a poll is the one the
+/// screen last drew, and the state a transition returns differs from the one it projected only in
+/// what a projection does not read. Compared by reference, the state being immutable, and swapped
+/// whole, so a reader on another thread at worst projects again.
+/// </para>
 /// </summary>
 static class RowProjection
 {
+    static SortedBuilds? lastBuilds;
+    static ProjectedRows? lastRows;
+
     public static ImmutableArray<Row> Rows(SessionState state) =>
         Rows(state, Builds(state));
 
@@ -20,6 +31,19 @@ static class RowProjection
     /// and a screen rebuild used to take it three times, four with a filter typed.
     /// </summary>
     public static ImmutableArray<Row> Rows(SessionState state, ImmutableArray<Build> sorted)
+    {
+        if (lastRows is { } last &&
+            last.IsFor(state, sorted))
+        {
+            return last.Rows;
+        }
+
+        var rows = Project(state, sorted);
+        lastRows = new(sorted, state.Connections, state.ToggledGroups, state.Search, rows);
+        return rows;
+    }
+
+    static ImmutableArray<Row> Project(SessionState state, ImmutableArray<Build> sorted)
     {
         // Narrowed before grouping, so a group holds only the members that match: a closed group
         // left whole would hide the one build the filter was typed to find.
@@ -94,7 +118,20 @@ static class RowProjection
     /// happening now sits at the top. Not narrowed by the filter box, so the tray, the header's
     /// counts and the MCP tools still describe everything watched while a filter is typed.
     /// </summary>
-    public static ImmutableArray<Build> Builds(SessionState state) =>
+    public static ImmutableArray<Build> Builds(SessionState state)
+    {
+        if (lastBuilds is { } last &&
+            last.IsFor(state))
+        {
+            return last.Sorted;
+        }
+
+        var sorted = Sort(state);
+        lastBuilds = new(state.Settings, state.Connections, state.Builds, sorted);
+        return sorted;
+    }
+
+    static ImmutableArray<Build> Sort(SessionState state) =>
     [
         ..state.Connections
             .SelectMany(_ => Selected(state, _.Connection.Id))
