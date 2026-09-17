@@ -138,16 +138,21 @@ static class ScreenBuilder
     /// project. The second cell leaves such a pipeline out, so without this the row, an AppVeyor
     /// project's for one, would name its run nowhere a click could reach.
     /// </summary>
-    static ChipKind NameLinkOf(Row row) =>
-        row is { Kind: RowKind.Build, Build: { } build } && NamedAfterProject(build)
-            ? ChipKind.Build
-            : ChipKind.None;
+    static ChipKind NameLinkOf(Row row)
+    {
+        if (row is { Kind: RowKind.Build, Build: { } build } && NamedAfterProject(build))
+        {
+            return ChipKind.Build;
+        }
+
+        return ChipKind.None;
+    }
 
     static bool NamedAfterProject(Build build) =>
-        MemoryExtensions.Equals(BuildExtensions.ShortRepoName(build.RepoName.AsSpan()), build.PipelineName, StringComparison.OrdinalIgnoreCase);
+        BuildExtensions.ShortRepoName(build.RepoName.AsSpan()).Equals(build.PipelineName, StringComparison.OrdinalIgnoreCase);
 
     static List<string> Details(ImmutableArray<Row> rows) =>
-        rows.Select(_ => string.Concat(DetailOf(_).Select(span => span.Text))).Distinct().ToList();
+        rows.Select(_ => string.Concat(DetailOf(_).Select(_ => _.Text))).Distinct().ToList();
 
     /// <summary>
     /// What a row's second cell says, in runs, one rule for the row and for the details the column is
@@ -335,7 +340,12 @@ static class ScreenBuilder
             var problem = first.Health == ConnectionHealth.NeedsAuth
                 ? $"Sign in required for {first.Connection.Name}"
                 : $"{first.Connection.Name}: {first.Describe(now)}";
-            return problems.Count == 1 ? problem : $"{problem} (+{problems.Count - 1} more)";
+            if (problems.Count == 1)
+            {
+                return problem;
+            }
+
+            return $"{problem} (+{problems.Count - 1} more)";
         }
 
         var polled = state.Connections
@@ -345,7 +355,12 @@ static class ScreenBuilder
             .Max();
         if (polled == default)
         {
-            return state.Connections.Length == 0 ? "" : "Not polled yet";
+            if (state.Connections.Length == 0)
+            {
+                return "";
+            }
+
+            return "Not polled yet";
         }
 
         return $"Polled {Progress.Age(now - polled)} ago";

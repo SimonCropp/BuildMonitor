@@ -54,7 +54,7 @@ BuildMonitor is a tray app that polls CI services and shows one row per pipeline
 Enforced as build errors by `.editorconfig` (written by ProjectDefaults) and `TreatWarningsAsErrors`:
 
 - No namespaces in app or test code. `var` everywhere. Expression-bodied members. Target-typed `new()`. Collection expressions. No `this.`. No accessibility modifiers on private members. camelCase fields with no underscore. Braces always, Allman.
-- Lambda parameters are `_`, even when used (`Select(_ => _.Name)`); a nested lambda that would shadow gets a descriptive name.
+- Lambda parameters are `_`, even when used (`Select(_ => _.Name)`), and in a nested lambda too, shadowing the outer one. Only a lambda whose body still needs an outer `_` gets a descriptive name.
 - No single-letter locals other than loop counters; no abbreviations in identifiers (`context` not `ctx`).
 - One type per file. XML doc comments explain the failure mode a design guards against.
 - Tests: TUnit `[Test]`, `await Assert.That(x).IsEqualTo(y)`, `await Verify(...)`, `[Arguments]` for parameterisation, snapshots flat beside the test file.

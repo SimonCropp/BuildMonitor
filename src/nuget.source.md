@@ -31,7 +31,15 @@ Each takes a token or API key created in that service's own UI, and GitHub, GitL
 claude mcp add --transport stdio buildmonitor --scope user -- buildmonitor mcp
 ```
 
-See [the MCP docs](https://github.com/SimonCropp/BuildMonitor/blob/main/docs/mcp.md) for the other clients and the tools it exposes.
+The server also ships a `triage` command for working through every failing build whose repository is checked out under the [code directory](https://github.com/SimonCropp/BuildMonitor/blob/main/docs/options.md#code-directory), on every connection. It reads the logs, groups the failures that share a cause before investigating any of them, and reproduces each from its checkout without switching, stashing or discarding anything there. In Claude Code:
+
+```
+/mcp__buildmonitor__triage
+```
+
+It only diagnoses by default. `/mcp__buildmonitor__triage * true` has it fix the failures as well, with the changes left uncommitted for review.
+
+See [the MCP docs](https://github.com/SimonCropp/BuildMonitor/blob/main/docs/mcp.md) for the other clients, the tools it exposes, and [the triage arguments](https://github.com/SimonCropp/BuildMonitor/blob/main/docs/mcp.md#triaging-failures).
 
 
 ## Documentation

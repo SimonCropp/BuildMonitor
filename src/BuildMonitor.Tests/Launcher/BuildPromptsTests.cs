@@ -20,11 +20,11 @@ public class BuildPromptsTests
                 _.GetCustomAttribute<DescriptionAttribute>()?.Description,
                 Parameters = _.GetParameters()
                     .Where(_ => _.ParameterType != typeof(Cancel))
-                    .Select(parameter => new
+                    .Select(_ => new
                     {
-                        parameter.Name,
-                        Type = parameter.ParameterType.Name,
-                        parameter.GetCustomAttribute<DescriptionAttribute>()?.Description
+                        _.Name,
+                        Type = _.ParameterType.Name,
+                        _.GetCustomAttribute<DescriptionAttribute>()?.Description
                     })
             })
             .OrderBy(_ => _.Name);

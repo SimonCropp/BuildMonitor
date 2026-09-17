@@ -77,10 +77,15 @@ static class TriagePrompt
             .OrderByDescending(_ => _.Count())
             .ThenBy(_ => _.Key, StringComparer.OrdinalIgnoreCase);
 
-    static string Heading(IGrouping<string, BuildDto> group) =>
-        group.Count() == 1
-            ? $"### {group.Key}"
-            : $"### {group.Key}: {group.Count()} repositories on this one pipeline, so they may share one cause";
+    static string Heading(IGrouping<string, BuildDto> group)
+    {
+        if (group.Count() == 1)
+        {
+            return $"### {group.Key}";
+        }
+
+        return $"### {group.Key}: {group.Count()} repositories on this one pipeline, so they may share one cause";
+    }
 
     static string Entry(BuildDto build)
     {
@@ -119,11 +124,23 @@ static class TriagePrompt
             line += $" by {author}";
         }
 
-        return Subject(build.CommitMessage) is { Length: > 0 } subject ? $"{line}: {subject}" : line;
+        if (Subject(build.CommitMessage) is { Length: > 0 } subject)
+        {
+            return $"{line}: {subject}";
+        }
+
+        return line;
     }
 
-    static string Short(string sha) =>
-        sha.Length > 7 ? sha[..7] : sha;
+    static string Short(string sha)
+    {
+        if (sha.Length > 7)
+        {
+            return sha[..7];
+        }
+
+        return sha;
+    }
 
     /// <summary>
     /// The first line of a commit message. Dependabot writes a body longer than everything else on
@@ -137,7 +154,12 @@ static class TriagePrompt
         }
 
         var end = message.IndexOf('\n');
-        return (end < 0 ? message : message[..end]).Trim();
+        if (end < 0)
+        {
+            return message.Trim();
+        }
+
+        return message[..end].Trim();
     }
 
     /// <summary>
@@ -187,10 +209,15 @@ static class TriagePrompt
     /// project rather than a repository, so the two are often the same text, and printing it twice
     /// reads as two things.
     /// </summary>
-    static string Name(BuildDto build) =>
-        build.Pipeline.Equals(build.Repo, StringComparison.OrdinalIgnoreCase)
-            ? build.Repo
-            : $"{build.Repo}, {build.Pipeline}";
+    static string Name(BuildDto build)
+    {
+        if (build.Pipeline.Equals(build.Repo, StringComparison.OrdinalIgnoreCase))
+        {
+            return build.Repo;
+        }
+
+        return $"{build.Repo}, {build.Pipeline}";
+    }
 
     /// <summary>
     /// Whether the caller asked for the failures to be fixed rather than only diagnosed.
@@ -213,15 +240,43 @@ static class TriagePrompt
     /// are positional, so without a way to write "everything" in the filter's slot, asking for a fix
     /// across every connection could not be said at all.
     /// </summary>
-    public static string? Filter(string? value) =>
-        value?.Trim() is { Length: > 0 } text && text != "*" ? text : null;
+    public static string? Filter(string? value)
+    {
+        if (value?.Trim() is { Length: > 0 } text && text != "*")
+        {
+            return text;
+        }
 
-    static string Count(int count, string noun) =>
-        count == 1 ? $"One {noun}" : $"{count} {noun}s";
+        return null;
+    }
 
-    static string Have(int count) =>
-        count == 1 ? "has" : "have";
+    static string Count(int count, string noun)
+    {
+        if (count == 1)
+        {
+            return $"One {noun}";
+        }
 
-    static string Scope(string? filter) =>
-        filter is { Length: > 0 } ? $" matching \"{filter}\"" : "";
+        return $"{count} {noun}s";
+    }
+
+    static string Have(int count)
+    {
+        if (count == 1)
+        {
+            return "has";
+        }
+
+        return "have";
+    }
+
+    static string Scope(string? filter)
+    {
+        if (filter is { Length: > 0 })
+        {
+            return $" matching \"{filter}\"";
+        }
+
+        return "";
+    }
 }
