@@ -83,6 +83,13 @@ static class MonitorProgram
     static int RunOwned(string[] args, Settings settings, bool hidden, LocalServer server, OpenWindow openWindow, OpenTray openTray)
     {
         var host = new SessionHost(StartState(settings, hidden));
+        // Read only by the tray that owns the port, so one started beside it and leaving at once
+        // does not take the report with it.
+        if (FailedUpdate.Take(AppPaths.FailedUpdate) is { } failedUpdate)
+        {
+            host.Mutate(_ => MonitorSession.Notify(_, failedUpdate));
+        }
+
         var secrets = new CachingSecretStore(SecretStores.ForPlatform(AppPaths.Secrets));
         var history = DurationHistory.Load(AppPaths.History);
         var handler = new SocketsHttpHandler

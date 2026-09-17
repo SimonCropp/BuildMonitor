@@ -91,7 +91,9 @@ Where the provider reports what a credential may do, Test says so, and a connect
 
 ## Update
 
-Runs `dotnet tool update` for BuildMonitor and restarts it. On Windows the update runs after the tray has exited, because a running executable cannot be replaced.
+Runs `dotnet tool update` for BuildMonitor and restarts it. On Windows the update runs after the tray has exited, because a running executable cannot be replaced. For the same reason it first stops any [MCP server](mcp.md) BuildMonitor is running for an AI assistant, since each holds the installed version's files. The assistant sees its server stop, and connecting it again starts the new version; see [Updating](mcp.md#updating).
+
+If the update fails, BuildMonitor starts again on the version it had, and a notification gives the reason. The whole output of `dotnet tool update` is in the [log](troubleshooting.md#logs). See [An update fails](troubleshooting.md#an-update-fails).
 
 
 ## Open logs

@@ -22,6 +22,14 @@ Run `buildmonitor` to start the tray app. One install works on every operating s
 
 The command also takes `show`, `hide`, `quit`, `refresh`, `status` and `mcp`.
 
+To update, use [Update](https://github.com/SimonCropp/BuildMonitor/blob/main/docs/options.md#update) in the tray menu, which restarts BuildMonitor on the new version. To update from the command line on Windows, first quit the tray with `buildmonitor quit` and close any AI assistant using the MCP server, since both hold the installed files:
+
+```
+dotnet tool update --global BuildMonitor --prerelease
+```
+
+An assistant stays on the old version of the MCP server until it [connects it again](https://github.com/SimonCropp/BuildMonitor/blob/main/docs/mcp.md#updating).
+
 
 ## Supported services
 

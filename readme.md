@@ -31,6 +31,14 @@ dotnet tool install --global BuildMonitor --prerelease
 
 Run `buildmonitor` to start the tray app. One install works on every operating system: the package carries a head for each platform and the launcher starts the right one.
 
+To update, use [Update](/docs/options.md#update) in the tray menu, which restarts BuildMonitor on the new version. To update from the command line on Windows, first quit the tray with `buildmonitor quit` and close any AI assistant using the MCP server, since both hold the installed files:
+
+```
+dotnet tool update --global BuildMonitor --prerelease
+```
+
+An assistant stays on the old version of the MCP server until it [connects it again](/docs/mcp.md#updating).
+
 
 ## Supported services
 

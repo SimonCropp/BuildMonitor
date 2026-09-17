@@ -100,3 +100,10 @@ Claude Code splits a command's arguments on whitespace and binds them in order, 
 /mcp__buildmonitor__triage SdkCheck true
 /mcp__buildmonitor__triage * true
 ```
+
+
+## Updating
+
+Each assistant runs its own `buildmonitor mcp` process, which stays on the version it started with until the assistant connects it again. After an update, reconnect it: from `/mcp` in Claude Code, which does not restart a local server by itself, or by quitting and restarting Claude Desktop.
+
+On Windows a running server also holds the installed version's files, so `dotnet tool update` cannot remove them and fails with `Access to the path ... is denied`. The tray's [Update](options.md#update) stops the servers before it updates. From the command line, quit the tray with `buildmonitor quit` and close the assistants using the server first. See [An update fails](troubleshooting.md#an-update-fails).
