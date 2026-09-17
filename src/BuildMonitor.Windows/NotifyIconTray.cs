@@ -36,6 +36,11 @@ sealed class NotifyIconTray : ITray
             }
         };
         icon.DoubleClick += (_, _) => iconClicked = true;
+        // After the icon is added, since that is what makes Windows record it.
+        if (Environment.ProcessPath is { } processPath)
+        {
+            NotifyIconSettings.Apply(processPath);
+        }
     }
 
     public static ITray? Open(out string? error)

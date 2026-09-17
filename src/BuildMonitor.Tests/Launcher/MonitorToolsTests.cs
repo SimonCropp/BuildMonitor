@@ -80,8 +80,51 @@ public class MonitorToolsTests
     public async Task ListFailing()
     {
         var (tools, _, _) = Create();
-        var failing = await tools.ListFailing(Cancel.None);
+        var failing = await tools.ListFailing(null, Cancel.None);
         await Assert.That(failing.Select(_ => _.Key)).IsEquivalentTo(["gh/Verify/test.yml/feature/inline"]);
+    }
+
+    /// <summary>
+    /// The same filter list_builds takes, so the triage command can be pointed at one connection or
+    /// one repository rather than at every pipeline being watched.
+    /// </summary>
+    [Test]
+    public async Task ListFailingTakesTheSameFilterAsListBuilds()
+    {
+        var (tools, _, _) = Create();
+        await Assert.That((await tools.ListFailing("verify", Cancel.None)).Select(_ => _.Key))
+            .IsEquivalentTo(["gh/Verify/test.yml/feature/inline"]);
+        await Assert.That(await tools.ListFailing("diffengine", Cancel.None)).IsEmpty();
+    }
+
+    /// <summary>
+    /// Through the prompt rather than the projection, so a star that reached the tray as a literal
+    /// filter, and so matched nothing, would fail here.
+    /// </summary>
+    [Test]
+    public async Task TriageTakesAStarForEveryBuild()
+    {
+        var (tools, _, _) = Create();
+        var prompts = new BuildPrompts(tools);
+
+        await Assert.That(await prompts.Triage("*", "true", Cancel.None))
+            .StartsWith("One failing build, none with a repository checked out locally");
+        await Assert.That(await prompts.Triage("diffengine", null, Cancel.None))
+            .IsEqualTo("Nothing is failing matching \"diffengine\". There is no triage to do.");
+    }
+
+    /// <summary>
+    /// A mistyped id is refused, where it used to be answered as though its poll had started.
+    /// </summary>
+    [Test]
+    public async Task RefreshRefusesAConnectionThatDoesNotExist()
+    {
+        var (tools, _, _) = Create();
+        await Assert.That(await tools.Refresh(null, Cancel.None)).IsEqualTo("Refreshing every connection");
+        await Assert.That(await tools.Refresh("gh", Cancel.None)).IsEqualTo("Refreshing gh");
+
+        var exception = await Assert.That(async () => await tools.Refresh("nope", Cancel.None)).Throws<InvalidOperationException>();
+        await Assert.That(exception!.Message).IsEqualTo("No connection with id nope");
     }
 
     [Test]

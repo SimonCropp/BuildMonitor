@@ -19,6 +19,23 @@ The log holds information, warnings and errors. Set the `BuildMonitor_LogLevel` 
 `buildmonitor status` prints the connections and builds, or says nothing answered on the port. Run `buildmonitor` to start it. If it exits at once, the log says why; the usual reasons are settings.json not being readable, or the port being taken by something that is not BuildMonitor. Set the `BuildMonitor_Port` environment variable, or change the port in Options, to use another.
 
 
+## An update fails
+
+When `dotnet tool update` fails, the tray's [Update](options.md#update) starts the version that was already installed again, and a notification gives the reason. The whole output is in the log.
+
+On Windows the usual reason is that something is still running from the installed version:
+
+```
+Failed to uninstall tool package 'buildmonitor': Access to the path '...\.store\buildmonitor\{VERSION}' is denied.
+```
+
+Update stops BuildMonitor's [MCP servers](mcp.md#updating) before it starts, but an assistant session opened in the meantime can start another one. From the command line nothing is stopped for you: quit the tray with `buildmonitor quit`, close the AI assistants using the MCP server, then update:
+
+```
+dotnet tool update --global BuildMonitor --prerelease
+```
+
+
 ## A connection says "sign in required"
 
 The credential was refused. Edit the connection and enter a new token, or sign in again. GitHub fine grained tokens and Azure DevOps personal access tokens also expire; check the date.

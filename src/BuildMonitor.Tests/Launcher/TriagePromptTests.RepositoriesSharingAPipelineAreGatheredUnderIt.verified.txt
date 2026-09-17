@@ -1,0 +1,36 @@
+﻿4 failing builds have their code checked out locally. Work through them.
+
+## The failures
+
+### merge-dependabot: 3 repositories on this one pipeline, so they may share one cause
+
+- SimonCropp/EfQueryComplexity on dependabot/nuget/src/TUnit-1.68.0, run 1, failed 6h ago
+  code: /code/EfQueryComplexity
+  key: gh/EfQueryComplexity/merge-dependabot/tunit
+  commit 1b04837 by dependabot[bot]: Bump TUnit from 1.67.0 to 1.68.0
+
+- SimonCropp/SdkCheck on dependabot/nuget/src/Microsoft.NET.Test.Sdk-18.10.1, run 17, failed 14h ago
+  code: /code/SdkCheck
+  key: gh/SdkCheck/merge-dependabot/testsdk
+  commit e776839 by dependabot[bot]: Bump Microsoft.NET.Test.Sdk from 18.9.0 to 18.10.1
+
+- SimonCropp/EntityFramework.OrderBy on dependabot/nuget/src/multi-a9bd3edf79, run 156, failed 20h ago
+  code: /code/EntityFramework.OrderBy
+  key: gh/EntityFramework.OrderBy/merge-dependabot/verify
+  commit ad2a133 by dependabot[bot]: Bump Verify and Verify.NUnit
+
+### test.yml
+
+- VerifyTests/Verify on main, run 412, failed 2h ago
+  code: /code/Verify
+  key: gh/Verify/test.yml/main
+  commit 9f1c2b7 by Simon Cropp: Tighten the converter lookup
+
+## How to work through them
+
+1. Read each build's log with `get_build_log`, taking the key from its entry above.
+2. Group the failures by what the logs actually say before investigating any of them. Repositories failing on one shared workflow, action, dependency or template are one fix, not several, and the pipeline groupings above are only a guess at that.
+3. Work each group from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead. Reproduce the failure before deciding what it is.
+4. Report what you found per group, with the fix you would make. Do not change any source files.
+
+Where a group turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.

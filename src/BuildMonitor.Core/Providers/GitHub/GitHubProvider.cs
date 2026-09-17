@@ -296,6 +296,7 @@ sealed class GitHubProvider : ProviderBase
         };
         var pullRequest = run.PullRequests.FirstOrDefault();
         var web = $"https://github.com/{repository}";
+        var branchWeb = string.IsNullOrEmpty(run.HeadRepository?.FullName) ? web : $"https://github.com/{run.HeadRepository.FullName}";
         return new(
             connectionId,
             pipeline.Id,
@@ -310,7 +311,7 @@ sealed class GitHubProvider : ProviderBase
             run.Status == "completed" ? run.UpdatedAt : null,
             null,
             run.HtmlUrl,
-            run.HeadBranch is null ? null : $"{web}/tree/{run.HeadBranch}",
+            run.HeadBranch is null ? null : $"{branchWeb}/tree/{run.HeadBranch}",
             pullRequest?.Number.ToString(),
             pullRequest is null ? null : $"{web}/pull/{pullRequest.Number}",
             run.HeadSha,

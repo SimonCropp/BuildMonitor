@@ -48,6 +48,14 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
             case Verb.Pipelines:
                 return Response.Success(JsonSerializer.Serialize(Snapshot.Pipelines(state), DtoContext.Default.ListPipelineDto));
             case Verb.Refresh:
+                // Refused rather than answered as though a poll had started: a mistyped id would
+                // otherwise leave whoever asked waiting on a refresh that never happens.
+                if (!string.IsNullOrEmpty(message.Key) &&
+                    state.Connections.All(_ => _.Connection.Id != message.Key))
+                {
+                    return Response.Error($"No connection with id {message.Key}");
+                }
+
                 poller.Refresh(string.IsNullOrEmpty(message.Key) ? null : message.Key);
                 return Response.Success();
             case Verb.Retry:

@@ -1,0 +1,32 @@
+# TeamCity for the live tests. provision.sh drives it.
+name: buildmonitor-live-teamcity
+services:
+  server:
+    image: jetbrains/teamcity-server:2026.2
+    ports:
+      - 127.0.0.1:${BUILDMONITOR_TEAMCITY_PORT:-8111}:8111
+    environment:
+      # Skips the first start screens, as JetBrains' own CLI tests do. This accepts the TeamCity
+      # license agreement on the user's behalf. TeamCity Professional is free up to 100 build
+      # configurations and 3 agents, and this uses one of each.
+      TEAMCITY_SERVER_OPTS: >-
+        -Dteamcity.startup.maintenance=false
+        -Dteamcity.licenseAgreement.accepted=true
+        -Dteamcity.installation.completed=true
+        -Dteamcity.tools.bundled.installOnStartup=false
+    volumes:
+      - data:/data/teamcity_server/datadir
+      - logs:/opt/teamcity/logs
+  agent:
+    image: jetbrains/teamcity-minimal-agent:2026.2
+    depends_on:
+      - server
+    environment:
+      SERVER_URL: http://server:8111
+      AGENT_NAME: buildmonitor-agent
+    volumes:
+      - agent:/data/teamcity_agent/conf
+volumes:
+  data:
+  logs:
+  agent:

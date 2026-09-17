@@ -31,5 +31,8 @@
           Link="runtimes\%(RecursiveDir)%(Filename)%(Extension)" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <!-- The live provider tests read their settings from the environment and user secrets. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
   </ItemGroup>
 </Project>

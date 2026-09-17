@@ -1,0 +1,27 @@
+# GoCD for the live tests. provision.sh drives it.
+#
+# The password file comes from an environment variable that provision.sh sets, and Compose
+# copies it into the container. A file mount would need the checkout shared with Docker.
+name: buildmonitor-live-gocd
+services:
+  server:
+    image: gocd/gocd-server:v26.1.0
+    ports:
+      - 127.0.0.1:${BUILDMONITOR_GOCD_PORT:-8153}:8153
+    # Read by the bundled password file plugin, once provision.sh points it here.
+    secrets:
+      - gocd_passwords
+    volumes:
+      - godata:/godata
+  agent:
+    image: gocd/gocd-agent-alpine:v26.1.0
+    hostname: buildmonitor-agent
+    depends_on:
+      - server
+    environment:
+      GO_SERVER_URL: http://server:8153/go
+secrets:
+  gocd_passwords:
+    environment: LIVE_GOCD_PASSWORDS
+volumes:
+  godata:

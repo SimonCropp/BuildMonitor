@@ -28,6 +28,16 @@ src/BuildMonitor.Tests/bin/Debug/net10.0/BuildMonitor.Tests.exe --treenode-filte
 
 # Benchmarks, on demand and Windows only. Not in the solution, so neither CI nor dotnet test runs them
 dotnet run --configuration Release --project src/BuildMonitor.Benchmarks -- --filter "*"
+
+# Live provider tests against real services: [Explicit], so only these filters run them.
+# Settings come from BUILDMONITOR_* env vars, a local Docker server's .state file, or user secrets (--id BuildMonitor.LiveTests).
+# BUILDMONITOR_LIVE_PROVIDERS=<id> narrows the run to one provider, and BUILDMONITOR_LIVE_ACTIONS=true is also needed to retry and cancel. See docs/live-tests.md
+src/BuildMonitor.Tests/bin/Debug/net10.0/BuildMonitor.Tests.exe --treenode-filter "/*/*/LiveReadTests/*" --output Detailed
+src/BuildMonitor.Tests/bin/Debug/net10.0/BuildMonitor.Tests.exe --treenode-filter "/*/*/LiveActionTests/*" --output Detailed
+
+# Jenkins, TeamCity or GoCD in Docker for those tests, from Git Bash: start and provision, then tear down
+bash src/BuildMonitor.Tests/Providers/Live/Servers/jenkins/provision.sh
+bash src/BuildMonitor.Tests/Providers/Live/Servers/jenkins/provision.sh down
 ```
 
 **Test runner:** TUnit runs on Microsoft.Testing.Platform rather than VSTest. Filters are treenode paths given after `--`, as `/Assembly/Namespace/Class/Test` with `*` for any segment; VSTest's `--filter "FullyQualifiedName~ClassName"` matches nothing and exits 5. `--nologo` makes any run report "Zero tests ran" and exit 5, so leave it off.
@@ -54,7 +64,7 @@ BuildMonitor is a tray app that polls CI services and shows one row per pipeline
 Enforced as build errors by `.editorconfig` (written by ProjectDefaults) and `TreatWarningsAsErrors`:
 
 - No namespaces in app or test code. `var` everywhere. Expression-bodied members. Target-typed `new()`. Collection expressions. No `this.`. No accessibility modifiers on private members. camelCase fields with no underscore. Braces always, Allman.
-- Lambda parameters are `_`, even when used (`Select(_ => _.Name)`); a nested lambda that would shadow gets a descriptive name.
+- Lambda parameters are `_`, even when used (`Select(_ => _.Name)`), and in a nested lambda too, shadowing the outer one. Only a lambda whose body still needs an outer `_` gets a descriptive name.
 - No single-letter locals other than loop counters; no abbreviations in identifiers (`context` not `ctx`).
 - One type per file. XML doc comments explain the failure mode a design guards against.
 - Tests: TUnit `[Test]`, `await Assert.That(x).IsEqualTo(y)`, `await Verify(...)`, `[Arguments]` for parameterisation, snapshots flat beside the test file.

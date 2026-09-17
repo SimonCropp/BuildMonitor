@@ -92,6 +92,77 @@ public class TeamCityProviderTests
         await Assert.That(builds.Count).IsEqualTo(3);
     }
 
+    [Test]
+    public async Task ABuildWithoutANumberShowsNone()
+    {
+        // TeamCity numbers a build when it starts, and one that never started is numbered N/A. The
+        // build id stood in for a missing number, so a queued row read #9005 and then #119 once the
+        // build started, and a build that failed to start read #N/A.
+        var builds = await FetchVerifyBuild(
+            """
+            {"id":9005,"state":"queued","buildTypeId":"Verify_Build","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9005","queuedDate":"20260101T120100+0000"},
+            {"id":9003,"number":"N/A","status":"FAILURE","state":"finished","statusText":"Failed to start","buildTypeId":"Verify_Build","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9003","queuedDate":"20260101T115800+0000","finishDate":"20260101T115810+0000"},
+            {"id":9002,"number":"118","status":"FAILURE","state":"finished","buildTypeId":"Verify_Build","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9002","queuedDate":"20260101T113000+0000","startDate":"20260101T113100+0000","finishDate":"20260101T113600+0000"}
+            """);
+        await Verify(builds.Select(Row))
+            .Snapshot(
+                """
+                [
+                  Queued, cancel,
+                  Failed, retry,
+                  #118 Failed, retry
+                ]
+                """);
+    }
+
+    [Test]
+    public async Task ABuildRemovedFromTheQueueIsNotListed()
+    {
+        // TeamCity keeps a build taken off the queue as a canceled build that was never numbered,
+        // with the moment it was removed as its queued, start and finish dates, as TeamCity 2026.2
+        // answers. Listed, it took the place of the configuration's last real run on the row.
+        var builds = await FetchVerifyBuild(
+            """
+            {"id":9004,"number":"N/A","status":"UNKNOWN","state":"finished","statusText":"Canceled","buildTypeId":"Verify_Build","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9004","queuedDate":"20260101T120000+0000","startDate":"20260101T120000+0000","finishDate":"20260101T120000+0000","canceledInfo":{"text":"Cancelled from BuildMonitor"}},
+            {"id":9003,"number":"119","status":"UNKNOWN","state":"finished","statusText":"Canceled","buildTypeId":"Verify_Build","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9003","queuedDate":"20260101T115000+0000","startDate":"20260101T115000+0000","finishDate":"20260101T115500+0000","canceledInfo":{"text":"Stopped"}},
+            {"id":9002,"number":"118","status":"FAILURE","state":"finished","buildTypeId":"Verify_Build","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9002","queuedDate":"20260101T113000+0000","startDate":"20260101T113100+0000","finishDate":"20260101T113600+0000"}
+            """);
+        await Verify(builds.Select(Row))
+            .Snapshot(
+                """
+                [
+                  #119 Cancelled, retry,
+                  #118 Failed, retry
+                ]
+                """);
+    }
+
+    static async Task<IReadOnlyList<Build>> FetchVerifyBuild(string builds)
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{server}/app/rest/buildTypes", $$$"""{"buildType":[{"id":"Verify_Build","builds":{"build":[{{{builds}}}]}}]}""");
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        Pipeline[] pipelines = [new("Verify_Build", "Verify / Build", "Verify", "Verify", $"{server}/buildConfiguration/Verify_Build")];
+        return await ProviderTestHelpers.Provider("teamcity").FetchBuilds(context, pipelines, 5, Cancel.None);
+    }
+
+    static string Row(Build build)
+    {
+        List<string> offers = [];
+        if (build.CanRetry)
+        {
+            offers.Add("retry");
+        }
+
+        if (build.CanCancel)
+        {
+            offers.Add("cancel");
+        }
+
+        var label = $"{build.RunNumberLabel()} {build.Status}".Trim();
+        return $"{label}, {string.Join(" and ", offers)}";
+    }
+
     static PollGroup VerifyProject() =>
         new("Verify", [new("Verify_Build", "Verify / Build", "Verify", "Verify", $"{server}/buildConfiguration/Verify_Build"), new("Verify_Docs", "Verify / Docs", "Verify", "Verify", $"{server}/buildConfiguration/Verify_Docs")]);
 

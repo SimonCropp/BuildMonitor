@@ -760,6 +760,9 @@ static class MonitorSession
         return build;
     }
 
+    public static SessionState Notify(SessionState state, Notification notification) =>
+        state with { Notification = notification };
+
     public static SessionState ClearNotification(SessionState state) =>
         state with { Notification = null };
 

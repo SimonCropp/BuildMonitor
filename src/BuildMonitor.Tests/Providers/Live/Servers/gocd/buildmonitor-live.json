@@ -1,0 +1,54 @@
+{
+  "group": "buildmonitor",
+  "pipeline": {
+    "name": "buildmonitor-live",
+    "label_template": "${COUNT}",
+    "lock_behavior": "none",
+    "materials": [
+      {
+        "type": "git",
+        "attributes": {
+          "url": "https://github.com/octocat/Hello-World.git",
+          "branch": "master",
+          "shallow_clone": true,
+          "auto_update": true
+        }
+      }
+    ],
+    "stages": [
+      {
+        "name": "build",
+        "fetch_materials": true,
+        "clean_working_directory": false,
+        "never_cleanup_artifacts": false,
+        "approval": {
+          "type": "success",
+          "authorization": {
+            "roles": [],
+            "users": []
+          }
+        },
+        "jobs": [
+          {
+            "name": "fail",
+            "tasks": [
+              {
+                "type": "exec",
+                "attributes": {
+                  "run_if": [
+                    "passed"
+                  ],
+                  "command": "/bin/sh",
+                  "arguments": [
+                    "-c",
+                    "echo 'BuildMonitor live test'; sleep 60; exit 1"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

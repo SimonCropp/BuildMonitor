@@ -44,7 +44,7 @@ class FakeHttpHandler : HttpMessageHandler
         }
 
         var extra = request.Headers
-            .Where(_ => _.Key is "X-GoCD-Confirm" or "Jenkins-Crumb" or "If-None-Match")
+            .Where(_ => _.Key is "X-GoCD-Confirm" or "Jenkins-Crumb" or "If-None-Match" or "Referer")
             .Select(_ => $"\n  {_.Key}: {string.Join(',', _.Value)}");
         // Providers fan requests out; the record stays in arrival order under a lock.
         lock (Requests)

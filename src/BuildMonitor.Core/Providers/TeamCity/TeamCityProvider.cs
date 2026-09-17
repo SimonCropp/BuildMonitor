@@ -67,7 +67,11 @@ sealed class TeamCityProvider : ProviderBase
                     continue;
                 }
 
-                builds.AddRange((type.Builds?.Build ?? []).Take(perPipeline).Select(_ => Convert(context.Connection.Id, pipeline, _)));
+                builds.AddRange(
+                    (type.Builds?.Build ?? [])
+                    .Where(_ => !RemovedFromQueue(_))
+                    .Take(perPipeline)
+                    .Select(_ => Convert(context.Connection.Id, pipeline, _)));
             }
         }
 
@@ -154,7 +158,7 @@ sealed class TeamCityProvider : ProviderBase
             pipeline.Name,
             pipeline.RepoName,
             build.BranchName,
-            build.Number ?? build.Id.ToString(),
+            RunNumber(build),
             status,
             build.State != "finished" ? build.State : status == BuildStatus.Cancelled ? "canceled" : build.Status?.ToLowerInvariant(),
             TeamCityDate.Parse(build.QueuedDate),
@@ -172,6 +176,36 @@ sealed class TeamCityProvider : ProviderBase
             CanCancel: build.State is "queued" or "running",
             Join(build.State, build.Id.ToString(), build.BuildTypeId, build.BranchName),
             pipeline.Url);
+    }
+
+    /// <summary>
+    /// A build taken off the queue before it started. TeamCity keeps it as a canceled build that was
+    /// never numbered: its number is N/A. Its start and finish dates are both the moment it was
+    /// removed, so they do not tell it apart. Listed, it took the place of the configuration's last
+    /// real run on the row. Cancelling a queued build turned the row cancelled, whatever had run
+    /// before, where a cancelled Jenkins queue item leaves its row as it was.
+    /// </summary>
+    static bool RemovedFromQueue(TeamCityBuild build) =>
+        build is
+        {
+            State: "finished",
+            CanceledInfo: not null,
+            Number: null or "N/A"
+        };
+
+    /// <summary>
+    /// TeamCity numbers a build when it starts. A queued build has no number yet, and one that
+    /// never started is numbered N/A. The build id stood in for a missing number, but ids and
+    /// numbers count separately, so a queued row read #4 and then #3 once the build started.
+    /// </summary>
+    static string RunNumber(TeamCityBuild build)
+    {
+        if (build.Number is null or "N/A")
+        {
+            return "";
+        }
+
+        return build.Number;
     }
 
     /// <summary>

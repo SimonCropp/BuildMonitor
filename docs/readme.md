@@ -15,7 +15,8 @@ To change this file edit the source file and then run MarkdownSnippets.
  * [Linux](/docs/linux.md)
  * [macOS](/docs/macos.md)
  * [Troubleshooting](/docs/troubleshooting.md)
- * [Provider APIs](/docs/providers/api-comparison.md)<!-- endInclude -->
+ * [Provider APIs](/docs/providers/api-comparison.md)
+ * [Live provider tests](/docs/live-tests.md)<!-- endInclude -->
 
 
 ## Providers

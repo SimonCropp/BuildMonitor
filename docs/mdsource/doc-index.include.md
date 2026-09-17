@@ -7,3 +7,4 @@
  * [macOS](/docs/macos.md)
  * [Troubleshooting](/docs/troubleshooting.md)
  * [Provider APIs](/docs/providers/api-comparison.md)
+ * [Live provider tests](/docs/live-tests.md)

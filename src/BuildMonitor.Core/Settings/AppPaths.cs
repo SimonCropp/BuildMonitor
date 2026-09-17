@@ -22,4 +22,11 @@ static class AppPaths
     public static string Settings => Path.Combine(Directory, "settings.json");
     public static string History => Path.Combine(Directory, "history.json");
     public static string Secrets => Path.Combine(Directory, "secrets");
+
+    /// <summary>
+    /// What a failed update wrote, for <see cref="global::FailedUpdate"/> to report. Here rather
+    /// than in the log directory, which sits inside the installed version and so is deleted by the
+    /// next update that works.
+    /// </summary>
+    public static string FailedUpdate => Path.Combine(Directory, "update-failed.log");
 }

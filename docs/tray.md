@@ -17,6 +17,8 @@ BuildMonitor runs in the system tray. The icon shows the overall state:
 
 Left click the icon to open the window. Right click it for the menu: Open, Refresh, Options, Filters, Open logs, Raise issue, Update and Exit. On macOS either click opens the menu, and Open shows the window. Open code directory sits above Open logs once a [code directory](options.md#code-directory) is set, and opens that folder; it is left out entirely while the option is empty.
 
+On Windows 11 the icon starts on the taskbar rather than behind the arrow with the hidden icons. Windows remembers where an icon goes for each program path, and every update runs BuildMonitor from a new one, so each version takes the placement of the version before it. Hide the icon under Settings, Personalization, Taskbar, Other system tray icons, and it stays hidden after updates too.
+
 
 ## The window
 

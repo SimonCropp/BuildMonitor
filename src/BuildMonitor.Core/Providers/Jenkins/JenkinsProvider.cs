@@ -313,14 +313,26 @@ sealed class JenkinsProvider : ProviderBase
 
     static Task<HttpStatusCode> Post(ProviderContext context, string path, JenkinsCrumb? crumb, Cancel cancel)
     {
-        var content = new StringContent("");
-        if (crumb is null)
+        List<KeyValuePair<string, string>> headers = [];
+        if (crumb is not null)
         {
-            return context.Http.TrySend(HttpMethod.Post, path, content, cancel);
+            headers.Add(new(crumb.CrumbRequestField, crumb.Crumb));
         }
 
-        return context.Http.TrySend(HttpMethod.Post, path, content, cancel, [new(crumb.CrumbRequestField, crumb.Crumb)]);
+        headers.Add(Referer(context));
+        return context.Http.TrySend(HttpMethod.Post, path, new StringContent(""), cancel, headers);
     }
+
+    /// <summary>
+    /// Where Jenkins sends the client after an action. A stop, and a queue cancel on older
+    /// versions, answer with a redirect to the page named in Referer, or to the build when there
+    /// is none. The handler follows a redirect without the Authorization header. So a server that
+    /// anonymous users may not read refused the build page with a 403, and Cancel reported a
+    /// refusal for a build that had stopped. Anyone may read whoAmI, so the redirect lands on a
+    /// page that answers.
+    /// </summary>
+    static KeyValuePair<string, string> Referer(ProviderContext context) =>
+        new("Referer", new Uri(context.Http.BaseAddress, "whoAmI/api/json").ToString());
 
     /// <summary>
     /// CSRF protection wants a crumb on every POST from a session; an API token does not need

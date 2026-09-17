@@ -1,0 +1,31 @@
+# Jenkins for the live tests. provision.sh drives it.
+#
+# The secret and the init script come from environment variables that provision.sh sets, and
+# Compose copies them into the container. A file mount would need the checkout shared with
+# Docker, which Docker Desktop does not do for every drive.
+name: buildmonitor-live-jenkins
+services:
+  jenkins:
+    image: jenkins/jenkins:2.568.3-lts-jdk21
+    ports:
+      - 127.0.0.1:${BUILDMONITOR_JENKINS_PORT:-8080}:8080
+    environment:
+      JAVA_OPTS: -Djenkins.install.runSetupWizard=false -Xmx1g
+      # The job URLs Jenkins reports become pipeline ids, so they must match the server the tests use.
+      BUILDMONITOR_ROOT_URL: http://127.0.0.1:${BUILDMONITOR_JENKINS_PORT:-8080}/
+    secrets:
+      - buildmonitor_jenkins
+    configs:
+      # .override: the image copies it into JENKINS_HOME at every start, not just the first.
+      - source: buildmonitor_init
+        target: /usr/share/jenkins/ref/init.groovy.d/buildmonitor.groovy.override
+    volumes:
+      - home:/var/jenkins_home
+secrets:
+  buildmonitor_jenkins:
+    environment: LIVE_JENKINS_SECRET
+configs:
+  buildmonitor_init:
+    environment: LIVE_JENKINS_INIT
+volumes:
+  home:
