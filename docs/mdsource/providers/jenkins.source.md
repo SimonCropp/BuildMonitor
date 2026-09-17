@@ -67,7 +67,7 @@ flowchart TD
 
 ## API notes
 
-Researched 2026-09-14. [live] means checked with anonymous requests against ci-builds.apache.org; [docs] and [source] name the evidence. See [Provider APIs](api-comparison.md) for every provider side by side.
+Researched 2026-09-14. [live] means checked with anonymous requests against ci-builds.apache.org; [docker] means checked against the secured Jenkins the [live tests](../live-tests.md) start; [docs] and [source] name the evidence. See [Provider APIs](api-comparison.md) for every provider side by side.
 
 
 ### Rate limits
@@ -99,9 +99,12 @@ One tree with `builds[…]{0,5}` at every folder level returns everything in one
  * A controller behind Tomcat rejects `{` and `}` left unencoded in the query with a 400; unencoded `[` and `]` are accepted [live].
  * Anonymous `api/json` on ci.jenkins.io returns a static `{}`.
  * Disabled and never built branch jobs are still listed.
+ * Stopping a build answers with a 302 to the page named in `Referer`, or to the build when there is none [source]. Older versions answer a queue cancel the same way.
+   * HttpClient follows a redirect without the `Authorization` header. So on a server that anonymous users may not read, the build page answers 403, although the build stopped [docker].
+   * Cancel therefore sends `whoAmI/api/json` as its `Referer`, since anyone may read that page [docker].
 
 
 ### Sources
 
  * [Remote access API](https://www.jenkins.io/doc/book/using/remote-access-api/)
- * Source: [jenkinsci/jenkins](https://github.com/jenkinsci/jenkins) (`Api.java`, `Job.java`, `Run.java`, `RunList.java`, `Api/index.jelly`) and [jenkinsci/stapler](https://github.com/jenkinsci/stapler) (`ResponseImpl.java`, `Range.java`, `Property.java`)
+ * Source: [jenkinsci/jenkins](https://github.com/jenkinsci/jenkins) (`Api.java`, `Job.java`, `Run.java`, `RunList.java`, `AbstractBuild.java`, `Executor.java`, `Api/index.jelly`) and [jenkinsci/stapler](https://github.com/jenkinsci/stapler) (`ResponseImpl.java`, `Range.java`, `Property.java`)

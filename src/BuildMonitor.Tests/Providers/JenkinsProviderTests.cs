@@ -118,9 +118,11 @@ public class JenkinsProviderTests
                 [
                   GET https://jenkins.example.com/crumbIssuer/api/json,
                   POST https://jenkins.example.com/job/build-all/build
-                  Jenkins-Crumb: c1,
+                  Jenkins-Crumb: c1
+                  Referer: https://jenkins.example.com/whoAmI/api/json,
                   POST https://jenkins.example.com/job/build-all/buildWithParameters
                   Jenkins-Crumb: c1
+                  Referer: https://jenkins.example.com/whoAmI/api/json
                 ]
                 """);
     }
@@ -143,9 +145,45 @@ public class JenkinsProviderTests
                 """
                 [
                   GET https://jenkins.example.com/crumbIssuer/api/json,
-                  POST https://jenkins.example.com/job/build-all/501/stop,
+                  POST https://jenkins.example.com/job/build-all/501/stop
+                  Referer: https://jenkins.example.com/whoAmI/api/json,
                   GET https://jenkins.example.com/crumbIssuer/api/json,
                   POST https://jenkins.example.com/queue/cancelItem?id=77
+                  Referer: https://jenkins.example.com/whoAmI/api/json
+                ]
+                """);
+    }
+
+    [Test]
+    public async Task CancelSurvivesTheRedirectAStopAnswersWith()
+    {
+        // Jenkins answers a stop with a redirect, which a real handler follows without the
+        // credential. On a server that anonymous users may not read, that page refused the
+        // request, so the cancel reported a 403 for a build that had stopped.
+        await using var jenkins = new SecuredJenkins();
+        using var handler = new SocketsHttpHandler();
+        var connection = new Connection
+        {
+            Id = "jenkins",
+            ProviderId = "jenkins",
+            Name = "Jenkins",
+            Server = jenkins.Server,
+            User = "simon"
+        };
+        var context = Providers.Context(connection, "secret", handler);
+        var job = $"{jenkins.Server}/job/app/";
+        var build = Fixtures.Build("jenkins", job, "App", "App", null, "7", BuildStatus.Running) with
+        {
+            ProviderRef = $"{job}|7"
+        };
+        await ProviderTestHelpers.Provider("jenkins").Cancel(context, build, Cancel.None);
+        await Verify(jenkins.Requests)
+            .Snapshot(
+                """
+                [
+                  GET /crumbIssuer/api/json (signed in),
+                  POST /job/app/7/stop (signed in),
+                  GET /whoAmI/api/json
                 ]
                 """);
     }
