@@ -86,7 +86,9 @@ jobs:
       fail-fast: false
       matrix:
         # vars.BUILDMONITOR_LIVE_HOSTED is a JSON array of the providers that have a sandbox. With
-        # it unset, all of them run, and one without a sandbox fails rather than skips.
+        # it unset, all of them run, and one without a sandbox fails rather than skips. It must be a
+        # repository variable: the matrix is planned before the job starts, and an environment's
+        # variables are only read after that.
         provider: ${{ fromJSON((inputs.provider || 'all') == 'all' && (vars.BUILDMONITOR_LIVE_HOSTED || '["appveyor","azure-devops","bitbucket","github","gitlab","octopus","travis"]') || format('["{0}"]', inputs.provider)) }}
     env:
       BUILDMONITOR_LIVE_PROVIDERS: ${{ matrix.provider }}

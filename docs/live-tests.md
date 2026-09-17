@@ -116,7 +116,10 @@ Starting the TeamCity server accepts the [TeamCity license agreement](https://ww
 
 Each provider is its own job, so a failure names its provider.
 
-The `hosted` job reads its credentials from the `live` environment. Create the environment before the workflow first runs, or the first run creates it without protection. Under **Deployment branches and tags**, choose **Selected branches** and add `main`, so a workflow changed on another branch cannot read the secrets.
+The `hosted` job reads its credentials from the `live` environment. Create the environment before the workflow first runs, or the first run creates it without protection:
+ * Create it at https://github.com/SimonCropp/BuildMonitor/settings/environments/new. Existing environments are listed at https://github.com/SimonCropp/BuildMonitor/settings/environments.
+ * Under **Deployment branches and tags**, choose **Selected branches** and add `main`, so a workflow changed on another branch cannot read the secrets.
+ * Add the secrets and variables below on the environment's own page, under **Environment secrets** and **Environment variables**.
 
 | Environment secret | Value |
 |---|---|
@@ -129,7 +132,10 @@ The `hosted` job reads its credentials from the `live` environment. Create the e
 | `BUILDMONITOR_{ID}_PIPELINE` | For each hosted provider with a sandbox |
 | `BUILDMONITOR_{ID}_SCOPE_{FIELD}` | As in the settings table |
 | `BUILDMONITOR_OCTOPUS_ENVIRONMENT` | The sandbox environment |
-| `BUILDMONITOR_LIVE_HOSTED` | The hosted providers that have a sandbox, as a JSON array such as `["github","azure-devops","octopus"]`. Runs for `all` cover only these, since a provider without a sandbox fails. |
+
+`BUILDMONITOR_LIVE_HOSTED` lists the hosted providers that have a sandbox, as a JSON array such as `["github","azure-devops","octopus"]`. Runs for `all` cover only these, since a provider without a sandbox fails.
+
+It is a repository variable, not an environment variable. Set it at https://github.com/SimonCropp/BuildMonitor/settings/variables/actions, under **Variables > New repository variable**. The workflow plans its jobs before a job starts, and an environment's variables are only read once it does.
 
 The repository is public, and so are the workflow's logs. The runner masks secrets in logs, so the workflow:
  * lists every secret in the job;
@@ -145,11 +151,23 @@ Each hosted provider needs an account that holds one sandbox pipeline:
  * The pipeline prints `BuildMonitor live test`, waits a minute, and exits with a failure.
  * Run it once by hand before the first action round, so it has a failed build to retry.
 
+Each token is created while signed in as the sandbox account:
+
+| Provider | Create the token at | Notes |
+|---|---|---|
+| GitHub Actions | https://github.com/settings/personal-access-tokens/new | Resource owner: the sandbox organization. Repository access: the sandbox repository only. |
+| Azure DevOps | `https://dev.azure.com/<organization>/_usersSettings/tokens` | Organization: the sandbox organization only. Scope: Build, Read & execute. |
+| GitLab CI | https://gitlab.com/-/user_settings/personal_access_tokens | **Generate token > Fine-grained token**, limited to the sandbox group. |
+| Bitbucket Pipelines | https://id.atlassian.com/manage-profile/security/api-tokens | **Create API token with scopes**, app Bitbucket. |
+| AppVeyor | https://ci.appveyor.com/api-keys | The v1 key. |
+| Travis CI | https://app.travis-ci.com/account/preferences | Signed in as the sandbox GitHub user. |
+| Octopus Deploy | **Configuration > Users** on the instance, then the service account | **New API Key**. The instance's own address, so there is no fixed link. |
+
 
 ### GitHub Actions
 
  * Create an organization for the sandbox, with a public repository `sandbox`. Public repositories get GitHub hosted runners for free.
- * Create a fine grained personal access token. Set its resource owner to the organization, and give it access to the `sandbox` repository only, with Actions read and write and Metadata read.
+ * Create a fine grained personal access token at https://github.com/settings/personal-access-tokens/new. Set its resource owner to the organization, and give it access to the `sandbox` repository only, with Actions read and write and Metadata read.
    * Its connection test reports access as Unknown, since GitHub does not say what a fine grained token may do.
  * Settings: `BUILDMONITOR_GITHUB_SCOPE_OWNER` is the organization, and `BUILDMONITOR_GITHUB_PIPELINE` is `Sandbox`.
 
@@ -207,7 +225,7 @@ jobs:
  * Microsoft-hosted agents are free once an Azure subscription is linked under Organization settings, Billing. A self hosted agent is free without one.
  * Add `azure-pipelines.yml` as a new pipeline and run it once.
  * Retention deletes failed runs, so open the failed run's menu and choose **Retain**.
- * Create a personal access token limited to the sandbox organization, with the custom scope Build: Read & execute. If `SignIn` is refused, add Project and Team: Read.
+ * Create a personal access token at `https://dev.azure.com/<organization>/_usersSettings/tokens`, limited to the sandbox organization, with the custom scope Build: Read & execute. If `SignIn` is refused, add Project and Team: Read.
  * Settings: `BUILDMONITOR_AZURE_DEVOPS_SCOPE_ORGANIZATION`, `BUILDMONITOR_AZURE_DEVOPS_SCOPE_PROJECT` is `Sandbox`, and `BUILDMONITOR_AZURE_DEVOPS_PIPELINE` is the pipeline's name.
 
 ```yml
@@ -233,7 +251,7 @@ jobs:
 
  * Create a group `buildmonitor-sandbox` with a project `sandbox`.
  * GitLab hosted runners need the account's identity verified, and the Free tier includes 400 compute minutes a month.
- * Create a fine grained personal access token limited to the group, with these permissions: User read, Personal access token read, Project read, Pipeline read and update, Job read.
+ * Create a fine grained personal access token at https://gitlab.com/-/user_settings/personal_access_tokens (**Generate token > Fine-grained token**), limited to the group, with these permissions: User read, Personal access token read, Project read, Pipeline read and update, Job read.
  * GitLab archives pipelines after a year, so start a new one whenever the token is renewed.
  * Settings: `BUILDMONITOR_GITLAB_SCOPE_GROUP` is `buildmonitor-sandbox`, and `BUILDMONITOR_GITLAB_PIPELINE` is `buildmonitor-sandbox/sandbox`.
 
@@ -259,7 +277,7 @@ fail:
 
  * Create a workspace with a repository `sandbox`, and enable Pipelines in its settings.
  * The Free plan includes 50 build minutes a month, which is about a dozen action rounds.
- * Create an API token with the scopes `read:workspace:bitbucket`, `read:repository:bitbucket`, `read:pipeline:bitbucket` and `write:pipeline:bitbucket`. A token reaches every workspace its account can, so use an account that belongs to the sandbox workspace only.
+ * Create an API token at https://id.atlassian.com/manage-profile/security/api-tokens (**Create API token with scopes**, app Bitbucket), with the scopes `read:workspace:bitbucket`, `read:repository:bitbucket`, `read:pipeline:bitbucket` and `write:pipeline:bitbucket`. A token reaches every workspace its account can, so use an account that belongs to the sandbox workspace only.
  * Retry starts the branch's default pipeline, so the script must be the `default` pipeline.
  * Settings: `BUILDMONITOR_BITBUCKET_USER` is the account email, `BUILDMONITOR_BITBUCKET_SCOPE_WORKSPACE` is the workspace, and `BUILDMONITOR_BITBUCKET_PIPELINE` is `workspace/sandbox`.
 
@@ -284,7 +302,7 @@ pipelines:
 ### AppVeyor
 
  * Create a separate AppVeyor account, and add a project from a public repository `sandbox-appveyor`. The free plan builds public repositories, one job at a time.
- * Use the account's v1 API key, and leave `BUILDMONITOR_APPVEYOR_SCOPE_ACCOUNT` unset. A v2 key reaches every account its user belongs to.
+ * Use the account's v1 API key, from https://ci.appveyor.com/api-keys, and leave `BUILDMONITOR_APPVEYOR_SCOPE_ACCOUNT` unset. A v2 key reaches every account its user belongs to.
  * Settings: `BUILDMONITOR_APPVEYOR_PIPELINE` is the project's name.
 
 `appveyor.yml`:
@@ -304,6 +322,7 @@ test: off
 
  * Travis has no free plan for new accounts. The usage based plan works, and so do open source credits, which Travis support grants on request.
  * Sign in to Travis with a separate GitHub user, whose only access is to a repository `sandbox-travis`. A Travis token acts as its user on everything that user can reach.
+ * Copy that user's API token from https://app.travis-ci.com/account/preferences.
  * Settings: `BUILDMONITOR_TRAVIS_PIPELINE` is the repository's slug, `owner/sandbox-travis`.
 
 `.travis.yml`:
@@ -334,7 +353,7 @@ script:
 
  * Leave guided failure off. Otherwise a failed deployment waits for a person.
  * Create release 0.0.1 and deploy it to `Sandbox` once.
- * Create a service account in a team scoped to the sandbox, with Project viewer, Deployment creator and TaskCancel.
+ * Create a service account in a team scoped to the sandbox, with Project viewer, Deployment creator and TaskCancel. Create its API key from the service account's page under **Configuration > Users**.
    * Its API key expires after 180 days by default.
  * Settings: `BUILDMONITOR_OCTOPUS_SERVER`, `BUILDMONITOR_OCTOPUS_SCOPE_SPACE`, `BUILDMONITOR_OCTOPUS_PIPELINE` is `BuildMonitor Sandbox`, and `BUILDMONITOR_OCTOPUS_ENVIRONMENT` is `Sandbox`.
 

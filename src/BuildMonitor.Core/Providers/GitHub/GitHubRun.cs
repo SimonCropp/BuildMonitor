@@ -14,5 +14,7 @@
     public DateTimeOffset? RunStartedAt { get; set; }
     public GitHubActor? Actor { get; set; }
     public GitHubCommit? HeadCommit { get; set; }
+    // The repository the branch is in: a fork for a pull request from one, not the run's repository.
+    public GitHubRepository? HeadRepository { get; set; }
     public List<GitHubPullRequest> PullRequests { get; set; } = [];
 }
