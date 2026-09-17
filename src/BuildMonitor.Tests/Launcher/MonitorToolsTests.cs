@@ -113,6 +113,20 @@ public class MonitorToolsTests
             .IsEqualTo("Nothing is failing matching \"diffengine\". There is no triage to do.");
     }
 
+    /// <summary>
+    /// A mistyped id is refused, where it used to be answered as though its poll had started.
+    /// </summary>
+    [Test]
+    public async Task RefreshRefusesAConnectionThatDoesNotExist()
+    {
+        var (tools, _, _) = Create();
+        await Assert.That(await tools.Refresh(null, Cancel.None)).IsEqualTo("Refreshing every connection");
+        await Assert.That(await tools.Refresh("gh", Cancel.None)).IsEqualTo("Refreshing gh");
+
+        var exception = await Assert.That(async () => await tools.Refresh("nope", Cancel.None)).Throws<InvalidOperationException>();
+        await Assert.That(exception!.Message).IsEqualTo("No connection with id nope");
+    }
+
     [Test]
     public async Task GetBuildAndMissing()
     {
