@@ -129,28 +129,15 @@ static class Program
 
     /// <summary>
     /// src/icon.png: the package's icon, the readme's, and the GitHub OAuth App's logo, which the
-    /// authorize page shows in place of an identicon. GitHub draws the logo at 55% of a disc in the
-    /// app's badge colour, so the tray icon would come out as a smaller disc inside GitHub's, its
-    /// mark a third of the way across. This is the mark alone, filling the square, which is painted
-    /// the disc's colour rather than left clear: a white mark on a clear square vanishes on a light
-    /// page, the readme's included. With the badge colour set to the same, the square's edges vanish
-    /// into the disc.
+    /// authorize page shows in place of an identicon. The tray's disc, drawn at logo size, so the
+    /// package and the readme show the icon the app does. A full bleed square read as a different
+    /// icon beside the tray's disc. GitHub draws the logo at 55% of its own disc in the app's badge
+    /// colour, so set the badge colour to the disc's for the two to read as one.
     /// </summary>
     static byte[] Logo(string svg, SKColor background)
     {
         using var mark = Load(Heavier(svg), SKColors.White, "logo");
-        var painted = Painted(mark.Picture!);
-        using var bitmap = new SKBitmap(logoSize, logoSize, SKColorType.Bgra8888, SKAlphaType.Premul);
-        using (var canvas = new SKCanvas(bitmap))
-        {
-            canvas.Clear(background);
-            var centre = logoSize / 2f;
-            canvas.Translate(centre, centre);
-            canvas.Scale(logoSize / Math.Max(painted.Width, painted.Height));
-            canvas.Translate(-painted.MidX, -painted.MidY);
-            canvas.DrawPicture(mark.Picture!);
-        }
-
+        using var bitmap = Disc(mark.Picture!, Painted(mark.Picture!), background, logoSize);
         return Png(bitmap);
     }
 
