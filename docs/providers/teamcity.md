@@ -19,6 +19,8 @@ An [access token](https://www.jetbrains.com/help/teamcity/configuring-your-user-
 
 One per build configuration. Branches named `pull/n` or `n/merge`, as the pull request features create them, are shown as pull request n.
 
+TeamCity numbers a build when it starts, so a queued build shows no number until then. A build removed from the queue before it started is left out, and the row keeps showing the configuration's last run.
+
 
 ## Actions
 
@@ -72,7 +74,7 @@ flowchart TD
 
 ## API notes
 
-Researched 2026-09-14. [live] means checked with guest requests against teamcity.jetbrains.com; [docs] names the evidence. See [Provider APIs](api-comparison.md) for every provider side by side.
+Researched 2026-09-14. [live] means checked with guest requests against teamcity.jetbrains.com; [docker] means checked against the TeamCity 2026.2 the [live tests](../live-tests.md) start; [docs] names the evidence. See [Provider APIs](api-comparison.md) for every provider side by side.
 
 
 ### Rate limits
@@ -106,6 +108,13 @@ A build with the usual fields is about 0.38 KB, so 500 configurations is about a
 ### Quirks
 
 With `state:any` the builds list puts queued builds first, so a long queue fills `count` and hides configurations: 74 of 100 builds were queued, and `count:1` returned a build queued six hours earlier [live].
+
+A queued build has no `number`; its build id counts separately, so a build queued as id 4 can start as number 3 [docker].
+
+A build removed from the queue stays in the history, and `canceled:any` returns it [docker]:
+ * It is a finished, canceled build with the number `N/A` and the agent name `N/A`.
+ * Its queued, start and finish dates are all the moment it was removed.
+ * It still takes a place in `count`.
 
 
 ### Sources
