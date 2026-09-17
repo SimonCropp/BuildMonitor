@@ -16,6 +16,21 @@ public class AppTests
     }
 
     [Test]
+    public async Task ToolStorePathFromAStorePath()
+    {
+        var head = Path.Combine("C:", "Users", "simon", ".dotnet", "tools", ".store", "buildmonitor", "1.0.0-beta.2", "buildmonitor", "1.0.0-beta.2", "tools", "net10.0", "any", "heads", "win-x64", "BuildMonitor.Tray.exe");
+        var expected = new ToolStorePath(Path.Combine("C:", "Users", "simon", ".dotnet", "tools", ".store", "buildmonitor"), "1.0.0-beta.2", "BuildMonitor.Tray.exe");
+        await Assert.That(ToolStorePath.Parse(head)).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task ToolStorePathOutsideTheStoreIsNull()
+    {
+        await Assert.That(ToolStorePath.Parse(Path.Combine("D:", "Code", "bin", "BuildMonitor.Tray.exe"))).IsNull();
+        await Assert.That(ToolStorePath.Parse(Path.Combine("C:", "tools", ".store", "buildmonitor"))).IsNull();
+    }
+
+    [Test]
     public async Task IssueUrlEncodesTitleAndBody()
     {
         var url = IssueLauncher.BuildUrl("Fails on #main & branch");
