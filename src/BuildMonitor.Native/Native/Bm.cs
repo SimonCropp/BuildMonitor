@@ -8,7 +8,7 @@ static partial class Bm
     /// <summary>
     /// Keep in sync with BM_VERSION in bm.h.
     /// </summary>
-    public const int ExpectedVersion = 7;
+    public const int ExpectedVersion = 8;
 
     /// <summary>
     /// BmInput.ChangedField for an edit of the filter box, which is not one of BmScreen.Fields.
@@ -36,6 +36,9 @@ static partial class Bm
 
     [LibraryImport(library, EntryPoint = "bm_set_clipboard", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SetClipboard(string text);
+
+    [LibraryImport(library, EntryPoint = "bm_pick_directory", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int PickDirectory(string? start, byte* buffer, int bufferLength);
 
     [LibraryImport(library, EntryPoint = "bm_tray_available")]
     public static partial int TrayAvailable();

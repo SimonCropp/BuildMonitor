@@ -13,6 +13,8 @@ nul
 /coverage
 BenchmarkDotNet.Artifacts/
 native/build/
+native/swift/.build/
+native/swift/.build-tests/
 /src/TestResults
 *.lnk
 /src/BuildMonitor.Tests/Providers/TestResults

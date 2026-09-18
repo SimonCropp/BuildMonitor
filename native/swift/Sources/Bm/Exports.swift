@@ -100,6 +100,42 @@ public func bmSetClipboard(_ text: UnsafePointer<CChar>?) {
     board.setString(String(cString: text), forType: .string)
 }
 
+@_cdecl("bm_pick_directory")
+public func bmPickDirectory(
+    _ start: UnsafePointer<CChar>?,
+    _ buffer: UnsafeMutablePointer<UInt8>?,
+    _ bufferLength: Int32) -> Int32 {
+    // Nowhere to put a path is the question rather than the request: answered without a panel, so
+    // that asking which head this is does not leave one open.
+    guard let buffer, bufferLength > 0 else {
+        return 0
+    }
+
+    let picked = Runtime.shared.pickDirectory(start: start.map { String(cString: $0) })
+    return writePicked(picked, into: buffer, length: bufferLength)
+}
+
+/// The answer as the managed side reads it back: the path as UTF-8 with no terminator, and how many
+/// bytes that was. Measured in bytes rather than characters, because a path with anything outside
+/// ASCII in it is longer than it reads.
+///
+/// A path longer than the buffer cannot happen on this platform, and half a path is worse than
+/// none: it would be saved as the code directory and match nothing. So it is reported as a cancel,
+/// which leaves the setting as it was.
+func writePicked(_ picked: String?, into buffer: UnsafeMutablePointer<UInt8>, length: Int32) -> Int32 {
+    guard let picked else {
+        return 0
+    }
+
+    let bytes = Array(picked.utf8)
+    guard bytes.count <= Int(length) else {
+        return 0
+    }
+
+    buffer.update(from: bytes, count: bytes.count)
+    return Int32(bytes.count)
+}
+
 @_cdecl("bm_tray_available")
 public func bmTrayAvailable() -> Int32 {
     1

@@ -1,7 +1,8 @@
 /// <summary>
-/// A folder chooser for the heads that have none of their own. macOS and Linux both ship one as a
-/// program, so it is run rather than drawn: AppKit's panel is not reachable from the raylib head,
-/// and neither desktop's chooser can be drawn convincingly in Dear ImGui.
+/// A folder chooser for a head whose library has no panel of its own, which is the raylib one:
+/// neither desktop's chooser can be drawn convincingly in Dear ImGui, and every Linux desktop
+/// already ships one as a program. macOS does not come here; its head puts up an NSOpenPanel
+/// through bm_pick_directory, which is modal to the app rather than a window of another process.
 /// <para>
 /// Null rather than an exception when nothing is installed, which is ordinary on a minimal Linux
 /// desktop. The path field beside the Browse button is the fallback, so a missing chooser costs
@@ -20,7 +21,7 @@ static class DirectoryPicker
     {
         try
         {
-            var picked = OperatingSystem.IsMacOS() ? Mac(start) : Linux(start);
+            var picked = Ask(start);
             if (picked is null)
             {
                 return null;
@@ -37,20 +38,9 @@ static class DirectoryPicker
     }
 
     /// <summary>
-    /// "choose folder" returns an alias, which only POSIX path turns into something openable.
     /// A cancel exits non-zero, which is how a cancel and a failure both come back as null.
     /// </summary>
-    static string? Mac(string? start)
-    {
-        var from = Directory.Exists(start) ? $" default location POSIX file \"{start.Replace("\"", "")}\"" : "";
-        var (code, output) = ProcessRunner.Run(
-            "osascript",
-            ["-e", $"POSIX path of (choose folder with prompt \"Choose your code directory\"{from})"],
-            timeout: patience);
-        return code == 0 ? output : null;
-    }
-
-    static string? Linux(string? start)
+    static string? Ask(string? start)
     {
         if (ProcessRunner.OnPath("zenity") is not null)
         {

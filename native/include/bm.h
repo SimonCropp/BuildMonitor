@@ -356,7 +356,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 7
+#define BM_VERSION 8
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -395,6 +395,27 @@ BM_API void bm_set_hidden(int32_t hidden);
 BM_API void bm_focus(void);
 
 BM_API void bm_set_clipboard(const char* text);
+
+/*
+ * Asks for a directory, starting at start where it names one, and writes the chosen path to buffer
+ * as UTF-8 with no terminator. Returns how many bytes it wrote, 0 when the user cancelled, and -1
+ * when this implementation has no panel of its own, which is how the managed side learns to go and
+ * find a chooser on the desktop instead. Linux answers -1: neither desktop's chooser can be drawn
+ * convincingly in Dear ImGui.
+ *
+ * The panel is modal, so the calling thread is inside this call for as long as the user takes to
+ * answer it. An implementation that owns the event loop has to keep pumping it while it waits, or
+ * the window behind the panel freezes where it stands, which on macOS is a beachball within a
+ * second.
+ *
+ * bufferLength is past anything the platform can make a path out of, so a path that does not fit
+ * is a bug rather than a case, and is reported as a cancel rather than cut short.
+ *
+ * A bufferLength of 0 is the question without the request: nowhere to put a path means no panel is
+ * put up, and the answer is only which kind of implementation this is, 0 or -1. That is how a test
+ * finds out without leaving a panel open on a machine nobody is sitting at.
+ */
+BM_API int32_t bm_pick_directory(const char* start, uint8_t* buffer, int32_t bufferLength);
 
 /* 1 when this implementation puts an icon in the tray itself. Linux answers 0: its tray is managed code over D-Bus. */
 BM_API int32_t bm_tray_available(void);
