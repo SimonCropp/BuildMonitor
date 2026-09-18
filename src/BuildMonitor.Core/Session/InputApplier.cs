@@ -327,9 +327,25 @@ static class InputApplier
                 }
 
                 var noun = MonitorSession.PipelineNoun(state, build);
-                state = MonitorSession.ExcludePipeline(state, build);
-                actions.SaveSettings(state.Settings);
-                return MonitorSession.SetStatus(state, $"Excluded {build.PipelineName} {noun}");
+                return Excluded(MonitorSession.ExcludePipeline(state, build), $"{build.PipelineName} {noun}", actions);
+            }
+            case CommandKind.ExcludeBranch:
+            {
+                if (MonitorSession.SelectedBuild(state) is not { Branch: { } branch } build)
+                {
+                    return state;
+                }
+
+                return Excluded(MonitorSession.ExcludeBranch(state, build), $"{branch} branch", actions);
+            }
+            case CommandKind.ExcludeRepo:
+            {
+                if (MonitorSession.SelectedBuild(state) is not { } build)
+                {
+                    return state;
+                }
+
+                return Excluded(MonitorSession.ExcludeRepo(state, build), $"{build.RepoName} repo", actions);
             }
             case CommandKind.OpenBuilds:
                 return MonitorSession.OpenBuilds(state);
@@ -444,6 +460,16 @@ static class InputApplier
     /// </summary>
     static string? Started(FormState form) =>
         form.Value(FormFields.CodeDirectory) is { Length: > 0 } typed ? typed : null;
+
+    /// <summary>
+    /// Saves the filters an exclusion added and names what it dropped: the rows it was asked on are
+    /// gone by the time the status is read, so nothing else on the screen says.
+    /// </summary>
+    static SessionState Excluded(SessionState state, string what, MonitorActions actions)
+    {
+        actions.SaveSettings(state.Settings);
+        return MonitorSession.SetStatus(state, $"Excluded {what}");
+    }
 
     static SessionState Retry(SessionState state, Build build, MonitorActions actions)
     {

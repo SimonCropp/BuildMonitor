@@ -429,4 +429,24 @@ public class SessionTests
         await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Pipeline, "Nightly"));
         await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.PipelineName == "Nightly")).IsFalse();
     }
+
+    [Test]
+    public async Task ExcludeBranchAddsExactFilter()
+    {
+        var state = Fixtures.WithBuilds();
+        var build = state.Builds.First(_ => _.Branch == "main");
+        var next = MonitorSession.ExcludeBranch(state, build);
+        await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Branch, "main"));
+        await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.Branch == "main")).IsFalse();
+    }
+
+    [Test]
+    public async Task ExcludeRepoAddsExactFilter()
+    {
+        var state = Fixtures.WithBuilds();
+        var build = state.Builds.First();
+        var next = MonitorSession.ExcludeRepo(state, build);
+        await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Repo, build.RepoName));
+        await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.RepoName == build.RepoName)).IsFalse();
+    }
 }

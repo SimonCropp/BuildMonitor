@@ -27,6 +27,8 @@ enum CommandKind
     Refresh,
     ToggleGroup,
     ExcludePipeline,
+    ExcludeBranch,
+    ExcludeRepo,
     OpenBuilds,
     OpenOptions,
     OpenFilters,

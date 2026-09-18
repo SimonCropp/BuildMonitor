@@ -313,6 +313,17 @@ static class MonitorSession
 
             items.Add(new("Refresh", CommandKind.Refresh));
             items.Add(new($"Exclude {build.PipelineName} {PipelineNoun(state, build)}", CommandKind.ExcludePipeline));
+            if (build.Branch is { } branch)
+            {
+                items.Add(new($"Exclude {branch} branch", CommandKind.ExcludeBranch));
+            }
+
+            // Where the provider has nothing above the pipeline, such as Bitbucket and Travis, the
+            // repo is the pipeline, and a second item would exclude what the first one does.
+            if (build.RepoName != build.PipelineName)
+            {
+                items.Add(new($"Exclude {build.RepoName} repo", CommandKind.ExcludeRepo));
+            }
         }
 
         return SelectRow(state, row) with { Menu = new(row, items.ToImmutable()) };
@@ -535,9 +546,34 @@ static class MonitorSession
     /// <summary>
     /// The context menu's "Exclude": an exact filter on the pipeline name, applied at once.
     /// </summary>
-    public static SessionState ExcludePipeline(SessionState state, Build build)
+    public static SessionState ExcludePipeline(SessionState state, Build build) =>
+        Exclude(state, FilterTarget.Pipeline, build.PipelineName);
+
+    /// <summary>
+    /// The context menu's "Exclude branch", which drops that branch everywhere rather than only on
+    /// the pipeline it was asked on: a branch worth hiding, such as a bot's, is worth hiding on all
+    /// of them. A build with no branch, as GoCD and Octopus report, has no such item.
+    /// </summary>
+    public static SessionState ExcludeBranch(SessionState state, Build build)
     {
-        var filter = new Filter(FilterKind.Exact, FilterTarget.Pipeline, build.PipelineName);
+        if (build.Branch is not { } branch)
+        {
+            return state;
+        }
+
+        return Exclude(state, FilterTarget.Branch, branch);
+    }
+
+    /// <summary>
+    /// The context menu's "Exclude repo", which takes every pipeline of the repository with it, and
+    /// before they are fetched: a repo rule is checked at discovery.
+    /// </summary>
+    public static SessionState ExcludeRepo(SessionState state, Build build) =>
+        Exclude(state, FilterTarget.Repo, build.RepoName);
+
+    static SessionState Exclude(SessionState state, FilterTarget target, string text)
+    {
+        var filter = new Filter(FilterKind.Exact, target, text);
         if (state.Settings.Filters.Contains(filter))
         {
             return state;
