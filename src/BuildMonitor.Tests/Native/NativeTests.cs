@@ -75,6 +75,8 @@ public class NativeTests
     /// rather than on the button. Its own method because a pointer cannot be written in an async
     /// one.
     /// </summary>
+    // The IDE reports this as redundant; the compiler's CS9363 requires it.
+    // ReSharper disable once RedundantUnsafeContext
     static unsafe int PanelAnswer() =>
         Bm.PickDirectory(null, null, 0);
 }
