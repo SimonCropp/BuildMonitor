@@ -525,7 +525,7 @@ static class MonitorSession
     }
 
     /// <summary>
-    /// What the build's service calls the thing an exclusion drops: a workflow, a job, a build
+    /// What the build's service calls the thing an exclusion drops: an action, a job, a build
     /// config. Named after the pipeline in the menu and the status, so "Exclude CI" cannot read as
     /// excluding something other than the pipeline it names.
     /// </summary>

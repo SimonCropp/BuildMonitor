@@ -109,7 +109,7 @@
   {
     Id: github,
     Name: GitHub Actions,
-    PipelineNoun: workflow,
+    PipelineNoun: action,
     BrowserSignIn: true,
     DeviceSignIn: true,
     SelfHosted: true,

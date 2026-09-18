@@ -1,7 +1,7 @@
 /// <summary>
 /// What the connection editor and the docs need to know about a provider without talking to it.
 /// </summary>
-/// <param name="PipelineNoun">What the provider calls the thing that produces builds: a workflow,
+/// <param name="PipelineNoun">What the provider calls the thing that produces builds: an action,
 /// a job, a build configuration. Named wherever a pipeline is acted on by name, so "Exclude CI"
 /// cannot read as excluding something other than the pipeline it names.</param>
 /// <param name="TokenLabel">What the provider calls its credential: "API token", "Personal access token".</param>

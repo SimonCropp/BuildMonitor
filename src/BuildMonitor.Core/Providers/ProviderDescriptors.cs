@@ -80,7 +80,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor GitHub = new(
         Id: "github",
         Name: "GitHub Actions",
-        PipelineNoun: "workflow",
+        PipelineNoun: "action",
         BrowserSignIn: true,
         DeviceSignIn: true,
         SelfHosted: true,

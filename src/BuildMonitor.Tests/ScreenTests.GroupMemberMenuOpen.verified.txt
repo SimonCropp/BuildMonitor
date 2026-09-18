@@ -8,14 +8,14 @@
 |   x Verify     github   test.yml feature/inline               25m ago    SimonCropp PR 42 [Retry] [Log]              |
 |   + [-] Verify          2 passing                             2h ago                                                 |
 | > +            github   docs.yml main                         2h ago                                                 |
-|   +---------------------------+ml main                        4h ago                                                 |
-|   | Open build                |l main                         23h ago                                                |
-|   | Open branch               |                                                                                      |
-|   | Copy build URL            |                                                                                      |
-|   | Collapse Verify           |                                                                                      |
-|   | Refresh                   |                                                                                      |
-|   | Exclude docs.yml workflow |                                                                                      |
-|   +---------------------------+                                                                                      |
+|   +-------------------------+.yml main                        4h ago                                                 |
+|   | Open build              |yml main                         23h ago                                                |
+|   | Open branch             |                                                                                        |
+|   | Copy build URL          |                                                                                        |
+|   | Collapse Verify         |                                                                                        |
+|   | Refresh                 |                                                                                        |
+|   | Exclude docs.yml action |                                                                                        |
+|   +-------------------------+                                                                                        |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
