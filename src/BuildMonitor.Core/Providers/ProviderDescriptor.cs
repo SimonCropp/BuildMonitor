@@ -1,6 +1,9 @@
 /// <summary>
 /// What the connection editor and the docs need to know about a provider without talking to it.
 /// </summary>
+/// <param name="PipelineNoun">What the provider calls the thing that produces builds: a workflow,
+/// a job, a build configuration. Named wherever a pipeline is acted on by name, so "Exclude CI"
+/// cannot read as excluding something other than the pipeline it names.</param>
 /// <param name="TokenLabel">What the provider calls its credential: "API token", "Personal access token".</param>
 /// <param name="TokenHelpUrl">Where a user creates one.</param>
 /// <param name="Scheme">How a token the user pastes goes on the wire.</param>
@@ -23,6 +26,7 @@
 record ProviderDescriptor(
     string Id,
     string Name,
+    string PipelineNoun,
     bool BrowserSignIn,
     bool DeviceSignIn,
     bool SelfHosted,

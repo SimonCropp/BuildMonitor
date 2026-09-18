@@ -8,6 +8,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor AppVeyor = new(
         Id: "appveyor",
         Name: "AppVeyor",
+        PipelineNoun: "project",
         BrowserSignIn: false,
         DeviceSignIn: false,
         SelfHosted: false,
@@ -33,6 +34,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor Travis = new(
         Id: "travis",
         Name: "Travis CI",
+        PipelineNoun: "repository",
         BrowserSignIn: false,
         DeviceSignIn: false,
         SelfHosted: true,
@@ -55,6 +57,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor Jenkins = new(
         Id: "jenkins",
         Name: "Jenkins",
+        PipelineNoun: "job",
         BrowserSignIn: false,
         DeviceSignIn: false,
         SelfHosted: true,
@@ -77,6 +80,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor GitHub = new(
         Id: "github",
         Name: "GitHub Actions",
+        PipelineNoun: "workflow",
         BrowserSignIn: true,
         DeviceSignIn: true,
         SelfHosted: true,
@@ -102,6 +106,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor AzureDevOps = new(
         Id: "azure-devops",
         Name: "Azure DevOps",
+        PipelineNoun: "pipeline",
         BrowserSignIn: true,
         DeviceSignIn: true,
         SelfHosted: true,
@@ -134,6 +139,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor TeamCity = new(
         Id: "teamcity",
         Name: "TeamCity",
+        PipelineNoun: "build config",
         BrowserSignIn: false,
         DeviceSignIn: false,
         SelfHosted: true,
@@ -160,6 +166,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor GitLab = new(
         Id: "gitlab",
         Name: "GitLab CI",
+        PipelineNoun: "project",
         BrowserSignIn: true,
         DeviceSignIn: true,
         SelfHosted: true,
@@ -186,6 +193,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor GoCd = new(
         Id: "gocd",
         Name: "GoCD",
+        PipelineNoun: "pipeline",
         BrowserSignIn: false,
         DeviceSignIn: false,
         SelfHosted: true,
@@ -208,6 +216,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor Bitbucket = new(
         Id: "bitbucket",
         Name: "Bitbucket Pipelines",
+        PipelineNoun: "repository",
         BrowserSignIn: false,
         DeviceSignIn: false,
         SelfHosted: false,
@@ -234,6 +243,7 @@ static class ProviderDescriptors
     public static readonly ProviderDescriptor Octopus = new(
         Id: "octopus",
         Name: "Octopus Deploy",
+        PipelineNoun: "project",
         BrowserSignIn: false,
         DeviceSignIn: false,
         SelfHosted: true,
@@ -269,6 +279,13 @@ static class ProviderDescriptors
     public static ProviderDescriptor Get(string id) =>
         All.SingleOrDefault(_ => _.Id == id) ??
         throw new ArgumentException($"Unknown provider: {id}");
+
+    /// <summary>
+    /// What the provider calls a pipeline, or the generic word when the id belongs to no provider,
+    /// as a connection written by a newer version can.
+    /// </summary>
+    public static string PipelineNoun(string? id) =>
+        All.SingleOrDefault(_ => _.Id == id)?.PipelineNoun ?? "pipeline";
 
     public static ProviderDescriptor? ByName(string name) =>
         All.SingleOrDefault(_ => _.Name == name);

@@ -312,7 +312,7 @@ static class MonitorSession
             }
 
             items.Add(new("Refresh", CommandKind.Refresh));
-            items.Add(new($"Exclude {build.PipelineName}", CommandKind.ExcludePipeline));
+            items.Add(new($"Exclude {build.PipelineName} {PipelineNoun(state, build)}", CommandKind.ExcludePipeline));
         }
 
         return SelectRow(state, row) with { Menu = new(row, items.ToImmutable()) };
@@ -523,6 +523,14 @@ static class MonitorSession
 
         return state with { Form = form with { Filters = form.Filters.RemoveAt(index), Error = null } };
     }
+
+    /// <summary>
+    /// What the build's service calls the thing an exclusion drops: a workflow, a job, a build
+    /// config. Named after the pipeline in the menu and the status, so "Exclude CI" cannot read as
+    /// excluding something other than the pipeline it names.
+    /// </summary>
+    public static string PipelineNoun(SessionState state, Build build) =>
+        ProviderDescriptors.PipelineNoun(state.Connection(build.ConnectionId)?.Connection.ProviderId);
 
     /// <summary>
     /// The context menu's "Exclude": an exact filter on the pipeline name, applied at once.

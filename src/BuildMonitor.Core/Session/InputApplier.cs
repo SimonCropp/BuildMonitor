@@ -326,9 +326,10 @@ static class InputApplier
                     return state;
                 }
 
+                var noun = MonitorSession.PipelineNoun(state, build);
                 state = MonitorSession.ExcludePipeline(state, build);
                 actions.SaveSettings(state.Settings);
-                return MonitorSession.SetStatus(state, $"Excluded {build.PipelineName}");
+                return MonitorSession.SetStatus(state, $"Excluded {build.PipelineName} {noun}");
             }
             case CommandKind.OpenBuilds:
                 return MonitorSession.OpenBuilds(state);

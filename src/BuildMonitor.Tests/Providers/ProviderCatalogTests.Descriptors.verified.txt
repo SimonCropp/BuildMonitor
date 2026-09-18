@@ -2,6 +2,7 @@
   {
     Id: appveyor,
     Name: AppVeyor,
+    PipelineNoun: project,
     BrowserSignIn: false,
     DeviceSignIn: false,
     SelfHosted: false,
@@ -28,6 +29,7 @@
   {
     Id: azure-devops,
     Name: Azure DevOps,
+    PipelineNoun: pipeline,
     BrowserSignIn: true,
     DeviceSignIn: true,
     SelfHosted: true,
@@ -70,6 +72,7 @@
   {
     Id: bitbucket,
     Name: Bitbucket Pipelines,
+    PipelineNoun: repository,
     BrowserSignIn: false,
     DeviceSignIn: false,
     SelfHosted: false,
@@ -106,6 +109,7 @@
   {
     Id: github,
     Name: GitHub Actions,
+    PipelineNoun: workflow,
     BrowserSignIn: true,
     DeviceSignIn: true,
     SelfHosted: true,
@@ -140,6 +144,7 @@
   {
     Id: gitlab,
     Name: GitLab CI,
+    PipelineNoun: project,
     BrowserSignIn: true,
     DeviceSignIn: true,
     SelfHosted: true,
@@ -169,6 +174,7 @@
   {
     Id: gocd,
     Name: GoCD,
+    PipelineNoun: pipeline,
     BrowserSignIn: false,
     DeviceSignIn: false,
     SelfHosted: true,
@@ -186,6 +192,7 @@
   {
     Id: jenkins,
     Name: Jenkins,
+    PipelineNoun: job,
     BrowserSignIn: false,
     DeviceSignIn: false,
     SelfHosted: true,
@@ -205,6 +212,7 @@
   {
     Id: octopus,
     Name: Octopus Deploy,
+    PipelineNoun: project,
     BrowserSignIn: false,
     DeviceSignIn: false,
     SelfHosted: true,
@@ -231,6 +239,7 @@
   {
     Id: teamcity,
     Name: TeamCity,
+    PipelineNoun: build config,
     BrowserSignIn: false,
     DeviceSignIn: false,
     SelfHosted: true,
@@ -257,6 +266,7 @@
   {
     Id: travis,
     Name: Travis CI,
+    PipelineNoun: repository,
     BrowserSignIn: false,
     DeviceSignIn: false,
     SelfHosted: true,
