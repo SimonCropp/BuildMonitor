@@ -26,6 +26,8 @@ Or in a `.mcp.json` (Claude Code, project scope) or `.cursor/mcp.json` (Cursor):
 
 Claude Desktop's Code tab runs Claude Code, so the `claude mcp add` above already covers it. Its chats read a registry of their own, `claude_desktop_config.json`: under `%APPDATA%\Claude` on Windows, and `~/Library/Application Support/Claude` on macOS.
 
+Where Claude Desktop is installed as a Windows app package, `%APPDATA%` is virtualized, and that path is one only the app itself resolves. An editor started outside the package finds no `Claude` folder in `%APPDATA%` at all, and has to be pointed at the physical location instead: `%LocalAppData%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude`, with `AnthropicPBC.Claude_fnn82j28hfe8t` as the package folder for some builds.
+
 ```json
 {
   "mcpServers": {
@@ -39,7 +41,7 @@ Claude Desktop's Code tab runs Claude Code, so the `claude mcp add` above alread
 
 Quit Claude Desktop before editing that file, and start it again after saving it. Closing the window is not enough, since that leaves it running. While it runs it saves its own settings to the same file, such as which Code session was last open, and it writes the file from what it read at startup, so an edit made in the meantime is lost. It reads the file only at startup.
 
-The chats start the server with the desktop session's environment rather than a shell's, so where `buildmonitor` resolves only because a shell profile adds it to the path, give the absolute path to the tool shim instead: `%USERPROFILE%\.dotnet\tools\buildmonitor.exe`, or `~/.dotnet/tools/buildmonitor`.
+The chats start the server with the desktop session's environment rather than a shell's, so where `buildmonitor` resolves only because a shell profile adds it to the path, give the absolute path to the tool shim instead: `.dotnet\tools` under the user profile on Windows, and `.dotnet/tools` under the home directory on macOS. Write that path out in full, since the server is started without a shell and so nothing expands `%USERPROFILE%` or `~`, and double the backslashes that JSON reads as escapes: `"command": "C:\\Users\\<user>\\.dotnet\\tools\\buildmonitor.exe"`, or `"command": "/Users/<user>/.dotnet/tools/buildmonitor"`.
 
 
 VS Code, in `.vscode/mcp.json`:
