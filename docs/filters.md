@@ -27,7 +27,7 @@ A filter excludes what it matches. Each one has:
 
 Pipeline and repository filters are applied before a pipeline is fetched, so an excluded pipeline costs no API calls. Branch filters apply to the builds that come back.
 
-The context menu on a row adds an exact filter for it at once. Each item names what it excludes, in the word the service uses: "Exclude CI action", "Exclude main branch", "Exclude SimonCropp/Verify repo". The branch item is left out for a service with no branches, and the repo item for a service whose pipeline is the repository.
+The context menu on a row adds an exact filter for it at once. Each item names what it excludes, in the word the service uses: "Exclude action: CI", "Exclude branch: main", "Exclude repo: SimonCropp/Verify". The branch item is left out for a service with no branches, and the repo item for a service whose pipeline is the repository.
 
 To narrow the list for a moment rather than exclude anything, type in the Filter box at the top of the window instead. See [The window](tray.md#the-window).
 

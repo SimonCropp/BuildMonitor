@@ -8,16 +8,16 @@
 |   x Verify     github   test.yml feature/inline               25m ago    SimonCropp PR 42 [Retry] [Log]              |
 |   + [-] Verify          2 passing                             2h ago                                                 |
 | > +            github   docs.yml main                         2h ago                                                 |
-|   +---------------------------------+n                        4h ago                                                 |
-|   | Open build                      |                         23h ago                                                |
-|   | Open branch                     |                                                                                |
-|   | Copy build URL                  |                                                                                |
-|   | Collapse Verify                 |                                                                                |
-|   | Refresh                         |                                                                                |
-|   | Exclude docs.yml action         |                                                                                |
-|   | Exclude main branch             |                                                                                |
-|   | Exclude VerifyTests/Verify repo |                                                                                |
-|   +---------------------------------+                                                                                |
+|   +----------------------------------+                        4h ago                                                 |
+|   | Open build                       |                        23h ago                                                |
+|   | Open branch                      |                                                                               |
+|   | Copy build URL                   |                                                                               |
+|   | Collapse Verify                  |                                                                               |
+|   | Refresh                          |                                                                               |
+|   | Exclude action: docs.yml         |                                                                               |
+|   | Exclude branch: main             |                                                                               |
+|   | Exclude repo: VerifyTests/Verify |                                                                               |
+|   +----------------------------------+                                                                               |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

@@ -312,17 +312,19 @@ static class MonitorSession
             }
 
             items.Add(new("Refresh", CommandKind.Refresh));
-            items.Add(new($"Exclude {build.PipelineName} {PipelineNoun(state, build)}", CommandKind.ExcludePipeline));
+            // What is excluded, then which one of them: a name that runs long, as a repository's
+            // does, pushes the word that says what it is off the end of a narrow menu.
+            items.Add(new($"Exclude {PipelineNoun(state, build)}: {build.PipelineName}", CommandKind.ExcludePipeline));
             if (build.Branch is { } branch)
             {
-                items.Add(new($"Exclude {branch} branch", CommandKind.ExcludeBranch));
+                items.Add(new($"Exclude branch: {branch}", CommandKind.ExcludeBranch));
             }
 
             // Where the provider has nothing above the pipeline, such as Bitbucket and Travis, the
             // repo is the pipeline, and a second item would exclude what the first one does.
             if (build.RepoName != build.PipelineName)
             {
-                items.Add(new($"Exclude {build.RepoName} repo", CommandKind.ExcludeRepo));
+                items.Add(new($"Exclude repo: {build.RepoName}", CommandKind.ExcludeRepo));
             }
         }
 
