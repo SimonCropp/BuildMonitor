@@ -15,6 +15,26 @@ For Azure DevOps Server enter the server URL and the collection as the organizat
 One per pipeline definition. Pull request builds show the pull request number and link to it, on Azure Repos and on GitHub repositories.
 
 
+## Authors
+
+A failed row names whoever the build was queued for, which for a build a pipeline queued on someone else's behalf is a service account rather than the person the failure concerns. Such a build can name that person itself, as an end to end suite run for whoever committed the code does, through a `TriggeredBy` build property holding their name.
+
+Azure DevOps has no such property of its own. It is a name BuildMonitor reads and a pipeline chooses to write, so no build carries it by accident and one that does not is unaffected. [Update Build Properties](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/properties/update-build-properties) writes it:
+
+```
+PATCH {project}/_apis/build/builds/{buildId}/properties?api-version=7.1
+Content-Type: application/json-patch+json
+
+[{"op": "add", "path": "/TriggeredBy", "value": "Ada Lovelace"}]
+```
+
+The value is a name, shown as it is written, or the id of one, which is named from what the other connections have seen (see [Authors](../authors.md)). An id nothing has named yet leaves the row naming whoever queued the build, so a name is the surer thing to write. The property's name is matched without case, and a value of nothing but spaces counts as none.
+
+Which name a build settled on is in the log at Debug level (see [Troubleshooting](../troubleshooting.md)), because a row that fell back to the requester looks like any other.
+
+Every build also leaves behind the name of the identity it was queued for, id and all, which is how a connection handed that id and no name — an Octopus release created by a pipeline — names it. See [Authors](../authors.md).
+
+
 ## Actions
 
  * Retry re-runs the build
@@ -135,6 +155,7 @@ Checked 2026-09-16.
  * [Rate and usage limits](https://learn.microsoft.com/en-us/azure/devops/integrate/concepts/rate-limits)
  * [Use personal access tokens](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) and [REST API samples](https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/rest/samples)
  * [Builds - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-7.1)
+ * [Properties - Update Build Properties](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/properties/update-build-properties?view=azure-devops-rest-7.1)
  * [Definitions - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/definitions/list?view=azure-devops-rest-7.1)
  * [Pushes - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pushes/list?view=azure-devops-rest-7.1)
  * [Runs - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/pipelines/runs/list?view=azure-devops-rest-7.1)

@@ -39,6 +39,67 @@ public class TeamCityProviderTests
         await Verify(new { builds, handler.Requests });
     }
 
+    /// <summary>
+    /// A build a pipeline started for someone else names that person through a build parameter,
+    /// rather than whoever triggered it, which for such a run is the service account.
+    /// </summary>
+    static FakeHttpHandler Triggered(string properties) =>
+        new FakeHttpHandler()
+            .Get(
+                $"{server}/app/rest/buildTypes",
+                $$$"""
+                   {"buildType":[
+                     {"id":"Verify_Build","builds":{"build":[
+                       {"id":9000,"number":"119","status":"FAILURE","state":"finished","branchName":"main","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9000","queuedDate":"20260101T100000+0000","buildTypeId":"Verify_Build","triggered":{"user":{"username":"builder","name":"Build Service"}},{{{properties}}}}
+                     ]}}
+                   ]}
+                   """);
+
+    static async Task<Build> Build(FakeHttpHandler handler, IdentityNames? identities = null)
+    {
+        var context = ProviderTestHelpers.Context("teamcity", handler, server) with
+        {
+            Identities = identities ?? new()
+        };
+        var provider = ProviderTestHelpers.Provider("teamcity");
+        var pipelines = new[] { new Pipeline("Verify_Build", "Verify / Build", "Verify", "Verify", "") };
+        var builds = await provider.FetchBuilds(context, pipelines, 5, Cancel.None);
+        return builds.Single();
+    }
+
+    [Test]
+    public async Task ATriggeredByParameterNamesTheAuthor()
+    {
+        var build = await Build(Triggered("""  "properties":{"property":[{"name":"TriggeredBy","value":"Ada Lovelace"}]}"""));
+        await Assert.That(build.Author).IsEqualTo("Ada Lovelace");
+    }
+
+    [Test]
+    public async Task ATriggeredByIdIsNamedByWhatAnotherConnectionLearnt()
+    {
+        const string id = "d1a80549-4d1f-642e-b5d5-9eca49ca5e24";
+        var identities = new IdentityNames();
+        identities.Add(id, "Simon Cropp");
+        var build = await Build(Triggered($$"""  "properties":{"property":[{"name":"TriggeredBy","value":"{{id}}"}]}"""), identities);
+        await Assert.That(build.Author).IsEqualTo("Simon Cropp");
+    }
+
+    /// <summary>
+    /// A credential that may not read build parameters is answered without them at all, and an id
+    /// nothing has named is no name, so the row keeps naming whoever triggered the build.
+    /// </summary>
+    [Test]
+    [Arguments(""" "properties":{"property":[]}""")]
+    [Arguments(""" "properties":{"property":[{"name":"Other","value":"Ada Lovelace"}]}""")]
+    [Arguments(""" "properties":{"property":[{"name":"TriggeredBy","value":"d1a80549-4d1f-642e-b5d5-9eca49ca5e24"}]}""")]
+    [Arguments(""" "properties":{"property":[{"name":"TriggeredBy","value":"  "}]}""")]
+    [Arguments(""" "canceledInfo":null""")]
+    public async Task WithoutAUsableParameterTheTriggeringUserIsNamed(string properties)
+    {
+        var build = await Build(Triggered(properties));
+        await Assert.That(build.Author).IsEqualTo("Build Service");
+    }
+
     [Test]
     public async Task HistoryLimitIsNotSentAsQueuedDate()
     {

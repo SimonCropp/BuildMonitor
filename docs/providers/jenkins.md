@@ -20,6 +20,19 @@ An [API token](https://www.jenkins.io/doc/book/system-administration/authenticat
 One per job. A job with a queued build shows a queued row until it starts.
 
 
+## Authors
+
+Jenkins names nobody: a row is a job, and what a build records about who started it is a cause rather than a person. A build started with a `TriggeredBy` parameter names whoever it holds:
+
+```groovy
+build job: 'e2e', parameters: [string(name: 'TriggeredBy', value: 'Ada Lovelace')]
+```
+
+The value is a name, shown as it is written, or the id of one, which is named from what the other connections have seen. See [Authors](../authors.md).
+
+The first twenty five parameters of each build are read, which comes back with the builds rather than costing a request of its own. A parameter that is not text, such as a flag, names nobody.
+
+
 ## Actions
 
  * Retry queues a new build of the job; Jenkins has no rerun. A parameterized job is built with its default parameters

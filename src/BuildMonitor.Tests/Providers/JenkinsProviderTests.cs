@@ -40,6 +40,60 @@ public class JenkinsProviderTests
         await Verify(new { builds, handler.Requests });
     }
 
+    /// <summary>
+    /// Jenkins names nobody of its own, so a build parameter is the only thing that can. A
+    /// parameter of another type arrives as the JSON it is, which read as a name failed the whole
+    /// job's fetch.
+    /// </summary>
+    static async Task<Build> Build(string parameters, IdentityNames? identities = null)
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                $"{server}/job/build-all/api/json",
+                $$"""
+                  {"builds":[
+                    {"number":500,"url":"https://jenkins.example.com/job/build-all/500/","result":"FAILURE","building":false,"timestamp":1767264900000,"duration":290000,"actions":[{},{"parameters":[{{parameters}}]}]}
+                  ],"lastBuild":{"number":500,"estimatedDuration":300000},"inQueue":false,"queueItem":null}
+                  """);
+        var context = ProviderTestHelpers.Context("jenkins", handler, server, "simon") with
+        {
+            Identities = identities ?? new()
+        };
+        var pipelines = new[] { new Pipeline("build-all", "Build all", "build-all", null, $"{server}/job/build-all/") };
+        var builds = await ProviderTestHelpers.Provider("jenkins").FetchBuilds(context, pipelines, 5, Cancel.None);
+        return builds.Single();
+    }
+
+    [Test]
+    public async Task ATriggeredByParameterNamesTheAuthor()
+    {
+        var build = await Build("""{"name":"TriggeredBy","value":"Ada Lovelace"}""");
+        await Assert.That(build.Author).IsEqualTo("Ada Lovelace");
+    }
+
+    [Test]
+    public async Task ATriggeredByIdIsNamedByWhatAnotherConnectionLearnt()
+    {
+        const string id = "d1a80549-4d1f-642e-b5d5-9eca49ca5e24";
+        var identities = new IdentityNames();
+        identities.Add(id, "Simon Cropp");
+        var build = await Build($$"""{"name":"TriggeredBy","value":"{{id}}"}""", identities);
+        await Assert.That(build.Author).IsEqualTo("Simon Cropp");
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("""{"name":"Other","value":"Ada Lovelace"}""")]
+    [Arguments("""{"name":"TriggeredBy","value":true}""")]
+    [Arguments("""{"name":"TriggeredBy","value":12}""")]
+    [Arguments("""{"name":"TriggeredBy","value":null}""")]
+    [Arguments("""{"name":"TriggeredBy","value":"d1a80549-4d1f-642e-b5d5-9eca49ca5e24"}""")]
+    public async Task WithoutAUsableParameterTheBuildNamesNobody(string parameters)
+    {
+        var build = await Build(parameters);
+        await Assert.That(build.Author).IsNull();
+    }
+
     [Test]
     public async Task OnlyTheLastBuildCarriesTheEstimate()
     {

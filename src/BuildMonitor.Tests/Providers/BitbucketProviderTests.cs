@@ -1,12 +1,14 @@
 public class BitbucketProviderTests
 {
+    const string pipelines = "https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields=values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
+
     static FakeHttpHandler Handler() =>
         new FakeHttpHandler()
             .Get(
                 "https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on&fields=next,values.slug,values.full_name,values.links.html.href",
                 """{"values":[{"slug":"diffengine","full_name":"verify/diffengine","links":{"html":{"href":"https://bitbucket.org/verify/diffengine"}}}]}""")
             .Get(
-                "https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields=values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.display_name,values.created_on,values.completed_on",
+                pipelines,
                 """
                 {"values":[
                   {"uuid":"{u1}","build_number":88,"state":{"name":"IN_PROGRESS","stage":{"name":"RUNNING"}},"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"main","commit":{"hash":"abc123"}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T11:55:00Z","completed_on":null},
@@ -20,6 +22,23 @@ public class BitbucketProviderTests
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("bitbucket", ProviderTestHelpers.Context("bitbucket", handler, user: "simon@example.com", scope: ("workspace", "verify")));
         await Verify(new { builds, handler.Requests });
+    }
+
+    /// <summary>
+    /// A Bitbucket account id is a guid, so the name it arrives with here names it for whoever else
+    /// is handed that id alone.
+    /// </summary>
+    [Test]
+    public async Task TheCreatorsNameIsLeftForOtherConnections()
+    {
+        const string id = "{d1a80549-4d1f-642e-b5d5-9eca49ca5e24}";
+        var handler = Handler()
+            .Get(
+                pipelines,
+                $$$"""{"values":[{"uuid":"{u1}","build_number":88,"state":{"name":"COMPLETED","result":{"name":"FAILED"}},"creator":{"uuid":"{{{id}}}","display_name":"Simon Cropp"},"created_on":"2026-01-01T11:55:00Z"}]}""");
+        var context = ProviderTestHelpers.Context("bitbucket", handler, user: "simon@example.com", scope: ("workspace", "verify"));
+        await ProviderTestHelpers.DiscoverAndFetch("bitbucket", context);
+        await Assert.That(context.Identities.Name("d1a80549-4d1f-642e-b5d5-9eca49ca5e24")).IsEqualTo("Simon Cropp");
     }
 
     [Test]

@@ -7,6 +7,7 @@ class OctopusDashboardItem
     public string EnvironmentId { get; set; } = "";
     public string DeploymentId { get; set; } = "";
     public string TaskId { get; set; } = "";
+    public string? ReleaseId { get; set; }
     public string? ReleaseVersion { get; set; }
     public string? State { get; set; }
     public DateTimeOffset? QueueTime { get; set; }

@@ -11,7 +11,7 @@ sealed class BitbucketProvider : ProviderBase
     // Only what is read, as the probe already asks: whole repositories and pipelines came back
     // with every link and property Bitbucket has for them.
     const string repositoryFields = "next,values.slug,values.full_name,values.links.html.href";
-    const string pipelineFields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.display_name,values.created_on,values.completed_on";
+    const string pipelineFields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
@@ -43,7 +43,13 @@ sealed class BitbucketProvider : ProviderBase
                 $"repositories/{Encode(workspace)}/{pipeline.Id}/pipelines?sort=-created_on&pagelen={perPipeline}&fields={pipelineFields}",
                 BitbucketContext.Default.BitbucketPipelinePage,
                 cancel);
-            builds.AddRange(page.Values.Select(_ => Convert(context.Connection.Id, pipeline, _)));
+            foreach (var run in page.Values)
+            {
+                // A Bitbucket account id is a guid, so the name it arrives with here names it for
+                // whoever else is handed that id alone; see IdentityNames.
+                context.Identities.Add(run.Creator?.Uuid, run.Creator?.DisplayName);
+                builds.Add(Convert(context.Connection.Id, pipeline, run));
+            }
         }
 
         return builds;

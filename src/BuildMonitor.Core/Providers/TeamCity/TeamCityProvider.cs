@@ -14,7 +14,13 @@ sealed class TeamCityProvider : ProviderBase
 {
     public override ProviderDescriptor Descriptor => ProviderDescriptors.TeamCity;
 
-    const string buildFields = "build(id,number,status,state,branchName,defaultBranch,webUrl,statusText,queuedDate,startDate,finishDate,buildTypeId,canceledInfo(text),running-info(percentageComplete,elapsedSeconds,estimatedTotalSeconds,leftSeconds),triggered(user(username,name)),revisions(revision(version)))";
+    // The one parameter is asked for by name: a build's parameters run to dozens, and all of them
+    // for every build of every configuration would be most of the response. A credential that may
+    // not read parameters is answered without the collection at all, and the override is then
+    // simply not there.
+    const string propertyFields = $"properties($locator(name:{TriggeredBy.Property}),property(name,value))";
+
+    const string buildFields = $"build(id,number,status,state,branchName,defaultBranch,webUrl,statusText,queuedDate,startDate,finishDate,buildTypeId,canceledInfo(text),running-info(percentageComplete,elapsedSeconds,estimatedTotalSeconds,leftSeconds),triggered(user(username,name)),revisions(revision(version)),{propertyFields})";
 
     // The newest build id the probe has seen, which the next probe asks for the builds after.
     const string newestBuild = "teamcity.newest-build";
@@ -71,7 +77,7 @@ sealed class TeamCityProvider : ProviderBase
                     (type.Builds?.Build ?? [])
                     .Where(_ => !RemovedFromQueue(_))
                     .Take(perPipeline)
-                    .Select(_ => Convert(context.Connection.Id, pipeline, _)));
+                    .Select(_ => Convert(context, pipeline, _)));
             }
         }
 
@@ -128,7 +134,16 @@ sealed class TeamCityProvider : ProviderBase
         return tokens.ToImmutable();
     }
 
-    static Build Convert(string connectionId, Pipeline pipeline, TeamCityBuild build)
+    /// <summary>
+    /// Who the row names: whoever <see cref="TriggeredBy"/> says the build is for, then whoever
+    /// triggered it.
+    /// </summary>
+    static string? Author(ProviderContext context, TeamCityBuild build) =>
+        TriggeredBy.Author(context, build.Property(TriggeredBy.Property), $"Build {build.Id}") ??
+        build.Triggered?.User?.Name ??
+        build.Triggered?.User?.Username;
+
+    static Build Convert(ProviderContext context, Pipeline pipeline, TeamCityBuild build)
     {
         var status = build.State switch
         {
@@ -153,7 +168,7 @@ sealed class TeamCityProvider : ProviderBase
 
         var pullRequest = PullRequest(build.BranchName);
         return new(
-            connectionId,
+            context.Connection.Id,
             pipeline.Id,
             pipeline.Name,
             pipeline.RepoName,
@@ -171,7 +186,7 @@ sealed class TeamCityProvider : ProviderBase
             null,
             build.Revisions?.Revision.FirstOrDefault()?.Version,
             build.StatusText,
-            build.Triggered?.User?.Name ?? build.Triggered?.User?.Username,
+            Author(context, build),
             CanRetry: build.State == "finished",
             CanCancel: build.State is "queued" or "running",
             Join(build.State, build.Id.ToString(), build.BuildTypeId, build.BranchName),

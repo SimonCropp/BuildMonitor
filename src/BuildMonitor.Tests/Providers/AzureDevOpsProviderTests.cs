@@ -2,6 +2,8 @@ public class AzureDevOpsProviderTests
 {
     const string organization = "https://dev.azure.com/contoso";
 
+    const string builds = $"{organization}/Web/_apis/build/builds?definitions=1,2&maxBuildsPerDefinition=5&queryOrder=queueTimeDescending&properties=TriggeredBy&api-version=7.1";
+
     static FakeHttpHandler Handler() =>
         new FakeHttpHandler()
             .Get(
@@ -11,7 +13,7 @@ public class AzureDevOpsProviderTests
                 $"{organization}/Web/_apis/pipelines?api-version=7.1",
                 """{"count":2,"value":[{"id":1,"name":"CI","folder":"\\","_links":{"web":{"href":"https://dev.azure.com/contoso/Web/_build?definitionId=1"}}},{"id":2,"name":"Nightly","folder":"\\ops"}]}""")
             .Get(
-                $"{organization}/Web/_apis/build/builds?definitions=1,2&maxBuildsPerDefinition=5&queryOrder=queueTimeDescending&api-version=7.1",
+                builds,
                 """
                 {"count":3,"value":[
                   {"id":301,"buildNumber":"20260101.3","status":"inProgress","result":null,"queueTime":"2026-01-01T11:50:00Z","startTime":"2026-01-01T11:51:00Z","sourceBranch":"refs/heads/main","sourceVersion":"abc123","reason":"individualCI","requestedFor":{"displayName":"Simon"},"definition":{"id":1,"name":"CI"},"repository":{"id":"r1","type":"TfsGit","name":"Web"},"triggerInfo":{"ci.message":"Fix"},"_links":{"web":{"href":"https://dev.azure.com/contoso/Web/_build/results?buildId=301"}}},
@@ -38,6 +40,79 @@ public class AzureDevOpsProviderTests
         await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
         await Assert.That(handler.Requests.Any(_ => _.Contains("_apis/build/builds?definitions="))).IsTrue();
         await Assert.That(handler.Requests.Any(_ => _.Contains("_apis/build/builds?definitions=") && _.Contains("minTime"))).IsFalse();
+    }
+
+    /// <summary>
+    /// One build queued by a service account, as an end to end suite is, carrying the property
+    /// that names whoever the run is really for.
+    /// </summary>
+    static FakeHttpHandler Triggered(string properties) =>
+        Handler()
+            .Get(
+                builds,
+                $$"""
+                  {"count":1,"value":[
+                    {"id":301,"buildNumber":"20260101.3","status":"completed","result":"failed","queueTime":"2026-01-01T11:50:00Z","startTime":"2026-01-01T11:51:00Z","finishTime":"2026-01-01T11:59:00Z","sourceBranch":"refs/heads/main","requestedFor":{"displayName":"Build Service"},"definition":{"id":1,"name":"CI"},"properties":{{properties}}}
+                  ]}
+                  """);
+
+    [Test]
+    [Arguments("""{"TriggeredBy":{"$type":"System.String","$value":"Ada Lovelace"}}""")]
+    [Arguments("""{"TriggeredBy":"Ada Lovelace"}""")]
+    public async Task TriggeredByNamesTheAuthor(string properties)
+    {
+        var handler = Triggered(properties);
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var fetched = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        await Assert.That(fetched.Single().Author).IsEqualTo("Ada Lovelace");
+    }
+
+    /// <summary>
+    /// The property holds a name. An id is not one: shown, it would fill the author column with a
+    /// guid that names nobody, so the row goes on naming whoever queued the build.
+    /// </summary>
+    [Test]
+    public async Task AnIdInTriggeredByNamesTheRequester()
+    {
+        var handler = Triggered("""{"TriggeredBy":"e9d8e877-ffad-6366-81bf-b5db2947d44c"}""");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var fetched = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        await Assert.That(fetched.Single().Author).IsEqualTo("Build Service");
+    }
+
+    /// <summary>
+    /// The name of the property is whatever the pipeline that wrote it called it, so its case is
+    /// not held against it.
+    /// </summary>
+    [Test]
+    public async Task TheNameOfThePropertyIsMatchedWithoutCase()
+    {
+        var handler = Triggered("""{"triggeredby":"Ada Lovelace"}""");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var fetched = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        await Assert.That(fetched.Single().Author).IsEqualTo("Ada Lovelace");
+    }
+
+    /// <summary>
+    /// A property collection is whatever the service sends, and a shape that was not an object of
+    /// strings failed the whole project's fetch, taking every row of it off the screen.
+    /// </summary>
+    [Test]
+    [Arguments("{}")]
+    [Arguments("[]")]
+    [Arguments("null")]
+    [Arguments("\"\"")]
+    [Arguments("""{"TriggeredBy":null}""")]
+    [Arguments("""{"TriggeredBy":123}""")]
+    [Arguments("""{"TriggeredBy":["e9d8e877-ffad-6366-81bf-b5db2947d44c"]}""")]
+    [Arguments("""{"TriggeredBy":{"$type":"System.Int32","$value":5}}""")]
+    [Arguments("""{"TriggeredBy":"   "}""")]
+    public async Task APropertyCollectionOfAnyShapeNamesTheRequester(string properties)
+    {
+        var handler = Triggered(properties);
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var fetched = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        await Assert.That(fetched.Single().Author).IsEqualTo("Build Service");
     }
 
     static PollGroup Web() =>

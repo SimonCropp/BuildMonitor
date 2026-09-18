@@ -37,6 +37,68 @@ public class OctopusProviderTests
         await Assert.That(builds.Single(_ => _.Branch == "Production").Estimate!.Remaining).IsEqualTo(TimeSpan.FromSeconds(135));
     }
 
+    const string requestedFor = "d1a80549-4d1f-642e-b5d5-9eca49ca5e24";
+
+    /// <summary>
+    /// A deployment of a release a pipeline created, whose notes carry the user id of whoever it
+    /// was created for and nothing that could name them.
+    /// </summary>
+    static FakeHttpHandler Released(string notes) =>
+        Discovery()
+            .Get(
+                $"{server}/api/Spaces-1/dashboard/dynamic",
+                """
+                {"Items":[
+                  {"ProjectId":"Projects-1","EnvironmentId":"Environments-1","DeploymentId":"Deployments-10","TaskId":"ServerTasks-99","ReleaseId":"Releases-5","ReleaseVersion":"1.2.3","State":"Failed","QueueTime":"2026-01-01T10:00:00Z","StartTime":"2026-01-01T10:00:10Z","CompletedTime":"2026-01-01T10:03:00Z","IsCurrent":true}
+                ],"Environments":[{"Id":"Environments-1","Name":"Production"}]}
+                """)
+            .Get($"{server}/api/Spaces-1/releases/Releases-5", $$"""{"Id":"Releases-5","ReleaseNotes":{{JsonSerializer.Serialize(notes)}}}""");
+
+    static ProviderContext Context(FakeHttpHandler handler, IdentityNames? identities = null) =>
+        ProviderTestHelpers.Context("octopus", handler, server) with
+        {
+            Identities = identities ?? new()
+        };
+
+    [Test]
+    public async Task ANamedIdInTheReleaseNotesNamesTheDeployment()
+    {
+        var identities = new IdentityNames();
+        identities.Add(requestedFor, "Simon Cropp");
+        var handler = Released($$"""{ "AzureDevOpsRequestedForId": "{{requestedFor}}" }""");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", Context(handler, identities));
+        await Assert.That(builds.Single().Author).IsEqualTo("Simon Cropp");
+    }
+
+    /// <summary>
+    /// Nothing in Octopus can name the id, so until another connection does the row names no one,
+    /// as every Octopus row did before.
+    /// </summary>
+    [Test]
+    [Arguments($$"""{ "AzureDevOpsRequestedForId": "{{requestedFor}}" }""")]
+    [Arguments("""{ "AzureDevOpsRequestedForId": "" }""")]
+    [Arguments("""{ "Something": "else" }""")]
+    [Arguments("Deployed the thing")]
+    [Arguments("{not json")]
+    [Arguments("")]
+    public async Task AnIdNothingHasNamedLeavesTheDeploymentUnnamed(string notes)
+    {
+        var handler = Released(notes);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", Context(handler));
+        await Assert.That(builds.Single().Author).IsNull();
+    }
+
+    [Test]
+    public async Task AReleaseIsReadOnce()
+    {
+        var handler = Released($$"""{ "AzureDevOpsRequestedForId": "{{requestedFor}}" }""");
+        var context = Context(handler);
+        await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
+        handler.Requests.Clear();
+        await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
+        await Assert.That(handler.Requests.Any(_ => _.Contains("/releases/"))).IsFalse();
+    }
+
     static FakeHttpHandler Limited() =>
         Discovery()
             .Get($"{server}/api/Spaces-1/dashboard/dynamic", """{"Items":[],"Environments":[],"ProjectLimit":0}""")

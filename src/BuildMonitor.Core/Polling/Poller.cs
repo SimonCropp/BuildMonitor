@@ -14,6 +14,9 @@ sealed class Poller(
 {
     ConcurrentDictionary<string, ConnectionPoller> pollers = new();
     CancelSource cancel = new();
+    // One for every connection: a name learnt from one service names the rows of another that was
+    // handed only the id. See IdentityNames.
+    IdentityNames identities = new();
 
     public void Start() =>
         Sync(host.State.Settings);
@@ -43,7 +46,7 @@ sealed class Poller(
                 continue;
             }
 
-            var poller = new ConnectionPoller(connection.Id, host, secrets, history, handler, refresher, clock);
+            var poller = new ConnectionPoller(connection.Id, host, secrets, history, handler, refresher, clock, identities);
             if (pollers.TryAdd(connection.Id, poller))
             {
                 poller.Start(cancel.Token);

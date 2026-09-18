@@ -33,6 +33,13 @@ record ProviderContext(Connection Connection, HttpJson Http)
     public ProviderMemory Memory { get; init; } = new();
 
     /// <summary>
+    /// What each user id is called, shared by every connection the poller runs, so that a provider
+    /// handed an id by another service can name it. Any other call starts with an empty one, which
+    /// names nobody.
+    /// </summary>
+    public IdentityNames Identities { get; init; } = new();
+
+    /// <summary>
     /// What the credential may do to builds, as <see cref="IProvider.Access"/> last said. Set only
     /// when polling, for a provider whose discovery narrows it by what the user may do to each
     /// pipeline; any other call leaves it unknown.

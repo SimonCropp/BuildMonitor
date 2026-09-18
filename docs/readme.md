@@ -10,6 +10,7 @@ To change this file edit the source file and then run MarkdownSnippets.
  * [Tray](/docs/tray.md)<!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
  * [Options](/docs/options.md)
  * [Filters](/docs/filters.md)
+ * [Authors](/docs/authors.md)
  * [Authentication](/docs/auth.md)
  * [MCP server](/docs/mcp.md)
  * [Linux](/docs/linux.md)

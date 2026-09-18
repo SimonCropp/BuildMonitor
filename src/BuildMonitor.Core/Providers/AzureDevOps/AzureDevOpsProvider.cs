@@ -60,7 +60,7 @@ sealed class AzureDevOpsProvider : ProviderBase
             // No minTime for the history limit: under queueTimeDescending it filters on queue time,
             // so a build queued before the cutoff and still running would never be returned.
             var response = await context.Http.Get(
-                $"{Encode(project.Key)}/_apis/build/builds?definitions={string.Join(',', byDefinition.Keys)}&maxBuildsPerDefinition={perPipeline}&queryOrder=queueTimeDescending&{apiVersion}",
+                $"{Encode(project.Key)}/_apis/build/builds?definitions={string.Join(',', byDefinition.Keys)}&maxBuildsPerDefinition={perPipeline}&queryOrder=queueTimeDescending&properties={TriggeredBy.Property}&{apiVersion}",
                 AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsBuild,
                 cancel);
             var taken = new Dictionary<long, int>();
@@ -79,6 +79,10 @@ sealed class AzureDevOpsProvider : ProviderBase
                 }
 
                 taken[build.Definition.Id] = soFar + 1;
+                // Every build names the identity it was queued for, id and all, which is the only
+                // place a name for that id is free. Another service handed the same id and no name,
+                // as an Octopus release created by a pipeline is, reads it back from here.
+                context.Identities.Add(build.RequestedFor?.Id, build.RequestedFor?.DisplayName);
                 builds.Add(Convert(context, project.Key, pipeline, build));
             }
         }
@@ -186,12 +190,20 @@ sealed class AzureDevOpsProvider : ProviderBase
             pullRequestUrl,
             build.SourceVersion,
             build.TriggerInfo?.Message,
-            build.RequestedFor?.DisplayName,
+            Author(context, build),
             CanRetry: build.Status == "completed",
             CanCancel: build.Status is "inProgress" or "notStarted" or "postponed",
             Join(project, build.Id.ToString()),
             $"{context.Http.BaseAddress}{Encode(project)}");
     }
+
+    /// <summary>
+    /// Who the row names: whoever <see cref="TriggeredBy"/> says the build is for, then whoever it
+    /// was queued for.
+    /// </summary>
+    static string? Author(ProviderContext context, AzureDevOpsBuild build) =>
+        TriggeredBy.Author(context, build.Property(TriggeredBy.Property), $"Build {build.Id}") ??
+        build.RequestedFor?.DisplayName;
 
     static (string? Branch, string? PullRequest) RepositoryLinks(ProviderContext context, string project, AzureDevOpsRepository? repository, string? branch, string? pullRequest)
     {

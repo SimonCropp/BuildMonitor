@@ -1,6 +1,7 @@
  * [Tray](/docs/tray.md)
  * [Options](/docs/options.md)
  * [Filters](/docs/filters.md)
+ * [Authors](/docs/authors.md)
  * [Authentication](/docs/auth.md)
  * [MCP server](/docs/mcp.md)
  * [Linux](/docs/linux.md)

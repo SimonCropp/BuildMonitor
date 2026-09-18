@@ -5,6 +5,7 @@
 [JsonSerializable(typeof(OctopusPage<OctopusTask>))]
 [JsonSerializable(typeof(List<OctopusEnvironment>))]
 [JsonSerializable(typeof(OctopusDashboard))]
+[JsonSerializable(typeof(OctopusRelease))]
 [JsonSerializable(typeof(OctopusTask))]
 [JsonSerializable(typeof(OctopusTaskDetails))]
 [JsonSerializable(typeof(OctopusUser))]

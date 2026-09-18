@@ -12,8 +12,18 @@ sealed class JenkinsProvider : ProviderBase
 
     const string jobFields = "name,displayName,url,_class";
     const string buildFields = "number,url,result,building,timestamp,duration";
-    // What the git plugin recorded, the only branch a job outside a multibranch project has.
-    const string revisionFields = "actions[lastBuiltRevision[branch[name]]]";
+    // The parameters a build was started with, one of which may say who the run is for.
+    const string parameterFields = $"parameters[name,value]{{0,{parameterLimit}}}";
+    // What the git plugin recorded, the only branch a job outside a multibranch project has. Both
+    // live in the build's actions, asked for as one selector rather than two of the same name.
+    const string revisionFields = "lastBuiltRevision[branch[name]]";
+
+    /// <summary>
+    /// How many of a build's parameters are read, which is only ever for the one this looks for.
+    /// A job may declare dozens, and every one of them for every build of every job would be most
+    /// of the response, where a tree cannot ask for a parameter by name.
+    /// </summary>
+    const string parameterLimit = "25";
 
     /// <summary>
     /// How many levels of folders one request reads. A level no folder reaches costs nothing, where
@@ -135,7 +145,8 @@ sealed class JenkinsProvider : ProviderBase
         {
             // A branch of a multibranch project is named for its branch, so it does not ask what the
             // git plugin recorded.
-            var fields = pipeline.Group is null ? $"{buildFields},{revisionFields}" : buildFields;
+            var actions = pipeline.Group is null ? $"actions[{revisionFields},{parameterFields}]" : $"actions[{parameterFields}]";
+            var fields = $"{buildFields},{actions}";
             var job = await context.Http.Get($"{pipeline.Url}api/json?tree=builds[{fields}]{{0,{perPipeline}}},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince]", JenkinsContext.Default.JenkinsJob, cancel);
             if (job.InQueue &&
                 job.QueueItem is { } queued)
@@ -167,7 +178,7 @@ sealed class JenkinsProvider : ProviderBase
                     pipeline.Url));
             }
 
-            builds.AddRange(job.Builds.Select(_ => Convert(context.Connection.Id, pipeline, _, Estimate(job, _))));
+            builds.AddRange(job.Builds.Select(_ => Convert(context, pipeline, _, Estimate(job, _))));
         }
 
         return builds;
@@ -188,7 +199,14 @@ sealed class JenkinsProvider : ProviderBase
         return new(TimeSpan.FromMilliseconds(milliseconds), null, null);
     }
 
-    static Build Convert(string connectionId, Pipeline pipeline, JenkinsBuild build, ProviderEstimate? estimate)
+    /// <summary>
+    /// Who the row names: whoever <see cref="TriggeredBy"/> says the build is for. Jenkins names
+    /// nobody itself, so a build without one names no one, as every Jenkins row did before.
+    /// </summary>
+    static string? Author(ProviderContext context, JenkinsBuild build) =>
+        TriggeredBy.Author(context, build.Parameter(TriggeredBy.Property), $"Build {build.Number}");
+
+    static Build Convert(ProviderContext context, Pipeline pipeline, JenkinsBuild build, ProviderEstimate? estimate)
     {
         var status = build.Building
             ? BuildStatus.Running
@@ -208,7 +226,7 @@ sealed class JenkinsProvider : ProviderBase
             .Select(_ => _.LastBuiltRevision?.Branch?.FirstOrDefault()?.Name)
             .FirstOrDefault(_ => _ is not null);
         return new(
-            connectionId,
+            context.Connection.Id,
             pipeline.Id,
             pipeline.Name,
             pipeline.RepoName,
@@ -226,7 +244,7 @@ sealed class JenkinsProvider : ProviderBase
             null,
             null,
             null,
-            null,
+            Author(context, build),
             CanRetry: !build.Building,
             CanCancel: build.Building,
             Join(pipeline.Url, build.Number.ToString()),

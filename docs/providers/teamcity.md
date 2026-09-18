@@ -22,6 +22,20 @@ One per build configuration. Branches named `pull/n` or `n/merge`, as the pull r
 TeamCity numbers a build when it starts, so a queued build shows no number until then. A build removed from the queue before it started is left out, and the row keeps showing the configuration's last run.
 
 
+## Authors
+
+A failed row names whoever triggered the build, which for one a pipeline triggered on someone else's behalf is the service account. A build started with a `TriggeredBy` parameter names whoever it holds instead:
+
+```
+--- a build parameter, however the build was started
+TriggeredBy=Ada Lovelace
+```
+
+The value is a name, shown as it is written, or the id of one, which is named from what the other connections have seen. See [Authors](../authors.md).
+
+Only that one parameter is asked for, by name, so a configuration's other parameters cost nothing. TeamCity answers a credential that may not read build parameters by leaving them out altogether, and a row then names whoever triggered the build, as it did before.
+
+
 ## Actions
 
  * Retry queues a new build of the configuration on the same branch

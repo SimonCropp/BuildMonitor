@@ -94,7 +94,7 @@
   ],
   Requests: [
     GET https://jenkins.example.com/api/json?tree=jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class]]]]]],
-    GET https://jenkins.example.com/job/build-all/api/json?tree=builds[number,url,result,building,timestamp,duration,actions[lastBuiltRevision[branch[name]]]]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince],
-    GET https://jenkins.example.com/job/team/job/app/job/PR-12/api/json?tree=builds[number,url,result,building,timestamp,duration]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince]
+    GET https://jenkins.example.com/job/build-all/api/json?tree=builds[number,url,result,building,timestamp,duration,actions[lastBuiltRevision[branch[name]],parameters[name,value]{0,25}]]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince],
+    GET https://jenkins.example.com/job/team/job/app/job/PR-12/api/json?tree=builds[number,url,result,building,timestamp,duration,actions[parameters[name,value]{0,25}]]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince]
   ]
 }

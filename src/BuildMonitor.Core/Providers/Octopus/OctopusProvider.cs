@@ -17,6 +17,16 @@ sealed class OctopusProvider : ProviderBase
     // The grants of TaskCancel in the connection's space, as the last check found them.
     const string taskCancel = "octopus.task-cancel";
 
+    // The user id each release's notes name, by release id, for as long as the tray runs.
+    const string releaseTriggers = "octopus.release-triggers";
+
+    /// <summary>
+    /// The key a release's notes name whoever it was created for under. Octopus knows nothing of
+    /// the id: a pipeline that creates the release writes it, and it belongs to the service that
+    /// pipeline ran on, so only <see cref="IdentityNames"/> can turn it into a name.
+    /// </summary>
+    const string requestedForId = "AzureDevOpsRequestedForId";
+
     public override Uri BaseAddress(Connection connection) =>
         new(base.BaseAddress(connection), "api/");
 
@@ -83,6 +93,7 @@ sealed class OctopusProvider : ProviderBase
         var grants = CancelGrants(context, spaceId);
         var builds = new List<Build>();
         var taken = new Dictionary<string, int>();
+        var shown = new List<(Pipeline Pipeline, OctopusDashboardItem Item)>();
         foreach (var item in dashboard.Items.OrderByDescending(_ => _.QueueTime))
         {
             if (!byProject.TryGetValue(item.ProjectId, out var pipeline))
@@ -97,6 +108,14 @@ sealed class OctopusProvider : ProviderBase
             }
 
             taken[item.ProjectId] = soFar + 1;
+            shown.Add((pipeline, item));
+        }
+
+        // Once the rows are settled, so the releases behind them are read together rather than one
+        // at a time down the loop.
+        var triggers = await Triggers(context, spaceId, shown.Select(_ => _.Item.ReleaseId), cancel);
+        foreach (var (pipeline, item) in shown)
+        {
             environments.TryGetValue(item.EnvironmentId, out var environment);
             var estimate = item.State == "Executing"
                 ? await Progress(context, $"{spaceId}/tasks/{item.TaskId}/details?verbose=false&tail=1", cancel)
@@ -121,7 +140,7 @@ sealed class OctopusProvider : ProviderBase
                 null,
                 null,
                 $"Deploy {pipeline.Name} release {item.ReleaseVersion} to {environment}",
-                null,
+                Author(context, triggers, item.ReleaseId),
                 CanRetry: false,
                 CanCancel: status is BuildStatus.Running or BuildStatus.Queued &&
                            MayCancel(grants, item.ProjectId, item.EnvironmentId),
@@ -178,6 +197,7 @@ sealed class OctopusProvider : ProviderBase
             }
         }
 
+        var triggers = await Triggers(context, spaceId, chosen.Select(_ => _.Deployment.ReleaseId), cancel);
         var builds = new List<Build>();
         foreach (var (pipeline, deployment) in chosen)
         {
@@ -192,7 +212,7 @@ sealed class OctopusProvider : ProviderBase
                 : null;
             environments.TryGetValue(deployment.EnvironmentId, out var environment);
             var mayCancel = MayCancel(grants, deployment.ProjectId, deployment.EnvironmentId);
-            builds.Add(Convert(context.Connection.Id, server, spaceId, pipeline, deployment, task, environment, estimate, mayCancel));
+            builds.Add(Convert(context.Connection.Id, server, spaceId, pipeline, deployment, task, environment, estimate, mayCancel, Author(context, triggers, deployment.ReleaseId)));
         }
 
         return builds;
@@ -261,7 +281,7 @@ sealed class OctopusProvider : ProviderBase
             _ => BuildStatus.Unknown
         };
 
-    static Build Convert(string connectionId, string server, string spaceId, Pipeline pipeline, OctopusDeployment deployment, OctopusTask task, string? environment, ProviderEstimate? estimate, bool mayCancel)
+    static Build Convert(string connectionId, string server, string spaceId, Pipeline pipeline, OctopusDeployment deployment, OctopusTask task, string? environment, ProviderEstimate? estimate, bool mayCancel, string? author)
     {
         var status = Status(task.State);
         var rerun = task.Links?.Rerun is { } rerunLink ? Link(rerunLink) : null;
@@ -285,11 +305,119 @@ sealed class OctopusProvider : ProviderBase
             null,
             null,
             task.Description,
-            null,
+            author,
             CanRetry: false,
             CanCancel: mayCancel && cancel is not null && status is BuildStatus.Running or BuildStatus.Queued,
             Join(task.Id, rerun, cancel, task.Links?.Raw is { } raw ? Link(raw) : $"{spaceId}/tasks/{task.Id}/raw"),
             pipeline.Url);
+    }
+
+    /// <summary>
+    /// The user id each of the named releases was created for, by release id, read from the notes
+    /// of whichever are not already known. A release's notes are written when the pipeline creates
+    /// it and do not change, so this costs one request per release for as long as the tray runs,
+    /// and nothing at all for a space whose releases carry no such notes. A release that names
+    /// nobody is remembered as such, so it is read once rather than every poll.
+    /// </summary>
+    static async Task<ImmutableDictionary<string, string>> Triggers(ProviderContext context, string spaceId, IEnumerable<string?> releaseIds, Cancel cancel)
+    {
+        var known = ImmutableDictionary<string, string>.Empty;
+        if (context.Memory.TryGet<ImmutableDictionary<string, string>>(releaseTriggers, out var remembered))
+        {
+            known = remembered;
+        }
+
+        var wanted = releaseIds
+            .Where(_ => _ is { Length: > 0 } id && !known.ContainsKey(id))
+            .Select(_ => _!)
+            .Distinct()
+            .ToList();
+        if (wanted.Count == 0)
+        {
+            return known;
+        }
+
+        // Concurrently, as a release at a time held the poll for a request each on a first one,
+        // where a space of a few dozen projects has a release per row.
+        var notes = await Concurrently.Map(
+            wanted,
+            async (releaseId, token) =>
+            {
+                var release = await context.Http.Get($"{spaceId}/releases/{Encode(releaseId)}", OctopusContext.Default.OctopusRelease, token);
+                return TriggeredBy(release.ReleaseNotes);
+            },
+            cancel);
+        var found = known.ToBuilder();
+        for (var index = 0; index < wanted.Count; index++)
+        {
+            found[wanted[index]] = notes[index] ?? "";
+        }
+
+        var triggers = found.ToImmutable();
+        context.Memory.Set(releaseTriggers, triggers);
+        return triggers;
+    }
+
+    /// <summary>
+    /// The user id a release's notes name, where a pipeline wrote them as JSON, such as
+    /// <c>{"AzureDevOpsRequestedForId":"d1a80549-…"}</c>. Notes that are anything else, as a
+    /// person's are, name nobody, and are not read as far as parsing them.
+    /// </summary>
+    static string? TriggeredBy(string? notes)
+    {
+        if (notes is null ||
+            !notes.TrimStart().StartsWith('{'))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(notes);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (string.Equals(property.Name, requestedForId, StringComparison.OrdinalIgnoreCase) &&
+                    property.Value.ValueKind == JsonValueKind.String)
+                {
+                    return property.Value.GetString();
+                }
+            }
+
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Who the row names: whoever the release was created for, once something has named that id.
+    /// Until then, and for a release that names nobody, the row names no one, as every Octopus row
+    /// did before.
+    /// </summary>
+    static string? Author(ProviderContext context, ImmutableDictionary<string, string> triggers, string? releaseId)
+    {
+        if (releaseId is null ||
+            !triggers.TryGetValue(releaseId, out var id) ||
+            id.Length == 0)
+        {
+            return null;
+        }
+
+        if (context.Identities.Name(id) is { } name)
+        {
+            Log.Debug("Release {Release} is for {Author}, as its {Property} names", releaseId, name, requestedForId);
+            return name;
+        }
+
+        Log.Debug("Release {Release} is for {Property} {Identity}, which nothing has named", releaseId, requestedForId, id);
+        return null;
     }
 
     /// <summary>

@@ -18,6 +18,21 @@ An [API key](https://octopus.com/docs/api/authentication/create-an-api-key), cre
 One per project, showing the latest deployment. The project stands in for the repository, so each row is named after its project rather than grouped under the space. The environment stands in for the branch and the release version for the run number.
 
 
+## Authors
+
+Octopus names nobody: a deployment a pipeline started is the service account's, whoever the release was really for. A release whose notes are JSON holding an `AzureDevOpsRequestedForId` names that person instead:
+
+```json
+{ "AzureDevOpsRequestedForId": "d1a80549-4d1f-642e-b5d5-9eca49ca5e24" }
+```
+
+The pipeline that creates the release writes them. Notes that are anything else, as a person's are, name nobody and are left alone.
+
+Nothing in Octopus can turn that id into a name, because Azure DevOps minted it. It is named from what the other connections have seen, so a row names the person once a build of theirs has been fetched, and no one before that. See [Authors](../authors.md).
+
+A release's notes are read once each, when a deployment of it first shows, and remembered for as long as the tray runs. A space whose releases carry no such notes pays one request per release seen and nothing after.
+
+
 ## Actions
 
  * Cancel cancels a queued or executing task

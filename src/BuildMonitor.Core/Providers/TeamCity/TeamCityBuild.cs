@@ -19,4 +19,14 @@
 
     public TeamCityTriggered? Triggered { get; set; }
     public TeamCityRevisions? Revisions { get; set; }
+    public TeamCityProperties? Properties { get; set; }
+
+    /// <summary>
+    /// One build parameter, matched without case because its name is whatever the build
+    /// configuration that declared it called it.
+    /// </summary>
+    public string? Property(string name) =>
+        Properties?.Property
+            .FirstOrDefault(_ => string.Equals(_.Name, name, StringComparison.OrdinalIgnoreCase))
+            ?.Value;
 }

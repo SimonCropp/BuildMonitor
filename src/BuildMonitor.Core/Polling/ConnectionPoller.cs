@@ -18,6 +18,7 @@ sealed class ConnectionPoller
     HashSet<string> recorded = [];
     ETagCache etags = new();
     ProviderMemory providerMemory = new();
+    IdentityNames identities;
     DateTimeOffset rotated = DateTimeOffset.MinValue;
     RateBudget budget;
     RequestBucket? bucket;
@@ -56,7 +57,7 @@ sealed class ConnectionPoller
 
     public const int PerPipeline = 5;
 
-    public ConnectionPoller(string connectionId, SessionHost host, ISecretStore secrets, DurationHistory history, HttpMessageHandler handler, TokenRefresher? refresher, Func<DateTimeOffset>? clock = null)
+    public ConnectionPoller(string connectionId, SessionHost host, ISecretStore secrets, DurationHistory history, HttpMessageHandler handler, TokenRefresher? refresher, Func<DateTimeOffset>? clock = null, IdentityNames? identities = null)
     {
         this.connectionId = connectionId;
         this.host = host;
@@ -65,6 +66,7 @@ sealed class ConnectionPoller
         this.handler = handler;
         this.refresher = refresher;
         this.clock = clock ?? (() => DateTimeOffset.UtcNow);
+        this.identities = identities ?? new();
         budget = new(this.clock);
     }
 
@@ -292,7 +294,8 @@ sealed class ConnectionPoller
             Progress = visible ? progress => host.Mutate(_ => MonitorSession.SetProgress(_, connectionId, progress)) : _ => { },
             ShowForksAndCollaborations = host.State.Settings.ShowForksAndCollaborations,
             Since = HistoryCutoff.Of(clock(), host.State.Settings.HistoryDays),
-            Memory = providerMemory
+            Memory = providerMemory,
+            Identities = identities
         };
         var descriptor = provider.Descriptor;
         var now = clock();
