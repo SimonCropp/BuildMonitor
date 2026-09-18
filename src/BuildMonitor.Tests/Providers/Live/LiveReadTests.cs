@@ -151,7 +151,7 @@ public class LiveReadTests
         var live = LiveConnection.Require(providerId);
         var session = await LiveSessions.Get(live, cancel);
         var groups = PollGroup.Of(live.Descriptor.FetchUnit, session.Pipelines);
-        var context = session.Context(new ETagCache());
+        var context = session.Context(new());
         var activity = await live.Provider.RecentActivity(context, groups, ImmutableDictionary<string, string>.Empty, cancel);
         if (withoutActivity.Contains(providerId))
         {

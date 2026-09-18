@@ -137,13 +137,13 @@ public class TeamCityProviderTests
                 """);
     }
 
-    static async Task<IReadOnlyList<Build>> FetchVerifyBuild(string builds)
+    static Task<IReadOnlyList<Build>> FetchVerifyBuild(string builds)
     {
         var handler = new FakeHttpHandler()
             .Get($"{server}/app/rest/buildTypes", $$$"""{"buildType":[{"id":"Verify_Build","builds":{"build":[{{{builds}}}]}}]}""");
         var context = ProviderTestHelpers.Context("teamcity", handler, server);
         Pipeline[] pipelines = [new("Verify_Build", "Verify / Build", "Verify", "Verify", $"{server}/buildConfiguration/Verify_Build")];
-        return await ProviderTestHelpers.Provider("teamcity").FetchBuilds(context, pipelines, 5, Cancel.None);
+        return ProviderTestHelpers.Provider("teamcity").FetchBuilds(context, pipelines, 5, Cancel.None);
     }
 
     static string Row(Build build)

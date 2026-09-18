@@ -141,10 +141,10 @@ sealed class LiveRound(LiveConnection live, ProviderContext context, Pipeline sa
             cancel);
     }
 
-    async Task Cancel(Build build)
+    Task Cancel(Build build)
     {
         LiveLog.Line($"{Id}: cancelling {LiveLog.Row(build)}");
-        await live.Provider.Cancel(context, build, cancel);
+        return live.Provider.Cancel(context, build, cancel);
     }
 
     /// <summary>

@@ -3,22 +3,15 @@ public class LocalReposTests
     [Test]
     public async Task FindsCheckoutsAtOneAndTwoLevelsButNoDeeper()
     {
-        var root = TempDirectory();
-        try
-        {
-            Repo(root, "DiffEngine");
-            Repo(root, "org/Verify");
-            Repo(root, "org/nested/TooDeep");
-            Directory.CreateDirectory(Path.Combine(root, "notes"));
+        using var root = new TempDirectory();
+        Repo(root, "DiffEngine");
+        Repo(root, "org/Verify");
+        Repo(root, "org/nested/TooDeep");
+        Directory.CreateDirectory(Path.Combine(root, "notes"));
 
-            var found = LocalRepos.Scan(root);
+        var found = LocalRepos.Scan(root);
 
-            await Assert.That(found.Select(_ => _.Name).Order()).IsEquivalentTo(["DiffEngine", "Verify"]);
-        }
-        finally
-        {
-            Directory.Delete(root, true);
-        }
+        await Assert.That(found.Select(_ => _.Name).Order()).IsEquivalentTo(["DiffEngine", "Verify"]);
     }
 
     /// <summary>
@@ -28,40 +21,28 @@ public class LocalReposTests
     [Test]
     public async Task DoesNotDescendIntoACheckout()
     {
-        var root = TempDirectory();
-        try
-        {
-            Repo(root, "Outer");
-            Repo(root, "Outer/vendored");
+        using var root = new TempDirectory();
+        Repo(root, "Outer");
+        Repo(root, "Outer/vendored");
 
-            var found = LocalRepos.Scan(root);
+        var found = LocalRepos.Scan(root);
 
-            await Assert.That(found.Select(_ => _.Name)).IsEquivalentTo(["Outer"]);
-        }
-        finally
-        {
-            Directory.Delete(root, true);
-        }
+        await Assert.That(found.Select(_ => _.Name)).IsEquivalentTo(["Outer"]);
+
     }
 
     [Test]
     public async Task ReadsTheOriginOfEachCheckout()
     {
-        var root = TempDirectory();
-        try
-        {
-            Repo(root, "DiffEngine", "https://github.com/VerifyTests/DiffEngine.git");
-            Repo(root, "build-all");
+        using var root = new TempDirectory();
+        Repo(root, "DiffEngine", "https://github.com/VerifyTests/DiffEngine.git");
+        Repo(root, "build-all");
 
-            var found = LocalRepos.Scan(root).OrderBy(_ => _.Name).ToList();
+        var found = LocalRepos.Scan(root).OrderBy(_ => _.Name).ToList();
 
-            await Assert.That(found[0].Remote).IsNull();
-            await Assert.That(found[1].Remote).IsEqualTo("VerifyTests/DiffEngine");
-        }
-        finally
-        {
-            Directory.Delete(root, true);
-        }
+        await Assert.That(found[0].Remote).IsNull();
+        await Assert.That(found[1].Remote).IsEqualTo("VerifyTests/DiffEngine");
+
     }
 
     [Test]
@@ -115,7 +96,7 @@ public class LocalReposTests
     /// </summary>
     static void Repo(string root, string relative, string? origin = null)
     {
-        var directory = Path.Combine([root, ..relative.Split('/')]);
+        var directory = Path.Combine([root, .. relative.Split('/')]);
         Directory.CreateDirectory(Path.Combine(directory, ".git"));
         if (origin is not null)
         {
@@ -123,12 +104,5 @@ public class LocalReposTests
                 Path.Combine(directory, ".git", "config"),
                 $"[core]\n\tbare = false\n[remote \"origin\"]\n\turl = {origin}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
         }
-    }
-
-    static string TempDirectory()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), $"BuildMonitorRepos_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(directory);
-        return directory;
     }
 }

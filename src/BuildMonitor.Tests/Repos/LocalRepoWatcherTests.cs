@@ -9,22 +9,15 @@ public class LocalRepoWatcherTests
     [Test]
     public async Task ScansWhatIsThereWhenItIsPointedAtADirectory()
     {
-        var root = TempDirectory();
-        try
-        {
-            Repo(root, "DiffEngine", "https://github.com/VerifyTests/DiffEngine.git");
-            var host = new SessionHost(SessionState.Start(new()));
-            using var watcher = new LocalRepoWatcher(host, settle);
+        using var root = new TempDirectory();
+        Repo(root, "DiffEngine", "https://github.com/VerifyTests/DiffEngine.git");
+        var host = new SessionHost(SessionState.Start(new()));
+        using var watcher = new LocalRepoWatcher(host, settle);
 
-            watcher.Sync(root);
+        watcher.Sync(root);
 
-            var repos = await Until(host, _ => _.Count > 0);
-            await Assert.That(LocalRepos.Find(repos, "VerifyTests/DiffEngine")).IsEqualTo(Path.Combine(root, "DiffEngine"));
-        }
-        finally
-        {
-            Directory.Delete(root, true);
-        }
+        var repos = await Until(host, _ => _.Count > 0);
+        await Assert.That(LocalRepos.Find(repos, "VerifyTests/DiffEngine")).IsEqualTo(Path.Combine(root, "DiffEngine"));
     }
 
     /// <summary>
@@ -34,46 +27,32 @@ public class LocalRepoWatcherTests
     [Test]
     public async Task NoticesACheckoutThatAppearsAfterwards()
     {
-        var root = TempDirectory();
-        try
-        {
-            Repo(root, "DiffEngine");
-            var host = new SessionHost(SessionState.Start(new()));
-            using var watcher = new LocalRepoWatcher(host, settle);
-            watcher.Sync(root);
-            await Until(host, _ => _.Count == 1);
+        using var root = new TempDirectory();
+        Repo(root, "DiffEngine");
+        var host = new SessionHost(SessionState.Start(new()));
+        using var watcher = new LocalRepoWatcher(host, settle);
+        watcher.Sync(root);
+        await Until(host, _ => _.Count == 1);
 
-            Repo(root, "Verify");
+        Repo(root, "Verify");
 
-            var repos = await Until(host, _ => _.Count == 2);
-            await Assert.That(LocalRepos.Find(repos, "Verify")).IsEqualTo(Path.Combine(root, "Verify"));
-        }
-        finally
-        {
-            Directory.Delete(root, true);
-        }
+        var repos = await Until(host, _ => _.Count == 2);
+        await Assert.That(LocalRepos.Find(repos, "Verify")).IsEqualTo(Path.Combine(root, "Verify"));
     }
 
     [Test]
     public async Task PointingItAtNothingClearsWhatItFound()
     {
-        var root = TempDirectory();
-        try
-        {
-            Repo(root, "DiffEngine");
-            var host = new SessionHost(SessionState.Start(new()));
-            using var watcher = new LocalRepoWatcher(host, settle);
-            watcher.Sync(root);
-            await Until(host, _ => _.Count > 0);
+        using var root = new TempDirectory();
+        Repo(root, "DiffEngine");
+        var host = new SessionHost(SessionState.Start(new()));
+        using var watcher = new LocalRepoWatcher(host, settle);
+        watcher.Sync(root);
+        await Until(host, _ => _.Count > 0);
 
-            watcher.Sync("");
+        watcher.Sync("");
 
-            await Until(host, _ => _.Count == 0);
-        }
-        finally
-        {
-            Directory.Delete(root, true);
-        }
+        await Until(host, _ => _.Count == 0);
     }
 
     /// <summary>
@@ -126,12 +105,5 @@ public class LocalRepoWatcherTests
                 Path.Combine(directory, ".git", "config"),
                 $"[remote \"origin\"]\n\turl = {origin}\n");
         }
-    }
-
-    static string TempDirectory()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), $"BuildMonitorWatcher_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(directory);
-        return directory;
     }
 }

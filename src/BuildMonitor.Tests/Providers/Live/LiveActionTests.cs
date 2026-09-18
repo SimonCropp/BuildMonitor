@@ -11,7 +11,7 @@ public class LiveActionTests
     [Test]
     [MethodDataSource(typeof(LiveSettings), nameof(LiveSettings.ProviderIds))]
     [Timeout(LiveSettings.ActionTimeout)]
-    public async Task RetryCancelRetry(string providerId, Cancel cancel)
+    public Task RetryCancelRetry(string providerId, Cancel cancel)
     {
         if (!LiveSettings.Actions)
         {
@@ -19,6 +19,6 @@ public class LiveActionTests
         }
 
         var live = LiveConnection.Require(providerId, actions: true);
-        await LiveRound.Run(live, cancel);
+        return LiveRound.Run(live, cancel);
     }
 }

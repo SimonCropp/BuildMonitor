@@ -50,43 +50,29 @@ public class DurationHistoryTests
     [Test]
     public async Task RoundTripsThroughDisk()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"BuildMonitorHistory_{Guid.NewGuid():N}.json");
-        try
-        {
-            var history = new DurationHistory();
-            history.Record("a", TimeSpan.FromSeconds(10));
-            history.Record("b", TimeSpan.FromSeconds(20));
-            history.Save(path);
+        using var path = new TempFile();
+        var history = new DurationHistory();
+        history.Record("a", TimeSpan.FromSeconds(10));
+        history.Record("b", TimeSpan.FromSeconds(20));
+        history.Save(path);
 
-            var loaded = DurationHistory.Load(path);
-            await Verify(loaded.Medians())
-                .Snapshot(
-                    """
-                    {
-                      a: 00:00:10,
-                      b: 00:00:20
-                    }
-                    """);
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        var loaded = DurationHistory.Load(path);
+        await Verify(loaded.Medians())
+            .Snapshot(
+                """
+                {
+                  a: 00:00:10,
+                  b: 00:00:20
+                }
+                """);
     }
 
     [Test]
     public async Task CorruptFileIsEmpty()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"BuildMonitorHistory_{Guid.NewGuid():N}.json");
-        try
-        {
-            await File.WriteAllTextAsync(path, "not json");
-            var loaded = DurationHistory.Load(path);
-            await Assert.That(loaded.Medians()).IsEmpty();
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        using var path = new TempFile();
+        await File.WriteAllTextAsync(path, "not json");
+        var loaded = DurationHistory.Load(path);
+        await Assert.That(loaded.Medians()).IsEmpty();
     }
 }

@@ -3,53 +3,40 @@ public class SecretStoreTests
     [Test]
     public async Task FileStoreRoundTrips()
     {
-        var directory = TempDirectory();
-        try
-        {
-            var store = new FileSecretStore(directory);
-            store.Write("connection:a", "token one");
-            store.Write("connection:a", "token two");
-            await Assert.That(store.Read("connection:a")).IsEqualTo("token two");
-            await Assert.That(store.Read("connection:b")).IsNull();
-            await Assert.That(Directory.GetFiles(directory).Select(_ => Path.GetFileName(_))).IsEquivalentTo(["connection_a.secret"]);
+        using var directory = new TempDirectory();
+        var store = new FileSecretStore(directory);
+        store.Write("connection:a", "token one");
+        store.Write("connection:a", "token two");
+        await Assert.That(store.Read("connection:a")).IsEqualTo("token two");
+        await Assert.That(store.Read("connection:b")).IsNull();
+        await Assert.That(Directory.GetFiles(directory).Select(_ => Path.GetFileName(_))).IsEquivalentTo(["connection_a.secret"]);
 
-            if (!OperatingSystem.IsWindows())
-            {
-                await Assert.That(File.GetUnixFileMode(Path.Combine(directory, "connection_a.secret"))).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            }
-
-            store.Delete("connection:a");
-            await Assert.That(store.Read("connection:a")).IsNull();
-        }
-        finally
+        if (!OperatingSystem.IsWindows())
         {
-            Directory.Delete(directory, true);
+            await Assert.That(File.GetUnixFileMode(Path.Combine(directory, "connection_a.secret"))).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
+
+        store.Delete("connection:a");
+        await Assert.That(store.Read("connection:a")).IsNull();
     }
 
     [Test]
     [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task DpapiStoreRoundTripsAndDoesNotWritePlainText()
     {
-        var directory = TempDirectory();
-        try
-        {
-            var store = new DpapiFileSecretStore(directory);
-            store.Write("connection:a", "hunter2");
-            await Assert.That(store.Read("connection:a")).IsEqualTo("hunter2");
-            var bytes = await File.ReadAllBytesAsync(Path.Combine(directory, "connection_a.bin"));
-            await Assert.That(Encoding.UTF8.GetString(bytes)).DoesNotContain("hunter2");
-        }
-        finally
-        {
-            Directory.Delete(directory, true);
-        }
+        using var directory = new TempDirectory();
+        var store = new DpapiFileSecretStore(directory);
+        store.Write("connection:a", "hunter2");
+        await Assert.That(store.Read("connection:a")).IsEqualTo("hunter2");
+        var bytes = await File.ReadAllBytesAsync(Path.Combine(directory, "connection_a.bin"));
+        await Assert.That(Encoding.UTF8.GetString(bytes)).DoesNotContain("hunter2");
     }
 
     [Test]
     public async Task PlatformStoreIsChosen()
     {
-        var store = SecretStores.ForPlatform(TempDirectory());
+        using var directory = new TempDirectory();
+        var store = SecretStores.ForPlatform(directory);
         if (OperatingSystem.IsWindows())
         {
             await Assert.That(store).IsTypeOf<DpapiFileSecretStore>();
@@ -101,7 +88,4 @@ public class SecretStoreTests
         await Assert.That(client.TokenUrl).IsEqualTo("https://gitlab.example.com/oauth/token");
         await Assert.That(client.DeviceCodeUrl).IsEqualTo("https://gitlab.example.com/oauth/authorize_device");
     }
-
-    static string TempDirectory() =>
-        Path.Combine(Path.GetTempPath(), $"BuildMonitorSecrets_{Guid.NewGuid():N}");
 }

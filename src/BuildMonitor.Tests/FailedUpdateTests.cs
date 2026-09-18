@@ -22,7 +22,7 @@ public class FailedUpdateTests
         {
             var notification = FailedUpdate.Take(path);
 
-            await Assert.That(notification).IsEqualTo(new Notification("Update failed", """Failed to uninstall tool package 'buildmonitor': Access to the path 'C:\Users\me\.dotnet\tools\.store\buildmonitor\0.1.0-beta.6' is denied."""));
+            await Assert.That(notification).IsEqualTo(new("Update failed", """Failed to uninstall tool package 'buildmonitor': Access to the path 'C:\Users\me\.dotnet\tools\.store\buildmonitor\0.1.0-beta.6' is denied."""));
             await Assert.That(File.Exists(path)).IsFalse();
             await Assert.That(FailedUpdate.Take(path)).IsNull();
         }
@@ -47,7 +47,7 @@ public class FailedUpdateTests
 
     [Test]
     public async Task NoOutputStillSaysTheUpdateFailed() =>
-        await Assert.That(FailedUpdate.Describe(" \n")).IsEqualTo(new Notification("Update failed", "dotnet tool update failed without saying why."));
+        await Assert.That(FailedUpdate.Describe(" \n")).IsEqualTo(new("Update failed", "dotnet tool update failed without saying why."));
 
     static string TempFile() =>
         Path.Combine(Path.GetTempPath(), $"BuildMonitorFailedUpdate_{Guid.NewGuid():N}.log");
