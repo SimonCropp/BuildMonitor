@@ -88,5 +88,5 @@
     Quit=16,
     CopyStatus=17
   ],
-  Version: 7
+  Version: 8
 }

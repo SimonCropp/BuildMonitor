@@ -1328,6 +1328,16 @@ BM_API void bm_set_clipboard(const char* text) {
     }
 }
 
+BM_API int32_t bm_pick_directory(const char* start, uint8_t* buffer, int32_t bufferLength) {
+    // No panel of this head's own: a file chooser is a lot of desktop convention that Dear ImGui
+    // would only approximate, and every Linux desktop already ships one as a program. -1 sends the
+    // managed side to zenity or kdialog.
+    (void) start;
+    (void) buffer;
+    (void) bufferLength;
+    return -1;
+}
+
 BM_API int32_t bm_tray_available(void) {
     return 0;
 }

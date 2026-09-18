@@ -71,6 +71,14 @@ jobs:
         if: matrix.rid == 'osx'
         run: swift build -c release --arch arm64 --arch x86_64 --package-path native/swift
 
+      # The folder panel is the one thing this head decides by itself rather than drawing from a
+      # screen the managed side built, so it is the one thing with tests here. A scratch path of its
+      # own, because a test build is debug and for this machine's architecture alone: left in .build
+      # its dylib would be among the candidates the collect step below merges.
+      - name: Test
+        if: matrix.rid == 'osx'
+        run: swift test --package-path native/swift --scratch-path native/swift/.build-tests
+
       - name: Collect
         shell: bash
         run: |

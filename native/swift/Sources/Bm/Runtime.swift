@@ -265,6 +265,54 @@ final class Runtime {
         window?.orderOut(nil)
     }
 
+    /// The folder chooser, as a panel of this app rather than as a program of its own. A chooser
+    /// run as a program puts its window up from another process, which leaves nothing pumping the
+    /// loop this head's window is drawn from: it beachballs within a second, and the beachball then
+    /// sits in front of the panel for as long as the user takes to answer it, which reads as a hang
+    /// rather than as a dialog waiting. `runModal` pumps AppKit itself, so the window behind the
+    /// panel stays drawn, the way the WinForms head's `ShowDialog` does.
+    ///
+    /// `run` is what puts the panel up and reads what it was answered with. It is a parameter
+    /// because a panel cannot be answered from code: a test stands in for it rather than leaving
+    /// one open on a machine nobody is sitting at.
+    func pickDirectory(start: String?, run: (NSOpenPanel) -> URL? = Runtime.runPanel) -> String? {
+        let panel = directoryPanel(start: start)
+        // An accessory app is not frontmost just because one of its windows is, and a panel put up
+        // by an app that is not frontmost opens behind whatever is.
+        NSApp.activate(ignoringOtherApps: true)
+        guard let url = run(panel) else {
+            return nil
+        }
+
+        return url.path
+    }
+
+    /// The panel as it is asked for, made but not run, so how it was configured can be looked at
+    /// without one opening.
+    ///
+    /// A start that is no longer there is left off rather than set: a code directory that has since
+    /// been moved would otherwise open the panel at a path that does not exist, instead of wherever
+    /// the user last was.
+    func directoryPanel(start: String?) -> NSOpenPanel {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.message = "Choose your code directory"
+        panel.prompt = "Choose"
+        if let start, FileManager.default.fileExists(atPath: start) {
+            panel.directoryURL = URL(fileURLWithPath: start)
+        }
+
+        return panel
+    }
+
+    /// The one line a test cannot stand in for: the panel on screen, and what the user did with it.
+    static func runPanel(_ panel: NSOpenPanel) -> URL? {
+        panel.runModal() == .OK ? panel.url : nil
+    }
+
     func shutdown() {
         window?.delegate = nil
         window?.orderOut(nil)

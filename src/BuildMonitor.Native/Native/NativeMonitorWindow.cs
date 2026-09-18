@@ -8,6 +8,19 @@
 /// </summary>
 sealed unsafe class NativeMonitorWindow : IMonitorWindow
 {
+    /// <summary>
+    /// How long <see cref="PickDirectory"/> waits on the chooser between frames. One frame, so a
+    /// window left up while the chooser is answered keeps up with the desktop.
+    /// </summary>
+    static readonly TimeSpan frame = TimeSpan.FromMilliseconds(16);
+
+    /// <summary>
+    /// Room for the path bm_pick_directory writes. Four times the longest macOS can make, and macOS
+    /// is the only head with a panel of its own to write one, so nothing it can be answered with
+    /// fails to fit.
+    /// </summary>
+    const int pathBytes = 4096;
+
     ScreenPayload payload = new();
     // The screen the payload was last built from.
     Screen? built;
@@ -186,8 +199,42 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     public void SetClipboard(string text) =>
         Bm.SetClipboard(text);
 
-    public string? PickDirectory(string? start) =>
-        DirectoryPicker.Pick(start);
+    /// <summary>
+    /// The library's own panel where it has one, which on macOS is what this has to be: a chooser
+    /// run as a program of its own puts its window up from another process, so nothing pumps this
+    /// head's events while it is up and the window beachballs in front of it within a second.
+    /// bm_pick_directory is modal and pumps as it waits, which is what the WinForms head gets from
+    /// ShowDialog.
+    /// <para>
+    /// -1 is a head with no panel, which is Linux. The desktop's chooser is another process there
+    /// too, so it is waited for off the loop with frames still going out and input drained and
+    /// dropped, which is what a modal means here.
+    /// </para>
+    /// </summary>
+    public string? PickDirectory(string? start)
+    {
+        var buffer = new byte[pathBytes];
+        int written;
+        fixed (byte* pointer = buffer)
+        {
+            written = Bm.PickDirectory(start, pointer, buffer.Length);
+        }
+
+        if (written >= 0)
+        {
+            return written == 0 ? null : Encoding.UTF8.GetString(buffer, 0, written);
+        }
+
+        var picking = Task.Run(() => DirectoryPicker.Pick(start));
+        while (!picking.Wait(frame))
+        {
+            payload.Present();
+            BmInput dropped;
+            Bm.PollInput(&dropped);
+        }
+
+        return picking.Result;
+    }
 
     public void Dispose()
     {
