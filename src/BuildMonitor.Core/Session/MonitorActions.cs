@@ -22,8 +22,14 @@ record MonitorActions(
     // Opens a local checkout in the desktop's file manager.
     Action<string> OpenDirectory,
     Action RaiseIssue,
+    // What is running that an update would take down, for the page that asks before it does.
+    Func<McpServers> RunningServers,
+    // Starts the update. Exiting is the applier's to return, not this one's to do: the tray has to
+    // be gone before the update can replace its files, and a quit swapped in from in here is undone
+    // by the applier returning the state it had already computed.
     Action Update,
-    Action<bool> SetRunAtLogin)
+    // Why it could not be changed, or null when it was.
+    Func<bool, string?> SetRunAtLogin)
 {
     /// <summary>
     /// For tests of transitions that never reach an action. Anything that does throws, which is
@@ -44,6 +50,7 @@ record MonitorActions(
         () => throw new InvalidOperationException("OpenLogs"),
         _ => throw new InvalidOperationException("OpenDirectory"),
         () => throw new InvalidOperationException("RaiseIssue"),
+        () => throw new InvalidOperationException("RunningServers"),
         () => throw new InvalidOperationException("Update"),
         _ => throw new InvalidOperationException("SetRunAtLogin"));
 }

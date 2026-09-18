@@ -416,6 +416,23 @@ static class MonitorSession
         };
     }
 
+    /// <summary>
+    /// The page that stands between asking for an update and getting one. The tray has to exit for
+    /// the update to replace its own files, so nothing is on screen for as long as it takes; this is
+    /// the one chance to say what is about to happen, and to say what else is running that the
+    /// update takes down with it.
+    /// </summary>
+    public static SessionState OpenUpdate(SessionState state, McpServers servers) =>
+        state with
+        {
+            Page = Page.Update,
+            Menu = null,
+            Form = new(Page.Update, ImmutableDictionary<string, string>.Empty, state.Settings.Filters, null, null, null, null, false)
+            {
+                Servers = servers
+            }
+        };
+
     public static SessionState OpenConnectionEditor(SessionState state, string? connectionId, string draftId)
     {
         var existing = connectionId is null ? null : state.Connection(connectionId)?.Connection;

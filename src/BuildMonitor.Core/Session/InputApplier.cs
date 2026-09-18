@@ -200,7 +200,9 @@ static class InputApplier
             TrayMenu.CodeDirectory => Execute(state, CommandKind.OpenCodeDirectory, null, actions, window),
             TrayMenu.Logs => Execute(state, CommandKind.OpenLogs, null, actions, window),
             TrayMenu.Issue => Execute(state, CommandKind.RaiseIssue, null, actions, window),
-            TrayMenu.Update => Execute(state, CommandKind.Update, null, actions, window),
+            // With the window, because this one now has something to show rather than something
+            // to do: a menu item that opened nothing would look like it had done nothing.
+            TrayMenu.Update => Show(Execute(state, CommandKind.Update, null, actions, window), window),
             TrayMenu.Exit => Execute(state, CommandKind.Quit, null, actions, window),
             _ => state
         };
@@ -442,8 +444,15 @@ static class InputApplier
                 actions.RaiseIssue();
                 return state;
             case CommandKind.Update:
+                // Listed here rather than by the page, which is a pure projection of the state and
+                // is built every frame: processes are not something to enumerate sixty times a
+                // second, and the set warned about should be the set the user agreed to.
+                return MonitorSession.OpenUpdate(state, actions.RunningServers());
+            case CommandKind.ConfirmUpdate:
                 actions.Update();
-                return state;
+                // Returned rather than left to the action, which is what makes it happen: a quit
+                // swapped into the host from inside an action is undone the moment this returns.
+                return MonitorSession.Quit(state);
             case CommandKind.Hide:
                 window?.SetHidden(true);
                 return MonitorSession.Hide(state);
@@ -520,14 +529,17 @@ static class InputApplier
                     return MonitorSession.SetFormError(state, error);
                 }
 
+                string? runAtLoginError = null;
                 if (settings.RunAtStartup != state.Settings.RunAtStartup)
                 {
-                    actions.SetRunAtLogin(settings.RunAtStartup);
+                    runAtLoginError = actions.SetRunAtLogin(settings.RunAtStartup);
                 }
 
                 state = MonitorSession.ApplySettings(state, settings);
                 actions.SaveSettings(settings);
-                return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), "Options saved");
+                // The rest of the options are saved either way: one of them not taking is worth
+                // saying, and is not worth throwing the others away over.
+                return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), runAtLoginError ?? "Options saved");
             }
             case Page.Filters:
             {

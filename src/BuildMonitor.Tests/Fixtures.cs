@@ -378,6 +378,20 @@ static class Fixtures
     public static SessionState Options() =>
         MonitorSession.OpenOptions(WithBuilds());
 
+    /// <summary>
+    /// The update page with two MCP servers up. The processes are made up rather than found, so the
+    /// page reads the same on every machine.
+    /// </summary>
+    public static SessionState Update(bool stopped = true) =>
+        MonitorSession.OpenUpdate(
+            WithBuilds(),
+            new(
+                [
+                    new(21044, Now - TimeSpan.FromHours(2)),
+                    new(23110, Now - TimeSpan.FromMinutes(22))
+                ],
+                stopped));
+
     public static SessionState Filters()
     {
         var state = WithBuilds();

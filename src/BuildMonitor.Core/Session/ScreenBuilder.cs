@@ -22,7 +22,7 @@ static class ScreenBuilder
         {
             Page.Builds when state.Hidden => HiddenScreen(state, builds, tray, status),
             Page.Builds => BuildsScreen(state, now, builds, tray, status),
-            _ => FormScreen(state, tray, status)
+            _ => FormScreen(state, now, tray, status)
         };
     }
 
@@ -405,6 +405,11 @@ static class ScreenBuilder
             [
                 new("Cancel", true, CommandKind.CancelSignIn)
             ],
+            Page.Update =>
+            [
+                new("Update", true, CommandKind.ConfirmUpdate),
+                new("Cancel", true, CommandKind.CancelForm)
+            ],
             _ =>
             [
                 new("Save", true, CommandKind.Save),
@@ -476,7 +481,7 @@ static class ScreenBuilder
         return $"Polled {Progress.Age(now - polled)} ago";
     }
 
-    static Screen FormScreen(SessionState state, TrayModel tray, string status)
+    static Screen FormScreen(SessionState state, DateTimeOffset now, TrayModel tray, string status)
     {
         var form = state.Page switch
         {
@@ -484,6 +489,7 @@ static class ScreenBuilder
             Page.Filters => FiltersForm(state),
             Page.Connection => ConnectionForm(state),
             Page.SignIn => SignInForm(state),
+            Page.Update => UpdateForm(state, now),
             _ => throw new($"No form for {state.Page}")
         };
         return new(
@@ -498,6 +504,65 @@ static class ScreenBuilder
             state.Rows,
             Notification: state.Notification,
             Theme: state.Settings.Theme);
+    }
+
+    /// <summary>
+    /// What the update is about to do, before it does it. The tray exits so that the update can
+    /// replace its own files, and nothing is on screen until the new one starts, so this page and
+    /// the notification the new one shows are the whole of what the user sees of an update.
+    /// </summary>
+    static FormPage UpdateForm(SessionState state, DateTimeOffset now)
+    {
+        var servers = state.Form!.Servers;
+        var fields = new List<Field>
+        {
+            new(FormFields.Version, FieldKind.Label, "Version", VersionReader.VersionString),
+            new(FormFields.UpdateSummary, FieldKind.Label, "", "BuildMonitor closes, updates and starts again. Nothing is on screen while it does.")
+        };
+        foreach (var line in Servers(servers))
+        {
+            fields.Add(new(FormFields.UpdateServers, FieldKind.Label, "", line));
+        }
+
+        foreach (var server in servers.Running)
+        {
+            fields.Add(new(
+                FormFields.McpServer,
+                FieldKind.Label,
+                "",
+                $"- {ShimPath.Command} mcp, process {server.ProcessId}, started {Progress.Age(now - server.Started)} ago"));
+        }
+
+        return new("Update", fields);
+    }
+
+    /// <summary>
+    /// What the servers found mean for the update, which is not the same on every platform: only
+    /// Windows has to stop them, so only there is this a warning rather than a note.
+    /// <para>
+    /// A line each rather than a paragraph, because a label is drawn on one line and cut off at the
+    /// window's edge: the sentence that says what the user is about to lose is the last one that
+    /// should go.
+    /// </para>
+    /// </summary>
+    static IEnumerable<string> Servers(McpServers servers)
+    {
+        var count = servers.Running.Length;
+        if (count == 0)
+        {
+            yield return "No MCP server is running, so the update takes nothing else with it.";
+            yield break;
+        }
+
+        var named = count == 1 ? "1 MCP server" : $"{count} MCP servers";
+        if (!servers.StoppedByUpdate)
+        {
+            yield return $"{named} {(count == 1 ? "keeps" : "keep")} running, on this version, until the AI client using {(count == 1 ? "it" : "each")} connects again:";
+            yield break;
+        }
+
+        yield return $"Updating stops {named}, because a running one holds the files the update replaces.";
+        yield return "An AI client using one loses it mid-conversation, and starts a new one when it next connects:";
     }
 
     static FormPage OptionsForm(SessionState state)

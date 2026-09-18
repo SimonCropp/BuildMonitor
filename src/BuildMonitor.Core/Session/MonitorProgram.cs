@@ -85,9 +85,9 @@ static class MonitorProgram
         var host = new SessionHost(StartState(settings, hidden));
         // Read only by the tray that owns the port, so one started beside it and leaving at once
         // does not take the report with it.
-        if (FailedUpdate.Take(AppPaths.FailedUpdate) is { } failedUpdate)
+        if (UpdateOutcome.Take(AppPaths.UpdateOutcome) is { } outcome)
         {
-            host.Mutate(_ => MonitorSession.Notify(_, failedUpdate));
+            host.Mutate(_ => MonitorSession.Notify(_, outcome));
         }
 
         var secrets = new CachingSecretStore(SecretStores.ForPlatform(AppPaths.Secrets));
@@ -125,7 +125,7 @@ static class MonitorProgram
         using var cancel = new CancelSource();
         var poller = new Poller(host, secrets, history, handler, new(secrets, handler));
         using var repos = new LocalRepoWatcher(host);
-        var actions = RealActions.Create(host, poller, repos, secrets, signIn, runAtLogin, () => host.Mutate(MonitorSession.Quit));
+        var actions = RealActions.Create(host, poller, repos, secrets, signIn, runAtLogin);
         poller.Start();
         // Scans off the loop's thread, so a code directory on a slow or absent network share
         // delays the checkouts being found rather than the window appearing.

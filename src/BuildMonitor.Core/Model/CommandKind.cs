@@ -44,7 +44,10 @@ enum CommandKind
     CancelForm,
     OpenLogs,
     RaiseIssue,
+    // Opens the update page, which says what the update is about to take down.
     Update,
+    // The update page's own button: the one that actually takes the tray away.
+    ConfirmUpdate,
     Hide,
     Quit,
     CopyStatus

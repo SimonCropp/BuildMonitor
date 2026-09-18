@@ -184,6 +184,30 @@ public class ScreenTests
         Verify(Fixtures.Render(Fixtures.Options()));
 
     /// <summary>
+    /// What the update warns about before the tray goes away: the servers it is about to stop, and
+    /// whose they are.
+    /// </summary>
+    [Test]
+    public Task Update() =>
+        Verify(Fixtures.Render(Fixtures.Update()));
+
+    /// <summary>
+    /// The same servers where a running file can be replaced, which is everywhere but Windows.
+    /// Nothing is stopped, so the page reports rather than warns.
+    /// </summary>
+    [Test]
+    public Task UpdateWithoutStoppingServers() =>
+        Verify(Fixtures.Render(Fixtures.Update(stopped: false)));
+
+    /// <summary>
+    /// Nothing else running, which is the ordinary case and the one that still has to say what the
+    /// update is about to do.
+    /// </summary>
+    [Test]
+    public Task UpdateWithNoServers() =>
+        Verify(Fixtures.Render(MonitorSession.OpenUpdate(Fixtures.WithBuilds(), McpServers.None)));
+
+    /// <summary>
     /// The GitHub rows lose Retry and Cancel; Jenkins and Octopus keep theirs.
     /// </summary>
     [Test]

@@ -195,6 +195,22 @@ public class ApplyTests
         await Assert.That(actions.SavedSettings!.RunAtStartup).IsTrue();
     }
 
+    /// <summary>
+    /// Run at startup is the one option set somewhere other than settings.json, so it is the one
+    /// that can refuse. The rest are saved either way, and the status says which one did not take:
+    /// a message the action swaps into the host instead is undone the moment this returns.
+    /// </summary>
+    [Test]
+    public async Task StartupThatWillNotRegisterSaysSo()
+    {
+        var actions = new RecordingActions { RunAtLoginError = "Run at startup failed: denied" };
+        var state = Apply(Fixtures.Options(), new(FieldChanges: [new(FormFields.RunAtStartup, "true")]), actions);
+        state = Apply(state, new(ClickedButton: 0), actions);
+
+        await Assert.That(state.Status).IsEqualTo("Run at startup failed: denied");
+        await Assert.That(actions.SavedSettings!.RunAtStartup).IsTrue();
+    }
+
     [Test]
     public async Task InvalidOptionsStayOnThePage()
     {
@@ -370,6 +386,55 @@ public class ApplyTests
         await Assert.That(after.Form!.Value(FormFields.CodeDirectory)).IsEqualTo("/was/here");
         await Assert.That(window.Calls).IsEquivalentTo(["PickDirectory /was/here"]);
     }
+
+    /// <summary>
+    /// Update asks rather than does. The tray disappears for the length of an update, so the one
+    /// chance to say what that costs is before it starts.
+    /// </summary>
+    [Test]
+    public async Task UpdateOpensThePageRatherThanUpdating()
+    {
+        var actions = new RecordingActions
+        {
+            Servers = new([new(21044, Fixtures.Now - TimeSpan.FromHours(2))], true)
+        };
+        var state = Apply(Fixtures.WithBuilds(), new(TrayItem: TrayMenu.Update), actions);
+
+        await Assert.That(state.Page).IsEqualTo(Page.Update);
+        await Assert.That(state.Form!.Servers.Running.Single().ProcessId).IsEqualTo(21044);
+        await Assert.That(actions.Calls).IsEquivalentTo(["RunningServers"]);
+    }
+
+    /// <summary>
+    /// Confirming both starts the update and exits, and the exit is in the state this returns. The
+    /// update replaces the files of the tray that asked for it, so a tray still running when the
+    /// shell stops waiting is one whose update fails; an exit the action swaps into the host
+    /// instead is undone by this returning, and what that looks like is a button doing nothing.
+    /// </summary>
+    [Test]
+    public async Task ConfirmingOnThePageUpdatesAndExits()
+    {
+        var actions = new RecordingActions();
+        var state = MonitorSession.OpenUpdate(Fixtures.WithBuilds(), McpServers.None);
+        var after = Apply(state, new(ClickedButton: ButtonIndex(state, CommandKind.ConfirmUpdate)), actions);
+
+        await Assert.That(actions.Calls).IsEquivalentTo(["Update"]);
+        await Assert.That(after.Exit).IsTrue();
+    }
+
+    [Test]
+    public async Task CancellingThePageUpdatesNothing()
+    {
+        var actions = new RecordingActions();
+        var state = MonitorSession.OpenUpdate(Fixtures.WithBuilds(), McpServers.None);
+        var after = Apply(state, new(ClickedButton: ButtonIndex(state, CommandKind.CancelForm)), actions);
+
+        await Assert.That(after.Page).IsEqualTo(Page.Builds);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    static int ButtonIndex(SessionState state, CommandKind command) =>
+        ScreenBuilder.Buttons(state).ToList().FindIndex(_ => _.Command == command);
 
     static SessionState Apply(SessionState state, MonitorInput input, RecordingActions actions) =>
         InputApplier.Apply(state, input, actions.Actions, new FakeWindow());

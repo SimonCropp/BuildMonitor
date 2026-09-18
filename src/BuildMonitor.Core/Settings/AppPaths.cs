@@ -24,9 +24,9 @@ static class AppPaths
     public static string Secrets => Path.Combine(Directory, "secrets");
 
     /// <summary>
-    /// What a failed update wrote, for <see cref="global::FailedUpdate"/> to report. Here rather
-    /// than in the log directory, which sits inside the installed version and so is deleted by the
-    /// next update that works.
+    /// What the update wrote about how it went, for <see cref="global::UpdateOutcome"/> to report.
+    /// Here rather than in the log directory, which sits inside the installed version and so is
+    /// deleted by the next update that works.
     /// </summary>
-    public static string FailedUpdate => Path.Combine(Directory, "update-failed.log");
+    public static string UpdateOutcome => Path.Combine(Directory, "update-outcome.log");
 }

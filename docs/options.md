@@ -98,9 +98,11 @@ Where the provider reports what a credential may do, Test says so, and a connect
 
 ## Update
 
-Runs `dotnet tool update` for BuildMonitor and restarts it. On Windows the update runs after the tray has exited, because a running executable cannot be replaced. For the same reason it first stops any [MCP server](mcp.md) BuildMonitor is running for an AI assistant, since each holds the installed version's files. The assistant sees its server stop, and connecting it again starts the new version; see [Updating](mcp.md#updating).
+Opens a page saying what the update is about to do, and updates only once that is confirmed. BuildMonitor closes, runs `dotnet tool update` and starts again, and nothing is on screen in between: on Windows the update has to run after the tray has exited, because a running executable cannot be replaced.
 
-If the update fails, BuildMonitor starts again on the version it had, and a notification gives the reason. The whole output of `dotnet tool update` is in the [log](troubleshooting.md#logs). See [An update fails](troubleshooting.md#an-update-fails).
+For the same reason it first stops any [MCP server](mcp.md) BuildMonitor is running for an AI assistant, since each holds the installed version's files. The page lists them before anything is stopped, with how long each has been up, so an assistant in the middle of a conversation is not taken away unannounced; Cancel leaves them alone. The assistant sees its server stop, and connecting it again starts the new version; see [Updating](mcp.md#updating). On macOS and Linux a running file can be replaced, so the servers are left alone and the page says so.
+
+BuildMonitor reports how the update went when it starts again. One that worked names the version now installed; one that failed gives the reason, and BuildMonitor is on the version it had. The whole output of `dotnet tool update` is in the [log](troubleshooting.md#logs). See [An update fails](troubleshooting.md#an-update-fails).
 
 
 ## Open logs

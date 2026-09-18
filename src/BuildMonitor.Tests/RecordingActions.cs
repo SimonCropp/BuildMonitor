@@ -6,6 +6,17 @@ class RecordingActions
     public List<string> Calls { get; } = [];
     public Settings? SavedSettings { get; private set; }
 
+    /// <summary>
+    /// What the update page is told is running. Nothing by default: listing the machine's real
+    /// processes would make a test depend on whatever else happens to be up.
+    /// </summary>
+    public McpServers Servers { get; set; } = McpServers.None;
+
+    /// <summary>
+    /// Why run at login could not be set, or null for the usual case where it could.
+    /// </summary>
+    public string? RunAtLoginError { get; set; }
+
     public MonitorActions Actions =>
         new(
             _ => Calls.Add($"OpenUrl {_}"),
@@ -26,6 +37,15 @@ class RecordingActions
             () => Calls.Add("OpenLogs"),
             _ => Calls.Add($"OpenDirectory {_}"),
             () => Calls.Add("RaiseIssue"),
+            () =>
+            {
+                Calls.Add("RunningServers");
+                return Servers;
+            },
             () => Calls.Add("Update"),
-            _ => Calls.Add($"SetRunAtLogin {_}"));
+            _ =>
+            {
+                Calls.Add($"SetRunAtLogin {_}");
+                return RunAtLoginError;
+            });
 }

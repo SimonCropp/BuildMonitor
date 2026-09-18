@@ -4,7 +4,7 @@
 /// </summary>
 static class RealActions
 {
-    public static MonitorActions Create(SessionHost host, Poller poller, LocalRepoWatcher repos, ISecretStore secrets, SignInCoordinator signIn, IRunAtLogin runAtLogin, Action exit) =>
+    public static MonitorActions Create(SessionHost host, Poller poller, LocalRepoWatcher repos, ISecretStore secrets, SignInCoordinator signIn, IRunAtLogin runAtLogin) =>
         new(
             OpenUrl: LinkLauncher.OpenUrl,
             SaveSettings: settings =>
@@ -64,17 +64,19 @@ static class RealActions
             OpenLogs: Logging.OpenDirectory,
             OpenDirectory: RevealFile.OpenDirectory,
             RaiseIssue: IssueLauncher.Launch,
-            Update: () => Updater.Run(exit),
+            RunningServers: McpServers.Find,
+            Update: Updater.Start,
             SetRunAtLogin: enabled =>
             {
                 try
                 {
                     runAtLogin.Set(enabled);
+                    return null;
                 }
                 catch (Exception exception)
                 {
                     Log.Error(exception, "Could not change run at login");
-                    host.Mutate(_ => MonitorSession.SetStatus(_, $"Run at startup failed: {exception.Message}"));
+                    return $"Run at startup failed: {exception.Message}";
                 }
             });
 

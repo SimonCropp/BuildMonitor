@@ -1,0 +1,39 @@
+﻿+----------------------------------------------------------------------------------------------------------------------+
+| BuildMonitor                                                                                                  Update |
++----------------------------------------------------------------------------------------------------------------------+
+| Version: TheVersion                                                                                                  |
+| BuildMonitor closes, updates and starts again. Nothing is on screen while it does.                                   |
+| No MCP server is running, so the update takes nothing else with it.                                                  |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+
+| [Update] [Cancel]                                                                                      Polled 5s ago |
++----------------------------------------------------------------------------------------------------------------------+
+tray: Failed "BuildMonitor: 1 failing, 4 running"
+  Open
+  Refresh
+  Options
+  Filters
+  Open logs
+  Raise issue
+  Update
+  Exit

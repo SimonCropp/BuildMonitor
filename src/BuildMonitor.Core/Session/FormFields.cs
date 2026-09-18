@@ -24,6 +24,12 @@ static class FormFields
     public const string Update = "update";
     public const string ConnectionPrefix = "connection:";
 
+    // Update. Labels rather than widgets, so every server shares one id: nothing is keyed by it
+    // because nothing on this page can be clicked or typed in.
+    public const string UpdateSummary = "updateSummary";
+    public const string UpdateServers = "updateServers";
+    public const string McpServer = "mcpServer";
+
     // Filters
     public const string FilterKind = "filterKind";
     public const string FilterTarget = "filterTarget";

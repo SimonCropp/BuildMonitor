@@ -9,5 +9,6 @@ enum Page
     Options,
     Filters,
     Connection,
-    SignIn
+    SignIn,
+    Update
 }
