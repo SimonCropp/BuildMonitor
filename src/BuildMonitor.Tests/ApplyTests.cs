@@ -335,6 +335,35 @@ public class ApplyTests
     }
 
     /// <summary>
+    /// A closed group hides its members' chips, and its own row can stand in for the folder one
+    /// while every member is the same checkout.
+    /// </summary>
+    [Test]
+    public async Task AGroupWhoseMembersShareACheckoutOffersTheFolderChip()
+    {
+        var actions = new RecordingActions();
+        var green = MonitorSession.ApplyLocalRepos(
+            Fixtures.WithGreenProject(),
+            LocalRepos.Index([new("/code/Verify", "Verify", "VerifyTests/Verify")]));
+        var row = Fixtures.RowOf(green, _ => _.Kind == RowKind.Group);
+        var chips = ScreenBuilder.Build(green, Fixtures.Now).Builds!.Rows[row].Chips;
+        await Assert.That(chips.Select(_ => _.Kind)).Contains(ChipKind.OpenDirectory);
+
+        var state = Apply(green, new(ClickedChipRow: row, ClickedChip: ChipKind.OpenDirectory), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["OpenDirectory /code/Verify"]);
+        await Assert.That(state.Status).IsEqualTo("Opened /code/Verify");
+    }
+
+    [Test]
+    public async Task AGroupWithNoCheckoutHasNoFolderChip()
+    {
+        var green = MonitorSession.ApplyLocalRepos(Fixtures.WithGreenProject(), Fixtures.LocalRepoIndex());
+        var row = Fixtures.RowOf(green, _ => _.Kind == RowKind.Group);
+        var chips = ScreenBuilder.Build(green, Fixtures.Now).Builds!.Rows[row].Chips;
+        await Assert.That(chips.Select(_ => _.Kind)).DoesNotContain(ChipKind.OpenDirectory);
+    }
+
+    /// <summary>
     /// The chip is only offered where the lookup hits, so a build with no checkout has none to
     /// click. Asking anyway, which a stale frame could, must still do nothing.
     /// </summary>

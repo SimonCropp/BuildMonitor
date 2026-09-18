@@ -122,6 +122,36 @@ static class LocalRepos
     public static string? Find(ImmutableDictionary<string, string> index, Build build) =>
         Find(index, build.RepoName);
 
+    /// <summary>
+    /// The one checkout every one of <paramref name="builds"/> resolves to, or null when they
+    /// resolve to different ones or any of them to none. A group's row stands for its members, so
+    /// it can only offer the folder all of them agree on.
+    /// </summary>
+    public static string? Shared(ImmutableDictionary<string, string> index, ImmutableArray<Build> builds)
+    {
+        string? shared = null;
+        foreach (var build in builds)
+        {
+            if (Find(index, build) is not { } directory)
+            {
+                return null;
+            }
+
+            if (shared is null)
+            {
+                shared = directory;
+                continue;
+            }
+
+            if (!string.Equals(shared, directory, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+        }
+
+        return shared;
+    }
+
     public static string? Find(ImmutableDictionary<string, string> index, string repoName)
     {
         if (index.Count == 0 ||

@@ -255,6 +255,13 @@ sealed class GitHubProvider : ProviderBase
                         continue;
                     }
 
+                    // A run whose every job was skipped by an `if` did nothing, and showing it as the
+                    // pipeline's latest hides the last run that actually built something.
+                    if (run.Conclusion == "skipped")
+                    {
+                        continue;
+                    }
+
                     taken.TryGetValue(run.WorkflowId, out var soFar);
                     if (soFar >= perPipeline)
                     {

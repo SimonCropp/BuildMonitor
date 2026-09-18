@@ -270,6 +270,11 @@ static class MonitorSession
         if (target.Kind == RowKind.Group)
         {
             items.Add(new(target.Expanded ? "Collapse" : "Expand", CommandKind.ToggleGroup));
+            if (LocalRepos.Shared(state.LocalRepos, target.Members) is not null)
+            {
+                items.Add(new("Open directory", CommandKind.OpenRepoDirectory));
+            }
+
             items.Add(new("Refresh", CommandKind.Refresh));
         }
         else if (target.Build is { } build)

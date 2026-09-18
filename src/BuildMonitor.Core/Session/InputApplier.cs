@@ -131,9 +131,12 @@ static class InputApplier
     static SessionState ClickChip(SessionState state, int row, ChipKind chip, MonitorActions actions, IMonitorWindow? window)
     {
         var rows = RowProjection.Rows(state);
+        // The folder is the one chip a group's row carries, since it resolves its members rather
+        // than one build. Every other command reads the row's build, so a group would do nothing
+        // anyway, and letting one through would have a stale frame's click toggle the group.
         if (row < 0 ||
             row >= rows.Length ||
-            rows[row].Build is null)
+            (rows[row].Build is null && chip != ChipKind.OpenDirectory))
         {
             return state;
         }
@@ -294,9 +297,10 @@ static class InputApplier
             case CommandKind.OpenRepoDirectory:
             {
                 // Resolved through the same lookup that decided to offer the chip, so the two
-                // cannot disagree about which checkout the row belongs to.
-                if (MonitorSession.SelectedBuild(state) is not { } local ||
-                    LocalRepos.Find(state.LocalRepos, local) is not { } directory)
+                // cannot disagree about which checkout the row belongs to. A group's row resolves
+                // its members, which offer it only while they are all the one checkout.
+                if (MonitorSession.SelectedRow(state) is not { } opening ||
+                    LocalRepos.Shared(state.LocalRepos, opening.Builds) is not { } directory)
                 {
                     return state;
                 }

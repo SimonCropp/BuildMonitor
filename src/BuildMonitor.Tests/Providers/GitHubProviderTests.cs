@@ -72,6 +72,24 @@ public class GitHubProviderTests
     }
 
     [Test]
+    public async Task SkippedRunsAreLeftOut()
+    {
+        // A run every job skipped did nothing, and as the newest it would stand in for the last run
+        // that actually built something.
+        var handler = Handler()
+            .Get(
+                "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5",
+                """
+                {"total_count":2,"workflow_runs":[
+                  {"id":501,"workflow_id":10,"run_number":1235,"status":"completed","conclusion":"skipped","head_branch":"merge-dependabot","head_sha":"abc","display_title":"Skipped","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/501","created_at":"2026-01-01T12:00:00Z","updated_at":"2026-01-01T12:00:10Z","run_started_at":"2026-01-01T12:00:00Z","pull_requests":[]},
+                  {"id":499,"workflow_id":10,"run_number":1233,"status":"completed","conclusion":"failure","head_branch":"main","head_sha":"fedcba9876543210","display_title":"Feature","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/499","created_at":"2026-01-01T11:00:00Z","updated_at":"2026-01-01T11:05:00Z","run_started_at":"2026-01-01T11:00:30Z","pull_requests":[]}
+                ]}
+                """);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", ProviderTestHelpers.Context("github", handler));
+        await Assert.That(builds.Select(_ => _.RunNumber)).IsEquivalentTo(["1233"]);
+    }
+
+    [Test]
     public async Task ForksAndCollaborationsAreDiscoveredWhenAskedFor()
     {
         var handler = new FakeHttpHandler()

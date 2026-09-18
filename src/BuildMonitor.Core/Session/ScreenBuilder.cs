@@ -340,7 +340,7 @@ static class ScreenBuilder
     {
         if (row.Build is not { } build)
         {
-            return ComposeGroup(row, row.Group!, selected, now);
+            return ComposeGroup(state, row, row.Group!, selected, now);
         }
 
         var estimate = Estimator.Estimate(build, state.Medians);
@@ -367,10 +367,12 @@ static class ScreenBuilder
 
     /// <summary>
     /// A group's own row: the project, then what a closed group would otherwise hide, how many
-    /// builds it holds and how long since the latest. No chips or links: which build they would act
-    /// on is ambiguous, so the group is opened first.
+    /// builds it holds and how long since the latest. No links, and no chip that acts on a build:
+    /// which member it would act on is ambiguous, so the group is opened first. The one exception
+    /// is the checkout, when every member is the same one: a closed group would otherwise hide the
+    /// folder button of rows that all name the same folder.
     /// </summary>
-    static BuildRow ComposeGroup(Row row, GroupKey group, bool selected, DateTimeOffset now)
+    static BuildRow ComposeGroup(SessionState state, Row row, GroupKey group, bool selected, DateTimeOffset now)
     {
         var latest = row.Members.MaxBy(_ => _.Finished ?? _.Started ?? _.Queued ?? DateTimeOffset.MinValue)!;
         var (_, timing) = Progress.Compute(latest, null, now);
@@ -386,7 +388,7 @@ static class ScreenBuilder
             timing,
             selected,
             row.Expanded,
-            []);
+            LocalRepos.Shared(state.LocalRepos, row.Members) is null ? [] : [new(ChipKind.OpenDirectory, "Open dir")]);
     }
 
 
