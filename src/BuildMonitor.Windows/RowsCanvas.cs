@@ -12,7 +12,10 @@ sealed class RowsCanvas : Control
     const int iconSize = 16;
     const int spinnerSize = 18;
     const int barLength = 110;
-    const int timingLength = 90;
+    // A floor rather than the width: the column is as wide as the widest timing text in the font
+    // actually in use, since a fixed length that fit at the default size clipped "queued 30s" once
+    // the text was scaled up.
+    const int minimumTiming = 90;
     const int minimumDetail = 120;
     // Without padding, so each run of the detail starts where the text before it ended.
     const TextFormatFlags runFlags = TextFormatFlags.Left |
@@ -287,7 +290,7 @@ sealed class RowsCanvas : Control
             MeasureName(new('0', 20), Font));
         // After the status square, a gap after each of the name, detail, timing and chips, and the
         // author and its gap when shown.
-        var available = Width - RowHeight - LogicalToDeviceUnits(timingLength) - 5 * gap - (authorWidth > 0 ? authorWidth + gap : 0);
+        var available = Width - RowHeight - TimingWidth() - 5 * gap - (authorWidth > 0 ? authorWidth + gap : 0);
         // With the padding Draw leaves, so the widest text fits without an ellipsis.
         var nameWanted = builds.Names
             .Select(_ => MeasureName(_, Font))
@@ -328,6 +331,11 @@ sealed class RowsCanvas : Control
     int MeasureName(string text, Font font) =>
         TextWidth(text, font, TextFormatFlags.NoPrefix);
 
+    int TimingWidth() =>
+        Math.Max(
+            LogicalToDeviceUnits(minimumTiming),
+            Progress.Widest.Select(_ => MeasureName(_, Font)).Max());
+
     Font NameFont(BuildRow row)
     {
         if (row.Kind == RowKind.Group)
@@ -350,7 +358,7 @@ sealed class RowsCanvas : Control
         var gap = LogicalToDeviceUnits(padding);
         var x = bounds.Height + gap;
         var centreY = bounds.Top + bounds.Height / 2;
-        var timingWidth = LogicalToDeviceUnits(timingLength);
+        var timingWidth = TimingWidth();
 
         DrawName(graphics, row, index, x, bounds, layout.Name);
         x += layout.Name + gap;

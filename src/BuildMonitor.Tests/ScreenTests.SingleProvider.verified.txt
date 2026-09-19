@@ -1,8 +1,8 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                           3 pipelines, 1 failing, 1 running  Filter: [                ] |
 +----------------------------------------------------------------------------------------------------------------------+
-| > > DiffEngine github   test.yml main                      03:00                 [Cancel]                            |
-|   x Verify     github   test.yml feature/inline            25m ago    SimonCropp PR 42 [Retry] [Log]                 |
+| > > DiffEngine github   test.yml main                      03:00                    [Cancel]                         |
+|   x Verify     github   test.yml feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]              |
 |   + DiffEngine github   docs.yml main                      23h ago                                                   |
 |                                                                                                                      |
 |                                                                                                                      |

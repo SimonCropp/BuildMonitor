@@ -107,10 +107,10 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   ? nightly    jenkins                                     queued 30s            [Cancel]                            |
+                |   ? nightly    jenkins                                     queued 30s               [Cancel]                         |
                 |   x [-] Verify          2 failing                          25m ago                                                   |
-                |   x            github   test.yml feature/inline            25m ago    SimonCropp PR 42 [Retry] [Log]                 |
-                |   x            github   release.yml main                   50m ago               [Retry] [Log]                       |
+                |   x            github   test.yml feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]              |
+                |   x            github   release.yml main                   50m ago                  [Retry] [Log]                    |
                 |   + [+] Verify          2 passing                          2h ago                                                    |
                 | > + DiffEngine github   docs.yml main                      23h ago                                                   |
                 +----------------------------------------------------------------------------------------------------------------------+

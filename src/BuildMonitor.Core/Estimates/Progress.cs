@@ -112,6 +112,14 @@ static class Progress
         return $"{span.Minutes:00}:{span.Seconds:00}";
     }
 
+    /// <summary>
+    /// The longest texts <see cref="Compute"/> can produce, for a head sizing the column they go in.
+    /// A column sized from the rows on screen would step a few pixels wider every time a countdown
+    /// passed an hour or a wait passed a day, moving every column beside it; sized from these it
+    /// never moves, and no row is left drawing "queued 3…".
+    /// </summary>
+    public static readonly string[] Widest = ["00:00:00 left", "+00:00:00", "queued 000d"];
+
     public static string Age(TimeSpan span)
     {
         if (span < TimeSpan.FromMinutes(1))
