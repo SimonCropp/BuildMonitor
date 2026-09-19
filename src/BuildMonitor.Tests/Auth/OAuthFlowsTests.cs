@@ -135,6 +135,23 @@ public class OAuthFlowsTests
         var result = await OAuthFlows.Device(client, (_, _) => { }, handler, Cancel.None, (_, _) => Task.CompletedTask);
         await Assert.That(result.Ok).IsFalse();
         await Assert.That(result.Error).IsEqualTo("Denied");
+        // An answer, so nothing is guessed on top of it.
+        await Assert.That(result.TimedOut).IsFalse();
+    }
+
+    /// <summary>
+    /// What the user refused at the provider's own address box actually gets: the provider never
+    /// answers, and the code runs out. Kept apart from a denial so the page can offer the account
+    /// advice as a possibility.
+    /// </summary>
+    [Test]
+    public async Task DeviceFlowMarksAnExpiryAsTimedOut()
+    {
+        var handler = new PollingHandler(() => """{"error":"authorization_pending"}""", expiresIn: 0);
+        var result = await OAuthFlows.Device(client, (_, _) => { }, handler, Cancel.None, (_, _) => Task.CompletedTask);
+        await Assert.That(result.Ok).IsFalse();
+        await Assert.That(result.TimedOut).IsTrue();
+        await Assert.That(result.Error).IsEqualTo("The code expired before it was entered.");
     }
 
     [Test]
@@ -178,12 +195,12 @@ public class OAuthFlowsTests
     /// <summary>
     /// The device flow hits the same token endpoint repeatedly with different answers each time.
     /// </summary>
-    sealed class PollingHandler(Func<string> next) : HttpMessageHandler
+    sealed class PollingHandler(Func<string> next, int expiresIn = 900) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, Cancel cancel)
         {
             var body = request.RequestUri!.AbsolutePath == "/device"
-                ? """{"device_code":"dev","user_code":"ABCD-1234","verification_uri":"https://example.com/activate","expires_in":900,"interval":5}"""
+                ? $$"""{"device_code":"dev","user_code":"ABCD-1234","verification_uri":"https://example.com/activate","expires_in":{{expiresIn}},"interval":5}"""
                 : next();
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {

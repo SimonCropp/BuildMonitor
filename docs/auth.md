@@ -89,6 +89,8 @@ https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBla
 
 Entra does not sign personal Microsoft accounts in to Azure DevOps; those users take a personal access token. The authority is `/organizations`, which only accepts a work or school account, so a personal account is turned away at Microsoft's own page as an address it does not recognise rather than as a method that does not apply. The connection editor says so under **Sign in with** before the flow is started.
 
+How much a failure can say depends on how far the sign in got. Where Entra authenticates someone and only then finds the account belongs to no tenant it accepts, it redirects back with `AADSTS50020`, and BuildMonitor names the cause instead of showing the raw text. Where it refuses at its own address box it tells BuildMonitor nothing at all: the flow runs out of time with Microsoft still waiting, so the timeout offers the same advice as a possibility rather than a diagnosis. Entra's own wording, with the trace id a support request needs, goes to the [log](troubleshooting.md#logs) either way.
+
 
 #### Why the callback has no port
 

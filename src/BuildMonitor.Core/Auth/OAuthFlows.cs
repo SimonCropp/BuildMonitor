@@ -50,7 +50,7 @@ static class OAuthFlows
         }
         catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
         {
-            return AuthResult.Failed("The browser did not come back within five minutes.");
+            return AuthResult.Expired("The browser did not come back within five minutes.");
         }
 
         if (callback.TryGetValue("error", out var error))
@@ -146,7 +146,7 @@ static class OAuthFlows
             }
         }
 
-        return AuthResult.Failed("The code expired before it was entered.");
+        return AuthResult.Expired("The code expired before it was entered.");
     }
 
     public static Task<TokenResponse> Refresh(OAuthClient client, string refreshToken, HttpMessageHandler handler, Cancel cancel)

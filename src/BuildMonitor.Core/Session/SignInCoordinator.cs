@@ -61,7 +61,10 @@ sealed class SignInCoordinator(SessionHost host, ISecretStore secrets, HttpMessa
 
             if (!result.Ok)
             {
-                Fail(flowId, result.Error ?? "The sign in failed.");
+                // The provider's own words go to the log, since the page gets the explained version
+                // and Entra's AADSTS text carries the correlation id a support request needs.
+                Log.Warning("Sign in to {Provider} failed: {Error}", descriptor.Name, result.Error);
+                Fail(flowId, SignInHelp.Explain(descriptor, result));
                 return;
             }
 

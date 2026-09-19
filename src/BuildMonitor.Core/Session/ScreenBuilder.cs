@@ -709,7 +709,7 @@ static class ScreenBuilder
         if (method == AuthMethod.Token)
         {
             fields.Add(new(FormFields.Token, FieldKind.Password, descriptor.TokenLabel, form.Value(FormFields.Token), Hint: form.SignedIn ? "Leave empty to keep the stored token" : null));
-            fields.Add(new(FormFields.TokenHelp, FieldKind.Link, $"How to get {Article(descriptor.TokenLabel)} {descriptor.TokenLabel}", descriptor.TokenHelpUrl));
+            fields.Add(new(FormFields.TokenHelp, FieldKind.Link, $"How to get {Article.For(descriptor.TokenLabel)} {descriptor.TokenLabel}", descriptor.TokenHelpUrl));
         }
         else if (descriptor.CustomClientId)
         {
@@ -837,6 +837,4 @@ static class ScreenBuilder
     static string Plural(int count, string noun) =>
         count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 
-    static string Article(string noun) =>
-        "AEIOUaeiou".Contains(noun[0]) ? "an" : "a";
 }
