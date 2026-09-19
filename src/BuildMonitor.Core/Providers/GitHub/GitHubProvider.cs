@@ -65,7 +65,11 @@ sealed class GitHubProvider : ProviderBase
         var active = repositories
             .Where(_ => _ is {Archived: false, Disabled: false} &&
                         _.PushedAt > cutoff &&
-                        (context.ShowForksAndCollaborations || !_.Fork))
+                        (context.ShowForksAndCollaborations || !_.Fork) &&
+                        // Here rather than after discovery: listing an excluded repository's
+                        // workflows costs a request the secondary limit counts, and an ignored org
+                        // is dozens of them a poll, spent to produce rows the poller drops.
+                        !Filters.ExcludesRepo(context.Filters, _.FullName))
             .ToList();
         context.Memory.Set(readOnly, ReadOnly(context, active));
         var everything = !context.Memory.TryGet<DateTimeOffset>(listedEverything, out var listedAt) ||
@@ -130,7 +134,7 @@ sealed class GitHubProvider : ProviderBase
         }
 
         Log.Information(
-            "GitHub discovery: {Repositories} repositories, {Active} pushed in the last {Days} days, {Listed} of those listed, {Pipelines} workflows, {Elapsed:0.0}s",
+            "GitHub discovery: {Repositories} repositories, {Active} pushed in the last {Days} days and not excluded, {Listed} of those listed, {Pipelines} workflows, {Elapsed:0.0}s",
             repositories.Count,
             active.Count,
             activeWindow.TotalDays,

@@ -17,8 +17,8 @@
 |   | Exclude action: docs.yml         |                                                                               |
 |   | Exclude branch: main             |                                                                               |
 |   | Exclude repo: VerifyTests/Verify |                                                                               |
+|   | Exclude org: VerifyTests         |                                                                               |
 |   +----------------------------------+                                                                               |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

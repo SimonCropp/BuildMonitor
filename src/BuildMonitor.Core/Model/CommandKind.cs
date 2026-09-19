@@ -29,6 +29,7 @@ enum CommandKind
     ExcludePipeline,
     ExcludeBranch,
     ExcludeRepo,
+    ExcludeOrg,
     OpenBuilds,
     OpenOptions,
     OpenFilters,

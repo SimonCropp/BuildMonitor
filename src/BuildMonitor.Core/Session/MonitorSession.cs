@@ -331,6 +331,13 @@ static class MonitorSession
             {
                 items.Add(new($"Exclude repo: {build.RepoName}", CommandKind.ExcludeRepo));
             }
+
+            // Offered even where the repo item is not: a service whose pipeline is the repository,
+            // such as Bitbucket, still has a workspace above it worth dropping whole.
+            if (Org(state, build) is { } org)
+            {
+                items.Add(new($"Exclude {org.Noun}: {org.Name}", CommandKind.ExcludeOrg));
+            }
         }
 
         return SelectRow(state, row) with { Menu = new(row, items.ToImmutable()) };
@@ -594,6 +601,37 @@ static class MonitorSession
     /// </summary>
     public static SessionState ExcludeRepo(SessionState state, Build build) =>
         Exclude(state, FilterTarget.Repo, build.RepoName);
+
+    /// <summary>
+    /// The org the build's repository sits under and what its service calls one, or null where the
+    /// service has no level above the repository. Both parts or neither: a name with no noun would
+    /// read as excluding the repository, and a noun with no name has nothing to exclude.
+    /// </summary>
+    public static (string Noun, string Name)? Org(SessionState state, Build build)
+    {
+        if (ProviderDescriptors.OrgNoun(state.Connection(build.ConnectionId)?.Connection.ProviderId) is not { } noun ||
+            OrgName.Of(build.RepoName) is not { } name)
+        {
+            return null;
+        }
+
+        return (noun, name);
+    }
+
+    /// <summary>
+    /// The context menu's "Exclude org", which takes every repository of the account with it, and
+    /// before their pipelines are discovered: a provider that pays a request per repository to list
+    /// them skips an excluded one outright.
+    /// </summary>
+    public static SessionState ExcludeOrg(SessionState state, Build build)
+    {
+        if (Org(state, build) is not { } org)
+        {
+            return state;
+        }
+
+        return Exclude(state, FilterTarget.Org, org.Name);
+    }
 
     static SessionState Exclude(SessionState state, FilterTarget target, string text)
     {

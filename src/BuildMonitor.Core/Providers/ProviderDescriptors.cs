@@ -24,6 +24,9 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        // The name of a project is the source repository's, so the level above it is that
+        // repository's owner rather than the AppVeyor account.
+        OrgNoun: "owner",
         FetchConcurrency: Concurrently.Limit,
         // The probe fetches a project whose latest build changed at once, so a quiet one need not be
         // fetched every five minutes, a full response each time.
@@ -47,6 +50,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        OrgNoun: "owner",
         FetchConcurrency: Concurrently.Limit,
         // The probe fetches a repository whose last started build changed at once, so a quiet one
         // need not be fetched every five minutes, a full response each time.
@@ -96,6 +100,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        OrgNoun: "org",
         TokenNote: "A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.",
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
@@ -183,6 +188,9 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        // A project's name is its full path, so a nested project's org is the top level group
+        // rather than the subgroup it sits in, and excluding one takes every subgroup with it.
+        OrgNoun: "group",
         CustomClientId: true,
         TokenNote: "The token needs the api scope to retry and cancel, or read_api to only watch.",
         // One GraphQL request covers fifty projects.
@@ -233,6 +241,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        OrgNoun: "workspace",
         TokenNote: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.",
         FetchConcurrency: Concurrently.Limit,
         // A thousand requests an hour, or the scaled limit the workspace reports.
@@ -287,6 +296,13 @@ static class ProviderDescriptors
     /// </summary>
     public static string PipelineNoun(string? id) =>
         All.SingleOrDefault(_ => _.Id == id)?.PipelineNoun ?? "pipeline";
+
+    /// <summary>
+    /// What the provider calls the account above a repository, or null when it has none and when
+    /// the id belongs to no provider, as a connection written by a newer version can.
+    /// </summary>
+    public static string? OrgNoun(string? id) =>
+        All.SingleOrDefault(_ => _.Id == id)?.OrgNoun;
 
     public static ProviderDescriptor? ByName(string name) =>
         All.SingleOrDefault(_ => _.Name == name);

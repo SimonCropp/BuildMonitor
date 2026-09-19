@@ -293,6 +293,7 @@ sealed class ConnectionPoller
         {
             Progress = visible ? progress => host.Mutate(_ => MonitorSession.SetProgress(_, connectionId, progress)) : _ => { },
             ShowForksAndCollaborations = host.State.Settings.ShowForksAndCollaborations,
+            Filters = host.State.Settings.Filters,
             Since = HistoryCutoff.Of(clock(), host.State.Settings.HistoryDays),
             Memory = providerMemory,
             Identities = identities

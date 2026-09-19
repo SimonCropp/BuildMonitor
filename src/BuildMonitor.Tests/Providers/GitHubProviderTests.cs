@@ -59,6 +59,21 @@ public class GitHubProviderTests
     }
 
     [Test]
+    public async Task AnExcludedOrgIsNeverListed()
+    {
+        // What an org rule buys over the poller dropping the rows afterwards: the workflow listing
+        // is a request a repository, which the secondary limit counts even as a 304.
+        var handler = Handler();
+        var context = ProviderTestHelpers.Context("github", handler) with
+        {
+            Filters = [new(FilterKind.Exact, FilterTarget.Org, "VerifyTests")]
+        };
+        var pipelines = await ProviderTestHelpers.Provider("github").DiscoverPipelines(context, Cancel.None);
+        await Assert.That(pipelines).IsEmpty();
+        await Assert.That(handler.Requests.Any(_ => _.Contains("/actions/workflows"))).IsFalse();
+    }
+
+    [Test]
     public async Task HistoryLimitIsNotSentAsCreated()
     {
         // A run keeps its created_at through a re-run, so filtering on it would hide a run from

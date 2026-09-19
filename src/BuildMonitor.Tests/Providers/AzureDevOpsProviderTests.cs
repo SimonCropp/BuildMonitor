@@ -31,6 +31,21 @@ public class AzureDevOpsProviderTests
     }
 
     [Test]
+    public async Task AnExcludedProjectIsNeverListed()
+    {
+        // A project's definitions are a request of its own, so an excluded one is dropped before it
+        // is paid for rather than after the poller has the pipelines.
+        var handler = Handler();
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso")) with
+        {
+            Filters = [new(FilterKind.Exact, FilterTarget.Repo, "Web")]
+        };
+        var pipelines = await ProviderTestHelpers.Provider("azure-devops").DiscoverPipelines(context, Cancel.None);
+        await Assert.That(pipelines).IsEmpty();
+        await Assert.That(handler.Requests.Any(_ => _.Contains("_apis/pipelines"))).IsFalse();
+    }
+
+    [Test]
     public async Task HistoryLimitIsNotSentAsMinTime()
     {
         // minTime filters on queue time, so it would hide a build queued before the cutoff that is still running.

@@ -18,6 +18,15 @@ record ProviderContext(Connection Connection, HttpJson Http)
     public bool ShowForksAndCollaborations { get; init; }
 
     /// <summary>
+    /// The exclusion rules, for a provider that pays a request per repository to discover its
+    /// pipelines: it drops the repositories an org or repo rule names before paying for them, so an
+    /// ignored org costs nothing rather than a request per repository whose result the poller then
+    /// throws away. Every other provider ignores this and is filtered after discovery. Set only
+    /// when polling; any other call excludes nothing.
+    /// </summary>
+    public ImmutableArray<Filter> Filters { get; init; } = [];
+
+    /// <summary>
     /// The oldest a build may be to be asked for, or null for no limit. Set only when polling, to
     /// the start of a UTC day by <see cref="HistoryCutoff"/>, so a URL carrying it keeps its cached
     /// ETag all day. Sent only where the service filters on when a build last changed; a filter on

@@ -355,6 +355,16 @@ static class InputApplier
 
                 return Excluded(MonitorSession.ExcludeRepo(state, build), $"{build.RepoName} repo", actions);
             }
+            case CommandKind.ExcludeOrg:
+            {
+                if (MonitorSession.SelectedBuild(state) is not { } build ||
+                    MonitorSession.Org(state, build) is not { } org)
+                {
+                    return state;
+                }
+
+                return Excluded(MonitorSession.ExcludeOrg(state, build), $"{org.Name} {org.Noun}", actions);
+            }
             case CommandKind.OpenBuilds:
                 return MonitorSession.OpenBuilds(state);
             case CommandKind.OpenOptions:

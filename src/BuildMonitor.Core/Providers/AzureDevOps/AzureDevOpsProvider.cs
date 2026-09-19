@@ -16,7 +16,11 @@ sealed class AzureDevOpsProvider : ProviderBase
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
-        var projects = await Projects(context, cancel);
+        // Excluded before the definitions are listed rather than after: a project costs a request
+        // of its own, and an excluded one's definitions are only there to be thrown away.
+        var projects = (await Projects(context, cancel))
+            .Where(_ => !Filters.ExcludesRepo(context.Filters, _))
+            .ToList();
         // Concurrently, as a project at a time kept a first poll waiting an estimated fifteen
         // seconds with fifty projects. The results keep the projects' order.
         var perProject = await Concurrently.Map(

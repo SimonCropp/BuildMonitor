@@ -481,4 +481,22 @@ public class SessionTests
         await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Repo, build.RepoName));
         await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.RepoName == build.RepoName)).IsFalse();
     }
+
+    [Test]
+    public async Task ExcludeOrgAddsExactFilterAndTakesEveryRepoWithIt()
+    {
+        var state = Fixtures.WithBuilds();
+        var build = state.Builds.First(_ => _.RepoName == "VerifyTests/DiffEngine");
+        var next = MonitorSession.ExcludeOrg(state, build);
+        await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Org, "VerifyTests"));
+        await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.RepoName.StartsWith("VerifyTests/") == true)).IsFalse();
+    }
+
+    [Test]
+    public async Task ExcludeOrgDoesNothingForAProviderWithNoOrg()
+    {
+        var state = Fixtures.WithBuilds();
+        var build = state.Builds.First(_ => _.ConnectionId == Fixtures.Octopus.Id);
+        await Assert.That(MonitorSession.ExcludeOrg(state, build).Settings.Filters).IsEmpty();
+    }
 }
