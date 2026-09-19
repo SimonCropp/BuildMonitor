@@ -186,7 +186,8 @@ static class TriagePrompt
 
         builder.Append($"{step++}. Reproduce the failure from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead.\n");
         builder.Append($"{step}. {Fixing(fix, "it", "")}");
-        builder.Append("\nWhere it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.");
+        builder.Append("\nWhere it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.\n");
+        builder.Append(Next());
         return builder.ToString();
     }
 
@@ -311,9 +312,19 @@ static class TriagePrompt
         builder.Append("2. Group the failures by what the logs actually say before investigating any of them. Repositories failing on one shared workflow, action, dependency or template are one fix, not several, and the pipeline groupings above are only a guess at that.\n");
         builder.Append("3. Work each group from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead. Reproduce the failure before deciding what it is.\n");
         builder.Append($"4. {Fixing(fix, "each group", " per group")}");
-        builder.Append("\nWhere a group turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.");
+        builder.Append("\nWhere a group turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.\n");
+        builder.Append(Next());
         return builder.ToString();
     }
+
+    /// <summary>
+    /// The last thing both prompts say. Triage ends at a decision the user owns, such as which
+    /// fix to take, whether to commit it or whether a failure is worth chasing at all, so the
+    /// text stops the assistant there and asks rather than carrying on into work nobody asked
+    /// for across repositories it was only given to read.
+    /// </summary>
+    static string Next() =>
+        "\nThen stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.";
 
     /// <summary>
     /// The one step that decides whether an assistant edits the user's files, shared by both

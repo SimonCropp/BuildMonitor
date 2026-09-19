@@ -34,3 +34,5 @@
 4. Report what you found per group, with the fix you would make. Do not change any source files.
 
 Where a group turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+
+Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.

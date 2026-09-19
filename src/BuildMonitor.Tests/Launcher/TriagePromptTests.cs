@@ -33,6 +33,8 @@ public class TriagePromptTests
 
                 Where a group turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
 
+                Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
+
                 2 other failing builds have no checkout under the code directory and are left out above:
 
                 - Invitations e2e on Pmc Dev Octopus, failed 1h ago
@@ -208,6 +210,8 @@ public class TriagePromptTests
                 3. Report what you found, with the fix you would make. Do not change any source files.
 
                 Where it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+
+                Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
                 """);
 
     /// <summary>
@@ -270,6 +274,8 @@ public class TriagePromptTests
                 3. Report what you found, with the fix you would make. Do not change any source files.
 
                 Where it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+
+                Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
                 """);
 
     /// <summary>
@@ -301,6 +307,8 @@ public class TriagePromptTests
                 2. Report what you found, with the fix you would make. Do not change any source files.
 
                 Where it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+
+                Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
                 """);
 
     static BuildDto Solo() =>
