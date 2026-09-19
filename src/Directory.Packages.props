@@ -14,7 +14,7 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
     <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
-    <PackageVersion Include="Polyfill" Version="11.3.0" />
+    <PackageVersion Include="Polyfill" Version="11.4.0" />
     <PackageVersion Include="ProjectDefaults" Version="1.0.181" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
@@ -25,9 +25,9 @@
     <PackageVersion Include="Svg.Skia" Version="5.2.3" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <PackageVersion Include="Tmds.DBus.Protocol" Version="0.95.1" />
-    <PackageVersion Include="TUnit" Version="1.68.4" />
-    <PackageVersion Include="Verify" Version="33.0.2" />
-    <PackageVersion Include="Verify.TUnit" Version="33.0.2" />
+    <PackageVersion Include="TUnit" Version="1.68.17" />
+    <PackageVersion Include="Verify" Version="33.1.0" />
+    <PackageVersion Include="Verify.TUnit" Version="33.1.0" />
     <PackageVersion Include="Verify.WinForms" Version="6.0.0" />
   </ItemGroup>
 </Project>
