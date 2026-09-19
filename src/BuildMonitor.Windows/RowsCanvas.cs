@@ -488,6 +488,7 @@ sealed class RowsCanvas : Control
             ChipKind.Retry => (Palette.RetryChip, Palette.Text),
             ChipKind.Cancel => (Palette.CancelChip, Palette.Text),
             ChipKind.CopyLog => (Palette.Chip, Palette.Text),
+            ChipKind.Triage => (Palette.Chip, Palette.Text),
             _ => (Palette.Chip, Palette.ChipText)
         };
 

@@ -3,6 +3,7 @@
 [JsonSerializable(typeof(OctopusPage<OctopusProject>))]
 [JsonSerializable(typeof(OctopusPage<OctopusDeployment>))]
 [JsonSerializable(typeof(OctopusPage<OctopusTask>))]
+[JsonSerializable(typeof(OctopusPage<OctopusArtifact>))]
 [JsonSerializable(typeof(List<OctopusEnvironment>))]
 [JsonSerializable(typeof(OctopusDashboard))]
 [JsonSerializable(typeof(OctopusRelease))]

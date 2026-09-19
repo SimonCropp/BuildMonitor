@@ -4,7 +4,7 @@
 /// </summary>
 static class RealActions
 {
-    public static MonitorActions Create(SessionHost host, Poller poller, LocalRepoWatcher repos, ISecretStore secrets, SignInCoordinator signIn, IRunAtLogin runAtLogin) =>
+    public static MonitorActions Create(SessionHost host, Poller poller, LocalRepoWatcher repos, ArtifactStore artifacts, ISecretStore secrets, SignInCoordinator signIn, IRunAtLogin runAtLogin) =>
         new(
             OpenUrl: LinkLauncher.OpenUrl,
             SaveSettings: settings =>
@@ -40,6 +40,33 @@ static class RealActions
                 {
                     Log.Error(exception, "Copying the log of {Build} failed", name);
                     host.Mutate(_ => MonitorSession.SetStatus(_, $"Copying the log of {name} failed: {exception.Message}"));
+                }
+            }),
+            Triage: build => _ = Task.Run(async () =>
+            {
+                var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
+                try
+                {
+                    // Before the download rather than after it, which is when freeing the disk
+                    // actually helps, and on the task that already catches and logs.
+                    artifacts.Sweep();
+                    // Through the same projection the MCP tools read, so the prompt on the clipboard
+                    // and the one an assistant composes describe a build identically.
+                    if (Snapshot.Find(host.State, build.Key, DateTimeOffset.UtcNow) is not { } dto)
+                    {
+                        host.Mutate(_ => MonitorSession.SetStatus(_, $"{name} is no longer in the build list"));
+                        return;
+                    }
+
+                    var files = await ArtifactCollector.Collect(artifacts, poller, build, Cancel.None);
+                    // fix is false: this text lands in whatever session the user pastes it into, and
+                    // authorising edits there is not this action's call to make.
+                    host.Mutate(_ => MonitorSession.Copy(_, TriagePrompt.One(dto, files, fix: false), Collected(name, files)));
+                }
+                catch (Exception exception)
+                {
+                    Log.Error(exception, "Collecting {Build} for triage failed", name);
+                    host.Mutate(_ => MonitorSession.SetStatus(_, ActionFailure.Describe(_, build.ConnectionId, $"Triaging {name}", exception)));
                 }
             }),
             SignIn: signIn.Start,
@@ -79,6 +106,28 @@ static class RealActions
                     return $"Run at startup failed: {exception.Message}";
                 }
             });
+
+    /// <summary>
+    /// What the status line says once a triage lands. It names the directory because this is the
+    /// only place the user, as opposed to the assistant reading the prompt, finds out where the
+    /// files went.
+    /// </summary>
+    static string Collected(string name, TriageFilesDto triage)
+    {
+        var copied = $"Copied a triage prompt for {name}";
+        var files = triage.Files;
+        if (files.Count == 0)
+        {
+            return $"{copied}: it published no artifacts and has no log";
+        }
+
+        if (files is [ArtifactCollector.LogName])
+        {
+            return $"{copied}: the log only, in {triage.Directory}";
+        }
+
+        return $"{copied}: {files.Count} files in {triage.Directory}";
+    }
 
     static void Background(Func<Task> work, SessionHost host, string what, string? done = null, string? connectionId = null) =>
         _ = Task.Run(async () =>

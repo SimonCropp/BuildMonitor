@@ -104,6 +104,118 @@ public class HttpJsonTests
     }
 
     [Test]
+    public async Task ADownloadAcceptsOnlyWhatItAsksFor()
+    {
+        var handler = new FakeHttpHandler()
+            .MapBytes("GET", "https://api.github.com/repos/o/r/actions/artifacts/9/zip", [1, 2, 3, 4]);
+        using var client = GitHub(handler);
+        using var destination = new MemoryStream();
+        var written = await client.Download("repos/o/r/actions/artifacts/9/zip", destination, 1024, Cancel.None, "application/zip");
+        await Assert.That(written).IsEqualTo(4);
+        await Assert.That(destination.ToArray()).IsEquivalentTo(new byte[] {1, 2, 3, 4});
+        await Assert.That(handler.RequestHeaders.Single().Accept.ToString()).IsEqualTo("application/zip");
+    }
+
+    /// <summary>
+    /// The client asks for JSON by default, and a file endpoint that honours it answers with a
+    /// description of the file rather than the file, so a download must always replace it.
+    /// </summary>
+    [Test]
+    public async Task ADownloadWithNoAcceptAsksForAnything()
+    {
+        var handler = new FakeHttpHandler()
+            .MapBytes("GET", "https://api.github.com/artifact", [7]);
+        using var client = GitHub(handler);
+        using var destination = new MemoryStream();
+        await client.Download("artifact", destination, 1024, Cancel.None);
+        await Assert.That(handler.RequestHeaders.Single().Accept.ToString()).IsEqualTo("*/*");
+    }
+
+    [Test]
+    public async Task ADownloadIsNotCached()
+    {
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/artifact", "zip", HttpStatusCode.OK, ("ETag", "\"abc\""));
+        using var client = GitHub(handler);
+        using var destination = new MemoryStream();
+        await client.Download("artifact", destination, 1024, Cancel.None);
+        await Assert.That(client.IsCached("artifact")).IsFalse();
+    }
+
+    [Test]
+    public async Task ADownloadIsCountedAgainstTheBudget()
+    {
+        var budget = new RateBudget(() => Fixtures.Now);
+        var handler = new FakeHttpHandler()
+            .MapBytes("GET", "https://api.github.com/artifact", [1, 2, 3]);
+        using var client = GitHub(handler, budget);
+        using var destination = new MemoryStream();
+        await client.Download("artifact", destination, 1024, Cancel.None);
+        await Assert.That(budget.SentCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AWebPageWhereAFileWasExpectedIsRefused()
+    {
+        var handler = new FakeHttpHandler()
+            .MapHtml("GET", "https://api.github.com/artifact", "<html>Maintenance</html>");
+        using var client = GitHub(handler);
+        using var destination = new MemoryStream();
+        var exception = await Assert.That(() => client.Download("artifact", destination, 1024, Cancel.None)).Throws<HttpRequestException>();
+        await Assert.That(exception!.Message).IsEqualTo("200 OK from https://api.github.com/artifact: text/html where a file was expected: <html>Maintenance</html>");
+    }
+
+    [Test]
+    public async Task ADeclaredLengthOverTheLimitIsRefusedBeforeReading()
+    {
+        var handler = new FakeHttpHandler()
+            .MapBytes("GET", "https://api.github.com/artifact", [1, 2, 3, 4, 5, 6, 7, 8]);
+        using var client = GitHub(handler);
+        using var destination = new MemoryStream();
+        var exception = await Assert.That(() => client.Download("artifact", destination, 4, Cancel.None)).Throws<ArtifactTooLargeException>();
+        await Assert.That(exception!.Declared).IsEqualTo(8);
+        await Assert.That(exception.Message).IsEqualTo("8 B, over the 4 B allowed for it");
+        // Nothing was copied, so the caller has no partial file to clear up in this case.
+        await Assert.That(destination.Length).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// The Jenkins case: no Content-Length to weigh up front, so the limit has to be held while
+    /// copying.
+    /// </summary>
+    [Test]
+    public async Task ADownloadWithNoDeclaredLengthStopsAtTheLimit()
+    {
+        var handler = new FakeHttpHandler()
+            .MapBytes("GET", "https://api.github.com/artifact", new byte[200000], declareLength: false);
+        using var client = GitHub(handler);
+        using var destination = new MemoryStream();
+        var exception = await Assert.That(() => client.Download("artifact", destination, 1024, Cancel.None)).Throws<ArtifactTooLargeException>();
+        await Assert.That(exception!.Declared).IsNull();
+        await Assert.That(exception.Message).IsEqualTo("Over the 1 KB allowed for it");
+    }
+
+    [Test]
+    public async Task ADownloadOfExactlyTheLimitIsKept()
+    {
+        var handler = new FakeHttpHandler()
+            .MapBytes("GET", "https://api.github.com/artifact", [1, 2, 3, 4], declareLength: false);
+        using var client = GitHub(handler);
+        using var destination = new MemoryStream();
+        await Assert.That(await client.Download("artifact", destination, 4, Cancel.None)).IsEqualTo(4);
+    }
+
+    [Test]
+    public async Task ARefusedDownloadIsAnAuthFailure()
+    {
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/artifact", """{"message":"Bad credentials"}""", HttpStatusCode.Unauthorized);
+        using var client = GitHub(handler);
+        using var destination = new MemoryStream();
+        await Assert.That(() => client.Download("artifact", destination, 1024, Cancel.None)).Throws<AuthException>();
+    }
+
+    [Test]
     public async Task ABitbucketResetIsTheSecondsLeftInTheWindow()
     {
         var handler = new FakeHttpHandler()

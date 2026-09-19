@@ -292,6 +292,8 @@ static class InputApplier
                     : state;
             case CommandKind.CopyLog:
                 return MonitorSession.SelectedBuild(state) is { } logged ? CopyLog(state, logged, actions) : state;
+            case CommandKind.Triage:
+                return MonitorSession.SelectedBuild(state) is { } triaged ? Triage(state, triaged, actions) : state;
             case CommandKind.Retry:
                 return MonitorSession.SelectedBuild(state) is { } retry ? Retry(state, retry, actions) : state;
             case CommandKind.Cancel:
@@ -527,6 +529,23 @@ static class InputApplier
 
         actions.CopyLog(build);
         return MonitorSession.SetStatus(state, $"Fetching the log of {build.PipelineName} {build.RunNumberLabel()}".TrimEnd());
+    }
+
+    /// <summary>
+    /// Gated again here rather than trusted from the chip that was drawn: a poll between the frame
+    /// and the click can have finished the build green, or the watcher can have lost the checkout,
+    /// and either leaves a download with nothing to say.
+    /// </summary>
+    static SessionState Triage(SessionState state, Build build, MonitorActions actions)
+    {
+        if (!build.LogCopyable() ||
+            LocalRepos.Find(state.LocalRepos, build) is null)
+        {
+            return state;
+        }
+
+        actions.Triage(build);
+        return MonitorSession.SetStatus(state, $"Collecting {build.PipelineName} {build.RunNumberLabel()} for triage".TrimEnd());
     }
 
     static SessionState Save(SessionState state, MonitorActions actions)

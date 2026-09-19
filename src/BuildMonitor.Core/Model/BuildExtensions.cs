@@ -45,6 +45,19 @@ static class BuildExtensions
         build.Status == BuildStatus.Failed;
 
     /// <summary>
+    /// Whether it is worth asking the service for this build's files: the service has an artifact
+    /// API, and the build failed, for the same reason a log is only offered for a failure.
+    /// <para>
+    /// Says nothing about whether the build actually uploaded anything. Finding that out costs a
+    /// request, and a chip that appears a second after its row does is worse than one that turns
+    /// out to report an empty build.
+    /// </para>
+    /// </summary>
+    public static bool ArtifactsListable(this Build build, ProviderDescriptor descriptor) =>
+        descriptor.HasArtifacts &&
+        build.Status == BuildStatus.Failed;
+
+    /// <summary>
     /// The last segment only: the owner is the same for most rows, and a column of repeated
     /// "VerifyTests/" prefixes pushes the part that differs out of view.
     /// </summary>

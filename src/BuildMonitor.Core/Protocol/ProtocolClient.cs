@@ -15,6 +15,9 @@ sealed class ProtocolClient(int port) : IProtocolClient
         {
             Verb.Retry or Verb.Cancel => TimeSpan.FromSeconds(30),
             Verb.Log => TimeSpan.FromSeconds(60),
+            // The same log fetch Log is given a minute for, and then a download each on top of it.
+            // Nothing is sent until they have all landed, so this is also how long the caller waits.
+            Verb.Triage => TimeSpan.FromMinutes(5),
             _ => TimeSpan.FromSeconds(3)
         };
 

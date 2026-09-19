@@ -38,6 +38,33 @@ public class ProviderCatalogTests
     public async Task APastedTokenGoesAsItsProvidersScheme() =>
         await Assert.That(ProviderDescriptors.All.Where(_ => _.SchemeFor(AuthMethod.Token) != _.Scheme)).IsEmpty();
 
+    /// <summary>
+    /// Pins the two services that have no artifact API, so the flag keeps meaning "this service
+    /// cannot" rather than "nobody has implemented it yet". A provider added without artifacts
+    /// fails here and has to say which of the two it is.
+    /// </summary>
+    [Test]
+    public async Task OnlyTheServicesWithNoArtifactApiHaveNoArtifacts() =>
+        await Assert.That(ProviderDescriptors.All.Where(_ => !_.HasArtifacts).Select(_ => _.Id))
+            .IsEquivalentTo(["bitbucket", "travis"]);
+
+    /// <summary>
+    /// A provider that says it has artifacts must have overridden both halves: the base class
+    /// answers an empty list and throws on a download, which would read as a build that published
+    /// nothing rather than as a provider that was never finished.
+    /// </summary>
+    [Test]
+    public async Task EveryProviderWithArtifactsImplementsBothHalves()
+    {
+        var missing = ProviderDescriptors.All
+            .Where(_ => _.HasArtifacts)
+            .Select(_ => Providers.Get(_.Id))
+            .Where(_ => _.GetType().GetMethod(nameof(IProvider.ListArtifacts))!.DeclaringType == typeof(ProviderBase) ||
+                        _.GetType().GetMethod(nameof(IProvider.DownloadArtifact))!.DeclaringType == typeof(ProviderBase))
+            .Select(_ => _.Descriptor.Id);
+        await Assert.That(missing).IsEmpty();
+    }
+
     [Test]
     [Arguments(AuthScheme.Bearer, "Bearer secret")]
     [Arguments(AuthScheme.Token, "token secret")]

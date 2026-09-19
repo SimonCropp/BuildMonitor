@@ -55,6 +55,142 @@ static class TriagePrompt
     }
 
     /// <summary>
+    /// One failure, with its log and its artifacts already on disk. Says where they are rather than
+    /// how to fetch them: this is the text the tray puts on the clipboard, so it lands in an
+    /// assistant that has no connection to BuildMonitor and no tool to call.
+    /// <para>
+    /// A method rather than an overload of <see cref="Build"/>. The two resolve by arity, and a
+    /// reader at a call site could not tell which of two different documents they were getting:
+    /// that one is about ordering and grouping several failures, this one is about a single failure
+    /// whose evidence is already gathered.
+    /// </para>
+    /// </summary>
+    public static string One(BuildDto build, TriageFilesDto files, bool fix)
+    {
+        var builder = new StringBuilder();
+        // The opening promise has to match what is actually on disk: a run that produced neither a
+        // log nor an artifact still gets a prompt, and one that opened by promising files would
+        // have an assistant hunting for a directory that was never written.
+        builder.Append(files.Files.Count > 0
+            ? "One failing build, with its files already downloaded. Work through it."
+            : "One failing build. Nothing it produced could be downloaded, so work from its code.");
+        builder.Append("\n\n## The failure\n");
+        builder.Append(Entry(build));
+        builder.Append(Evidence(files));
+        builder.Append("\n## How to work through it\n\n");
+        builder.Append(Steps(files, fix));
+        return builder.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Where the files are, or why there are none. The directory is named on its own line and
+    /// unquoted: these are absolute paths in the platform's own form, and a Windows one inside a
+    /// markdown link loses its separators to escaping.
+    /// </summary>
+    static string Evidence(TriageFilesDto files)
+    {
+        var builder = new StringBuilder();
+        builder.Append("\n## The files\n\n");
+        if (files.Files.Count == 0)
+        {
+            builder.Append(Nothing(files));
+        }
+        else
+        {
+            builder.Append($"Downloaded for this run and kept for {ArtifactStore.Retention.TotalHours:0} hours, so read them from disk rather than fetching anything.");
+            if (files.Files.Contains(ArtifactCollector.LogName))
+            {
+                builder.Append($" `{ArtifactCollector.LogName}` is the whole log, not the tail `get_build_log` returns.");
+            }
+
+            builder.Append("\n\n");
+            foreach (var file in files.Files)
+            {
+                builder.Append($"  {Join(files.Directory, file)}\n");
+            }
+
+            builder.Append("\nThat directory is a copy made for this triage. Nothing under `code:` was touched to make it, it is not part of the repository, and nothing in it should be committed. Unpack anything you need inside it rather than in the checkout.\n");
+        }
+
+        builder.Append(Left(files));
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Joined on the separator the directory already uses rather than the host's. The store writes
+    /// host native paths, so in the running app the two agree; using <see cref="Path.Combine"/>
+    /// would additionally make this text depend on which machine rendered it, which for a pure
+    /// projection verified as text means a snapshot that only holds on one platform.
+    /// </summary>
+    static string Join(string directory, string file)
+    {
+        var separator = directory.LastIndexOfAny(['/', '\\']);
+        if (separator < 0)
+        {
+            return $"{directory}{Path.DirectorySeparatorChar}{file}";
+        }
+
+        return $"{directory}{directory[separator]}{file}";
+    }
+
+    /// <summary>
+    /// Says which kind of nothing it is. A service nobody could ask is not a build that published
+    /// none, and an assistant told the second stops looking for evidence that may well exist.
+    /// </summary>
+    static string Nothing(TriageFilesDto files)
+    {
+        if (files.Unsupported is { Length: > 0 } unsupported)
+        {
+            return $"{unsupported}, and the run has no log, so there is nothing on disk for it.\n";
+        }
+
+        return "This run published no artifacts and has no log, so there is nothing on disk for it. Work from the build's page and the checkout below.\n";
+    }
+
+    /// <summary>
+    /// What was left behind, named with its size. Same rule as <see cref="SkippedNote"/>: a list
+    /// that quietly drops the one file an assistant is looking for reads as a run that never
+    /// published it, and an assistant that believes that stops looking.
+    /// </summary>
+    static string Left(TriageFilesDto files)
+    {
+        var builder = new StringBuilder();
+        if (files is {Unsupported: { Length: > 0 } unsupported, Files.Count: > 0})
+        {
+            builder.Append($"\n{unsupported}, so the list above is the log alone rather than everything the run produced.\n");
+        }
+
+        if (files.Skipped.Count == 0)
+        {
+            return builder.ToString();
+        }
+
+        builder.Append($"\n{(files.Skipped.Count == 1 ? "One artifact was" : $"{files.Skipped.Count} artifacts were")} left out:\n\n");
+        foreach (var skipped in files.Skipped)
+        {
+            builder.Append($"- `{skipped.Name}`: {skipped.Reason}\n");
+        }
+
+        builder.Append("\nFetch any of those from the run's page if the log points at it.\n");
+        return builder.ToString();
+    }
+
+    static string Steps(TriageFilesDto files, bool fix)
+    {
+        var builder = new StringBuilder();
+        var step = 1;
+        if (files.Files.Count > 0)
+        {
+            builder.Append($"{step++}. Read the files above, starting with the log, then whatever it points at.\n");
+        }
+
+        builder.Append($"{step++}. Reproduce the failure from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead.\n");
+        builder.Append($"{step}. {Fixing(fix, "it", "")}");
+        builder.Append("\nWhere it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.");
+        return builder.ToString();
+    }
+
+    /// <summary>
     /// The answer every user gets until they set a code directory, so it names the option rather
     /// than reporting that there is nothing to do, which would read as a clean build list.
     /// </summary>
@@ -171,15 +307,23 @@ static class TriagePrompt
     static string Procedure(bool fix)
     {
         var builder = new StringBuilder();
-        builder.Append("1. Read each build's log with `get_build_log`, taking the key from its entry above.\n");
+        builder.Append("1. Read each build's log with `get_build_log`, taking the key from its entry above. Where a log points at a file the run published, such as a test report, a coverage file or a crash dump, call `download_build_artifacts` for that build and read it from the directory that comes back.\n");
         builder.Append("2. Group the failures by what the logs actually say before investigating any of them. Repositories failing on one shared workflow, action, dependency or template are one fix, not several, and the pipeline groupings above are only a guess at that.\n");
         builder.Append("3. Work each group from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead. Reproduce the failure before deciding what it is.\n");
-        builder.Append(fix
-            ? "4. Fix each group where you reproduced it, and run that project's tests. Leave the changes uncommitted, say where they are so the user can review them, and do not commit, push or open a pull request.\n"
-            : "4. Report what you found per group, with the fix you would make. Do not change any source files.\n");
+        builder.Append($"4. {Fixing(fix, "each group", " per group")}");
         builder.Append("\nWhere a group turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.");
         return builder.ToString();
     }
+
+    /// <summary>
+    /// The one step that decides whether an assistant edits the user's files, shared by both
+    /// prompts so the sentence that authorises a change cannot come to mean two different things
+    /// depending on which of them was read.
+    /// </summary>
+    static string Fixing(bool fix, string subject, string per) =>
+        fix
+            ? $"Fix {subject} where you reproduced it, and run that project's tests. Leave the changes uncommitted, say where they are so the user can review them, and do not commit, push or open a pull request.\n"
+            : $"Report what you found{per}, with the fix you would make. Do not change any source files.\n";
 
     /// <summary>
     /// Named rather than dropped: a list that silently answers for some of the failures reads as

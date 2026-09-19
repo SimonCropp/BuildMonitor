@@ -46,6 +46,13 @@ sealed class BuildTools(MonitorTools tools)
         Cancel cancel = default) =>
         tools.GetLog(key, maxLines, cancel);
 
+    [McpServerTool(Name = "download_build_artifacts", Idempotent = true, UseStructuredContent = true)]
+    [Description("Downloads a failed build's artifacts to a local directory and writes its whole log beside them as log.txt, then returns that directory and what is in it. Read the files from disk with your own file tools: no content comes back through this call, and log.txt is the entire log where get_build_log returns only the end of each section. Artifacts too large to copy are named but not downloaded, and a service whose artifacts BuildMonitor cannot list says so rather than reporting that the build published none. The files are deleted after 24 hours. Can take a while on a large artifact.")]
+    public Task<TriageFilesDto> DownloadBuildArtifacts(
+        [Description("The build key from list_builds. The build must have failed.")] string key,
+        Cancel cancel = default) =>
+        tools.DownloadArtifacts(key, cancel);
+
     [McpServerTool(Name = "summary", ReadOnly = true, UseStructuredContent = true)]
     [Description("Counts of failing and running builds, the tray icon state, and the health of every connection.")]
     public Task<SummaryDto> Summary(Cancel cancel = default) =>

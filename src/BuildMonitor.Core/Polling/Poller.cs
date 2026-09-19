@@ -108,6 +108,34 @@ sealed class Poller(
         return Providers.Get(connection.ProviderId).FetchLog(Context(connection), build, token);
     }
 
+    /// <summary>
+    /// Runs <paramref name="work"/> against the provider and a context for the build's connection.
+    /// Collecting artifacts is a listing and then a download each, and one context for all of them
+    /// costs one client rather than one per file.
+    /// </summary>
+    public Task<T> WithProvider<T>(Build build, Func<IProvider, ProviderContext, Task<T>> work)
+    {
+        var connection = Connection(build.ConnectionId);
+        return work(Providers.Get(connection.ProviderId), Context(connection));
+    }
+
+    /// <summary>
+    /// <see cref="WithProvider{T}"/> for work that answers nothing, so a caller that only writes
+    /// files does not have to invent a return value for it.
+    /// </summary>
+    public Task WithProvider(Build build, Func<IProvider, ProviderContext, Task> work)
+    {
+        var connection = Connection(build.ConnectionId);
+        return work(Providers.Get(connection.ProviderId), Context(connection));
+    }
+
+    /// <summary>
+    /// What the build's service is called, for a message that has to say which of them could not
+    /// be asked for something.
+    /// </summary>
+    public ProviderDescriptor Descriptor(Build build) =>
+        ProviderDescriptors.Get(Connection(build.ConnectionId).ProviderId);
+
     public Task<ConnectionTest> Test(Connection connection, string? token, Cancel cancelToken) =>
         Providers.Get(connection.ProviderId).Test(Context(connection, token), cancelToken);
 

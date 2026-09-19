@@ -12,6 +12,9 @@ record MonitorActions(
     Action<Build> Cancel,
     // Fetches a failed build's log, which arrives on the clipboard through the state.
     Action<Build> CopyLog,
+    // Downloads a failed build's artifacts and writes its log beside them, then puts a prompt
+    // naming the checkout and those files on the clipboard, through the state as CopyLog does.
+    Action<Build> Triage,
     Action<Connection, AuthMethod, Guid> SignIn,
     Action<Guid> CancelSignIn,
     // The draft connection and the token typed for it, or null to use the stored one.
@@ -42,6 +45,7 @@ record MonitorActions(
         _ => throw new InvalidOperationException("Retry"),
         _ => throw new InvalidOperationException("Cancel"),
         _ => throw new InvalidOperationException("CopyLog"),
+        _ => throw new InvalidOperationException("Triage"),
         (_, _, _) => throw new InvalidOperationException("SignIn"),
         _ => throw new InvalidOperationException("CancelSignIn"),
         (_, _) => throw new InvalidOperationException("Test"),

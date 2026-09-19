@@ -21,5 +21,10 @@ enum ChipKind
     Project = 7,
     // Opens the local checkout of the build's repository in the file manager. Only on a row whose
     // repository was found under the code directory, so it is the one chip a poll cannot add.
-    OpenDirectory = 8
+    OpenDirectory = 8,
+
+    // Downloads the build's artifacts and its log to a local directory and copies a prompt naming
+    // both. Only on a failed row whose repository was found under the code directory, so like
+    // OpenDirectory it is not a chip a poll on its own can add.
+    Triage = 9
 }

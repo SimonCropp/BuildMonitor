@@ -218,6 +218,76 @@ public class AzureDevOpsProviderTests
         ]);
     }
 
+    /// <summary>
+    /// The size sits in a property the documented schema does not mention, so an artifact whose
+    /// resource does not carry it is listed with no size rather than with a zero one.
+    /// </summary>
+    [Test]
+    public async Task ListArtifactsReadsTheUndocumentedSize()
+    {
+        var handler = Handler()
+            .Get(
+                $"{organization}/Web/_apis/build/builds/300/artifacts?api-version=7.1",
+                """
+                {"count":2,"value":[
+                  {"id":1,"name":"drop","resource":{"type":"Container","properties":{"artifactsize":"2048"}}},
+                  {"id":2,"name":"logs","resource":{"type":"PipelineArtifact","properties":{}}}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        handler.Requests.Clear();
+        var artifacts = await ProviderTestHelpers.Provider("azure-devops").ListArtifacts(context, builds.Single(_ => _.RunNumber == "20260101.2"), Cancel.None);
+        await Verify(new
+            {
+                artifacts,
+                handler.Requests
+            })
+            .Snapshot(
+                $$"""
+                  {
+                    artifacts: [
+                      {
+                        Id: drop,
+                        Name: drop.zip,
+                        Bytes: 2048
+                      },
+                      {
+                        Id: logs,
+                        Name: logs.zip
+                      }
+                    ],
+                    Requests: [
+                      GET {{organization}}/Web/_apis/build/builds/300/artifacts?api-version=7.1
+                    ]
+                  }
+                  """);
+    }
+
+    /// <summary>
+    /// Through the connection's own address rather than the resource's downloadUrl, which points
+    /// at a separate artifacts host where the handler drops the credential.
+    /// </summary>
+    [Test]
+    public async Task DownloadAnArtifactAsAZip()
+    {
+        var handler = Handler()
+            .MapBytes("GET", $"{organization}/Web/_apis/build/builds/300/artifacts?artifactName=drop&$format=zip&api-version=7.1", [.. "PK"u8]);
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        handler.Requests.Clear();
+        using var destination = new MemoryStream();
+        var written = await ProviderTestHelpers.Provider("azure-devops").DownloadArtifact(
+            context,
+            builds.Single(_ => _.RunNumber == "20260101.2"),
+            new("drop", "drop.zip", 2),
+            destination,
+            ArtifactPlan.DefaultPerFile,
+            Cancel.None);
+        await Assert.That(written).IsEqualTo(2);
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {organization}/Web/_apis/build/builds/300/artifacts?artifactName=drop&$format=zip&api-version=7.1");
+    }
+
     [Test]
     public async Task AJobThatFailedWithNoFailedTaskGivesItsOwnLog()
     {

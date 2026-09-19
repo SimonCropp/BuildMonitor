@@ -19,7 +19,7 @@ public class LocalServerTests
         var opened = new List<string>();
         var windows = new List<WindowCommand>();
         var cancel = new CancelSource();
-        var listening = server!.Listen(new MessageHandler(host, poller, opened.Add, windows.Add, () => Fixtures.Now).Handle, cancel.Token);
+        var listening = server!.Listen(new MessageHandler(host, poller, opened.Add, windows.Add, new(), () => Fixtures.Now).Handle, cancel.Token);
         return (server, new(server.Port), host, opened, windows, poller, listening, cancel);
     }
 

@@ -40,6 +40,15 @@ static class RowChips
             chips.Add(new(ChipKind.OpenDirectory, "Open dir"));
         }
 
+        // Both halves, through the same two lookups the click goes through: a log is only worth
+        // fetching for a failure, and without a checkout there is nowhere for the prompt to send
+        // an assistant once it has the files.
+        if (build.LogCopyable() &&
+            LocalRepos.Find(localRepos, build) is not null)
+        {
+            chips.Add(new(ChipKind.Triage, "Triage"));
+        }
+
         return chips;
     }
 
@@ -54,6 +63,7 @@ static class RowChips
             ChipKind.CopyLog => CommandKind.CopyLog,
             ChipKind.Project => CommandKind.OpenProject,
             ChipKind.OpenDirectory => CommandKind.OpenRepoDirectory,
+            ChipKind.Triage => CommandKind.Triage,
             _ => CommandKind.None
         };
 }

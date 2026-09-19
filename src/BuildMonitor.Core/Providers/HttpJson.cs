@@ -12,6 +12,19 @@
 /// </summary>
 sealed class HttpJson : IDisposable
 {
+    /// <summary>
+    /// How long a call is given. Azure DevOps delays a throttled request by up to thirty seconds
+    /// before answering it, and a thirty second limit turned that delay into an error.
+    /// <para>
+    /// Armed per call rather than through <see cref="HttpClient.Timeout"/>, which is a deadline for
+    /// the whole exchange: under <see cref="HttpCompletionOption.ResponseHeadersRead"/> it stays
+    /// armed while the body is read, so a file that takes longer than this to arrive fails however
+    /// fast it is arriving. A download re-arms its deadline as each chunk lands, which is what lets
+    /// this mean "nothing arrived for 75 seconds" there rather than "it took 75 seconds".
+    /// </para>
+    /// </summary>
+    static readonly TimeSpan requestTimeout = TimeSpan.FromSeconds(75);
+
     HttpClient client;
     ETagCache cache;
     RateBudget? budget;
@@ -31,9 +44,9 @@ sealed class HttpJson : IDisposable
         client = new(handler, disposeHandler: false)
         {
             BaseAddress = baseAddress,
-            // Azure DevOps delays a throttled request by up to thirty seconds before answering it,
-            // and a thirty second timeout turned that delay into an error.
-            Timeout = TimeSpan.FromSeconds(75)
+            // The deadline is each call's, through Deadline, so that a download can hold one open
+            // for as long as bytes keep arriving. See requestTimeout.
+            Timeout = Timeout.InfiniteTimeSpan
         };
         var defaultHeaders = client.DefaultRequestHeaders;
         defaultHeaders.UserAgent.ParseAdd("BuildMonitor");
@@ -58,8 +71,13 @@ sealed class HttpJson : IDisposable
     public bool IsCached(string path) =>
         cache.Contains(Resolve(path).ToString());
 
-    public Task<T> Get<T>(string path, JsonTypeInfo<T> info, Cancel cancel) =>
-        GetParsed(path, json: true, (content, token) => Deserialize(content, info, path, token), cancel);
+    /// <summary>
+    /// <paramref name="accept"/> replaces the JSON the client asks for otherwise, for a route that
+    /// answers JSON but refuses the Accept an API route wants: GoCD serves its artifact listing
+    /// from the file routes, which 404 anything but a type they know.
+    /// </summary>
+    public Task<T> Get<T>(string path, JsonTypeInfo<T> info, Cancel cancel, string? accept = null) =>
+        GetParsed(path, json: true, (content, token) => Deserialize(content, info, path, token), cancel, accept);
 
     public Task<string> GetText(string path, Cancel cancel) =>
         GetParsed(path, json: false, (content, token) => content.ReadAsStringAsync(token), cancel);
@@ -72,8 +90,9 @@ sealed class HttpJson : IDisposable
     public async Task<string?> GetHeader(string path, string name, Cancel cancel)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        using var response = await Exchange(request, HttpCompletionOption.ResponseHeadersRead, cancel);
-        await Throw(response, Resolve(path), cancel);
+        using var deadline = Deadline(cancel);
+        using var response = await Exchange(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
+        await Throw(response, Resolve(path), deadline.Token);
         if (!response.Headers.TryGetValues(name, out var values))
         {
             return null;
@@ -97,10 +116,66 @@ sealed class HttpJson : IDisposable
             request.Headers.Accept.ParseAdd(accept);
         }
 
-        using var response = await Exchange(request, HttpCompletionOption.ResponseHeadersRead, cancel);
-        await Throw(response, Resolve(path), cancel);
-        await ThrowIfHtml(response, "a log", cancel);
-        return await response.Content.ReadAsStringAsync(cancel);
+        using var deadline = Deadline(cancel);
+        using var response = await Exchange(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
+        await Throw(response, Resolve(path), deadline.Token);
+        await ThrowIfHtml(response, "a log", deadline.Token);
+        return await response.Content.ReadAsStringAsync(deadline.Token);
+    }
+
+    /// <summary>
+    /// A file, copied to <paramref name="destination"/> as it arrives rather than read into memory:
+    /// an artifact runs to hundreds of megabytes, and a tray holding one would be paged out before
+    /// it finished. Never cached, as a log is not. <paramref name="accept"/> replaces the JSON the
+    /// client asks for otherwise, which a file endpoint answers with a 406, or with a description of
+    /// the file in place of the file. A web page is refused where a file was expected, because a
+    /// sign in page saved as a zip is worse than an error.
+    /// <para>
+    /// Stops at <paramref name="maxBytes"/> rather than filling a disk with a build output nobody
+    /// asked for. A declared length over the limit is refused before a byte is read; a service that
+    /// declares none, as Jenkins does, is caught while copying instead. Returns the bytes written.
+    /// </para>
+    /// </summary>
+    public async Task<long> Download(string path, Stream destination, long maxBytes, Cancel cancel, string? accept = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        // Always replaced, unlike a log's, which may keep the default: the client asks for JSON, and
+        // a file endpoint that honours that answers with a description of the file, not the file.
+        request.Headers.Accept.ParseAdd(accept ?? "*/*");
+        using var deadline = Deadline(cancel);
+        using var response = await Exchange(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
+        await Throw(response, Resolve(path), deadline.Token);
+        await ThrowIfHtml(response, "a file", deadline.Token);
+        if (response.Content.Headers.ContentLength is { } declared &&
+            declared > maxBytes)
+        {
+            throw new ArtifactTooLargeException(declared, maxBytes);
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token);
+        // What Stream.CopyTo uses, and under the 85,000 bytes that would put it on the large object
+        // heap for the life of the download.
+        var buffer = new byte[81920];
+        var total = 0L;
+        while (true)
+        {
+            var read = await stream.ReadAsync(buffer, deadline.Token);
+            if (read == 0)
+            {
+                return total;
+            }
+
+            total += read;
+            if (total > maxBytes)
+            {
+                throw new ArtifactTooLargeException(null, maxBytes);
+            }
+
+            await destination.WriteAsync(buffer.AsMemory(0, read), deadline.Token);
+            // Pushed out as each chunk lands, so the deadline means "nothing arrived for 75 seconds"
+            // rather than "the file took 75 seconds", which no large artifact would survive.
+            deadline.CancelAfter(requestTimeout);
+        }
     }
 
     /// <summary>
@@ -108,9 +183,14 @@ sealed class HttpJson : IDisposable
     /// parsing again. A value of another type counts as nothing cached, and a body is kept only once
     /// it has parsed, so a 304 never answers for one that did not.
     /// </summary>
-    async Task<T> GetParsed<T>(string path, bool json, Func<HttpContent, Cancel, Task<T>> parse, Cancel cancel)
+    async Task<T> GetParsed<T>(string path, bool json, Func<HttpContent, Cancel, Task<T>> parse, Cancel cancel, string? accept = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        if (accept is not null)
+        {
+            request.Headers.Accept.ParseAdd(accept);
+        }
+
         var requested = Resolve(path);
         var key = requested.ToString();
         var cached = cache.TryGet(key, out var entry) &&
@@ -120,20 +200,21 @@ sealed class HttpJson : IDisposable
             request.Headers.TryAddWithoutValidation("If-None-Match", entry.ETag);
         }
 
-        using var response = await Exchange(request, HttpCompletionOption.ResponseHeadersRead, cancel);
+        using var deadline = Deadline(cancel);
+        using var response = await Exchange(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
         if (response.StatusCode == HttpStatusCode.NotModified &&
             cached)
         {
             return (T) entry.Value;
         }
 
-        await Throw(response, requested, cancel);
+        await Throw(response, requested, deadline.Token);
         if (json)
         {
-            await ThrowIfHtml(response, "JSON", cancel);
+            await ThrowIfHtml(response, "JSON", deadline.Token);
         }
 
-        var value = await parse(response.Content, cancel);
+        var value = await parse(response.Content, deadline.Token);
         var etag = response.Headers.ETag?.ToString();
         if (etag is not null)
         {
@@ -149,10 +230,11 @@ sealed class HttpJson : IDisposable
         {
             Content = content
         };
-        using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, cancel);
-        await Throw(response, Resolve(path), cancel);
-        await ThrowIfHtml(response, "JSON", cancel);
-        return await Deserialize(response.Content, info, path, cancel);
+        using var deadline = Deadline(cancel);
+        using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, deadline.Token);
+        await Throw(response, Resolve(path), deadline.Token);
+        await ThrowIfHtml(response, "JSON", deadline.Token);
+        return await Deserialize(response.Content, info, path, deadline.Token);
     }
 
     public async Task Send(HttpMethod method, string path, HttpContent? content, Cancel cancel, IEnumerable<KeyValuePair<string, string>>? headers = null)
@@ -169,8 +251,9 @@ sealed class HttpJson : IDisposable
             }
         }
 
-        using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, cancel);
-        await Throw(response, Resolve(path), cancel);
+        using var deadline = Deadline(cancel);
+        using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, deadline.Token);
+        await Throw(response, Resolve(path), deadline.Token);
     }
 
     /// <summary>
@@ -191,7 +274,8 @@ sealed class HttpJson : IDisposable
             }
         }
 
-        using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, cancel);
+        using var deadline = Deadline(cancel);
+        using var response = await Exchange(request, HttpCompletionOption.ResponseContentRead, deadline.Token);
         var requested = Resolve(path);
         if (response.StatusCode is
                 HttpStatusCode.Unauthorized or
@@ -199,7 +283,7 @@ sealed class HttpJson : IDisposable
                 HttpStatusCode.TooManyRequests ||
             SignInPage(response, requested))
         {
-            await Throw(response, requested, cancel);
+            await Throw(response, requested, deadline.Token);
         }
 
         return response.StatusCode;
@@ -210,6 +294,18 @@ sealed class HttpJson : IDisposable
 
     public static StringContent Json(string body) =>
         new(body, Encoding.UTF8, "application/json");
+
+    /// <summary>
+    /// The token a call runs under: the caller's, with <see cref="requestTimeout"/> on top. Held by
+    /// the caller for as long as the response is, so the deadline still covers reading the body the
+    /// way <see cref="HttpClient.Timeout"/> did, and so a download can push it out per chunk.
+    /// </summary>
+    static CancelSource Deadline(Cancel cancel)
+    {
+        var deadline = CancelSource.CreateLinkedTokenSource(cancel);
+        deadline.CancelAfter(requestTimeout);
+        return deadline;
+    }
 
     async Task<HttpResponseMessage> Exchange(HttpRequestMessage request, HttpCompletionOption completion, Cancel cancel)
     {

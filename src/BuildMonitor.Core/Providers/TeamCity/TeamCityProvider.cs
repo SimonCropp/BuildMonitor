@@ -272,6 +272,50 @@ sealed class TeamCityProvider : ProviderBase
     public override Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel) =>
         context.Http.GetLog($"../../downloadBuildLog.html?buildId={Split(build)[1]}", cancel);
 
+    /// <summary>
+    /// How far into an artifact tree to look. A build that publishes into folders would otherwise
+    /// be listed as holding nothing, and a deep tree would cost a request per folder for files a
+    /// budget would not reach anyway.
+    /// </summary>
+    const int maxArtifactDepth = 2;
+
+    /// <summary>
+    /// The build's artifacts, walked a folder at a time. The listing is one level deep per call and
+    /// names the link to each folder's own level, so a tree is walked rather than asked for at once.
+    /// </summary>
+    public override async Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel)
+    {
+        var artifacts = new List<BuildArtifact>();
+        await Walk(context, $"builds/id:{Split(build)[1]}/artifacts/children", "", 0, artifacts, cancel);
+        return artifacts;
+    }
+
+    static async Task Walk(ProviderContext context, string path, string prefix, int depth, List<BuildArtifact> artifacts, Cancel cancel)
+    {
+        var listed = await context.Http.Get(
+            $"{path}?fields=file(name,size,content(href),children(href))",
+            TeamCityContext.Default.TeamCityArtifacts,
+            cancel);
+        foreach (var entry in listed.File)
+        {
+            var name = prefix.Length == 0 ? entry.Name : $"{prefix}/{entry.Name}";
+            if (entry.Content is { Href.Length: > 0 } content)
+            {
+                artifacts.Add(new(content.Href, name, entry.Size));
+                continue;
+            }
+
+            if (entry.Children is { Href.Length: > 0 } children &&
+                depth < maxArtifactDepth)
+            {
+                await Walk(context, children.Href, name, depth + 1, artifacts, cancel);
+            }
+        }
+    }
+
+    public override Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel) =>
+        context.Http.Download(artifact.Id, destination, maxBytes, cancel);
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var server = await context.Http.Get("server", TeamCityContext.Default.TeamCityServer, cancel);

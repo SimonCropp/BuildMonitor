@@ -184,6 +184,80 @@ public class GitHubProviderTests
     }
 
     [Test]
+    public async Task ListArtifactsOfARun()
+    {
+        var handler = Handler()
+            .Get(
+                "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs/499/artifacts?per_page=100&page=1",
+                """
+                {"total_count":3,"artifacts":[
+                  {"id":81,"name":"test-results","size_in_bytes":2048,"expired":false},
+                  {"id":82,"name":"coverage","size_in_bytes":4096,"expired":false},
+                  {"id":83,"name":"old-logs","size_in_bytes":512,"expired":true}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("github", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        handler.Requests.Clear();
+        var artifacts = await ProviderTestHelpers.Provider("github").ListArtifacts(context, builds.Single(_ => _.RunNumber == "1233"), Cancel.None);
+        await Verify(new
+            {
+                artifacts,
+                handler.Requests
+            })
+            .Snapshot(
+                """
+                {
+                  artifacts: [
+                    {
+                      Id: 81,
+                      Name: test-results.zip,
+                      Bytes: 2048
+                    },
+                    {
+                      Id: 82,
+                      Name: coverage.zip,
+                      Bytes: 4096
+                    },
+                    {
+                      Id: 83,
+                      Name: old-logs.zip,
+                      Bytes: 512,
+                      Unavailable: expired
+                    }
+                  ],
+                  Requests: [
+                    GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs/499/artifacts?per_page=100&page=1
+                  ]
+                }
+                """);
+    }
+
+    [Test]
+    public async Task DownloadAnArtifact()
+    {
+        var handler = Handler()
+            .MapBytes("GET", "https://api.github.com/repos/VerifyTests/DiffEngine/actions/artifacts/81/zip", [80, 75, 3, 4]);
+        var context = ProviderTestHelpers.Context("github", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        handler.Requests.Clear();
+        handler.RequestHeaders.Clear();
+        using var destination = new MemoryStream();
+        var written = await ProviderTestHelpers.Provider("github").DownloadArtifact(
+            context,
+            builds.Single(_ => _.RunNumber == "1233"),
+            new("81", "test-results.zip", 4),
+            destination,
+            ArtifactPlan.DefaultPerFile,
+            Cancel.None);
+        await Assert.That(written).IsEqualTo(4);
+        await Assert.That(destination.ToArray()).IsEquivalentTo(new byte[] {80, 75, 3, 4});
+        // Anything, so the redirect to blob storage is not refused over a content type.
+        await Assert.That(handler.RequestHeaders.Single().Accept.ToString()).IsEqualTo("*/*");
+        await Assert.That(handler.Requests).IsEquivalentTo(["GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/artifacts/81/zip"]);
+    }
+
+    [Test]
     public async Task OwnerScopeUsesTheOrganization()
     {
         var handler = new FakeHttpHandler()

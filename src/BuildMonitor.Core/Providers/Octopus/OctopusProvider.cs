@@ -144,7 +144,7 @@ sealed class OctopusProvider : ProviderBase
                 CanRetry: false,
                 CanCancel: status is BuildStatus.Running or BuildStatus.Queued &&
                            MayCancel(grants, item.ProjectId, item.EnvironmentId),
-                Join(item.TaskId, $"{spaceId}/tasks/rerun/{item.TaskId}", $"{spaceId}/tasks/{item.TaskId}/cancel", $"{spaceId}/tasks/{item.TaskId}/raw"),
+                Join(item.TaskId, $"{spaceId}/tasks/rerun/{item.TaskId}", $"{spaceId}/tasks/{item.TaskId}/cancel", $"{spaceId}/tasks/{item.TaskId}/raw", spaceId),
                 pipeline.Url));
         }
 
@@ -308,7 +308,7 @@ sealed class OctopusProvider : ProviderBase
             author,
             CanRetry: false,
             CanCancel: mayCancel && cancel is not null && status is BuildStatus.Running or BuildStatus.Queued,
-            Join(task.Id, rerun, cancel, task.Links?.Raw is { } raw ? Link(raw) : $"{spaceId}/tasks/{task.Id}/raw"),
+            Join(task.Id, rerun, cancel, task.Links?.Raw is { } raw ? Link(raw) : $"{spaceId}/tasks/{task.Id}/raw", spaceId),
             pipeline.Url);
     }
 
@@ -458,6 +458,32 @@ sealed class OctopusProvider : ProviderBase
     /// </summary>
     public override Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel) =>
         context.Http.GetLog(Split(build)[3], cancel, "application/octet-stream");
+
+    /// <summary>
+    /// The files the deployment task produced, from the task's own space.
+    /// <para>
+    /// The space is carried as its own part of the reference rather than read back out of one of
+    /// the links: the raw link is the server's own where it sent one and a composed path where it
+    /// did not, so the space could only be recovered from it by guessing at its shape.
+    /// </para>
+    /// </summary>
+    public override async Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var listed = await context.Http.Get(
+            $"{parts[4]}/artifacts?regarding={Encode(parts[0])}",
+            OctopusContext.Default.OctopusPageOctopusArtifact,
+            cancel);
+        return listed.Items
+            .Select(_ => new BuildArtifact(_.Id, _.Filename, null))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Asked for as a file, as the log is: the call can also answer in JSON.
+    /// </summary>
+    public override Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel) =>
+        context.Http.Download($"{Split(build)[4]}/artifacts/{Encode(artifact.Id)}/content", destination, maxBytes, cancel, "application/octet-stream");
 
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {

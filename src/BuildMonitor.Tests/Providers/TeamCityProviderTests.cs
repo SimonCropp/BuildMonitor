@@ -291,6 +291,81 @@ public class TeamCityProviderTests
         await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/downloadBuildLog.html?buildId=9000");
     }
 
+    /// <summary>
+    /// A build that published into folders is walked a level at a time, because the listing is one
+    /// level deep per call and names the link to each folder's own level.
+    /// </summary>
+    [Test]
+    public async Task ListArtifactsWalksFolders()
+    {
+        var handler = Handler()
+            .Get(
+                $"{server}/app/rest/builds/id:9000/artifacts/children?fields=file(name,size,content(href),children(href))",
+                """
+                {"count":2,"file":[
+                  {"name":"results.trx","size":2048,"content":{"href":"/app/rest/builds/id:9000/artifacts/content/results.trx"}},
+                  {"name":"reports","children":{"href":"/app/rest/builds/id:9000/artifacts/children/reports"}}
+                ]}
+                """)
+            .Get(
+                $"{server}/app/rest/builds/id:9000/artifacts/children/reports?fields=file(name,size,content(href),children(href))",
+                """
+                {"count":1,"file":[
+                  {"name":"coverage.xml","size":512,"content":{"href":"/app/rest/builds/id:9000/artifacts/content/reports/coverage.xml"}}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("teamcity", context);
+        handler.Requests.Clear();
+        var artifacts = await ProviderTestHelpers.Provider("teamcity").ListArtifacts(context, builds.Single(_ => _.RunNumber == "119"), Cancel.None);
+        await Verify(new
+            {
+                artifacts,
+                handler.Requests
+            })
+            .Snapshot(
+                $$"""
+                  {
+                    artifacts: [
+                      {
+                        Id: /app/rest/builds/id:9000/artifacts/content/results.trx,
+                        Name: results.trx,
+                        Bytes: 2048
+                      },
+                      {
+                        Id: /app/rest/builds/id:9000/artifacts/content/reports/coverage.xml,
+                        Name: reports/coverage.xml,
+                        Bytes: 512
+                      }
+                    ],
+                    Requests: [
+                      GET {{server}}/app/rest/builds/id:9000/artifacts/children?fields=file(name,size,content(href),children(href)),
+                      GET {{server}}/app/rest/builds/id:9000/artifacts/children/reports?fields=file(name,size,content(href),children(href))
+                    ]
+                  }
+                  """);
+    }
+
+    [Test]
+    public async Task DownloadAnArtifactFollowsTheContentLink()
+    {
+        var handler = Handler()
+            .MapBytes("GET", $"{server}/app/rest/builds/id:9000/artifacts/content/results.trx", "\t\t\t"u8.ToArray());
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("teamcity", context);
+        handler.Requests.Clear();
+        using var destination = new MemoryStream();
+        var written = await ProviderTestHelpers.Provider("teamcity").DownloadArtifact(
+            context,
+            builds.Single(_ => _.RunNumber == "119"),
+            new("/app/rest/builds/id:9000/artifacts/content/results.trx", "results.trx", 3),
+            destination,
+            ArtifactPlan.DefaultPerFile,
+            Cancel.None);
+        await Assert.That(written).IsEqualTo(3);
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/app/rest/builds/id:9000/artifacts/content/results.trx");
+    }
+
     [Test]
     [Arguments("20260101T120000+0000", "2026-01-01T12:00:00+00:00")]
     [Arguments("20260101T120000+0300", "2026-01-01T12:00:00+03:00")]

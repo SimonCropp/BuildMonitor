@@ -19,6 +19,8 @@ enum CommandKind
     OpenProject,
     CopyBuildUrl,
     CopyLog,
+    // Gathers a failed build's log and artifacts, then copies a prompt naming them.
+    Triage,
     Retry,
     Cancel,
     OpenRepoDirectory,

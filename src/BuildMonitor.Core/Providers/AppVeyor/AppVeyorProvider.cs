@@ -138,6 +138,47 @@ sealed class AppVeyorProvider : ProviderBase
         return Sections(logs);
     }
 
+    /// <summary>
+    /// How many of a build's jobs are asked for their artifacts. A wide matrix would otherwise cost
+    /// a request per leg for files the budget would never reach.
+    /// </summary>
+    const int maxArtifactJobs = 10;
+
+    /// <summary>
+    /// Every job's artifacts, not only the failed ones. In a matrix the leg that broke often
+    /// published nothing while a sibling holds the test report that says why, so listing only the
+    /// failures would hide the evidence.
+    /// <para>
+    /// Both routes go without the account prefix, as the log's do: a prefixed route answers with
+    /// the web app's HTML, which a download refuses rather than saving as a file.
+    /// </para>
+    /// </summary>
+    public override async Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel)
+    {
+        var version = Split(build)[1];
+        var detail = await context.Http.Get($"api/projects/{build.PipelineId}/build/{Encode(version)}", AppVeyorContext.Default.AppVeyorBuildDetail, cancel);
+        var artifacts = new List<BuildArtifact>();
+        foreach (var job in (detail.Build?.Jobs ?? []).Take(maxArtifactJobs))
+        {
+            var listed = await context.Http.Get($"api/buildjobs/{job.JobId}/artifacts", AppVeyorContext.Default.ListAppVeyorArtifact, cancel);
+            // The job id travels with the file name, because a download is addressed by both and a
+            // build's artifacts come from several jobs.
+            artifacts.AddRange(listed.Select(_ => new BuildArtifact($"{job.JobId}|{_.FileName}", _.FileName, _.Size)));
+        }
+
+        return artifacts;
+    }
+
+    public override Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel)
+    {
+        // The first separator only: a published file's name may hold one, and it belongs to the
+        // name rather than to the pair.
+        var separator = artifact.Id.IndexOf('|');
+        var job = artifact.Id[..separator];
+        var fileName = artifact.Id[(separator + 1)..];
+        return context.Http.Download($"api/buildjobs/{job}/artifacts/{EncodePath(fileName)}", destination, maxBytes, cancel);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var projects = await context.Http.Get($"{Prefix(context)}/projects", AppVeyorContext.Default.ListAppVeyorProject, cancel);

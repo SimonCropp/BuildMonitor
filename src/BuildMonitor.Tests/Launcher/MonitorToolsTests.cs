@@ -18,6 +18,7 @@ public class MonitorToolsTests
             _ =>
             {
             },
+            new(),
             () => Fixtures.Now);
         return (new(new InProcessClient(handler)), host, opened);
     }

@@ -381,6 +381,7 @@ ImVec4 ChipTextColour(int32_t kind) {
         case BM_CHIP_RETRY:
         case BM_CHIP_CANCEL:
         case BM_CHIP_COPY_LOG:
+        case BM_CHIP_TRIAGE:
             return text;
         default:
             return chipText;

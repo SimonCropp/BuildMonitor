@@ -127,6 +127,20 @@ The log of a build, fetched from the CI service: each failed job, step or task u
  * "Read the log of the failing build and fix the code that broke it."
 
 
+### `download_build_artifacts`
+
+Downloads a failed build's artifacts to a local directory and writes its whole log beside them as `log.txt`, then returns that directory and what is in it. Nothing comes back through the call itself: the assistant reads the files from disk with its own file tools.
+
+ * "Download the artifacts of the failing build and read the test report."
+ * "Get the crash dump from that run."
+
+The files go under the [app's own directory](#where-the-files-go), not the operating system's temp directory, and are deleted after 24 hours.
+
+A total of 50 MB is downloaded per build, at most 20 MB of any one file and at most 20 files, taking test reports, logs, approval output, screenshots and coverage before anything else, and smallest first within each of those. Anything left out is named with its size and the reason, so a report that was skipped is never mistaken for one that was never published. Jenkins reports no size for an artifact, so those are fetched under the per-file limit and stopped if they run past it.
+
+Bitbucket and Travis have no artifact API: Bitbucket does not expose a pipeline's artifacts, and Travis stores none of its own. For a build on either, the call answers with the log alone and says which service it could not ask, rather than reporting that the run published nothing.
+
+
 ### `summary`
 
 Counts of failing and running builds, the tray state, and each connection's health.
@@ -198,6 +212,19 @@ Claude Code splits a command's arguments on whitespace and binds them in order, 
 /mcp__buildmonitor__triage SdkCheck true
 /mcp__buildmonitor__triage * true
 ```
+
+The prompt does not download anything itself. It covers every failing build, so fetching artifacts up front would mean a download per row before the command answered, for builds the assistant then folds into one shared cause and never opens. It reads the logs first and calls [`download_build_artifacts`](#download_build_artifacts) for the builds whose logs point at a published file.
+
+The tray offers the same thing for one row: a **Triage** button on a failed build whose repository is checked out. It downloads that build's artifacts and log, then copies a prompt naming the checkout and each downloaded file, to paste into any assistant. Nothing needs to be connected to BuildMonitor for that prompt to be useful, since everything it refers to is already on disk.
+
+
+### Where the files go
+
+Downloads land beside the other per-user files, under `%LocalAppData%\BuildMonitor\artifacts` on Windows and `~/.local/share/BuildMonitor/artifacts` on macOS and Linux, or under `BuildMonitor_Home` where that is set. Each build gets its own directory, named after its repository and run.
+
+They are kept for 24 hours. The sweep runs when the tray starts and before each triage, so a directory left by a triage is cleared by the next one a day later, or by the next start. Nothing else writes there, and deleting the folder by hand is safe.
+
+A second triage of the same run replaces that run's directory rather than adding to it, so the file list always matches what the CI service has now. A retry is a different run and gets its own.
 
 
 ## Updating

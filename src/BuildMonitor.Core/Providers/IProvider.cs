@@ -36,6 +36,28 @@ interface IProvider
     Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel);
 
     /// <summary>
+    /// The files a build produced, as the service lists them. Nothing is downloaded: the names and
+    /// the sizes are what lets a budget be spent on the files most likely to say why the build
+    /// failed. Empty for a build that produced none, and for a service with no artifact API, which
+    /// <see cref="ProviderDescriptor.HasArtifacts"/> says before anything asks.
+    /// </summary>
+    Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel);
+
+    /// <summary>
+    /// One artifact, copied to <paramref name="destination"/> as it arrives rather than read into
+    /// memory: an artifact runs to hundreds of megabytes, and a tray holding one would be paged out
+    /// before it finished. Returns the bytes written, and throws
+    /// <see cref="ArtifactTooLargeException"/> past <paramref name="maxBytes"/>.
+    /// <para>
+    /// The provider composes the URL and nothing else. Where the file goes, and what it is safely
+    /// called, is the caller's: several services report a path here rather than a name, and
+    /// sanitising it once is the difference between one careful function and ten chances to write
+    /// outside the directory.
+    /// </para>
+    /// </summary>
+    Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel);
+
+    /// <summary>
     /// Proves the credential works, and says who it belongs to and what it may do when the API tells.
     /// </summary>
     Task<ConnectionTest> Test(ProviderContext context, Cancel cancel);

@@ -334,6 +334,40 @@ sealed class GitLabProvider : ProviderBase
         return Sections(logs);
     }
 
+    /// <summary>
+    /// The archives of the same failed jobs the log comes from. The job listing already carries
+    /// each archive's name and size, so listing costs one request and no guesswork about sizes.
+    /// <para>
+    /// Only the archive is offered. A job's other artifact types, its junit report and its
+    /// metadata, are reachable only by a path inside the archive, which the listing does not give,
+    /// and the archive holds them anyway.
+    /// </para>
+    /// </summary>
+    public override async Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var jobs = await context.Http.Get($"projects/{parts[0]}/pipelines/{parts[1]}/jobs?scope[]=failed&per_page=100", GitLabContext.Default.ListGitLabJob, cancel);
+        var now = DateTimeOffset.UtcNow;
+        return jobs
+            .Where(_ => !_.AllowFailure &&
+                        _.ArtifactsFile is { Filename.Length: > 0 })
+            .OrderBy(_ => _.Id)
+            .Select(_ => new BuildArtifact(
+                _.Id.ToString(),
+                // Named after the job, because every job calls its archive the same thing and a
+                // list of four artifacts.zip says nothing about which stage broke.
+                $"{_.Name}-{_.ArtifactsFile!.Filename}",
+                _.ArtifactsFile.Size,
+                _.ArtifactsExpireAt <= now ? "expired" : null))
+            .ToList();
+    }
+
+    public override Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel)
+    {
+        var parts = Split(build);
+        return context.Http.Download($"projects/{parts[0]}/jobs/{artifact.Id}/artifacts", destination, maxBytes, cancel);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("user", GitLabContext.Default.GitLabUser, cancel);

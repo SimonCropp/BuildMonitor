@@ -75,7 +75,10 @@ enum BmChipKind {
     BM_CHIP_PROJECT = 7,
     /* The local checkout of the build's repository, in the file manager. Drawn as the row icon
        registered under "folder" rather than as its label, which is only for the overflow menu. */
-    BM_CHIP_OPEN_DIRECTORY = 8
+    BM_CHIP_OPEN_DIRECTORY = 8,
+    /* Downloads the build's artifacts and log, and copies a prompt naming them. Drawn as its
+       label, so no glyph has to be registered for it. */
+    BM_CHIP_TRIAGE = 9
 };
 
 /* One button on a row. */

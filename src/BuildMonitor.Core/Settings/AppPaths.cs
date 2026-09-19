@@ -24,6 +24,14 @@ static class AppPaths
     public static string Secrets => Path.Combine(Directory, "secrets");
 
     /// <summary>
+    /// Build artifacts and logs downloaded for a triage. Here rather than in the operating system's
+    /// temp directory: these are files a prompt is about to name by path, and a cleaner that emptied
+    /// temp between the prompt being composed and an assistant reading it would leave every path in
+    /// that prompt naming nothing. <see cref="global::ArtifactStore"/> clears them instead.
+    /// </summary>
+    public static string Artifacts => Path.Combine(Directory, "artifacts");
+
+    /// <summary>
     /// What the update wrote about how it went, for <see cref="global::UpdateOutcome"/> to report.
     /// Here rather than in the log directory, which sits inside the installed version and so is
     /// deleted by the next update that works.

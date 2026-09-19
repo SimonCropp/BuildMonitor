@@ -368,6 +368,22 @@ static class Fixtures
     public static SessionState WithCodeDirectory() =>
         MonitorSession.ApplySettings(WithLocalRepos(), Settings() with { CodeDirectory = "/code" });
 
+    /// <summary>
+    /// Verify checked out as well, so the one failing row is also a row with a checkout. That is
+    /// the only shape that carries the triage chip, and no other fixture has it: adding Verify to
+    /// <see cref="LocalRepoIndex"/> instead would move every folder chip snapshot and both native
+    /// baselines, which only CI rasterisers can regenerate.
+    /// </summary>
+    public static SessionState WithTriageableFailure() =>
+        MonitorSession.ApplyLocalRepos(
+            WithBuilds(),
+            LocalRepos.Index(
+            [
+                new("/code/DiffEngine", "DiffEngine", "VerifyTests/DiffEngine"),
+                new("/code/build-all", "build-all", null),
+                new("/code/Verify", "Verify", "VerifyTests/Verify")
+            ]));
+
     public static ImmutableDictionary<string, string> LocalRepoIndex() =>
         LocalRepos.Index(
         [

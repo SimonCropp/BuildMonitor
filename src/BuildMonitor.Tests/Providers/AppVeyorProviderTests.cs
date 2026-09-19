@@ -90,6 +90,72 @@ public class AppVeyorProviderTests
         ]);
     }
 
+    /// <summary>
+    /// Every job's artifacts, not only the failed one's: in a matrix the leg that broke often
+    /// published nothing while a sibling holds the report that says why.
+    /// </summary>
+    [Test]
+    public async Task ListArtifactsCoversEveryJob()
+    {
+        var handler = Handler()
+            .Get(
+                "https://ci.appveyor.com/api/projects/simon/diffengine/build/1.0.44",
+                """
+                {"project":{"slug":"diffengine"},"build":{"buildId":99,"buildNumber":44,"version":"1.0.44","status":"failed","jobs":[
+                  {"jobId":"a1b2","name":"","status":"failed"},
+                  {"jobId":"c3d4","name":"Environment: docs","status":"success"}
+                ]}}
+                """)
+            .Get("https://ci.appveyor.com/api/buildjobs/a1b2/artifacts", "[]")
+            .Get("https://ci.appveyor.com/api/buildjobs/c3d4/artifacts", """[{"fileName":"results.trx","name":"results","type":"Auto","size":2048}]""");
+        var context = ProviderTestHelpers.Context("appveyor", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("appveyor", context);
+        handler.Requests.Clear();
+        var artifacts = await ProviderTestHelpers.Provider("appveyor").ListArtifacts(context, builds.Single(_ => _.RunNumber == "44"), Cancel.None);
+        await Verify(new
+            {
+                artifacts,
+                handler.Requests
+            })
+            .Snapshot(
+                """
+                {
+                  artifacts: [
+                    {
+                      Id: c3d4|results.trx,
+                      Name: results.trx,
+                      Bytes: 2048
+                    }
+                  ],
+                  Requests: [
+                    GET https://ci.appveyor.com/api/projects/simon/diffengine/build/1.0.44,
+                    GET https://ci.appveyor.com/api/buildjobs/a1b2/artifacts,
+                    GET https://ci.appveyor.com/api/buildjobs/c3d4/artifacts
+                  ]
+                }
+                """);
+    }
+
+    [Test]
+    public async Task DownloadAnArtifactTakesTheJobFromItsId()
+    {
+        var handler = Handler()
+            .MapBytes("GET", "https://ci.appveyor.com/api/buildjobs/c3d4/artifacts/results.trx", [1, 2, 3]);
+        var context = ProviderTestHelpers.Context("appveyor", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("appveyor", context);
+        handler.Requests.Clear();
+        using var destination = new MemoryStream();
+        var written = await ProviderTestHelpers.Provider("appveyor").DownloadArtifact(
+            context,
+            builds.Single(_ => _.RunNumber == "44"),
+            new("c3d4|results.trx", "results.trx", 3),
+            destination,
+            ArtifactPlan.DefaultPerFile,
+            Cancel.None);
+        await Assert.That(written).IsEqualTo(3);
+        await Assert.That(handler.Requests.Single()).IsEqualTo("GET https://ci.appveyor.com/api/buildjobs/c3d4/artifacts/results.trx");
+    }
+
     [Test]
     public async Task UserLevelTokenPrefixesOnlyCallsThatDoNotNameTheAccount()
     {

@@ -30,6 +30,17 @@ class FakeHttpHandler : HttpMessageHandler
         return this;
     }
 
+    /// <summary>
+    /// A file rather than text. <paramref name="declareLength"/> false sends no Content-Length, as
+    /// Jenkins does for an artifact: a download cannot weigh that one against its limit before it
+    /// starts, and has to hold to it while copying instead.
+    /// </summary>
+    public FakeHttpHandler MapBytes(string method, string url, byte[] body, string mediaType = "application/zip", bool declareLength = true)
+    {
+        responses[$"{method} {url}"] = new(HttpStatusCode.OK, "", [], mediaType, null, body, declareLength);
+        return this;
+    }
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, Cancel cancel)
     {
         var url = request.RequestUri!.ToString();
@@ -70,7 +81,7 @@ class FakeHttpHandler : HttpMessageHandler
         var message = new HttpResponseMessage(response.Status)
         {
             RequestMessage = response.LandedOn is null ? request : new(request.Method, response.LandedOn),
-            Content = new StringContent(response.Body, Encoding.UTF8, response.MediaType)
+            Content = Body(response)
         };
         foreach (var (name, value) in response.Headers)
         {
@@ -80,5 +91,63 @@ class FakeHttpHandler : HttpMessageHandler
         return message;
     }
 
-    record FakeResponse(HttpStatusCode Status, string Body, (string Name, string Value)[] Headers, string MediaType = "application/json", string? LandedOn = null);
+    static HttpContent Body(FakeResponse response)
+    {
+        if (response.Bytes is not { } bytes)
+        {
+            return new StringContent(response.Body, Encoding.UTF8, response.MediaType);
+        }
+
+        HttpContent content = response.DeclareLength
+            ? new ByteArrayContent(bytes)
+            : new StreamContent(new UnmeasuredStream(bytes));
+        content.Headers.ContentType = new(response.MediaType);
+        return content;
+    }
+
+    record FakeResponse(
+        HttpStatusCode Status,
+        string Body,
+        (string Name, string Value)[] Headers,
+        string MediaType = "application/json",
+        string? LandedOn = null,
+        byte[]? Bytes = null,
+        bool DeclareLength = true);
+
+    /// <summary>
+    /// A stream that refuses to say how long it is, so <see cref="StreamContent"/> computes no
+    /// Content-Length for it. A seekable stream would declare one, which is the case under test.
+    /// </summary>
+    sealed class UnmeasuredStream(byte[] bytes) :
+        Stream
+    {
+        MemoryStream inner = new(bytes);
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            inner.Read(buffer, offset, count);
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) =>
+            throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+    }
 }

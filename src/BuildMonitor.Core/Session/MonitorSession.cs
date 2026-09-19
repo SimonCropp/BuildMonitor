@@ -296,6 +296,12 @@ static class MonitorSession
                 items.Add(new("Copy log", CommandKind.CopyLog));
             }
 
+            if (build.LogCopyable() &&
+                LocalRepos.Find(state.LocalRepos, build) is not null)
+            {
+                items.Add(new("Triage", CommandKind.Triage));
+            }
+
             if (build.Retryable())
             {
                 items.Add(new("Retry", CommandKind.Retry));

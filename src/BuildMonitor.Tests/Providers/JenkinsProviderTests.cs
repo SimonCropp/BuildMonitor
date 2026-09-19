@@ -255,6 +255,76 @@ public class JenkinsProviderTests
         await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/job/team/job/app/job/PR-12/3/consoleText");
     }
 
+    /// <summary>
+    /// Jenkins reports no size for an artifact, so every one is listed without one and held to the
+    /// per file cap while it copies instead.
+    /// </summary>
+    [Test]
+    public async Task ListArtifactsHasNoSizes()
+    {
+        var handler = Handler()
+            .Get(
+                $"{server}/job/team/job/app/job/PR-12/3/api/json?tree=artifacts[fileName,relativePath]",
+                """
+                {"artifacts":[
+                  {"displayPath":"results.trx","fileName":"results.trx","relativePath":"tests/results.trx"},
+                  {"displayPath":"app.jar","fileName":"app.jar","relativePath":"target/app.jar"}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("jenkins", handler, server, "simon");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("jenkins", context);
+        handler.Requests.Clear();
+        var artifacts = await ProviderTestHelpers.Provider("jenkins").ListArtifacts(context, builds.Single(_ => _.RunNumber == "3"), Cancel.None);
+        await Verify(new
+            {
+                artifacts,
+                handler.Requests
+            })
+            .Snapshot(
+                """
+                {
+                  artifacts: [
+                    {
+                      Id: tests/results.trx,
+                      Name: tests/results.trx
+                    },
+                    {
+                      Id: target/app.jar,
+                      Name: target/app.jar
+                    }
+                  ],
+                  Requests: [
+                    GET https://jenkins.example.com/job/team/job/app/job/PR-12/3/api/json?tree=artifacts[fileName,relativePath]
+                  ]
+                }
+                """);
+    }
+
+    /// <summary>
+    /// A segment at a time. A hash in an archived file's name has to be escaped or the rest of the
+    /// path reads as a fragment and the request asks for the wrong file, while the separators that
+    /// make it a path must survive as separators.
+    /// </summary>
+    [Test]
+    public async Task DownloadAnArtifactEscapesEachSegment()
+    {
+        var handler = Handler()
+            .MapBytes("GET", $"{server}/job/team/job/app/job/PR-12/3/artifact/test%231/results.trx", [1, 2]);
+        var context = ProviderTestHelpers.Context("jenkins", handler, server, "simon");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("jenkins", context);
+        handler.Requests.Clear();
+        using var destination = new MemoryStream();
+        var written = await ProviderTestHelpers.Provider("jenkins").DownloadArtifact(
+            context,
+            builds.Single(_ => _.RunNumber == "3"),
+            new("test#1/results.trx", "test#1/results.trx", null),
+            destination,
+            ArtifactPlan.DefaultPerFile,
+            Cancel.None);
+        await Assert.That(written).IsEqualTo(2);
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/job/team/job/app/job/PR-12/3/artifact/test%231/results.trx");
+    }
+
     [Test]
     public async Task UsesBasicAuthWithTheUser()
     {

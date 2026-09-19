@@ -275,6 +275,41 @@ sealed class AzureDevOpsProvider : ProviderBase
         return Sections(logs);
     }
 
+    /// <summary>
+    /// The build's published artifacts, each fetched as a zip whatever kind it is.
+    /// <para>
+    /// The size comes from a property the documented schema does not mention, so an artifact whose
+    /// resource does not carry it is listed with no size and held to the per file cap instead.
+    /// </para>
+    /// </summary>
+    public override async Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var listed = await context.Http.Get(
+            $"{Encode(parts[0])}/_apis/build/builds/{parts[1]}/artifacts?{apiVersion}",
+            AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsArtifact,
+            cancel);
+        return listed.Value
+            // The name is what the download is asked for by, so it is the id as well as the label.
+            .Select(_ => new BuildArtifact(_.Name, $"{_.Name}.zip", _.Bytes()))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Through the connection's own address with <c>$format=zip</c> rather than the resource's
+    /// downloadUrl, which points at a separate artifacts host where the handler drops the
+    /// credential and the request is refused.
+    /// </summary>
+    public override Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel)
+    {
+        var parts = Split(build);
+        return context.Http.Download(
+            $"{Encode(parts[0])}/_apis/build/builds/{parts[1]}/artifacts?artifactName={Encode(artifact.Id)}&$format=zip&{apiVersion}",
+            destination,
+            maxBytes,
+            cancel);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var projects = await context.Http.Get($"_apis/projects?{apiVersion}&$top=100", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, cancel);

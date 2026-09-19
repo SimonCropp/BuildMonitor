@@ -263,6 +263,57 @@ sealed class GoCdProvider : ProviderBase
         return Sections(logs);
     }
 
+    /// <summary>
+    /// The artifacts of the failed jobs of the failed stages, from the same file routes the console
+    /// comes from. The listing accepts anything for the same reason the console does: GoCD answers
+    /// an Accept it does not serve with a 404, and these routes do not serve the API's own type.
+    /// <para>
+    /// Everything under <c>cruise-output</c> is left out. That is where the console log lives, and
+    /// the triage already has it as the build's log.
+    /// </para>
+    /// </summary>
+    public override async Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var pipeline = Encode(parts[0]);
+        var instance = await context.Http.Get($"pipelines/{pipeline}/{parts[1]}", GoCdContext.Default.GoCdInstance, cancel);
+        var artifacts = new List<BuildArtifact>();
+        foreach (var stage in instance.Stages.Where(_ => _.Result == "Failed"))
+        {
+            foreach (var job in stage.Jobs.Where(_ => _.Result == "Failed"))
+            {
+                var path = $"../files/{pipeline}/{parts[1]}/{Encode(stage.Name)}/{stage.Counter}/{Encode(job.Name)}.json";
+                var listed = await context.Http.Get(path, GoCdContext.Default.ListGoCdArtifactEntry, cancel, "*/*");
+                Collect(listed, $"{stage.Name}/{job.Name}", artifacts);
+            }
+        }
+
+        return artifacts;
+    }
+
+    static void Collect(IEnumerable<GoCdArtifactEntry> entries, string prefix, List<BuildArtifact> artifacts)
+    {
+        foreach (var entry in entries)
+        {
+            if (entry.Name == "cruise-output")
+            {
+                continue;
+            }
+
+            var name = $"{prefix}/{entry.Name}";
+            if (entry.Url is { Length: > 0 } url)
+            {
+                artifacts.Add(new(url, name, entry.Size));
+                continue;
+            }
+
+            Collect(entry.Files, name, artifacts);
+        }
+    }
+
+    public override Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel) =>
+        context.Http.Download(artifact.Id, destination, maxBytes, cancel, "*/*");
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("current_user", GoCdContext.Default.GoCdUser, cancel);

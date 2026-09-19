@@ -63,7 +63,30 @@ record SummaryDto(
     string Status,
     IReadOnlyList<ConnectionDto> ConnectionHealth);
 
+/// <summary>
+/// What a triage collected for one build: where the files are, and what did not make it.
+/// <para>
+/// Paths rather than bytes. The protocol base64s a whole message into one line and buffers it on
+/// both sides, so an archive through it would sit in memory twice and expanded; whoever asked reads
+/// the files from disk instead.
+/// </para>
+/// </summary>
+record TriageFilesDto(
+    // The directory holding them all, absolute and in the platform's own form. Empty when the build
+    // had neither a log nor an artifact, so nothing was written.
+    string Directory,
+    // File names inside Directory, log.txt first where the build had a log.
+    IReadOnlyList<string> Files,
+    IReadOnlyList<SkippedArtifactDto> Skipped,
+    // Why there are no artifacts, where the reason is not that the build published none: absent
+    // when the service was asked and answered. An assistant must not read "none" off a service
+    // nobody could ask.
+    string? Unsupported = null);
+
+record SkippedArtifactDto(string Name, long? Bytes, string Reason);
+
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(TriageFilesDto))]
 [JsonSerializable(typeof(BuildDto))]
 [JsonSerializable(typeof(List<BuildDto>))]
 [JsonSerializable(typeof(List<ConnectionDto>))]

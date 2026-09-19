@@ -326,6 +326,21 @@ public class SessionTests
         await Assert.That(state.Menu.Row).IsEqualTo(row);
     }
 
+    /// <summary>
+    /// A failing row with a checkout carries five chips, more than the column reserves room for, so
+    /// triage is reached through the drop down. It is last in the chip order on purpose, being the
+    /// most expensive action on the row, and this pins that losing the column still offers it.
+    /// </summary>
+    [Test]
+    public async Task TheOverflowOffersTriage()
+    {
+        var builds = Fixtures.WithTriageableFailure();
+        var row = Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
+        var state = MonitorSession.OpenOverflow(builds, row, ChipKind.CopyLog);
+        await Assert.That(state.Menu!.Items.Select(_ => $"{_.Label} {_.Command}"))
+            .IsEquivalentTo(["Log CopyLog", "Open dir OpenRepoDirectory", "Triage Triage"]);
+    }
+
     [Test]
     public async Task TheOverflowLeavesOutAChipTheBuildLost()
     {

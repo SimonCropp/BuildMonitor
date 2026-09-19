@@ -111,6 +111,81 @@ public class GoCdProviderTests
     }
 
     /// <summary>
+    /// The whole tree arrives in one response, so folders are walked without further requests.
+    /// cruise-output is left out: that is the console, which the triage already has as the log.
+    /// </summary>
+    [Test]
+    public async Task ListArtifactsLeavesOutTheConsole()
+    {
+        var handler = Handler()
+            .Get(
+                $"{server}/go/api/pipelines/web/41",
+                """{"name":"web","counter":41,"stages":[{"name":"build","counter":"1","result":"Passed","jobs":[{"name":"compile","result":"Passed"}]},{"name":"test","counter":"2","result":"Failed","jobs":[{"name":"unit","result":"Failed"},{"name":"lint","result":"Passed"}]}]}""")
+            .Get(
+                $"{server}/go/files/web/41/test/2/unit.json",
+                """
+                [
+                  {"name":"cruise-output","type":"folder","files":[{"name":"console.log","type":"file","url":"https://go.example.com/go/files/web/41/test/2/unit/cruise-output/console.log","size":900}]},
+                  {"name":"results.xml","type":"file","url":"https://go.example.com/go/files/web/41/test/2/unit/results.xml","size":2048},
+                  {"name":"reports","type":"folder","files":[{"name":"coverage.xml","type":"file","url":"https://go.example.com/go/files/web/41/test/2/unit/reports/coverage.xml","size":512}]}
+                ]
+                """);
+        var context = ProviderTestHelpers.Context("gocd", handler, server);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gocd", context);
+        handler.Requests.Clear();
+        var artifacts = await ProviderTestHelpers.Provider("gocd").ListArtifacts(context, builds.Single(_ => _.RunNumber == "41"), Cancel.None);
+        await Assert.That(handler.RequestHeaders[^1].Accept.ToString()).IsEqualTo("*/*");
+        await Verify(new
+            {
+                artifacts,
+                handler.Requests
+            })
+            .Snapshot(
+                $$"""
+                  {
+                    artifacts: [
+                      {
+                        Id: https://go.example.com/go/files/web/41/test/2/unit/results.xml,
+                        Name: test/unit/results.xml,
+                        Bytes: 2048
+                      },
+                      {
+                        Id: https://go.example.com/go/files/web/41/test/2/unit/reports/coverage.xml,
+                        Name: test/unit/reports/coverage.xml,
+                        Bytes: 512
+                      }
+                    ],
+                    Requests: [
+                      GET {{server}}/go/api/pipelines/web/41,
+                      GET {{server}}/go/files/web/41/test/2/unit.json
+                    ]
+                  }
+                  """);
+    }
+
+    [Test]
+    public async Task DownloadAnArtifactAcceptsAnything()
+    {
+        var handler = Handler()
+            .MapBytes("GET", $"{server}/go/files/web/41/test/2/unit/results.xml", "<?"u8.ToArray());
+        var context = ProviderTestHelpers.Context("gocd", handler, server);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gocd", context);
+        handler.Requests.Clear();
+        handler.RequestHeaders.Clear();
+        using var destination = new MemoryStream();
+        var written = await ProviderTestHelpers.Provider("gocd").DownloadArtifact(
+            context,
+            builds.Single(_ => _.RunNumber == "41"),
+            new($"{server}/go/files/web/41/test/2/unit/results.xml", "test/unit/results.xml", 2),
+            destination,
+            ArtifactPlan.DefaultPerFile,
+            Cancel.None);
+        await Assert.That(written).IsEqualTo(2);
+        // GoCD answers an Accept it does not serve with a 404, so a file is asked for as anything.
+        await Assert.That(handler.RequestHeaders.Single().Accept.ToString()).IsEqualTo("*/*");
+    }
+
+    /// <summary>
     /// 42 is running its test stage, 41 failed it, and 40 passed, so a retry of 40 schedules the
     /// pipeline again, which needs its first stage.
     /// </summary>

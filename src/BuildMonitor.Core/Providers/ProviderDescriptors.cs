@@ -24,6 +24,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        HasArtifacts: true,
         // The name of a project is the source repository's, so the level above it is that
         // repository's owner rather than the AppVeyor account.
         OrgNoun: "owner",
@@ -50,6 +51,9 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        // Travis stores no artifacts. Its artifacts addon uploads to the user's own S3 bucket,
+        // which this has neither a credential for nor any way to enumerate.
+        HasArtifacts: false,
         OrgNoun: "owner",
         FetchConcurrency: Concurrently.Limit,
         // The probe fetches a repository whose last started build changed at once, so a quiet one
@@ -74,6 +78,7 @@ static class ProviderDescriptors
         HasEstimate: true,
         HasBranches: true,
         HasPullRequests: false,
+        HasArtifacts: true,
         TokenNote: "Create the token at {server}/me/security.",
         // Fewer than the hosted services get: a self hosted server may be a small one.
         FetchConcurrency: 4,
@@ -100,6 +105,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        HasArtifacts: true,
         OrgNoun: "org",
         TokenNote: "A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.",
         FetchUnit: FetchUnit.Repository,
@@ -128,6 +134,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        HasArtifacts: true,
         TokenNote: "The token needs Build (Read & execute).",
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
@@ -161,6 +168,7 @@ static class ProviderDescriptors
         HasEstimate: true,
         HasBranches: true,
         HasPullRequests: false,
+        HasArtifacts: true,
         TokenNote: "Create the token under Profile, Access Tokens.",
         FetchUnit: FetchUnit.Group,
         // Fewer than the hosted services get: a self hosted server may be a small one.
@@ -188,6 +196,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        HasArtifacts: true,
         // A project's name is its full path, so a nested project's org is the top level group
         // rather than the subgroup it sits in, and excluding one takes every subgroup with it.
         OrgNoun: "group",
@@ -215,6 +224,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: false,
         HasPullRequests: false,
+        HasArtifacts: true,
         TokenNote: "Create the token at {server}/go/access_tokens.",
         // Fewer than the hosted services get: a self hosted server may be a small one.
         FetchConcurrency: 4,
@@ -241,6 +251,10 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
+        // Bitbucket does not expose a pipeline's artifacts over its API. The documented way to keep
+        // one is to push it into the repository's downloads, which is a repository wide file store
+        // with no link back to the run that made it, so a file there cannot be attributed to a build.
+        HasArtifacts: false,
         OrgNoun: "workspace",
         TokenNote: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.",
         FetchConcurrency: Concurrently.Limit,
@@ -269,6 +283,7 @@ static class ProviderDescriptors
         HasEstimate: true,
         HasBranches: false,
         HasPullRequests: false,
+        HasArtifacts: true,
         FetchUnit: FetchUnit.Connection,
         ActionPermission: "the TaskCancel permission in the space");
 

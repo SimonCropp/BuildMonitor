@@ -125,12 +125,19 @@ static class MonitorProgram
         using var cancel = new CancelSource();
         var poller = new Poller(host, secrets, history, handler, new(secrets, handler));
         using var repos = new LocalRepoWatcher(host);
-        var actions = RealActions.Create(host, poller, repos, secrets, signIn, runAtLogin);
+        // One store for the chip and the protocol alike: its record of what is being written is
+        // per instance, and a second one could sweep away a bundle the first was still filling.
+        var artifacts = new ArtifactStore();
+        var actions = RealActions.Create(host, poller, repos, artifacts, secrets, signIn, runAtLogin);
         poller.Start();
         // Scans off the loop's thread, so a code directory on a slow or absent network share
         // delays the checkouts being found rather than the window appearing.
         repos.Sync(settings.CodeDirectory);
-        var listening = server.Listen(new MessageHandler(host, poller, LinkLauncher.OpenUrl, windowCommands.Enqueue).Handle, cancel.Token);
+        // Off the loop's thread for the same reason, and once at startup because a triage is the
+        // only thing that fills the directory and the only thing that has to find it small.
+        // ReSharper disable once MethodSupportsCancellation
+        _ = Task.Run(artifacts.Sweep);
+        var listening = server.Listen(new MessageHandler(host, poller, LinkLauncher.OpenUrl, windowCommands.Enqueue, artifacts).Handle, cancel.Token);
 
         try
         {

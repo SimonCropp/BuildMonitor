@@ -206,7 +206,7 @@ static class AsciiRenderer
     /// Links bare and actions bracketed, as the pixel heads colour the two apart.
     /// </summary>
     static string ChipText(RowChip chip) =>
-        chip.Kind is ChipKind.Retry or ChipKind.Cancel or ChipKind.CopyLog or ChipKind.OpenDirectory
+        chip.Kind is ChipKind.Retry or ChipKind.Cancel or ChipKind.CopyLog or ChipKind.OpenDirectory or ChipKind.Triage
             ? $"[{chip.Label}]"
             : chip.Label;
 

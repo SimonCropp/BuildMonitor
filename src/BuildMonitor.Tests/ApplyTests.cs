@@ -415,6 +415,67 @@ public class ApplyTests
     }
 
     [Test]
+    public async Task ClickingTheTriageChipCollectsTheBuild()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithTriageableFailure();
+        var row = FailedRow(builds);
+        var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.Triage), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["Triage gh/Verify/test.yml/feature/inline"]);
+        await Assert.That(state.Status).IsEqualTo("Collecting test.yml #77 for triage");
+    }
+
+    /// <summary>
+    /// Both halves of the gate, because each on its own leaves the prompt with nothing to say: no
+    /// checkout and there is nowhere to send an assistant, no failure and there is nothing to read.
+    /// </summary>
+    [Test]
+    public async Task ThereIsNoTriageChipWithoutBothAFailureAndACheckout()
+    {
+        var withCheckout = Fixtures.WithTriageableFailure();
+        var green = MonitorSession.SelectedBuild(MonitorSession.SelectRow(withCheckout, RunningRow(withCheckout)))!;
+        await Assert.That(RowChips.Of(green, withCheckout.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
+
+        var noCheckout = Fixtures.WithLocalRepos();
+        var failed = MonitorSession.SelectedBuild(MonitorSession.SelectRow(noCheckout, FailedRow(noCheckout)))!;
+        await Assert.That(RowChips.Of(failed, noCheckout.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
+    }
+
+    /// <summary>
+    /// A poll between the frame being drawn and the click landing can have finished the build
+    /// green or taken the checkout away, so the applier checks again rather than trusting the chip.
+    /// </summary>
+    [Test]
+    public async Task AStaleTriageClickOnARowWithNoCheckoutDoesNothing()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithLocalRepos();
+        var state = Apply(builds, new(ClickedChipRow: FailedRow(builds), ClickedChip: ChipKind.Triage), actions);
+        await Assert.That(actions.Calls).IsEmpty();
+        await Assert.That(state.Status).IsEqualTo(builds.Status);
+    }
+
+    /// <summary>
+    /// A group's row stands for its members, so it cannot say whose artifacts to download. The
+    /// applier already refuses every chip but the folder on a group row; this pins that it covers
+    /// the triage chip too.
+    /// </summary>
+    [Test]
+    public async Task AGroupRowRefusesATriageClick()
+    {
+        var actions = new RecordingActions();
+        var grouped = MonitorSession.ApplyLocalRepos(
+            Fixtures.WithFailedGroup(),
+            LocalRepos.Index([new("/code/Verify", "Verify", "VerifyTests/Verify")]));
+        var row = Fixtures.RowOf(grouped, _ => _.Kind == RowKind.Group);
+        var chips = ScreenBuilder.Build(grouped, Fixtures.Now).Builds!.Rows[row].Chips;
+        await Assert.That(chips.Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
+
+        Apply(grouped, new(ClickedChipRow: row, ClickedChip: ChipKind.Triage), actions);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    [Test]
     public async Task BrowsingPutsTheChosenDirectoryInTheField()
     {
         var window = new FakeWindow { Picked = "/code" };

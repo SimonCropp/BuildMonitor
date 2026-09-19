@@ -33,6 +33,21 @@ public class ScreenTests
     public Task LocalReposNarrow() =>
         Verify(Fixtures.Render(MonitorSession.Resize(Fixtures.WithLocalRepos(), 80, 30)));
 
+    /// <summary>
+    /// The failing row also has a checkout, which is the only shape that carries the triage chip.
+    /// Its own fixture rather than a change to the folder one, so every other chip snapshot and
+    /// both native baselines stay where they are.
+    /// <para>
+    /// That row ends up carrying five chips, more than the chip column reserves room for, so the
+    /// last of them are drawn as the drop down. Triage is last in the chip order on purpose: it is
+    /// the most expensive thing on the row, so it is the right one to lose first.
+    /// <see cref="SessionTests"/> covers the drop down itself offering it.
+    /// </para>
+    /// </summary>
+    [Test]
+    public Task Triage() =>
+        Verify(Fixtures.Render(Fixtures.WithTriageableFailure()));
+
     [Test]
     public async Task ProgressIsDroppedWhenThePollEnds()
     {

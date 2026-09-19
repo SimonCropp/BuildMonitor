@@ -2,7 +2,7 @@
 /// Answers the socket. Reads go straight to the state; actions go through the poller, which
 /// is what the window's own retry does, so the two cannot disagree.
 /// </summary>
-sealed class MessageHandler(SessionHost host, Poller poller, Action<string> openUrl, Action<WindowCommand> window, Func<DateTimeOffset>? clock = null)
+sealed class MessageHandler(SessionHost host, Poller poller, Action<string> openUrl, Action<WindowCommand> window, ArtifactStore artifacts, Func<DateTimeOffset>? clock = null)
 {
     public async Task<Response> Handle(Message message)
     {
@@ -129,6 +129,26 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 }
 
                 return Response.Success(LogTail.Take(log, Lines(message.Body)));
+            }
+            case Verb.Triage:
+            {
+                var build = state.Builds.FirstOrDefault(_ => _.HasKey(message.Key));
+                if (build is null)
+                {
+                    return Response.Error($"No build with key {message.Key}");
+                }
+
+                if (!build.LogCopyable())
+                {
+                    return Response.Error("That build did not fail, so there is nothing to collect");
+                }
+
+                // Unlike the chip, this does not ask for a local checkout. The chip's promise is to
+                // triage the code the user has here; a tool may be asked for a test report on a
+                // build nobody has cloned, and the prompt already handles a build with no directory.
+                artifacts.Sweep();
+                var files = await ArtifactCollector.Collect(artifacts, poller, build, Cancel.None);
+                return Response.Success(JsonSerializer.Serialize(files, DtoContext.Default.TriageFilesDto));
             }
             default:
                 return Response.Error($"Unknown verb {message.Verb}");

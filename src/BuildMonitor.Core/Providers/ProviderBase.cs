@@ -24,6 +24,18 @@ abstract class ProviderBase : IProvider
 
     public abstract Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel);
 
+    /// <summary>
+    /// Virtual rather than abstract, unlike <see cref="FetchLog"/>, because two of the services do
+    /// not have artifacts to list: Bitbucket does not expose a run's artifacts over its API at all,
+    /// and Travis stores none. Their descriptors say so with
+    /// <see cref="ProviderDescriptor.HasArtifacts"/>, and nothing asks them.
+    /// </summary>
+    public virtual Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel) =>
+        Task.FromResult<IReadOnlyList<BuildArtifact>>([]);
+
+    public virtual Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel) =>
+        throw new NotSupportedException($"{Descriptor.Name} has no artifacts to download");
+
     public abstract Task<ConnectionTest> Test(ProviderContext context, Cancel cancel);
 
     public virtual Task<BuildAccess> Access(ProviderContext context, Cancel cancel) =>
@@ -51,6 +63,15 @@ abstract class ProviderBase : IProvider
 
     protected static string Encode(string value) =>
         Uri.EscapeDataString(value);
+
+    /// <summary>
+    /// A path escaped a segment at a time, so a space or a hash in an artifact's name survives
+    /// while the separators that make it a path stay separators. Escaping the whole string would
+    /// turn a nested artifact's path into one segment with slashes in its name, which no server
+    /// has a file at.
+    /// </summary>
+    protected static string EncodePath(string path) =>
+        string.Join('/', path.Split('/').Select(Encode));
 
     /// <summary>
     /// The pieces a <see cref="Build.ProviderRef"/> was composed from.

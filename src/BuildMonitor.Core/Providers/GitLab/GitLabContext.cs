@@ -3,6 +3,7 @@
 [JsonSerializable(typeof(List<GitLabPipeline>))]
 [JsonSerializable(typeof(GitLabPipeline))]
 [JsonSerializable(typeof(List<GitLabJob>))]
+[JsonSerializable(typeof(GitLabArtifactsFile))]
 [JsonSerializable(typeof(GitLabUser))]
 [JsonSerializable(typeof(GitLabToken))]
 [JsonSerializable(typeof(GitLabTokenInfo))]

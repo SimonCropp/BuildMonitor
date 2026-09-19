@@ -329,6 +329,35 @@ sealed class JenkinsProvider : ProviderBase
         return context.Http.GetLog($"{parts[0]}{parts[1]}/consoleText", cancel);
     }
 
+    /// <summary>
+    /// What the build archived, each file on its own rather than the build's <c>archive.zip</c>,
+    /// which is every artifact in one download. With no size to weigh, one blob that could be
+    /// anything from a kilobyte to a gigabyte is the single thing a budget cannot plan around.
+    /// <para>
+    /// Jenkins reports no artifact size in its API, so each is listed without one and held to the
+    /// per file cap while it copies instead.
+    /// </para>
+    /// </summary>
+    public override async Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var listed = await context.Http.Get(
+            $"{parts[0]}{parts[1]}/api/json?tree=artifacts[fileName,relativePath]",
+            JenkinsContext.Default.JenkinsArtifacts,
+            cancel);
+        return listed.Artifacts
+            // The relative path rather than the file name: two modules archiving a results file
+            // each call it the same thing, and only the path says which module it came from.
+            .Select(_ => new BuildArtifact(_.RelativePath, _.RelativePath, null))
+            .ToList();
+    }
+
+    public override Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel)
+    {
+        var parts = Split(build);
+        return context.Http.Download($"{parts[0]}{parts[1]}/artifact/{EncodePath(artifact.Id)}", destination, maxBytes, cancel);
+    }
+
     static Task<HttpStatusCode> Post(ProviderContext context, string path, JenkinsCrumb? crumb, Cancel cancel)
     {
         List<KeyValuePair<string, string>> headers = [];

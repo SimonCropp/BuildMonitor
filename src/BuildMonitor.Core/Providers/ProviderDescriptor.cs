@@ -50,6 +50,7 @@ record ProviderDescriptor(
     bool HasEstimate,
     bool HasBranches,
     bool HasPullRequests,
+    bool HasArtifacts,
     string? OrgNoun = null,
     bool CustomClientId = false,
     string? TokenNote = null,

@@ -319,6 +319,7 @@ final class BuildsRenderer {
         case BM_CHIP_RETRY.rawValue: return (Palette.retryChip, Palette.text)
         case BM_CHIP_CANCEL.rawValue: return (Palette.cancelChip, Palette.text)
         case BM_CHIP_COPY_LOG.rawValue: return (Palette.chip, Palette.text)
+        case BM_CHIP_TRIAGE.rawValue: return (Palette.chip, Palette.text)
         default: return (Palette.chip, Palette.chipText)
         }
     }

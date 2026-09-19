@@ -187,6 +187,66 @@ public class OctopusProviderTests
         await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/api/Spaces-1/tasks/ServerTasks-99/raw");
     }
 
+    /// <summary>
+    /// From the task's own space, which the reference carries as its own part: the raw link it
+    /// would otherwise be read out of is the server's where it sent one and a composed path where
+    /// it did not, so its shape cannot be relied on.
+    /// </summary>
+    [Test]
+    public async Task ListArtifactsFromTheTasksSpace()
+    {
+        var handler = Handler()
+            .Get(
+                $"{server}/api/Spaces-1/artifacts?regarding=ServerTasks-99",
+                """{"Items":[{"Id":"Artifacts-1","Filename":"report.html"}],"TotalResults":1}""");
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
+        handler.Requests.Clear();
+        var artifacts = await ProviderTestHelpers.Provider("octopus").ListArtifacts(context, builds.Single(_ => _.Branch == "Staging"), Cancel.None);
+        await Verify(new
+            {
+                artifacts,
+                handler.Requests
+            })
+            .Snapshot(
+                $$"""
+                  {
+                    artifacts: [
+                      {
+                        Id: Artifacts-1,
+                        Name: report.html
+                      }
+                    ],
+                    Requests: [
+                      GET {{server}}/api/Spaces-1/artifacts?regarding=ServerTasks-99
+                    ]
+                  }
+                  """);
+    }
+
+    [Test]
+    public async Task DownloadAnArtifactAsAFile()
+    {
+        var handler = Handler()
+            .MapBytes("GET", $"{server}/api/Spaces-1/artifacts/Artifacts-1/content", "<h"u8.ToArray());
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
+        handler.Requests.Clear();
+        handler.RequestHeaders.Clear();
+        using var destination = new MemoryStream();
+        var written = await ProviderTestHelpers.Provider("octopus").DownloadArtifact(
+            context,
+            builds.Single(_ => _.Branch == "Staging"),
+            new("Artifacts-1", "report.html", null),
+            destination,
+            ArtifactPlan.DefaultPerFile,
+            Cancel.None);
+        await Assert.That(written).IsEqualTo(2);
+        // As a file, because the call can also answer in JSON.
+        await Assert.That(handler.RequestHeaders.Single().Accept.ToString()).IsEqualTo("application/octet-stream");
+        await Assert.That(handler.Requests.Single()).IsEqualTo($"GET {server}/api/Spaces-1/artifacts/Artifacts-1/content");
+    }
+
     [Test]
     public async Task NamedSpaceIsUsed()
     {

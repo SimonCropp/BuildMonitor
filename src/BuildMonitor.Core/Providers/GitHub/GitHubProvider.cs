@@ -379,6 +379,50 @@ sealed class GitHubProvider : ProviderBase
         return Sections(logs);
     }
 
+    /// <summary>
+    /// Every artifact the run uploaded. GitHub serves each as a zip whatever went into it, so the
+    /// name it lists gains the extension the saved file will actually have.
+    /// <para>
+    /// An artifact past its retention is still listed, marked expired, and answers a download with
+    /// a 410. It is carried as unavailable rather than left out, so a prompt can say the evidence
+    /// existed and is gone rather than reading as a run that published nothing.
+    /// </para>
+    /// </summary>
+    public override async Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        var artifacts = new List<BuildArtifact>();
+        for (var page = 1; page <= maxPages; page++)
+        {
+            var listed = await context.Http.Get(
+                $"repos/{parts[0]}/actions/runs/{parts[1]}/artifacts?per_page=100&page={page}",
+                GitHubContext.Default.GitHubArtifacts,
+                cancel);
+            artifacts.AddRange(listed.Artifacts.Select(_ => new BuildArtifact(
+                _.Id.ToString(),
+                $"{_.Name}.zip",
+                _.SizeInBytes,
+                _.Expired ? "expired" : null)));
+            if (listed.Artifacts.Count < 100)
+            {
+                break;
+            }
+        }
+
+        return artifacts;
+    }
+
+    /// <summary>
+    /// The zip redirects to storage that carries its own signature in the URL, which the handler
+    /// follows without the Authorization header. That is what makes it work rather than a problem
+    /// to solve: the blob store refuses a credential it does not know.
+    /// </summary>
+    public override Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel)
+    {
+        var parts = Split(build);
+        return context.Http.Download($"repos/{parts[0]}/actions/artifacts/{artifact.Id}/zip", destination, maxBytes, cancel);
+    }
+
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("user", GitHubContext.Default.GitHubUser, cancel);

@@ -168,6 +168,76 @@ public class GitLabProviderTests
         ]);
     }
 
+    /// <summary>
+    /// The archives come from the same job listing the log reads, so a pipeline's artifacts cost
+    /// one request and their sizes come free with it.
+    /// </summary>
+    [Test]
+    public async Task ListArtifactsComesFromTheJobListing()
+    {
+        var handler = Handler()
+            .Get(
+                "https://gitlab.com/api/v4/projects/77/pipelines/5000/jobs?scope[]=failed&per_page=100",
+                """
+                [
+                  {"id":903,"name":"lint","stage":"test","allow_failure":true,"artifacts_file":{"filename":"artifacts.zip","size":11}},
+                  {"id":902,"name":"unit","stage":"test","allow_failure":false,"artifacts_file":{"filename":"artifacts.zip","size":2048}},
+                  {"id":904,"name":"old","stage":"test","allow_failure":false,"artifacts_file":{"filename":"artifacts.zip","size":99},"artifacts_expire_at":"2020-01-01T00:00:00Z"},
+                  {"id":905,"name":"nothing","stage":"test","allow_failure":false}
+                ]
+                """);
+        var context = ProviderTestHelpers.Context("gitlab", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        handler.Requests.Clear();
+        var artifacts = await ProviderTestHelpers.Provider("gitlab").ListArtifacts(context, builds.Single(_ => _.RunNumber == "119"), Cancel.None);
+        await Verify(new
+            {
+                artifacts,
+                handler.Requests
+            })
+            .Snapshot(
+                """
+                {
+                  artifacts: [
+                    {
+                      Id: 902,
+                      Name: unit-artifacts.zip,
+                      Bytes: 2048
+                    },
+                    {
+                      Id: 904,
+                      Name: old-artifacts.zip,
+                      Bytes: 99,
+                      Unavailable: expired
+                    }
+                  ],
+                  Requests: [
+                    GET https://gitlab.com/api/v4/projects/77/pipelines/5000/jobs?scope[]=failed&per_page=100
+                  ]
+                }
+                """);
+    }
+
+    [Test]
+    public async Task DownloadAnArtifact()
+    {
+        var handler = Handler()
+            .MapBytes("GET", "https://gitlab.com/api/v4/projects/77/jobs/902/artifacts", [80, 75, 5, 6]);
+        var context = ProviderTestHelpers.Context("gitlab", handler);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        handler.Requests.Clear();
+        using var destination = new MemoryStream();
+        var written = await ProviderTestHelpers.Provider("gitlab").DownloadArtifact(
+            context,
+            builds.Single(_ => _.RunNumber == "119"),
+            new("902", "unit-artifacts.zip", 4),
+            destination,
+            ArtifactPlan.DefaultPerFile,
+            Cancel.None);
+        await Assert.That(written).IsEqualTo(4);
+        await Assert.That(handler.Requests.Single()).IsEqualTo("GET https://gitlab.com/api/v4/projects/77/jobs/902/artifacts");
+    }
+
     [Test]
     public async Task GroupScopeAndSelfHosted()
     {
