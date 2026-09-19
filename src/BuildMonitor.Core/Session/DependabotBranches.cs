@@ -1,14 +1,20 @@
 /// <summary>
-/// What a row, a failure notification and the status verb call a Dependabot branch: the name without
-/// the ecosystem Dependabot puts second, so dependabot/nuget/src/Foo-1.0 reads dependabot/src/Foo-1.0.
-/// The package already says which ecosystem it is, and the segment widened the column for every
-/// Dependabot row. Only a known ecosystem is dropped, not whatever comes second: a multi-ecosystem
-/// group puts its group name or target branch there, a branch name template can put anything there,
-/// and the name would lose it.
+/// What a row, a failure notification and the status verb call a Dependabot branch: a robot and the
+/// package and version, so dependabot/nuget/src/Foo-1.0 reads 🤖 Foo-1.0. The prefix, the
+/// ecosystem and the manifest's directory say nothing the package and version do not, and they
+/// widened the column for every Dependabot row. The robot stands in for the prefix that went: without
+/// it a row would claim a person pushed a branch called Foo-1.0.
+/// <para>
+/// Shortened only where the segment after the prefix is a known ecosystem, since that is what makes
+/// the rest of the name Dependabot's own layout: a multi-ecosystem group puts its group name or target
+/// branch there and a branch name template can put anything there, and a name cut down to its last
+/// segment would lose the only part that identifies them.
+/// </para>
 /// </summary>
 static class DependabotBranches
 {
     const string prefix = "dependabot/";
+    const string robot = "🤖";
 
     /// <summary>
     /// Both spellings, since GitHub's Dependabot writes the package manager (npm_and_yarn, go_modules)
@@ -65,18 +71,28 @@ static class DependabotBranches
 
     public static string Short(string branch)
     {
-        if (!branch.StartsWith(prefix, StringComparison.Ordinal))
+        if (!Is(branch))
         {
             return branch;
+        }
+
+        return $"{robot} {branch[(branch.LastIndexOf('/') + 1)..]}";
+    }
+
+    /// <summary>
+    /// Whether the name is one Dependabot laid out, which is the same question as whether anything
+    /// may be cut off it: the robot stands for exactly the prefix that is dropped, so a branch that
+    /// keeps its full name must not carry one either.
+    /// </summary>
+    static bool Is(string branch)
+    {
+        if (!branch.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
         }
 
         var end = branch.IndexOf('/', prefix.Length);
-        if (end < 0 ||
-            !ecosystems.Contains(branch[prefix.Length..end].Replace('-', '_')))
-        {
-            return branch;
-        }
-
-        return prefix + branch[(end + 1)..];
+        return end >= 0 &&
+               ecosystems.Contains(branch[prefix.Length..end].Replace('-', '_'));
     }
 }

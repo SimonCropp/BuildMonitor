@@ -14,7 +14,7 @@ public class NotificationTests
     [Test]
     public async Task ADependabotBranchLeavesOutTheEcosystem() =>
         await Assert.That(Fixtures.WithDependabotFailure().Notification)
-            .IsEqualTo(new("build.yml failed", "VerifyTests/Reports dependabot/src/Polyfill-9.1.0 #9"));
+            .IsEqualTo(new("build.yml failed", "VerifyTests/Reports 🤖 Polyfill-9.1.0 #9"));
 
     [Test]
     public async Task AnAlreadyFailedBuildIsNotAnnouncedAgain()

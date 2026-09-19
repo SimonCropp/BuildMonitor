@@ -1,16 +1,16 @@
 public class DependabotBranchesTests
 {
     [Test]
-    [Arguments("dependabot/nuget/src/Syncfusion.XlsIO.Net.Core-31.1.17", "dependabot/src/Syncfusion.XlsIO.Net.Core-31.1.17")]
-    [Arguments("dependabot/github_actions/actions/checkout-5", "dependabot/actions/checkout-5")]
-    [Arguments("dependabot/npm_and_yarn/next/eslint-bb065a57ed", "dependabot/next/eslint-bb065a57ed")]
+    [Arguments("dependabot/nuget/src/Syncfusion.XlsIO.Net.Core-31.1.17", "🤖 Syncfusion.XlsIO.Net.Core-31.1.17")]
+    [Arguments("dependabot/github_actions/actions/checkout-5", "🤖 checkout-5")]
+    [Arguments("dependabot/npm_and_yarn/next/eslint-bb065a57ed", "🤖 eslint-bb065a57ed")]
     // The Azure DevOps extension's dependabot.yml spellings
-    [Arguments("dependabot/github-actions/main/actions/checkout-5", "dependabot/main/actions/checkout-5")]
-    [Arguments("dependabot/gomod/golang.org/x/net-0.30.0", "dependabot/golang.org/x/net-0.30.0")]
+    [Arguments("dependabot/github-actions/main/actions/checkout-5", "🤖 checkout-5")]
+    [Arguments("dependabot/gomod/golang.org/x/net-0.30.0", "🤖 net-0.30.0")]
     // The word-separator and branch-name-case options
-    [Arguments("dependabot/npm-and-yarn/lodash-4.17.21", "dependabot/lodash-4.17.21")]
-    [Arguments("dependabot/NUGET/SRC/SYNCFUSION.XLSIO-31.1.17", "dependabot/SRC/SYNCFUSION.XLSIO-31.1.17")]
-    public async Task DropsTheEcosystem(string branch, string expected) =>
+    [Arguments("dependabot/npm-and-yarn/lodash-4.17.21", "🤖 lodash-4.17.21")]
+    [Arguments("dependabot/NUGET/SRC/SYNCFUSION.XLSIO-31.1.17", "🤖 SYNCFUSION.XLSIO-31.1.17")]
+    public async Task KeepsThePackageAndVersionAlone(string branch, string expected) =>
         await Assert.That(DependabotBranches.Short(branch)).IsEqualTo(expected);
 
     [Test]

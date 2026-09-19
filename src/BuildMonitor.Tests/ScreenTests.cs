@@ -165,14 +165,23 @@ public class ScreenTests
         link == ChipKind.None ? text : $"[{text}]({link})";
 
     [Test]
-    public async Task DependabotBranchesDropTheEcosystem()
+    public async Task DependabotBranchesAreARobotAndThePackage()
     {
         var state = Fixtures.WithDependabotFailure();
         await Assert.That(DetailsOf(MonitorSession.Search(state, "polyfill")))
-            .IsEqualTo("Reports | build.yml dependabot/src/Polyfill-9.1.0");
-        // The filter box matches the name the row shows, so the ecosystem no longer finds the row.
+            .IsEqualTo("Reports | build.yml 🤖 Polyfill-9.1.0");
+        // The filter box matches the name the row shows, so neither the ecosystem nor the prefix
+        // the robot stands for finds the row any more.
         await Assert.That(DetailsOf(MonitorSession.Search(state, "nuget"))).IsEqualTo("");
+        await Assert.That(DetailsOf(MonitorSession.Search(state, "dependabot"))).IsEqualTo("");
     }
+
+    /// <summary>
+    /// What the row is left saying without the words, robot and all.
+    /// </summary>
+    [Test]
+    public Task ADependabotBranchIsARobotAndThePackage() =>
+        Verify(Fixtures.Render(Fixtures.WithDependabotFailure()));
 
     static string DetailsOf(SessionState state) =>
         string.Join(", ", ScreenBuilder.Build(state, Fixtures.Now).Builds!.Rows
