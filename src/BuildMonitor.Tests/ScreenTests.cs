@@ -38,7 +38,8 @@ public class ScreenTests
     /// Its own fixture rather than a change to the folder one, so every other chip snapshot and
     /// both native baselines stay where they are.
     /// <para>
-    /// That row ends up carrying five chips, more than the chip column reserves room for, so the
+    /// That row ends up carrying five chips. The chips column reserves room for all five, but only
+    /// where the window is wide enough to grant it: at the hundred and twenty columns this renders in, the
     /// last of them are drawn as the drop down. Triage is last in the chip order on purpose: it is
     /// the most expensive thing on the row, so it is the right one to lose first.
     /// <see cref="SessionTests"/> covers the drop down itself offering it.
@@ -106,12 +107,12 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   ? nightly    jenkins                                        queued 30s            [Cancel]                         |
-                |   x [-] Verify          2 failing                             25m ago                                                |
-                |   x            github   test.yml feature/inline               25m ago    SimonCropp PR 42 [Retry] [Log]              |
-                |   x            github   release.yml main                      50m ago               [Retry] [Log]                    |
-                |   + [+] Verify          2 passing                             2h ago                                                 |
-                | > + DiffEngine github   docs.yml main                         23h ago                                                |
+                |   ? nightly    jenkins                                     queued 30s            [Cancel]                            |
+                |   x [-] Verify          2 failing                          25m ago                                                   |
+                |   x            github   test.yml feature/inline            25m ago    SimonCropp PR 42 [Retry] [Log]                 |
+                |   x            github   release.yml main                   50m ago               [Retry] [Log]                       |
+                |   + [+] Verify          2 passing                          2h ago                                                    |
+                | > + DiffEngine github   docs.yml main                      23h ago                                                   |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+
