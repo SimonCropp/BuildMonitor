@@ -18,7 +18,7 @@ static class AsciiRenderer
     const string overflow = "[...]";
     // The chips cell is this wide while there is room, so the columns before it do not move as
     // builds gain and lose chips.
-    const string widestChips = "PR 9999 [Retry] [Log] [Open dir]";
+    const string widestChips = "PR 9999 [Retry] [Log] [Open dir] [Triage]";
     // Inside the filter box's brackets.
     const int searchWidth = 16;
     // Beside a Directory field's box, where every head draws the button that asks for a folder.
