@@ -71,7 +71,7 @@ static class BuildExtensions
     /// For a caller that only compares the name. The string overload copies it out of the full
     /// name, which grouping and searching did for every build on every projection of the rows.
     /// </summary>
-    public static ReadOnlySpan<char> ShortRepoName(ReadOnlySpan<char> repoName) =>
+    public static CharSpan ShortRepoName(CharSpan repoName) =>
         repoName[(repoName.LastIndexOf('/') + 1)..];
 
     /// <summary>

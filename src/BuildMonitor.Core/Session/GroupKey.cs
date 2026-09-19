@@ -53,7 +53,7 @@ record GroupKey(string Project, bool Failed)
             _ => null
         };
 
-    static string IdOf(ReadOnlySpan<char> project, bool failed)
+    static string IdOf(CharSpan project, bool failed)
     {
         var lower = project.Length <= 256 ? stackalloc char[project.Length] : new char[project.Length];
         project.ToLowerInvariant(lower);

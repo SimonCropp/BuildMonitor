@@ -2,8 +2,8 @@
 public class SettingsHelperTests :
     IDisposable
 {
-    readonly string original = AppPaths.Directory;
-    readonly string directory = Path.Combine(Path.GetTempPath(), $"BuildMonitorSettings_{Guid.NewGuid():N}");
+    string original = AppPaths.Directory;
+    string directory = Path.Combine(Path.GetTempPath(), $"BuildMonitorSettings_{Guid.NewGuid():N}");
 
     public SettingsHelperTests() =>
         AppPaths.Directory = directory;

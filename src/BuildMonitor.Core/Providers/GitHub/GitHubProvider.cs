@@ -14,7 +14,7 @@ sealed class GitHubProvider : ProviderBase
     /// Repositories with no push this long are not discovered. Discovery costs a call per
     /// repository, and an account can have hundreds of dormant forks.
     /// </summary>
-    static readonly TimeSpan activeWindow = TimeSpan.FromDays(90);
+    static TimeSpan activeWindow = TimeSpan.FromDays(90);
 
     const int maxPages = 5;
 

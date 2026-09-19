@@ -3,7 +3,7 @@
 /// </summary>
 sealed class MemorySecretStore : ISecretStore
 {
-    readonly ConcurrentDictionary<string, string> values = new();
+    ConcurrentDictionary<string, string> values = new();
 
     public string? Read(string key) =>
         values.GetValueOrDefault(key);

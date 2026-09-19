@@ -12,8 +12,8 @@
 public class ArtifactStoreTests :
     IDisposable
 {
-    readonly string original = AppPaths.Directory;
-    readonly string directory = Path.Combine(Path.GetTempPath(), $"BuildMonitorArtifacts_{Guid.NewGuid():N}");
+    string original = AppPaths.Directory;
+    string directory = Path.Combine(Path.GetTempPath(), $"BuildMonitorArtifacts_{Guid.NewGuid():N}");
 
     public ArtifactStoreTests() =>
         AppPaths.Directory = directory;
@@ -101,7 +101,7 @@ public class ArtifactStoreTests :
     /// </summary>
     [Test]
     public async Task ARetryGetsItsOwnDirectory() =>
-        await Assert.That(ArtifactStore.DirectoryFor(Build("77"))).IsNotEqualTo(ArtifactStore.DirectoryFor(Build("78")));
+        await Assert.That(ArtifactStore.DirectoryFor(Build())).IsNotEqualTo(ArtifactStore.DirectoryFor(Build("78")));
 
     [Test]
     public async Task AFailedWriteLeavesNothingBehind()

@@ -147,7 +147,7 @@ static class ScreenBuilder
     static List<string> Names(ImmutableArray<Row> rows, RowKind kind)
     {
         var names = new List<string>();
-        var seen = new HashSet<string>().GetAlternateLookup<ReadOnlySpan<char>>();
+        var seen = new HashSet<string>().GetAlternateLookup<CharSpan>();
         foreach (var row in rows)
         {
             if (row.Kind != kind)
@@ -173,7 +173,7 @@ static class ScreenBuilder
     /// then. The columns are sized from every row, and building each row's text only for the repeats
     /// to be dropped cost every row its strings on every rebuild.
     /// </summary>
-    static void AddDistinct(HashSet<string>.AlternateLookup<ReadOnlySpan<char>> seen, List<string> texts, ReadOnlySpan<char> text)
+    static void AddDistinct(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> texts, CharSpan text)
     {
         if (seen.Add(text) &&
             seen.TryGetValue(text, out var added))
@@ -215,7 +215,7 @@ static class ScreenBuilder
     static List<string> Details(ImmutableArray<Row> rows)
     {
         var details = new List<string>();
-        var seen = new HashSet<string>().GetAlternateLookup<ReadOnlySpan<char>>();
+        var seen = new HashSet<string>().GetAlternateLookup<CharSpan>();
         foreach (var row in rows)
         {
             AddDetail(seen, details, row);
@@ -228,7 +228,7 @@ static class ScreenBuilder
     /// The text <see cref="DetailOf"/> gives the row, written on the stack rather than as runs that
     /// are then joined.
     /// </summary>
-    static void AddDetail(HashSet<string>.AlternateLookup<ReadOnlySpan<char>> seen, List<string> details, Row row)
+    static void AddDetail(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> details, Row row)
     {
         if (row.Build is not { } build)
         {

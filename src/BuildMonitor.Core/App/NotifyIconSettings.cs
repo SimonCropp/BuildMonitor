@@ -11,13 +11,13 @@ static partial class NotifyIconSettings
 {
     const string keyPath = @"Control Panel\NotifyIconSettings";
     const string promotedName = "IsPromoted";
-    static readonly TimeSpan interval = TimeSpan.FromMilliseconds(500);
+    static TimeSpan interval = TimeSpan.FromMilliseconds(500);
 
     /// <summary>
     /// Windows adds the entry some time after the icon, and at login the icon itself can be waiting
     /// for the taskbar, so the entry is looked for until it appears or a minute has passed.
     /// </summary>
-    static readonly TimeSpan giveUp = TimeSpan.FromMinutes(1);
+    static TimeSpan giveUp = TimeSpan.FromMinutes(1);
 
     /// <summary>
     /// Records the <see cref="TrayIconPromotion"/> decision for the icon of

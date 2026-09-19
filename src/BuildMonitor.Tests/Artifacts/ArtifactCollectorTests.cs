@@ -10,8 +10,8 @@ public class ArtifactCollectorTests :
     const string runs = "https://api.github.com/repos/VerifyTests/Verify/actions/runs/77";
     const string artifacts = "https://api.github.com/repos/VerifyTests/Verify/actions/artifacts";
 
-    readonly string original = AppPaths.Directory;
-    readonly string directory = Path.Combine(Path.GetTempPath(), $"BuildMonitorCollect_{Guid.NewGuid():N}");
+    string original = AppPaths.Directory;
+    string directory = Path.Combine(Path.GetTempPath(), $"BuildMonitorCollect_{Guid.NewGuid():N}");
 
     public ArtifactCollectorTests() =>
         AppPaths.Directory = directory;

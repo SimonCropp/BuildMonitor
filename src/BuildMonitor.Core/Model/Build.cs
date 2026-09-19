@@ -78,7 +78,7 @@ record Build(
     /// <summary>
     /// Whether <paramref name="key"/> is <see cref="PipelineKey"/>, compared a part at a time.
     /// </summary>
-    public bool HasPipelineKey(ReadOnlySpan<char> key) =>
+    public bool HasPipelineKey(CharSpan key) =>
         key.Length == ConnectionId.Length + PipelineId.Length + 1 &&
         key.StartsWith(ConnectionId, StringComparison.Ordinal) &&
         key[ConnectionId.Length] == '/' &&

@@ -4,7 +4,7 @@
 /// </summary>
 static class Images
 {
-    static readonly Assembly assembly = typeof(Images).Assembly;
+    static Assembly assembly = typeof(Images).Assembly;
 
     public static byte[]? Bytes(string file)
     {

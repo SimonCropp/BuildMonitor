@@ -5,7 +5,7 @@
 /// </summary>
 sealed class LoopbackListener : IDisposable
 {
-    readonly TcpListener listener;
+    TcpListener listener;
 
     public LoopbackListener(int port = 0)
     {

@@ -8,7 +8,7 @@
 /// connects again.</param>
 record McpServers(ImmutableArray<McpServer> Running, bool StoppedByUpdate)
 {
-    public static readonly McpServers None = new([], false);
+    public static McpServers None = new([], false);
 
     /// <summary>
     /// Matched on the shim's path, which is what the update script matches on too, so what the page

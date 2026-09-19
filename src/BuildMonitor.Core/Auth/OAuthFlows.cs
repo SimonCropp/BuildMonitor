@@ -4,7 +4,7 @@
 /// </summary>
 static class OAuthFlows
 {
-    static readonly TimeSpan browserTimeout = TimeSpan.FromMinutes(5);
+    static TimeSpan browserTimeout = TimeSpan.FromMinutes(5);
 
     public static async Task<AuthResult> Browser(
         OAuthClient client,

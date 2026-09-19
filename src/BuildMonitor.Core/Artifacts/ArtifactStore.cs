@@ -14,7 +14,7 @@ sealed class ArtifactStore(Func<DateTimeOffset>? clock = null)
     /// files after it, short enough that a tray left running for weeks is not holding every
     /// artifact of every failure it was ever asked about.
     /// </summary>
-    public static readonly TimeSpan Retention = TimeSpan.FromHours(24);
+    public static TimeSpan Retention = TimeSpan.FromHours(24);
 
     /// <summary>
     /// How much of a readable name is kept before the hash. A branch, or an Octopus project, runs

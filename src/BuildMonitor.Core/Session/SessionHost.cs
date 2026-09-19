@@ -4,7 +4,7 @@
 /// </summary>
 sealed class SessionHost(SessionState initial)
 {
-    readonly Lock gate = new();
+    Lock gate = new();
     volatile SessionState state = initial;
     bool mutating;
 

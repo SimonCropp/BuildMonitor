@@ -16,21 +16,14 @@ public class UpdateOutcomeTests
     [Test]
     public async Task TheFailureIsReportedOnceAndThenRemoved()
     {
-        var path = TempFile();
+        using var path = new TempFile();
         // As Windows PowerShell's Set-Content -Encoding UTF8 writes it, with a byte order mark.
-        File.WriteAllText(path, locked, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
-        try
-        {
-            var notification = UpdateOutcome.Take(path);
+        await File.WriteAllTextAsync(path, locked, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        var notification = UpdateOutcome.Take(path);
 
-            await Assert.That(notification).IsEqualTo(new("Update failed", """Failed to uninstall tool package 'buildmonitor': Access to the path 'C:\Users\me\.dotnet\tools\.store\buildmonitor\0.1.0-beta.6' is denied."""));
-            await Assert.That(File.Exists(path)).IsFalse();
-            await Assert.That(UpdateOutcome.Take(path)).IsNull();
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        await Assert.That(notification).IsEqualTo(new("Update failed", """Failed to uninstall tool package 'buildmonitor': Access to the path 'C:\Users\me\.dotnet\tools\.store\buildmonitor\0.1.0-beta.6' is denied."""));
+        await Assert.That(File.Exists(path)).IsFalse();
+        await Assert.That(UpdateOutcome.Take(path)).IsNull();
     }
 
     /// <summary>
@@ -40,19 +33,13 @@ public class UpdateOutcomeTests
     [Test]
     public async Task TheSuccessIsReported()
     {
-        var path = TempFile();
-        File.WriteAllText(path, "ok\nTool 'buildmonitor' was successfully updated from version '0.1.0-beta.10' to version '0.1.0-beta.11'.\n");
-        try
-        {
-            var notification = UpdateOutcome.Take(path);
+        using var path = new TempFile();
+        await File.WriteAllTextAsync(path, "ok\nTool 'buildmonitor' was successfully updated from version '0.1.0-beta.10' to version '0.1.0-beta.11'.\n");
 
-            await Assert.That(notification?.Title).IsEqualTo("BuildMonitor updated");
-            await Assert.That(File.Exists(path)).IsFalse();
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        var notification = UpdateOutcome.Take(path);
+
+        await Assert.That(notification?.Title).IsEqualTo("BuildMonitor updated");
+        await Assert.That(File.Exists(path)).IsFalse();
     }
 
     /// <summary>
@@ -62,21 +49,14 @@ public class UpdateOutcomeTests
     [Test]
     public async Task OutputWithNoStatusLineIsAFailure()
     {
-        var path = TempFile();
-        File.WriteAllText(path, "Tool 'buildmonitor' failed to update due to the following:\nIt did not work.\n");
-        try
-        {
-            await Assert.That(UpdateOutcome.Take(path)).IsEqualTo(new("Update failed", "It did not work."));
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        using var path = new TempFile();
+        await File.WriteAllTextAsync(path, "Tool 'buildmonitor' failed to update due to the following:\nIt did not work.\n");
+        await Assert.That(UpdateOutcome.Take(path)).IsEqualTo(new("Update failed", "It did not work."));
     }
 
     [Test]
     public async Task NoFileMeansNothingToReport() =>
-        await Assert.That(UpdateOutcome.Take(TempFile())).IsNull();
+        await Assert.That(UpdateOutcome.Take("fake")).IsNull();
 
     /// <summary>
     /// The first line only says that the update failed. The Windows line endings and the blank line
@@ -90,7 +70,4 @@ public class UpdateOutcomeTests
     [Test]
     public async Task NoOutputStillSaysTheUpdateFailed() =>
         await Assert.That(UpdateOutcome.Describe(" \n")).IsEqualTo(new("Update failed", "dotnet tool update failed without saying why."));
-
-    static string TempFile() =>
-        Path.Combine(Path.GetTempPath(), $"BuildMonitorUpdateOutcome_{Guid.NewGuid():N}.log");
 }

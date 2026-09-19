@@ -5,7 +5,7 @@
 [SupportedOSPlatform("windows")]
 sealed class DpapiFileSecretStore(string directory) : FileSecretStore(directory)
 {
-    static readonly byte[] entropy = "BuildMonitor"u8.ToArray();
+    static byte[] entropy = "BuildMonitor"u8.ToArray();
 
     protected override string Extension => ".bin";
 

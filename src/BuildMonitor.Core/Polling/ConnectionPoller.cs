@@ -772,7 +772,7 @@ sealed class ConnectionPoller
     /// </summary>
     void RecordDurations(IReadOnlyList<Build> builds)
     {
-        var lookup = recorded.GetAlternateLookup<ReadOnlySpan<char>>();
+        var lookup = recorded.GetAlternateLookup<CharSpan>();
         foreach (var build in builds)
         {
             if (build.Status != BuildStatus.Succeeded ||
@@ -794,7 +794,7 @@ sealed class ConnectionPoller
     /// stack and becomes a string only when it is added: most runs were recorded by an earlier poll,
     /// and building the key to find that out cost every finished run two strings a poll.
     /// </summary>
-    static bool AddRecorded(HashSet<string>.AlternateLookup<ReadOnlySpan<char>> lookup, Build build)
+    static bool AddRecorded(HashSet<string>.AlternateLookup<CharSpan> lookup, Build build)
     {
         var length = build.ConnectionId.Length + build.PipelineId.Length + build.RunNumber.Length + build.ProviderRef.Length + 3;
         var key = length <= 256 ? stackalloc char[length] : new char[length];

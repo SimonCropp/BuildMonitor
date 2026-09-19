@@ -5,7 +5,7 @@
 /// </summary>
 static class ByteSize
 {
-    static readonly string[] units = ["B", "KB", "MB", "GB", "TB"];
+    static string[] units = ["B", "KB", "MB", "GB", "TB"];
 
     /// <summary>
     /// One decimal place below ten of a unit and none above it, so a size reads at the precision it
