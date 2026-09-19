@@ -241,6 +241,25 @@ public class ScreenTests
         return Verify(Fixtures.Render(state));
     }
 
+    // The note about work or school accounts, which a user with a personal Microsoft account needs
+    // before starting a sign in Entra will refuse rather than after.
+    [Test]
+    public Task ConnectionNewAzureDevOpsBrowser()
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Azure DevOps");
+        state = MonitorSession.FieldChanged(state, FormFields.Auth, nameof(AuthMethod.Browser));
+        return Verify(Fixtures.Render(state));
+    }
+
+    // The same provider with a token, where the note does not apply and would only be noise.
+    [Test]
+    public Task ConnectionNewAzureDevOpsToken()
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Azure DevOps");
+        state = MonitorSession.FieldChanged(state, FormFields.Auth, nameof(AuthMethod.Token));
+        return Verify(Fixtures.Render(state));
+    }
+
     [Test]
     public Task ConnectionEdit() =>
         Verify(Fixtures.Render(Fixtures.ConnectionEdit()));

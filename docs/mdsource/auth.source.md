@@ -31,7 +31,7 @@ The connection editor links to the right page for the chosen provider.
 | GitLab CI | Yes, PKCE | Yes | Scopes `read_api` and `api`. A self hosted GitLab needs its own application; enter its id in the connection. |
 | Azure DevOps | Yes, PKCE through Microsoft Entra ID | Yes | Work or school accounts only; Entra does not sign personal Microsoft accounts in to Azure DevOps. |
 
-The browser flow opens the provider's sign in page in the default browser and listens on a loopback port for the redirect back. The device flow shows a code to enter on a page the browser opens, and needs no listener.
+The browser flow opens the provider's sign in page in the default browser and listens on a loopback port for the redirect back. The device flow shows a code to enter on a page the browser opens, and needs no listener. The code goes on the clipboard as soon as it arrives, since the page shows it as a label and no toolkit lets a label be selected; Copy code puts it back for a clipboard that has moved on since.
 
 The listener takes whatever port is free. GitHub and Microsoft Entra accept a loopback redirect on any port, and so does gitlab.com. A self hosted GitLab whose application was registered with a port in its redirect URI, such as `http://127.0.0.1:8420/callback`, needs that port entered as the connection's callback port so the redirect matches.
 
@@ -80,7 +80,7 @@ https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBla
  * Under **Authentication**, set **Allow public client flows** to Yes, which the device flow needs
  * Copy the **Application (client) ID** from Overview into `EntraClientId`
 
-Entra does not sign personal Microsoft accounts in to Azure DevOps; those users take a personal access token.
+Entra does not sign personal Microsoft accounts in to Azure DevOps; those users take a personal access token. The authority is `/organizations`, which only accepts a work or school account, so a personal account is turned away at Microsoft's own page as an address it does not recognise rather than as a method that does not apply. The connection editor says so under **Sign in with** before the flow is started.
 
 
 #### Why the callback has no port

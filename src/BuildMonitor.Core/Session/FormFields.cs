@@ -50,7 +50,8 @@ static class FormFields
     public const string ProviderDocs = "providerDocs";
     public const string ClientId = "clientId";
     public const string CallbackPort = "callbackPort";
-    public const string Notes = "notes";
+    public const string TokenNote = "tokenNote";
+    public const string SignInNote = "signInNote";
     public const string Message = "message";
 
     // Sign in

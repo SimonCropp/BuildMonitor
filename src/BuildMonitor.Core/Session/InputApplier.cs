@@ -282,6 +282,8 @@ static class InputApplier
                 }
 
                 return state;
+            case CommandKind.CopyUserCode:
+                return MonitorSession.CopyUserCode(state);
             case CommandKind.CopyStatus:
                 // The footer as shown, and left as it is: a status saying it was copied would replace
                 // the error being copied, often before it was read in full.

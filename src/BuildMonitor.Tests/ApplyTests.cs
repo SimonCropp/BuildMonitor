@@ -127,6 +127,25 @@ public class ApplyTests
         await Assert.That(state.Menu).IsNull();
     }
 
+    // The whole way through: the footer button the sign in page offers, resolved by the index a head
+    // reports, reaching the transition that puts the device code back on the clipboard.
+    [Test]
+    public async Task ClickingCopyCodeCopiesTheDeviceCode()
+    {
+        var signedIn = Fixtures.SignInDevice();
+        // As the loop leaves it, the arrival's copy already flushed, so only the click can be what
+        // puts the code back.
+        var state = MonitorSession.Copied(signedIn, signedIn.Clipboard!);
+        var buttons = ScreenBuilder.Buttons(state);
+        var copyIndex = buttons.ToList().FindIndex(_ => _.Command == CommandKind.CopyUserCode);
+        await Assert.That(copyIndex).IsEqualTo(0);
+        state = InputApplier.Apply(state, new(ClickedButton: copyIndex), new RecordingActions().Actions, new FakeWindow());
+        await Assert.That(state.Clipboard).IsEqualTo("ABCD-1234");
+        await Assert.That(state.Status).IsEqualTo("Copied the code");
+        // Still on the page: copying a code is not leaving the sign in.
+        await Assert.That(state.Page).IsEqualTo(Page.SignIn);
+    }
+
     [Test]
     public async Task CopyBuildUrlUsesTheWindowClipboard()
     {

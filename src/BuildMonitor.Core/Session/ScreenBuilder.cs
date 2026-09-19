@@ -403,10 +403,7 @@ static class ScreenBuilder
                 new("Hide", true, CommandKind.Hide)
             ],
             Page.Connection => ConnectionButtons(state),
-            Page.SignIn =>
-            [
-                new("Cancel", true, CommandKind.CancelSignIn)
-            ],
+            Page.SignIn => SignInButtons(state),
             Page.Update =>
             [
                 new("Update", true, CommandKind.ConfirmUpdate),
@@ -418,6 +415,22 @@ static class ScreenBuilder
                 new("Cancel", true, CommandKind.CancelForm)
             ]
         };
+
+    /// <summary>
+    /// Copy code comes first, and only once there is a code: it is what the page is for, and a
+    /// button that copied nothing would read as the code having been lost.
+    /// </summary>
+    static List<Button> SignInButtons(SessionState state)
+    {
+        var buttons = new List<Button>(2);
+        if (state.SignIn?.UserCode is not null)
+        {
+            buttons.Add(new("Copy code", true, CommandKind.CopyUserCode));
+        }
+
+        buttons.Add(new("Cancel", true, CommandKind.CancelSignIn));
+        return buttons;
+    }
 
     static List<Button> ConnectionButtons(SessionState state)
     {
@@ -680,6 +693,14 @@ static class ScreenBuilder
             fields.Add(new(FormFields.Auth, FieldKind.Select, "Sign in with", method.ToString(), Options: methods));
         }
 
+        // Under the method it is about, and only for the methods it is about: the note exists to be
+        // read before the sign in is started rather than after the provider has refused the address.
+        if (method != AuthMethod.Token &&
+            descriptor.SignInNote is not null)
+        {
+            fields.Add(new(FormFields.SignInNote, FieldKind.Label, "", descriptor.SignInNote));
+        }
+
         if (descriptor.UserLabel is not null)
         {
             fields.Add(new(FormFields.User, FieldKind.Text, descriptor.UserLabel, form.Value(FormFields.User)));
@@ -700,9 +721,13 @@ static class ScreenBuilder
             fields.Add(new(FormFields.CallbackPort, FieldKind.Number, "Callback port (optional)", form.Value(FormFields.CallbackPort), Hint: "Only when the application was registered with a fixed redirect port"));
         }
 
-        if (descriptor.Notes is not null)
+        // Only for the method it is about, like the sign in note. Every one of these names a scope or
+        // permission to tick while creating a token, which a browser or device sign in never asks the
+        // user for: shown there it read as something still to be done before the sign in would work.
+        if (method == AuthMethod.Token &&
+            descriptor.TokenNote is not null)
         {
-            fields.Add(new(FormFields.Notes, FieldKind.Label, "", descriptor.Notes.Replace("{server}", form.Value(FormFields.Server))));
+            fields.Add(new(FormFields.TokenNote, FieldKind.Label, "", descriptor.TokenNote.Replace("{server}", form.Value(FormFields.Server))));
         }
 
         fields.Add(new(FormFields.ProviderDocs, FieldKind.Link, $"{descriptor.Name} documentation", descriptor.DocsUrl));

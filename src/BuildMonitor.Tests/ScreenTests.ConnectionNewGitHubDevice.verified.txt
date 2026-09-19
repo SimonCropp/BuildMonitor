@@ -6,8 +6,8 @@
 | Server: [https://api.github.com                  ]                                                                   |
 | Organization or user (optional): [                                        ] (Leave empty for every repository you c> |
 | Sign in with: <Device>                                                                                               |
-| A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.           |
 | GitHub Actions documentation -> https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/github.md        |
+|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

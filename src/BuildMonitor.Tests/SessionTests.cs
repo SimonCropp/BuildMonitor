@@ -337,6 +337,38 @@ public class SessionTests
         await Assert.That(MonitorSession.OpenOverflow(state, row, ChipKind.Cancel).Menu).IsNull();
     }
 
+    // The device code is drawn as a label, which cannot be selected, so the flow putting it on the
+    // clipboard is the only way it gets into the provider's page without being typed out by hand.
+    [Test]
+    public async Task TheDeviceCodeGoesOnTheClipboard()
+    {
+        var state = Fixtures.SignInDevice();
+        await Assert.That(state.Clipboard).IsEqualTo("ABCD-1234");
+    }
+
+    [Test]
+    public async Task CopyUserCodePutsTheCodeBackAfterTheClipboardMovedOn()
+    {
+        var state = Fixtures.SignInDevice();
+        var flushed = MonitorSession.Copied(state, state.Clipboard!);
+        await Assert.That(flushed.Clipboard).IsNull();
+        var again = MonitorSession.CopyUserCode(flushed);
+        await Assert.That(again.Clipboard).IsEqualTo("ABCD-1234");
+        await Assert.That(again.Status).IsEqualTo("Copied the code");
+    }
+
+    // Nothing to copy before the code arrives, so the button is not offered and the transition is
+    // a no-op rather than a clipboard set to nothing.
+    [Test]
+    public async Task CopyUserCodeDoesNothingBeforeTheCodeArrives()
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "GitHub Actions");
+        state = MonitorSession.FieldChanged(state, FormFields.Auth, nameof(AuthMethod.Device));
+        state = MonitorSession.BeginSignIn(state, ConnectionDraft.Build(state.Form!), AuthMethod.Device, Guid.NewGuid());
+        await Assert.That(ScreenBuilder.Buttons(state).Select(_ => _.Label)).IsEquivalentTo(["Cancel"]);
+        await Assert.That(MonitorSession.CopyUserCode(state).Clipboard).IsNull();
+    }
+
     [Test]
     public async Task CopiedClearsOnlyTheTextThatWasCopied()
     {

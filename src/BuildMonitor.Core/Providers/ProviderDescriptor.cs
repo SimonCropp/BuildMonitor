@@ -23,6 +23,13 @@
 /// the poll interval.</param>
 /// <param name="SignInScheme">How a token from the browser or device sign in goes on the wire,
 /// where that differs from <paramref name="Scheme"/>; null where it does not.</param>
+/// <param name="TokenNote">Where the user creates a token and what it has to be allowed to do,
+/// shown only while Token is the chosen method. Named for the method it belongs to rather than as
+/// notes in general, because every one of these is about a token a user pastes and none of it holds
+/// for a browser or device sign in, where the provider's own consent screen grants the scopes.</param>
+/// <param name="SignInNote">Which accounts the browser and device flows turn away, shown only while
+/// one of them is the chosen method. Said here because the provider's own sign in page says it as a
+/// rejected address rather than as a reason, which reads as the address being wrong.</param>
 record ProviderDescriptor(
     string Id,
     string Name,
@@ -40,14 +47,15 @@ record ProviderDescriptor(
     bool HasBranches,
     bool HasPullRequests,
     bool CustomClientId = false,
-    string? Notes = null,
+    string? TokenNote = null,
     FetchUnit FetchUnit = FetchUnit.Pipeline,
     int FetchConcurrency = 1,
     RequestQuota? Quota = null,
     TimeSpan? IdleCap = null,
     TimeSpan? ProbeInterval = null,
     string? ActionPermission = null,
-    AuthScheme? SignInScheme = null)
+    AuthScheme? SignInScheme = null,
+    string? SignInNote = null)
 {
     /// <summary>
     /// The provider's page in the docs, which the connection editor links so the server and scope

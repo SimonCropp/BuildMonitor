@@ -12,7 +12,7 @@ Watches the pipelines of one organization, across every project or one named pro
 
 ## Credential
 
-A [personal access token](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) with Build: Read & execute, sent as Basic authentication with an empty user name. Or sign in through Microsoft Entra ID, once an application is registered; see [Authentication](../auth.md). Personal Microsoft accounts cannot sign in that way. A sign in's token is sent as `Authorization: Bearer`, as Microsoft's REST samples send one.
+A [personal access token](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) with Build: Read & execute, sent as Basic authentication with an empty user name. Or sign in through Microsoft Entra ID, once an application is registered; see [Authentication](../auth.md). Personal Microsoft accounts cannot sign in that way: Microsoft's page turns the address away, so a personal account needs the token. A sign in's token is sent as `Authorization: Bearer`, as Microsoft's REST samples send one.
 
 For Azure DevOps Server enter the server URL and the collection as the organization.
 

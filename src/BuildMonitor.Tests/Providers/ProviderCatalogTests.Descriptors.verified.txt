@@ -54,7 +54,7 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: false,
-    Notes: The token needs Build (Read & execute).,
+    TokenNote: The token needs Build (Read & execute).,
     FetchUnit: Repository,
     FetchConcurrency: 8,
     Quota: {
@@ -67,6 +67,7 @@
     IdleCap: 00:30:00,
     ActionPermission: Build (Read & execute),
     SignInScheme: Bearer,
+    SignInNote: Work or school accounts only. Microsoft refuses a personal account's address; use a token.,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md
   },
   {
@@ -92,7 +93,7 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: false,
-    Notes: The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.,
+    TokenNote: The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.,
     FetchConcurrency: 8,
     Quota: {
       Requests: 1000.0,
@@ -128,7 +129,7 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: false,
-    Notes: A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.,
+    TokenNote: A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.,
     FetchUnit: Repository,
     FetchConcurrency: 8,
     Quota: {
@@ -164,7 +165,7 @@
     HasBranches: true,
     HasPullRequests: true,
     CustomClientId: true,
-    Notes: The token needs the api scope to retry and cancel, or read_api to only watch.,
+    TokenNote: The token needs the api scope to retry and cancel, or read_api to only watch.,
     FetchUnit: Connection,
     FetchConcurrency: 1,
     ActionPermission: the api scope,
@@ -184,7 +185,7 @@
     HasBranches: false,
     HasPullRequests: false,
     CustomClientId: false,
-    Notes: Create the token at {server}/go/access_tokens.,
+    TokenNote: Create the token at {server}/go/access_tokens.,
     FetchConcurrency: 4,
     IdleCap: 00:30:00,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/gocd.md
@@ -204,7 +205,7 @@
     HasBranches: true,
     HasPullRequests: false,
     CustomClientId: false,
-    Notes: Create the token at {server}/me/security.,
+    TokenNote: Create the token at {server}/me/security.,
     FetchConcurrency: 4,
     IdleCap: 00:30:00,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/jenkins.md
@@ -257,7 +258,7 @@
     HasBranches: true,
     HasPullRequests: false,
     CustomClientId: false,
-    Notes: Create the token under Profile, Access Tokens.,
+    TokenNote: Create the token under Profile, Access Tokens.,
     FetchUnit: Group,
     FetchConcurrency: 4,
     IdleCap: 00:30:00,

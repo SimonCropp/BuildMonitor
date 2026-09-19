@@ -665,6 +665,11 @@ static class MonitorSession
                 null)
         };
 
+    /// <summary>
+    /// The code goes on the clipboard as well as on the page. The page is the only place it exists
+    /// and it is drawn as a label, which no toolkit lets the user select, so without this the code
+    /// has to be read off the screen and typed into the provider's page character by character.
+    /// </summary>
     public static SessionState SignInProgress(SessionState state, Guid flowId, string userCode, string verificationUrl)
     {
         if (state.SignIn?.FlowId != flowId)
@@ -674,14 +679,24 @@ static class MonitorSession
 
         return state with
         {
+            Clipboard = userCode,
             SignIn = state.SignIn with
             {
-                Message = "Open the link and enter the code.",
+                Message = "Open the link and enter the code, which is on the clipboard.",
                 UserCode = userCode,
                 VerificationUrl = verificationUrl
             }
         };
     }
+
+    /// <summary>
+    /// Puts the code back on the clipboard, for the user whose clipboard was overwritten between
+    /// the code arriving and the provider's page asking for it.
+    /// </summary>
+    public static SessionState CopyUserCode(SessionState state) =>
+        state.SignIn?.UserCode is { } code
+            ? SetStatus(state with { Clipboard = code }, "Copied the code")
+            : state;
 
     public static SessionState SignInCompleted(SessionState state, Guid flowId, string? userName)
     {

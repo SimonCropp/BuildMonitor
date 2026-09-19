@@ -50,5 +50,7 @@ enum CommandKind
     ConfirmUpdate,
     Hide,
     Quit,
-    CopyStatus
+    CopyStatus,
+    // The device flow's code, which the sign in page cannot let the user select.
+    CopyUserCode
 }

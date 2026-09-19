@@ -70,7 +70,7 @@ static class ProviderDescriptors
         HasEstimate: true,
         HasBranches: true,
         HasPullRequests: false,
-        Notes: "Create the token at {server}/me/security.",
+        TokenNote: "Create the token at {server}/me/security.",
         // Fewer than the hosted services get: a self hosted server may be a small one.
         FetchConcurrency: 4,
         // The probe reads every discovered job's next build number in one request, so a quiet job
@@ -96,7 +96,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
-        Notes: "A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.",
+        TokenNote: "A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.",
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
         // Half the secondary limit of 900 points a minute, which counts a 304 like any GET.
@@ -123,7 +123,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
-        Notes: "The token needs Build (Read & execute).",
+        TokenNote: "The token needs Build (Read & execute).",
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
         // Half the 200 throughput units a user may spend in any five minutes.
@@ -134,7 +134,8 @@ static class ProviderDescriptors
         ActionPermission: "Build (Read & execute)",
         // Microsoft's REST samples send a Microsoft Entra token as a Bearer token, and describe Basic
         // for a personal access token.
-        SignInScheme: AuthScheme.Bearer);
+        SignInScheme: AuthScheme.Bearer,
+        SignInNote: "Work or school accounts only. Microsoft refuses a personal account's address; use a token.");
 
     public static readonly ProviderDescriptor TeamCity = new(
         Id: "teamcity",
@@ -155,7 +156,7 @@ static class ProviderDescriptors
         HasEstimate: true,
         HasBranches: true,
         HasPullRequests: false,
-        Notes: "Create the token under Profile, Access Tokens.",
+        TokenNote: "Create the token under Profile, Access Tokens.",
         FetchUnit: FetchUnit.Group,
         // Fewer than the hosted services get: a self hosted server may be a small one.
         FetchConcurrency: 4,
@@ -183,7 +184,7 @@ static class ProviderDescriptors
         HasBranches: true,
         HasPullRequests: true,
         CustomClientId: true,
-        Notes: "The token needs the api scope to retry and cancel, or read_api to only watch.",
+        TokenNote: "The token needs the api scope to retry and cancel, or read_api to only watch.",
         // One GraphQL request covers fifty projects.
         FetchUnit: FetchUnit.Connection,
         ActionPermission: "the api scope",
@@ -206,7 +207,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: false,
         HasPullRequests: false,
-        Notes: "Create the token at {server}/go/access_tokens.",
+        TokenNote: "Create the token at {server}/go/access_tokens.",
         // Fewer than the hosted services get: a self hosted server may be a small one.
         FetchConcurrency: 4,
         // The probe reads the dashboard, where a new instance moves the counter, so a quiet pipeline
@@ -232,7 +233,7 @@ static class ProviderDescriptors
         HasEstimate: false,
         HasBranches: true,
         HasPullRequests: true,
-        Notes: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.",
+        TokenNote: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.",
         FetchConcurrency: Concurrently.Limit,
         // A thousand requests an hour, or the scaled limit the workspace reports.
         Quota: new(1000, TimeSpan.FromHours(1), 250, LearnLimit: true),

@@ -1,15 +1,15 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
-| BuildMonitor                                                                               Sign in to GitHub Actions |
+| BuildMonitor                                                                                          Add connection |
 +----------------------------------------------------------------------------------------------------------------------+
-| Open the link and enter the code, which is on the clipboard.                                                         |
-| Code: ABCD-1234                                                                                                      |
-| https://github.com/login/device                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
+| Provider: <Azure DevOps>                                                                                             |
+| Name: [                                        ] (Azure DevOps)                                                      |
+| Server: [https://dev.azure.com                   ]                                                                   |
+| Organization: [                                        ]                                                             |
+| Project (optional): [                                        ] (Leave empty for every project in the organization)   |
+| Sign in with: <Browser>                                                                                              |
+| Work or school accounts only. Microsoft refuses a personal account's address; use a token.                           |
+| Callback port (optional): [      ] (Only when the application was registered with a fixed redirect port)             |
+| Azure DevOps documentation -> https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md    |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
@@ -26,7 +26,7 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| [Copy code] [Cancel]                                                                                   Polled 5s ago |
+| [Sign in] [Test] [Save] [Cancel]                                                                       Polled 5s ago |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Failed "BuildMonitor: 1 failing, 4 running"
   Open
