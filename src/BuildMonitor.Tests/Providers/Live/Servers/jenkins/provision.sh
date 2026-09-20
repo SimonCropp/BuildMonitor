@@ -47,7 +47,8 @@ provision() {
     "BUILDMONITOR_JENKINS_SERVER=$server" \
     "BUILDMONITOR_JENKINS_USER=$user" \
     "BUILDMONITOR_JENKINS_TOKEN=$(setting token)" \
-    "BUILDMONITOR_JENKINS_PIPELINE=$job"
+    "BUILDMONITOR_JENKINS_PIPELINE=$job" \
+    "BUILDMONITOR_JENKINS_ARTIFACT=marker.txt"
 }
 
 signed_in() { [[ $(status "${auth[@]}" "$server/me/api/json?tree=id") == 200 ]]; }

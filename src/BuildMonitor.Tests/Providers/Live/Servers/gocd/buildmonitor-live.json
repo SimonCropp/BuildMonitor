@@ -41,9 +41,16 @@
                   "command": "/bin/sh",
                   "arguments": [
                     "-c",
-                    "echo 'BuildMonitor live test'; sleep 60; exit 1"
+                    "echo 'BuildMonitor live test'; echo 'BuildMonitor live test' > marker.txt; sleep 60; exit 1"
                   ]
                 }
+              }
+            ],
+            "artifacts": [
+              {
+                "type": "build",
+                "source": "marker.txt",
+                "destination": ""
               }
             ]
           }

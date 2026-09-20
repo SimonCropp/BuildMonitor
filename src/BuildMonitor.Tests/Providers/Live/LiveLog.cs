@@ -68,6 +68,19 @@ static class LiveLog
         return string.Join(", ", builds.Take(4).Select(Row));
     }
 
+    /// <summary>
+    /// What a build published, for a failure that expected one of them by name.
+    /// </summary>
+    public static string Names(IReadOnlyList<BuildArtifact> artifacts)
+    {
+        if (artifacts.Count == 0)
+        {
+            return "no files at all";
+        }
+
+        return string.Join(", ", artifacts.Take(10).Select(_ => $"'{_.Name}'"));
+    }
+
     public static string Counts(IEnumerable<Build> builds)
     {
         var counts = builds

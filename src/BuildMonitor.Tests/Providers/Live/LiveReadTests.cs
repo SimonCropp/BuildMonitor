@@ -223,6 +223,79 @@ public class LiveReadTests
     }
 
     /// <summary>
+    /// The files the sandbox's failed build published, listed and then downloaded. Nothing else
+    /// here asks a service for an artifact, so this is the only check that the ids a listing gives
+    /// are ones the download route accepts.
+    /// <para>
+    /// The bytes are not read for the marker the log is. Several services answer with a zip of the
+    /// build's files rather than the file itself, so what arrives is only the same file on some of
+    /// them.
+    /// </para>
+    /// </summary>
+    [Test]
+    [MethodDataSource(typeof(LiveSettings), nameof(LiveSettings.ProviderIds))]
+    [Timeout(LiveSettings.ReadTimeout)]
+    public async Task Artifacts(string providerId, Cancel cancel)
+    {
+        var live = LiveConnection.Require(providerId);
+        if (!live.Descriptor.HasArtifacts)
+        {
+            Skip.Test($"{providerId}: the service has no artifact API.");
+        }
+
+        var session = await LiveSessions.Get(live, cancel);
+        var context = session.Context();
+        var builds = LiveSandbox.Newest(await session.Fetch(context, session.Groups(6), cancel));
+        var sandbox = session.Sandbox;
+        var failed = builds.FirstOrDefault(_ => _.ArtifactsListable(live.Descriptor) &&
+                                                (sandbox is null || _.PipelineId == sandbox.Id));
+        if (failed is null)
+        {
+            Skip.Test($"{providerId}: no failed build to list the files of ({LiveLog.Counts(builds)})");
+        }
+
+        var artifacts = await live.Provider.ListArtifacts(context, failed, cancel);
+        LiveLog.Line($"{providerId}: {LiveLog.Row(failed)} published {artifacts.Count} files");
+        foreach (var listed in artifacts.Take(10))
+        {
+            LiveLog.Detail($"  {listed.Name} {listed.Bytes?.ToString() ?? "size not given"} {listed.Unavailable}");
+        }
+
+        // A sandbox that publishes nothing has its files reported rather than checked, so each
+        // provider is covered as its sandbox is taught to publish one.
+        if (live.Artifact is not { } wanted)
+        {
+            LiveLog.Warning($"{providerId}: {LiveSettings.Prefix(providerId)}ARTIFACT names no file, so nothing here was downloaded");
+            return;
+        }
+
+        var artifact = artifacts.FirstOrDefault(_ => _.Name == wanted);
+        if (artifact is null)
+        {
+            Assert.Fail($"{providerId}: the sandbox should publish '{wanted}' even though its build fails, and listed {LiveLog.Names(artifacts)}");
+            return;
+        }
+
+        if (artifact.Unavailable is { } unavailable)
+        {
+            Assert.Fail($"{providerId}: the service still lists '{wanted}' but will not serve it: {unavailable}");
+            return;
+        }
+
+        var destination = new MemoryStream();
+        var written = await live.Provider.DownloadArtifact(context, failed, artifact, destination, 32 * 1024 * 1024, cancel);
+        LiveLog.Line($"{providerId}: {artifact.Name} arrived as {written} bytes");
+        await Assert.That(written).IsGreaterThan(0).Because($"{providerId}: an artifact of no bytes would be saved as an empty file");
+        await Assert.That(written).IsEqualTo(destination.Length).Because($"{providerId}: the count returned is what the budget is spent against, so it has to be what was written");
+
+        // The budget the collector spends file by file. A provider that never checks it downloads
+        // the whole thing and leaves nothing for the rest.
+        await Assert.That(async () => await live.Provider.DownloadArtifact(context, failed, artifact, new MemoryStream(), 1, cancel))
+            .Throws<ArtifactTooLargeException>()
+            .Because($"{providerId}: a file past the cap should stop rather than arrive in full");
+    }
+
+    /// <summary>
     /// The app's own poll cycle, twice. The clock moves on between the cycles, so the second one
     /// probes for activity and revalidates what the first cached. An immediate second cycle would do
     /// neither. The settings are the app's defaults, so the history cutoff applies as it does for a user.

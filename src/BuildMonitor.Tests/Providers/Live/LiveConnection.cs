@@ -16,13 +16,14 @@ sealed class LiveConnection
         AutomaticDecompression = DecompressionMethods.All
     };
 
-    LiveConnection(IProvider provider, Connection connection, string token, string? pipeline, string? deployEnvironment, BuildAccess? expectedAccess)
+    LiveConnection(IProvider provider, Connection connection, string token, string? pipeline, string? deployEnvironment, string? artifact, BuildAccess? expectedAccess)
     {
         Provider = provider;
         Connection = connection;
         Token = token;
         Pipeline = pipeline;
         DeployEnvironment = deployEnvironment;
+        Artifact = artifact;
         ExpectedAccess = expectedAccess;
     }
 
@@ -47,6 +48,14 @@ sealed class LiveConnection
     /// The Octopus environment a sandbox deployment goes to, from _ENVIRONMENT.
     /// </summary>
     public string? DeployEnvironment { get; }
+
+    /// <summary>
+    /// What the sandbox's build publishes, from _ARTIFACT, as the service names it: a file name on
+    /// most, a path on GoCD. Unset for a sandbox that publishes nothing, whose files are then
+    /// reported rather than checked, so a provider can be covered as its sandbox is taught to
+    /// publish rather than only once every one of them has been.
+    /// </summary>
+    public string? Artifact { get; }
 
     /// <summary>
     /// What the token should be allowed to do, from _ACCESS, so a token that lost its write scope
@@ -95,6 +104,7 @@ sealed class LiveConnection
 
         var pipeline = Read("PIPELINE", actions);
         var environment = Read("ENVIRONMENT", false);
+        var artifact = Read("ARTIFACT", false);
         var auth = Parse<AuthMethod>(prefix + "AUTH", Read("AUTH", false)) ?? AuthMethod.Token;
         var access = Parse<BuildAccess>(prefix + "ACCESS", Read("ACCESS", false));
         if (token is null ||
@@ -119,7 +129,7 @@ sealed class LiveConnection
             Auth = auth,
             Scope = scope.ToImmutable()
         };
-        return new(Providers.Get(providerId), connection, token, pipeline, environment, access);
+        return new(Providers.Get(providerId), connection, token, pipeline, environment, artifact, access);
     }
 
     /// <summary>

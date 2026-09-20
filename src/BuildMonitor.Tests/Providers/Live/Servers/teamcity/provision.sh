@@ -61,10 +61,15 @@ provision() {
   if [[ $(status "${bearer[@]}" "$server/app/rest/buildTypes/id:$config") == 404 ]]; then
     post /app/rest/buildTypes "{\"id\":\"$config\",\"name\":\"buildmonitor-live\",\"project\":{\"id\":\"$project\"}}" > /dev/null
     post "/app/rest/buildTypes/id:$config/steps" \
-      '{"name":"Fail","type":"simpleRunner","properties":{"property":[{"name":"script.content","value":"echo \"BuildMonitor live test\"\nsleep 60\nexit 1"},{"name":"use.custom.script","value":"true"}]}}' > /dev/null
+      '{"name":"Fail","type":"simpleRunner","properties":{"property":[{"name":"script.content","value":"echo \"BuildMonitor live test\"\necho \"BuildMonitor live test\" > marker.txt\nsleep 60\nexit 1"},{"name":"use.custom.script","value":"true"}]}}' > /dev/null
     printf true \
       | fetch "${bearer[@]}" -X PUT -H 'Content-Type: text/plain' -H 'Accept: text/plain' --data-binary @- \
           "$server/app/rest/buildTypes/id:$config/settings/shouldFailBuildOnBadExitCode" > /dev/null
+    # The file the live tests list and download. TeamCity publishes artifacts for a failed build
+    # too, which is every build here.
+    printf 'marker.txt' \
+      | fetch "${bearer[@]}" -X PUT -H 'Content-Type: text/plain' -H 'Accept: text/plain' --data-binary @- \
+          "$server/app/rest/buildTypes/id:$config/settings/artifactRules" > /dev/null
     say "created $config"
   fi
 
@@ -93,7 +98,8 @@ provision() {
     "BUILDMONITOR_TEAMCITY_SERVER=$server" \
     "BUILDMONITOR_TEAMCITY_TOKEN=$token" \
     "BUILDMONITOR_TEAMCITY_SCOPE_PROJECT=$project" \
-    "BUILDMONITOR_TEAMCITY_PIPELINE=$config"
+    "BUILDMONITOR_TEAMCITY_PIPELINE=$config" \
+    "BUILDMONITOR_TEAMCITY_ARTIFACT=marker.txt"
 }
 
 # The web app is up once REST asks for credentials.

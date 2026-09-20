@@ -26,6 +26,7 @@ They live in `src/BuildMonitor.Tests/Providers/Live`. Both classes are `[Explici
 | `ConditionalFetch` | A second fetch through the same cache revalidates every ETag the first received. When every answer is a 304, the builds are unchanged. |
 | `RecentActivity` | The activity probe answers with tokens for real poll groups, and the tokens hold still while nothing changes. GitLab and Octopus have no probe. |
 | `FailedBuildLog` | The newest failed build has a log, and a sandbox's log contains the marker `BuildMonitor live test`. |
+| `Artifacts` | The newest failed build's files are listed, and the one `BUILDMONITOR_{ID}_ARTIFACT` names downloads, with the count returned matching what was written and a cap past it throwing rather than writing the file in full. The bytes are not read for the marker: several services answer with a zip of the build's files rather than the file itself. |
 | `PollCycles` | Two cycles of the app's own poller, two minutes apart on its clock, both end healthy. |
 
 `LiveActionTests` changes builds, so it also needs `BUILDMONITOR_LIVE_ACTIONS=true`. It runs one round per provider against the sandbox pipeline only:
@@ -55,6 +56,7 @@ The tests read each setting from the environment first, then from the file a loc
 | `BUILDMONITOR_{ID}_PIPELINE` | The sandbox pipeline, by id or by name as the tray shows it. Required for the action round. |
 | `BUILDMONITOR_{ID}_AUTH` | `Token` (the default), `Browser` or `Device`. Either sign in method sends the token the way a signed in connection does. |
 | `BUILDMONITOR_{ID}_ACCESS` | What the token should be allowed to do: `Change`, `Watch` or `Unknown`. |
+| `BUILDMONITOR_{ID}_ARTIFACT` | The file the sandbox's build publishes, as the service names it: a file name on most, a path on GoCD. Unset for a sandbox that publishes nothing, whose files are then reported rather than checked. |
 | `BUILDMONITOR_OCTOPUS_ENVIRONMENT` | The environment a sandbox deployment goes to. The space's first environment otherwise. |
 | `BUILDMONITOR_LIVE_PROVIDERS` | `all` (the default), or a comma separated list of provider ids. A provider named here fails, rather than skips, when a setting it needs is missing. |
 | `BUILDMONITOR_LIVE_ACTIONS` | `true` to run the action round. |
@@ -88,7 +90,7 @@ Set `BUILDMONITOR_LIVE_PROVIDERS` to run a single provider.
 Each server has a compose file and a provisioning script in `src/BuildMonitor.Tests/Providers/Live/Servers`. Provisioning:
  * starts the server;
  * creates a user and a token;
- * creates the `buildmonitor-live` job, which prints the marker, waits a minute and fails;
+ * creates the `buildmonitor-live` job, which prints the marker, publishes it as `marker.txt`, waits a minute and fails;
  * waits for the job's first failed run.
 
 It writes the settings to `Servers/.state/<provider>.env`, which the tests read. So no environment setup is needed.

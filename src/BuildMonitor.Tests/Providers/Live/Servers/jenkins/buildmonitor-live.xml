@@ -14,10 +14,23 @@
   <builders>
     <hudson.tasks.Shell>
       <command>echo "BuildMonitor live test"
+echo "BuildMonitor live test" &gt; marker.txt
 sleep 60
 exit 1</command>
     </hudson.tasks.Shell>
   </builders>
-  <publishers/>
+  <publishers>
+    <!-- The live tests list and download this. onlyIfSuccessful is off because every build here
+         fails, and Jenkins would otherwise archive nothing. -->
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>marker.txt</artifacts>
+      <allowEmptyArchive>false</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+      <followSymlinks>false</followSymlinks>
+    </hudson.tasks.ArtifactArchiver>
+  </publishers>
   <buildWrappers/>
 </project>

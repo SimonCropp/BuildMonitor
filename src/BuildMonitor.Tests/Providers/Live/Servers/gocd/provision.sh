@@ -83,7 +83,8 @@ provision() {
     "BUILDMONITOR_GOCD_SERVER=$server" \
     "BUILDMONITOR_GOCD_USER=$user" \
     "BUILDMONITOR_GOCD_TOKEN=$token" \
-    "BUILDMONITOR_GOCD_PIPELINE=$pipeline"
+    "BUILDMONITOR_GOCD_PIPELINE=$pipeline" \
+    "BUILDMONITOR_GOCD_ARTIFACT=build/fail/marker.txt"
 }
 
 healthy() { [[ $(status "$server/go/api/v1/health") == 200 ]]; }
