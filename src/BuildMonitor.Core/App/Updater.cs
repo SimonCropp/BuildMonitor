@@ -21,6 +21,12 @@ static class Updater
     const int waitSeconds = 30;
 
     /// <summary>
+    /// How long the shell waits for the processes it killed to go. Stopping one is asked for
+    /// rather than waited on, and the handles it holds are only released once it has gone.
+    /// </summary>
+    const int killSeconds = 5;
+
+    /// <summary>
     /// Starts the shell and returns. Exiting is the caller's, and has to be: the shell waits for
     /// this process to go before it updates, and a tray still running is the tray whose files the
     /// update then cannot replace.
@@ -36,11 +42,16 @@ static class Updater
     {
         if (OperatingSystem.IsWindows())
         {
-            var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(WindowsScript(shim, outcome, processId)));
+            var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(WindowsScript(shim, StoreDirectory(shim), outcome, processId)));
             var info = new ProcessStartInfo("powershell.exe")
             {
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                // The head runs with its own directory under .store as the working directory, and
+                // this shell would inherit it. Windows will not delete a directory that is some
+                // process's working directory, so the uninstall the update starts with would be
+                // denied the very version it is replacing, by the shell doing the replacing.
+                WorkingDirectory = Path.GetTempPath()
             };
             info.ArgumentList.Add("-NoProfile");
             info.ArgumentList.Add("-ExecutionPolicy");
@@ -68,20 +79,26 @@ static class Updater
     /// two, and an update that started while the tray was still there is one that cannot replace
     /// the tray's own files. Silent where the process has already gone, which is the usual case.
     /// <para>
-    /// Stops the MCP servers next. Each is the shim running <c>buildmonitor mcp</c> for an AI
-    /// client, and a running one holds the installed version's files, so the update could not
-    /// remove them however long it waited. They are matched on the shim's path, which is what
-    /// <see cref="McpServers.Find"/> matches on too, so the update page warns about the same set
-    /// this stops. A client sees its server stop, and connecting it again starts the new version.
+    /// Then kills whatever still holds the installed version, because the uninstall the update
+    /// starts with deletes the whole version directory and one open file under it fails all of it,
+    /// as "Access to the path ... is denied". That is the shim running <c>buildmonitor mcp</c> for
+    /// an AI client, a head left over from a tray that outlasted the wait above, and anything else
+    /// started out of the store. They are matched on the shim's path and on the store directory,
+    /// the first being what <see cref="McpServers.Find"/> matches on, so the update page warns
+    /// about every server this stops. A client sees its server stop, and connecting it again starts
+    /// the new version.
     /// </para>
     /// </summary>
-    public static string WindowsScript(string shim, string outcome, int processId)
+    public static string WindowsScript(string shim, string store, string outcome, int processId)
     {
         var quotedShim = Quote(shim);
+        var underStore = Quote($@"{store}\");
         string[] steps =
         [
             $"Wait-Process -Id {processId} -Timeout {waitSeconds} -ErrorAction SilentlyContinue",
-            $"Get-Process {ShimPath.Command} -ErrorAction SilentlyContinue | Where-Object Path -eq {quotedShim} | Stop-Process -Force",
+            $$"""$locking = @(Get-Process | Where-Object { $_.Path -and ($_.Path -eq {{quotedShim}} -or $_.Path.StartsWith({{underStore}}, 'OrdinalIgnoreCase')) })""",
+            "$locking | Stop-Process -Force -ErrorAction SilentlyContinue",
+            $"$locking | Wait-Process -Timeout {killSeconds} -ErrorAction SilentlyContinue",
             $$"""$output = dotnet tool update {{PackageId}} --global --prerelease 2>&1 | ForEach-Object { "$_" }""",
             $$"""$status = if ($LASTEXITCODE -eq 0) { '{{UpdateOutcome.Succeeded}}' } else { '{{UpdateOutcome.Failed}}' }""",
             $"Set-Content -LiteralPath {Quote(outcome)} -Value (@($status) + $output) -Encoding UTF8",
@@ -92,6 +109,15 @@ static class Updater
 
     static string Quote(string path) =>
         $"'{path.Replace("'", "''")}'";
+
+    /// <summary>
+    /// Where the tool store keeps every installed version of the package, which is the directory
+    /// the update empties: {tools}/.store/{package}, beside the shim's own directory. Matched
+    /// case-insensitively by the script, since the store names the directory in the case the
+    /// package id was pushed in rather than the case asked for here.
+    /// </summary>
+    public static string StoreDirectory(string shim) =>
+        Path.Combine(Path.GetDirectoryName(shim) ?? "", ".store", PackageId);
 
     /// <summary>
     /// A running file can be replaced here, so the MCP servers are left alone. They stay on the

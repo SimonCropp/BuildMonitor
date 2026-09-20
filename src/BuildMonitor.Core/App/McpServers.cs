@@ -11,9 +11,9 @@ record McpServers(ImmutableArray<McpServer> Running, bool StoppedByUpdate)
     public static McpServers None = new([], false);
 
     /// <summary>
-    /// Matched on the shim's path, which is what the update script matches on too, so what the page
-    /// warns about and what the script stops are the same set. A build run from anywhere else is
-    /// left alone.
+    /// Matched on the shim's path, which is one of the two things the update script matches on, so
+    /// every server the script stops is warned about here. The other is the store directory, which
+    /// no server of this shim runs from. A build run from anywhere else is left alone.
     /// <para>
     /// Nothing here is allowed to throw. A process can exit between being listed and being read,
     /// and one belonging to another user cannot be read at all; either way it is not a server this

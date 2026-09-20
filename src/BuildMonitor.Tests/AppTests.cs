@@ -86,8 +86,11 @@ public class AppTests
         if (OperatingSystem.IsWindows())
         {
             await Assert.That(info.FileName).IsEqualTo("powershell.exe");
+            // Anywhere but the store, whose directories the update deletes and Windows will not
+            // delete one that a running process is sitting in.
+            await Assert.That(info.WorkingDirectory).IsEqualTo(Path.GetTempPath());
             var script = Encoding.Unicode.GetString(Convert.FromBase64String(info.ArgumentList.Last()));
-            await Assert.That(script).IsEqualTo(Updater.WindowsScript(shim, outcome, 4242));
+            await Assert.That(script).IsEqualTo(Updater.WindowsScript(shim, Updater.StoreDirectory(shim), outcome, 4242));
         }
         else if (OperatingSystem.IsMacOS())
         {
@@ -106,8 +109,25 @@ public class AppTests
     /// </summary>
     [Test]
     public Task UpdaterWindowsScript() =>
-        Verify(Updater.WindowsScript(@"C:\Users\O'Brien\.dotnet\tools\buildmonitor.exe", @"C:\Users\O'Brien\AppData\Local\BuildMonitor\update-outcome.log", 4242))
-            .Snapshot("Wait-Process -Id 4242 -Timeout 30 -ErrorAction SilentlyContinue; Get-Process buildmonitor -ErrorAction SilentlyContinue | Where-Object Path -eq 'C:\\Users\\O''Brien\\.dotnet\\tools\\buildmonitor.exe' | Stop-Process -Force; $output = dotnet tool update BuildMonitor --global --prerelease 2>&1 | ForEach-Object { \"$_\" }; $status = if ($LASTEXITCODE -eq 0) { 'ok' } else { 'failed' }; Set-Content -LiteralPath 'C:\\Users\\O''Brien\\AppData\\Local\\BuildMonitor\\update-outcome.log' -Value (@($status) + $output) -Encoding UTF8; & 'C:\\Users\\O''Brien\\.dotnet\\tools\\buildmonitor.exe'");
+        Verify(
+                Updater.WindowsScript(
+                    @"C:\Users\O'Brien\.dotnet\tools\buildmonitor.exe",
+                    @"C:\Users\O'Brien\.dotnet\tools\.store\BuildMonitor",
+                    @"C:\Users\O'Brien\AppData\Local\BuildMonitor\update-outcome.log",
+                    4242))
+            .Snapshot("""Wait-Process -Id 4242 -Timeout 30 -ErrorAction SilentlyContinue; $locking = @(Get-Process | Where-Object { $_.Path -and ($_.Path -eq 'C:\Users\O''Brien\.dotnet\tools\buildmonitor.exe' -or $_.Path.StartsWith('C:\Users\O''Brien\.dotnet\tools\.store\BuildMonitor\', 'OrdinalIgnoreCase')) }); $locking | Stop-Process -Force -ErrorAction SilentlyContinue; $locking | Wait-Process -Timeout 5 -ErrorAction SilentlyContinue; $output = dotnet tool update BuildMonitor --global --prerelease 2>&1 | ForEach-Object { "$_" }; $status = if ($LASTEXITCODE -eq 0) { 'ok' } else { 'failed' }; Set-Content -LiteralPath 'C:\Users\O''Brien\AppData\Local\BuildMonitor\update-outcome.log' -Value (@($status) + $output) -Encoding UTF8; & 'C:\Users\O''Brien\.dotnet\tools\buildmonitor.exe'""");
+
+    /// <summary>
+    /// The store sits beside the shim, whatever the tools directory is, so the script can find the
+    /// version directories to be emptied from the one path the tray knows survives an update.
+    /// </summary>
+    [Test]
+    public async Task UpdaterStoreDirectoryIsBesideTheShim()
+    {
+        var shim = Path.Combine("home", ".dotnet", "tools", "buildmonitor");
+        await Assert.That(Updater.StoreDirectory(shim))
+            .IsEqualTo(Path.Combine("home", ".dotnet", "tools", ".store", "BuildMonitor"));
+    }
 
     [Test]
     public Task UpdaterUnixCommand() =>
