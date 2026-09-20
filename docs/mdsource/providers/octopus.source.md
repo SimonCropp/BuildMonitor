@@ -15,7 +15,7 @@ An [API key](https://octopus.com/docs/api/authentication/create-an-api-key), cre
 
 ## Rows
 
-One per project, showing the latest deployment. The project stands in for the repository, so each row is named after its project rather than grouped under the space. The environment stands in for the branch and the release version for the run number.
+One per project, showing the latest deployment. The project stands in for the repository, so each row is named after its project rather than grouped under the space, and being a project rather than a repository it is plain text rather than a link; the logo opens the project. The environment stands in for the branch and the release version for the run number.
 
 
 ## Authors

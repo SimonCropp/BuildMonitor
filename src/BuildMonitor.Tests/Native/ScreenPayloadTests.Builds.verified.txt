@@ -1,0 +1,63 @@
+﻿page: 0 rows: 6 details: 5 chips: 7 spans: 11 fields: 0 options: 0 buttons: 4 menu: 0 tray: 8 strings: 2078 bytes
+search='' tip='Show only builds whose repository, pipeline or branch contain the text' empty=''
+status='Polled 5s ago' tip=''
+row status=1 flags=0 progress=0.20 'build-all' link=None status=Build 'Build all main' spans=Build:'Build all',None:' main' provider='jenkins' '04:00 left' author='' chips=Cancel:Cancel[|Cancel]
+  tip Row: build-all main/started 1m ago
+  tip Status: Open run #501
+  tip Pipeline: Open run #501
+  tip Provider: Open Build all on Jenkins
+  tip Timing: Counting down from the service's own estimate
+  tip Cancel chip: Stop this run on Jenkins
+row status=1 flags=0 progress=0.40 'Deploy Web' link=None status=Build '' spans= provider='octopus' '02:15 left' author='' chips=Cancel:Cancel[|Cancel]
+  tip Row: Deploy Web/started 1m ago
+  tip Status: Open run #12
+  tip Pipeline: Open run #12
+  tip Provider: Open Deploy Web on Octopus Deploy
+  tip Timing: Counting down from the service's own estimate
+  tip Cancel chip: Stop this run on Octopus Deploy
+row status=1 flags=1 progress=0.50 'DiffEngine' link=Repo status=Build 'test.yml main' spans=Build:'test.yml',None:' ',Branch:'main' provider='github' '03:00 left' author='' chips=Cancel:Cancel[|Cancel]
+  tip Row: VerifyTests/DiffEngine main/Fix the thing/SimonCropp 0123456/started 3m ago
+  tip Status: Open run #1234
+  tip Pipeline: Open run #1234
+  tip Provider: Open test.yml on GitHub Actions
+  tip Name: Open DiffEngine on github.com
+  tip Branch: Open the main branch
+  tip Timing: Counting down from the median of this pipeline's recent successful runs
+  tip Cancel chip: Stop this run on GitHub Actions
+row status=0 flags=0 progress=-1.00 'nightly' link=None status=Build '' spans= provider='jenkins' 'queued 30s' author='' chips=Cancel:Cancel[|Cancel]
+  tip Row: nightly
+  tip Status: Open run #88
+  tip Pipeline: Open run #88
+  tip Provider: Open Nightly on Jenkins
+  tip Cancel chip: Stop this run on Jenkins
+row status=3 flags=0 progress=-1.00 'Verify' link=Repo status=Build 'test.yml feature/inline' spans=Build:'test.yml',None:' ',Branch:'feature/inline' provider='github' '25m ago' author='SimonCropp' chips=PullRequest:PR 42[pull-request|42],Retry:Retry[retry|],CopyLog:Log[log|]
+  tip Row: VerifyTests/Verify feature/inline/Inline snapshots/SimonCropp/started 30m ago
+  tip Status: Open run #77
+  tip Pipeline: Open run #77
+  tip Provider: Open test.yml on GitHub Actions
+  tip Name: Open Verify on github.com
+  tip Branch: Open the feature/inline branch
+  tip Timing: Ran for 05:00
+  tip PullRequest chip: Open pull request 42
+  tip Retry chip: Run test.yml again on GitHub Actions
+  tip CopyLog chip: Copy the log of what failed to the clipboard
+row status=2 flags=0 progress=-1.00 'DiffEngine' link=Repo status=Build 'docs.yml main' spans=Build:'docs.yml',None:' ',Branch:'main' provider='github' '23h ago' author='' chips=
+  tip Row: VerifyTests/DiffEngine main/started 1d ago
+  tip Status: Open run #300
+  tip Pipeline: Open run #300
+  tip Provider: Open docs.yml on GitHub Actions
+  tip Name: Open DiffEngine on github.com
+  tip Branch: Open the main branch
+  tip Timing: Ran for 01:00
+button flags=1 'Refresh' tip='Poll every connection now (F5)'
+button flags=1 'Options' tip='Connections, polling and what the window shows'
+button flags=1 'Filters' tip='Hide pipelines for good'
+button flags=1 'Hide' tip='Hide the window; the tray keeps running'
+tray flags=1 'open' 'Open' icon='open'
+tray flags=1 'refresh' 'Refresh' icon='refresh'
+tray flags=1 'options' 'Options' icon='options'
+tray flags=1 'filters' 'Filters' icon='filters'
+tray flags=1 'logs' 'Open logs' icon='logs'
+tray flags=1 'issue' 'Raise issue' icon='issue'
+tray flags=1 'update' 'Update' icon='update'
+tray flags=1 'exit' 'Exit' icon='exit'

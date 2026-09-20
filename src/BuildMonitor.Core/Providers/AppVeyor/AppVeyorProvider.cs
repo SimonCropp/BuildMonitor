@@ -26,7 +26,8 @@ sealed class AppVeyorProvider : ProviderBase
                 _.Name,
                 _.RepositoryName ?? _.Name,
                 _.RepositoryType,
-                $"https://ci.appveyor.com/project/{_.AccountName}/{_.Slug}"))
+                $"https://ci.appveyor.com/project/{_.AccountName}/{_.Slug}",
+                RepoUrl(_)))
             .ToList();
     }
 
@@ -67,6 +68,22 @@ sealed class AppVeyorProvider : ProviderBase
         return tokens.ToImmutable();
     }
 
+    /// <summary>
+    /// The repository behind the project, for the projects whose address AppVeyor gives enough of
+    /// to compose one. It names the type and the "owner/name" pair, but not the host, so only
+    /// GitHub's is safe to build; the rest leave the row's name plain rather than guess a host.
+    /// </summary>
+    static string? RepoUrl(AppVeyorProject project)
+    {
+        if (project.RepositoryName is { } name &&
+            string.Equals(project.RepositoryType, "gitHub", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"https://github.com/{name}";
+        }
+
+        return null;
+    }
+
     static Build Convert(string connectionId, Pipeline pipeline, AppVeyorBuild build)
     {
         var status = build.Status switch
@@ -78,7 +95,7 @@ sealed class AppVeyorProvider : ProviderBase
             "cancelled" => BuildStatus.Cancelled,
             _ => BuildStatus.Unknown
         };
-        var github = string.Equals(pipeline.Group, "gitHub", StringComparison.OrdinalIgnoreCase);
+        var repo = pipeline.RepoUrl;
         return new(
             connectionId,
             pipeline.Id,
@@ -93,16 +110,17 @@ sealed class AppVeyorProvider : ProviderBase
             build.Finished,
             null,
             $"{pipeline.Url}/builds/{build.BuildId}",
-            github && build.Branch is not null ? $"https://github.com/{pipeline.RepoName}/tree/{build.Branch}" : null,
+            repo is not null && build.Branch is not null ? $"{repo}/tree/{build.Branch}" : null,
             build.PullRequestId,
-            github && build.PullRequestId is not null ? $"https://github.com/{pipeline.RepoName}/pull/{build.PullRequestId}" : null,
+            repo is not null && build.PullRequestId is not null ? $"{repo}/pull/{build.PullRequestId}" : null,
             build.CommitId,
             build.Message,
             build.AuthorName,
             CanRetry: status is BuildStatus.Failed or BuildStatus.Cancelled or BuildStatus.Succeeded,
             CanCancel: status is BuildStatus.Queued or BuildStatus.Running,
             Join(build.BuildId.ToString(), build.Version),
-            github ? $"https://github.com/{pipeline.RepoName}" : pipeline.Url);
+            pipeline.Url,
+            pipeline.RepoUrl);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

@@ -14,7 +14,6 @@
 static class DependabotBranches
 {
     const string prefix = "dependabot/";
-    const string robot = "🤖";
 
     /// <summary>
     /// Both spellings, since GitHub's Dependabot writes the package manager (npm_and_yarn, go_modules)
@@ -76,7 +75,7 @@ static class DependabotBranches
             return branch;
         }
 
-        return $"{robot} {branch[(branch.LastIndexOf('/') + 1)..]}";
+        return $"{Bots.Mark} {branch[(branch.LastIndexOf('/') + 1)..]}";
     }
 
     /// <summary>

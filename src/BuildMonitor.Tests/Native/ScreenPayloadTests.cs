@@ -5,31 +5,7 @@ public class ScreenPayloadTests
     {
         var payload = new ScreenPayload();
         payload.Build(ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now));
-        return Verify(payload.Describe())
-            .Snapshot(
-                """
-                page: 0 rows: 6 details: 5 chips: 7 spans: 11 fields: 0 options: 0 buttons: 4 menu: 0 tray: 8 strings: 693 bytes
-                search='' empty=''
-                row status=1 flags=0 progress=0.20 'build-all' link=None 'Build all main' spans=Build:'Build all',None:' main' provider='jenkins' '04:00 left' author='' chips=Cancel:Cancel
-                row status=1 flags=0 progress=0.40 'Deploy Web' link=Build '' spans= provider='octopus' '02:15 left' author='' chips=Cancel:Cancel
-                row status=1 flags=1 progress=0.50 'DiffEngine' link=None 'test.yml main' spans=Build:'test.yml',None:' ',Branch:'main' provider='github' '03:00 left' author='' chips=Cancel:Cancel
-                row status=0 flags=0 progress=-1.00 'nightly' link=Build '' spans= provider='jenkins' 'queued 30s' author='' chips=Cancel:Cancel
-                row status=3 flags=0 progress=-1.00 'Verify' link=None 'test.yml feature/inline' spans=Build:'test.yml',None:' ',Branch:'feature/inline' provider='github' '25m ago' author='SimonCropp' chips=PullRequest:PR 42,Retry:Retry,CopyLog:Log
-                row status=2 flags=0 progress=-1.00 'DiffEngine' link=None 'docs.yml main' spans=Build:'docs.yml',None:' ',Branch:'main' provider='github' '23h ago' author='' chips=
-                button flags=1 'Refresh'
-                button flags=1 'Options'
-                button flags=1 'Filters'
-                button flags=1 'Hide'
-                tray flags=1 'open' 'Open' icon='open'
-                tray flags=1 'refresh' 'Refresh' icon='refresh'
-                tray flags=1 'options' 'Options' icon='options'
-                tray flags=1 'filters' 'Filters' icon='filters'
-                tray flags=1 'logs' 'Open logs' icon='logs'
-                tray flags=1 'issue' 'Raise issue' icon='issue'
-                tray flags=1 'update' 'Update' icon='update'
-                tray flags=1 'exit' 'Exit' icon='exit'
-
-                """);
+        return Verify(payload.Describe());
     }
 
     [Test]
@@ -40,18 +16,19 @@ public class ScreenPayloadTests
         return Verify(payload.Describe())
             .Snapshot(
                 """
-                page: 1 rows: 0 details: 0 chips: 0 spans: 0 fields: 6 options: 10 buttons: 4 menu: 0 tray: 8 strings: 642 bytes
-                search='' empty=''
+                page: 1 rows: 0 details: 0 chips: 0 spans: 0 fields: 6 options: 10 buttons: 4 menu: 0 tray: 8 strings: 688 bytes
+                search='' tip='' empty=''
+                status='Polled 5s ago' tip=''
                 field kind=5 flags=1 'provider' 'Provider' 'AppVeyor' options=0+10
                 field kind=2 flags=1 'name' 'Name' '' options=10+0
                 field kind=2 flags=1 'scope:account' 'Account (optional)' '' options=10+0
                 field kind=3 flags=1 'token' 'API token' '' options=10+0
                 field kind=7 flags=1 'tokenHelp' 'How to get an API token' 'https://ci.appveyor.com/api-keys' options=10+0
                 field kind=7 flags=1 'providerDocs' 'AppVeyor documentation' 'https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/appveyor.md' options=10+0
-                button flags=0 'Sign in'
-                button flags=1 'Test'
-                button flags=1 'Save'
-                button flags=1 'Cancel'
+                button flags=0 'Sign in' tip=''
+                button flags=1 'Test' tip='Check the server and credential without saving'
+                button flags=1 'Save' tip=''
+                button flags=1 'Cancel' tip=''
                 tray flags=1 'open' 'Open' icon='open'
                 tray flags=1 'refresh' 'Refresh' icon='refresh'
                 tray flags=1 'options' 'Options' icon='options'

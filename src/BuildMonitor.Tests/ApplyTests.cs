@@ -183,14 +183,47 @@ public class ApplyTests
         await Assert.That(state.Exit).IsTrue();
     }
 
+    /// <summary>
+    /// The icon and the name are the two halves of what was one link, and they open two different
+    /// pages: an AppVeyor logo used to open github.com because one field held both.
+    /// </summary>
     [Test]
-    public async Task ProjectLinkOpensTheProjectPage()
+    public async Task TheIconOpensThePipelineAndTheNameTheRepository()
     {
         var actions = new RecordingActions();
         var state = Fixtures.WithBuilds();
-        state = state with { Builds = [..state.Builds.Select(_ => _ with { ProjectUrl = "https://example.com/project" })] };
-        Apply(state, new(ClickedChipRow: 0, ClickedChip: ChipKind.Project), actions);
-        await Assert.That(actions.Calls).IsEquivalentTo(["OpenUrl https://example.com/project"]);
+        state = state with
+        {
+            Builds =
+            [
+                ..state.Builds.Select(_ => _ with
+                {
+                    PipelineUrl = "https://ci.example.com/pipeline",
+                    RepoUrl = "https://github.com/owner/name"
+                })
+            ]
+        };
+        Apply(state, new(ClickedChipRow: 0, ClickedChip: ChipKind.Pipeline), actions);
+        Apply(state, new(ClickedChipRow: 0, ClickedChip: ChipKind.Repo), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(
+        [
+            "OpenUrl https://ci.example.com/pipeline",
+            "OpenUrl https://github.com/owner/name"
+        ]);
+    }
+
+    /// <summary>
+    /// A member's own first cell is blank, so the group's row is the only place its repository is
+    /// named, and it resolves through the members the way the shared folder chip does.
+    /// </summary>
+    [Test]
+    public async Task AGroupOpensTheRepositoryItsMembersShare()
+    {
+        var actions = new RecordingActions();
+        var state = Fixtures.WithFailedGroup();
+        var group = RowProjection.Rows(state).Select((row, index) => (row, index)).First(_ => _.row.Kind == RowKind.Group);
+        Apply(state, new(ClickedChipRow: group.index, ClickedChip: ChipKind.Repo), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["OpenUrl https://github.com/VerifyTests/Verify"]);
     }
 
     [Test]
@@ -393,7 +426,7 @@ public class ApplyTests
         var builds = Fixtures.WithLocalRepos();
         var row = FailedRow(builds);
         var chips = MonitorSession.SelectedBuild(MonitorSession.SelectRow(builds, row))!;
-        await Assert.That(RowChips.Of(chips, builds.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.OpenDirectory);
+        await Assert.That(RowChips.Of(chips, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), builds.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.OpenDirectory);
 
         var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.OpenDirectory), actions);
         await Assert.That(actions.Calls).IsEmpty();
@@ -434,11 +467,11 @@ public class ApplyTests
     {
         var withCheckout = Fixtures.WithTriageableFailure();
         var green = MonitorSession.SelectedBuild(MonitorSession.SelectRow(withCheckout, RunningRow(withCheckout)))!;
-        await Assert.That(RowChips.Of(green, withCheckout.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
+        await Assert.That(RowChips.Of(green, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), withCheckout.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
 
         var noCheckout = Fixtures.WithLocalRepos();
         var failed = MonitorSession.SelectedBuild(MonitorSession.SelectRow(noCheckout, FailedRow(noCheckout)))!;
-        await Assert.That(RowChips.Of(failed, noCheckout.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
+        await Assert.That(RowChips.Of(failed, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), noCheckout.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
     }
 
     /// <summary>

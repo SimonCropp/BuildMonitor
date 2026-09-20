@@ -17,6 +17,13 @@ sealed class RowsCanvas : Control
     // the text was scaled up.
     const int minimumTiming = 90;
     const int minimumDetail = 120;
+    // How long the pointer rests on one part of a row before that part says what it is. Long
+    // enough that crossing a row on the way somewhere else says nothing at all.
+    const int tipDelay = 1200;
+    // How long it then stays: enough to read a row's whole summary, which runs to four lines.
+    const int tipDuration = 20000;
+    // Clear of the pointer, so the text is not under the hand that asked for it.
+    const int tipOffset = 18;
     // Without padding, so each run of the detail starts where the text before it ended.
     const TextFormatFlags runFlags = TextFormatFlags.Left |
                                      TextFormatFlags.VerticalCenter |
@@ -25,9 +32,19 @@ sealed class RowsCanvas : Control
                                      TextFormatFlags.NoPadding;
     // Stands in for the chips a row has no room for, and opens the drop down that holds them.
     const string overflowLabel = "…";
-    // The labelled chips of the widest row, which the chips column is as wide as while there is
-    // room. The open folder chip is not among them: it is a picture, so WidestChips adds its square.
-    static string[] widestChips = ["PR 9999", "Retry", "Log", "Triage"];
+    // Between a chip's icon and the text after it, where it has both.
+    const int chipIconGap = 4;
+    // The chips of the widest row, which the chips column is as wide as while there is room: a
+    // failed pull request build with a checkout carries every one of them. Cancel is not among
+    // them; it never shares a row with Retry, and a row that has it has nothing else.
+    static (string Icon, string Text)[] widestChips =
+    [
+        ("pull-request", "9999"),
+        ("retry", ""),
+        ("log", ""),
+        ("folder", ""),
+        ("triage", "")
+    ];
 
     BuildsPage? page;
     int menuShownForRow = -1;
@@ -35,12 +52,34 @@ sealed class RowsCanvas : Control
     int hoverRow = -1;
     // The link in the text under the pointer, underlined so it reads as a link before it is clicked.
     Rectangle hoverLink = Rectangle.Empty;
-    // Each clickable thing the last paint drew: a chip, a link in the text, the provider icon, or an
-    // overflow chip, which carries the first of the chips it stands in for.
+    // Each clickable thing the last paint drew: a chip, a link in the text, the status square, the
+    // provider icon, or an overflow chip, which carries the first of the chips it stands in for.
     List<(int Row, ChipKind Chip, bool Overflow, Rectangle Bounds)> chips = [];
+    // Each hover text the last paint drew, in the order drawn, so a later one wins where two
+    // overlap: a cell's own text over the one for the whole row.
+    List<(Rectangle Bounds, string Text)> tips = [];
+    // Shown by hand rather than by assigning the control a tool and letting it decide when:
+    // InitialDelay only governs the first time the pointer enters a tool, and the whole canvas is
+    // one tool whose text changes as the pointer crosses cells, so the control re-showed instantly
+    // over every cell the pointer passed however long the delays were set to.
+    ToolTip toolTip = new()
+    {
+        ShowAlways = true
+    };
+    System.Windows.Forms.Timer tipTimer = new()
+    {
+        Interval = tipDelay
+    };
+    // What is waiting on the timer, or showing. Compared to decide whether a move is onto something
+    // new: within one cell the pointer must be free to drift without restarting the wait.
+    string tipPending = "";
+    Point tipAt;
+    bool tipVisible;
     ContextMenuStrip contextMenu = new();
     Font bold;
     Font underline;
+    // A group's name is bold, and now also a link, so hovering it needs both at once.
+    Font boldUnderline;
     // Text widths by the text, the font's style and the flags. Measuring was most of a paint: the
     // columns measure every name, detail and author across all rows, and each visible row measured
     // its runs and chips twice, about five hundred strings and 26 ms on a large account.
@@ -72,6 +111,8 @@ sealed class RowsCanvas : Control
         ForeColor = Palette.Text;
         bold = new(Font, FontStyle.Bold);
         underline = new(Font, FontStyle.Underline);
+        boldUnderline = new(Font, FontStyle.Bold | FontStyle.Underline);
+        tipTimer.Tick += (_, _) => ShowPendingTip();
         MenuTheme.Apply(contextMenu);
         contextMenu.ItemClicked += (_, arguments) =>
         {
@@ -107,6 +148,8 @@ sealed class RowsCanvas : Control
         bold = new(Font, FontStyle.Bold);
         underline.Dispose();
         underline = new(Font, FontStyle.Underline);
+        boldUnderline.Dispose();
+        boldUnderline = new(Font, FontStyle.Bold | FontStyle.Underline);
     }
 
     /// <summary>
@@ -213,6 +256,7 @@ sealed class RowsCanvas : Control
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
         chips.Clear();
+        tips.Clear();
         if (page is null)
         {
             return;
@@ -270,6 +314,15 @@ sealed class RowsCanvas : Control
 
             DrawRow(graphics, row, bounds, index, iconWidth, layout);
         }
+
+        // A poll moves the rows under a pointer that has not moved, and a tooltip stays up for
+        // twenty seconds, so without this one could sit there describing the row that used to be
+        // under it. Only where the pointer is already hovering something: a repaint is not itself
+        // a reason to start showing one.
+        if (tipPending.Length > 0)
+        {
+            ShowTip(PointToClient(MousePosition));
+        }
     }
 
     /// <summary>
@@ -311,21 +364,24 @@ sealed class RowsCanvas : Control
         }
 
         var spare = available - nameWanted - detailWanted;
-        var chipsWidth = spare >= widest ? widest : Math.Max(ChipWidth(overflowLabel), spare);
+        var chipsWidth = spare >= widest ? widest : Math.Max(ChipWidth("", overflowLabel), spare);
         var names = Math.Max(LogicalToDeviceUnits(120), available - chipsWidth);
         var narrowest = LogicalToDeviceUnits(40);
         var nameWidth = Math.Clamp(nameWanted, narrowest, Math.Max(narrowest, names - Math.Min(LogicalToDeviceUnits(minimumDetail), detailWanted)));
         return (nameWidth, names - nameWidth, barWidth, authorWidth, chipsWidth);
     }
 
-    static string DisplayName(BuildRow row)
+    /// <summary>
+    /// The open or closed arrow a group's row is drawn behind, and nothing for any other row.
+    /// </summary>
+    static string GroupArrow(BuildRow row)
     {
         if (row.Kind == RowKind.Group)
         {
-            return $"{(row.Expanded ? "▾" : "▸")} {row.Name}";
+            return row.Expanded ? "▾ " : "▸ ";
         }
 
-        return row.Name;
+        return "";
     }
 
     int MeasureName(string text, Font font) =>
@@ -348,11 +404,23 @@ sealed class RowsCanvas : Control
 
     void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, (int Name, int Detail, int Bar, int Author, int Chips) layout)
     {
+        // First, so every cell drawn after it covers it where that cell has something of its own.
+        Tip(bounds, row.Tooltip(RowPart.Row));
         // The full height of the row and flush with its neighbours, so a run of rows in one status
         // reads as one block rather than a column of dots.
+        var square = new Rectangle(bounds.Left, bounds.Top, bounds.Height, bounds.Height);
         using (var brush = new SolidBrush(Palette.Status(row.Status)))
         {
-            graphics.FillRectangle(brush, bounds.Left, bounds.Top, bounds.Height, bounds.Height);
+            graphics.FillRectangle(brush, square);
+        }
+
+        // The square opens the run. It is the one cell every build row has: where the pipeline is
+        // named after the project the second cell leaves it out, and a group's member has no first
+        // cell either, so without this such a row named its run nowhere a click could reach.
+        if (row.StatusLink != ChipKind.None)
+        {
+            chips.Add((index, row.StatusLink, false, square));
+            Tip(square, row.Tooltip(RowPart.Status));
         }
 
         var gap = LogicalToDeviceUnits(padding);
@@ -364,15 +432,18 @@ sealed class RowsCanvas : Control
         x += layout.Name + gap;
         // The logo leads the second cell, beside the pipeline it ran, so a group's members, whose
         // first cell is empty, still show which service each one came from.
-        if (row.Provider.Length > 0 &&
-            Icons.Glyph($"provider-{row.Provider}") is { } icon)
+        if (row.Provider.Length > 0)
         {
             var side = LogicalToDeviceUnits(iconSize);
             var iconBounds = new Rectangle(x, centreY - side / 2, side, side);
-            graphics.DrawImage(icon, iconBounds);
-            // Hit tested like a chip, so the icon shows the hand and opens the project page
-            // rather than selecting the row.
-            chips.Add((index, ChipKind.Project, false, iconBounds));
+            // Hit tested like a chip, so the icon shows the hand and opens the pipeline's page on
+            // that service rather than selecting the row. Only where one was drawn: a picture that
+            // is not there is not something to aim at.
+            if (Icons.Draw(graphics, $"provider-{row.Provider}", iconBounds))
+            {
+                chips.Add((index, ChipKind.Pipeline, false, iconBounds));
+                Tip(iconBounds, row.Tooltip(RowPart.Provider));
+            }
         }
 
         DrawDetail(graphics, row, index, x + iconWidth, bounds, layout.Detail - iconWidth);
@@ -394,6 +465,7 @@ sealed class RowsCanvas : Control
         }
 
         Draw(graphics, row.Timing, Font, x, bounds, timingWidth, Palette.Dim);
+        Tip(new(x, bounds.Top, timingWidth, bounds.Height), row.Tooltip(RowPart.Timing));
         x += timingWidth + gap;
         if (layout.Author > 0)
         {
@@ -410,16 +482,44 @@ sealed class RowsCanvas : Control
     /// </summary>
     void DrawName(Graphics graphics, BuildRow row, int index, int x, Rectangle bounds, int width)
     {
-        var text = DisplayName(row);
+        // Through NameFont, so a group's name keeps the weight that makes it read as a heading
+        // while it takes the link colour, and the hit rectangle is measured in the font drawn.
+        var font = NameFont(row);
+        // The arrow is drawn before the name but is no part of it: it is what opens and closes the
+        // group, so it stays in the ordinary colour and outside the link's rectangle, and a click
+        // on it reaches the row. Inside the link it left a closed group with no way to expand.
+        var arrow = GroupArrow(row);
+        if (arrow.Length > 0)
+        {
+            Draw(graphics, arrow, font, x, bounds, width, Palette.Text);
+            var arrowWidth = Math.Min(MeasureName(arrow, font), width);
+            x += arrowWidth;
+            width -= arrowWidth;
+        }
+
         if (row.NameLink == ChipKind.None)
         {
-            Draw(graphics, text, NameFont(row), x, bounds, width, Palette.Text);
+            Draw(graphics, row.Name, font, x, bounds, width, Palette.Text);
             return;
         }
 
-        var link = LinkBounds(x, Math.Min(MeasureName(text, Font), width), bounds);
-        Draw(graphics, text, link == hoverLink ? underline : Font, x, bounds, width, Palette.ChipText);
+        var link = LinkBounds(x, Math.Min(MeasureName(row.Name, font), width), bounds);
+        Draw(graphics, row.Name, link == hoverLink ? Hovered(font) : font, x, bounds, width, Palette.ChipText);
         chips.Add((index, row.NameLink, false, link));
+        Tip(link, row.Tooltip(RowPart.Name));
+    }
+
+    /// <summary>
+    /// The same font underlined, which is how a link says it is one before it is clicked.
+    /// </summary>
+    Font Hovered(Font font)
+    {
+        if (font == bold)
+        {
+            return boldUnderline;
+        }
+
+        return underline;
     }
 
     /// <summary>
@@ -451,6 +551,7 @@ sealed class RowsCanvas : Control
             var link = LinkBounds(left, Math.Min(x + Measure(before), right) - left, bounds);
             TextRenderer.DrawText(graphics, span.Text, link == hoverLink ? underline : Font, cell, Palette.ChipText, runFlags);
             chips.Add((index, span.Link, false, link));
+            Tip(link, row.Tooltip(span.Link == ChipKind.Branch ? RowPart.Branch : RowPart.Pipeline));
         }
     }
 
@@ -468,25 +569,21 @@ sealed class RowsCanvas : Control
     void DrawChips(Graphics graphics, BuildRow row, int index, int x, int right, int centreY)
     {
         var chipGap = LogicalToDeviceUnits(chipSpacing);
-        var overflowWidth = ChipWidth(overflowLabel);
+        var overflowWidth = ChipWidth("", overflowLabel);
         for (var position = 0; position < row.Chips.Count; position++)
         {
             var chip = row.Chips[position];
             var reserve = position == row.Chips.Count - 1 ? 0 : chipGap + overflowWidth;
             if (x + ChipWidth(chip) + reserve > right)
             {
-                Chip(graphics, overflowLabel, x, centreY, Palette.Chip, Palette.Text, index, chip.Kind, overflow: true);
+                // Which chips it stands in for depends on the width this row was given, so the one
+                // thing it can say is that there are more, as the … itself does.
+                Chip(graphics, "", overflowLabel, x, centreY, Palette.Chip, Palette.Text, index, chip.Kind, overflow: true, "More actions");
                 return;
             }
 
-            if (IsIcon(chip.Kind))
-            {
-                x = IconChip(graphics, "folder", x, centreY, index, chip.Kind) + chipGap;
-                continue;
-            }
-
             var (background, foreground) = Colours(chip.Kind);
-            x = Chip(graphics, chip.Label, x, centreY, background, foreground, index, chip.Kind, overflow: false) + chipGap;
+            x = Chip(graphics, chip.Icon, chip.Text, x, centreY, background, foreground, index, chip.Kind, overflow: false, chip.Tooltip) + chipGap;
         }
     }
 
@@ -511,82 +608,78 @@ sealed class RowsCanvas : Control
         graphics.DrawArc(pen, bounds, angle, 270);
     }
 
-    int Chip(Graphics graphics, string label, int x, int centreY, Color background, Color foreground, int row, ChipKind kind, bool overflow)
+    /// <summary>
+    /// One pill: its icon, then its text, either of which may be empty. The icon stands where the
+    /// text would start, so a row of chips keeps one rhythm whichever of the two each one carries.
+    /// </summary>
+    int Chip(Graphics graphics, string icon, string text, int x, int centreY, Color background, Color foreground, int row, ChipKind kind, bool overflow, string tooltip)
     {
-        var bounds = new Rectangle(x, centreY - ChipHeight / 2, ChipWidth(label), ChipHeight);
+        var bounds = new Rectangle(x, centreY - ChipHeight / 2, ChipWidth(icon, text), ChipHeight);
         using (var brush = new SolidBrush(background))
         using (var path = RoundedRectangle(bounds, LogicalToDeviceUnits(6)))
         {
             graphics.FillPath(brush, path);
         }
 
-        const TextFormatFlags textFormatFlags = TextFormatFlags.HorizontalCenter |
-                                                TextFormatFlags.VerticalCenter |
-                                                TextFormatFlags.NoPadding;
-        TextRenderer.DrawText(graphics, label, Font, bounds, foreground, textFormatFlags);
-        chips.Add((row, kind, overflow, bounds));
-        return bounds.Right;
-    }
-
-    /// <summary>
-    /// A chip whose picture is its label. Recorded in the same hit list as any other, so the click
-    /// path does not know the difference.
-    /// </summary>
-    int IconChip(Graphics graphics, string glyph, int x, int centreY, int row, ChipKind kind)
-    {
-        var bounds = new Rectangle(x, centreY - ChipHeight / 2, IconChipWidth, ChipHeight);
-        using (var brush = new SolidBrush(Palette.Chip))
-        using (var path = RoundedRectangle(bounds, LogicalToDeviceUnits(6)))
+        var left = bounds.Left + LogicalToDeviceUnits(chipPadding);
+        if (icon.Length > 0)
         {
-            graphics.FillPath(brush, path);
-        }
-
-        // A checkout with no glyph to draw is still clickable: an empty pill is odd, but a chip
-        // that vanished because IconBuilder never ran would be worse.
-        if (Icons.Glyph(glyph) is { } icon)
-        {
+            // A chip whose glyph is missing is still drawn and still clickable: an empty pill is
+            // odd, but one that vanished because IconBuilder never ran would be worse.
             var side = LogicalToDeviceUnits(iconSize);
-            graphics.DrawImage(
-                icon,
-                new Rectangle(
-                    bounds.Left + (bounds.Width - side) / 2,
-                    bounds.Top + (bounds.Height - side) / 2,
-                    side,
-                    side));
+            Icons.Draw(graphics, icon, new(left, bounds.Top + (bounds.Height - side) / 2, side, side));
+            left += side;
+            if (text.Length > 0)
+            {
+                left += LogicalToDeviceUnits(chipIconGap);
+            }
         }
 
-        chips.Add((row, kind, false, bounds));
+        if (text.Length > 0)
+        {
+            const TextFormatFlags textFormatFlags = TextFormatFlags.Left |
+                                                    TextFormatFlags.VerticalCenter |
+                                                    TextFormatFlags.NoPadding;
+            TextRenderer.DrawText(graphics, text, Font, new Rectangle(left, bounds.Top, bounds.Right - left, bounds.Height), foreground, textFormatFlags);
+        }
+
+        chips.Add((row, kind, overflow, bounds));
+        Tip(bounds, tooltip);
         return bounds.Right;
     }
 
-    int ChipWidth(string label) =>
-        Measure(label) + 2 * LogicalToDeviceUnits(chipPadding);
+    int ChipWidth(string icon, string text)
+    {
+        var width = 2 * LogicalToDeviceUnits(chipPadding);
+        if (icon.Length > 0)
+        {
+            width += LogicalToDeviceUnits(iconSize);
+        }
+
+        if (text.Length > 0)
+        {
+            width += Measure(text);
+        }
+
+        if (icon.Length > 0 &&
+            text.Length > 0)
+        {
+            width += LogicalToDeviceUnits(chipIconGap);
+        }
+
+        return width;
+    }
 
     int ChipWidth(RowChip chip) =>
-        IsIcon(chip.Kind) ? IconChipWidth : ChipWidth(chip.Label);
+        ChipWidth(chip.Icon, chip.Text);
 
     /// <summary>
-    /// The icon stands where the label would, so the pill is padded the same and the row of chips
-    /// keeps one rhythm.
-    /// </summary>
-    int IconChipWidth =>
-        LogicalToDeviceUnits(iconSize) + 2 * LogicalToDeviceUnits(chipPadding);
-
-    /// <summary>
-    /// The whole chips column at its widest: every labelled chip at its longest, then the open
-    /// folder chip's square, with a gap between each.
+    /// The whole chips column at its widest: every chip the widest row can carry, with a gap
+    /// between each.
     /// </summary>
     int WidestChips() =>
-        widestChips.Sum(ChipWidth) +
-        IconChipWidth +
-        widestChips.Length * LogicalToDeviceUnits(chipSpacing);
-
-    /// <summary>
-    /// Which chips are drawn as a picture. A folder says what "Open dir" would, in the width the
-    /// row has to spare; the label is kept for the drop down, where there is room for words.
-    /// </summary>
-    static bool IsIcon(ChipKind kind) =>
-        kind == ChipKind.OpenDirectory;
+        widestChips.Sum(_ => ChipWidth(_.Icon, _.Text)) +
+        (widestChips.Length - 1) * LogicalToDeviceUnits(chipSpacing);
 
     static GraphicsPath RoundedRectangle(Rectangle bounds, int radius)
     {
@@ -647,7 +740,8 @@ sealed class RowsCanvas : Control
         var row = RowAt(args.Y);
         var hit = chips.FirstOrDefault(_ => _.Bounds.Contains(args.Location));
         Cursor = hit.Bounds == Rectangle.Empty ? Cursors.Default : Cursors.Hand;
-        var link = hit is { Overflow: false, Chip: ChipKind.Build or ChipKind.Branch } ? hit.Bounds : Rectangle.Empty;
+        var link = IsTextLink(hit) ? hit.Bounds : Rectangle.Empty;
+        ShowTip(args.Location);
         if (row != hoverRow ||
             link != hoverLink)
         {
@@ -659,16 +753,109 @@ sealed class RowsCanvas : Control
         base.OnMouseMove(args);
     }
 
+    /// <summary>
+    /// Whether what the pointer is over is a link in the text, which underlines. The status square
+    /// and the provider icon report a kind like a link but are pictures: the hand is all the
+    /// feedback they get, and a line under either would read as part of the drawing.
+    /// </summary>
+    bool IsTextLink((int Row, ChipKind Chip, bool Overflow, Rectangle Bounds) hit)
+    {
+        if (hit.Overflow ||
+            hit.Chip is not (ChipKind.Build or ChipKind.Branch or ChipKind.Repo))
+        {
+            return false;
+        }
+
+        return hit.Bounds.Height <= Font.Height;
+    }
+
+    /// <summary>
+    /// Records a hover text, dropping the empty ones so a cell with nothing of its own to say
+    /// leaves the row's own text showing rather than blanking it.
+    /// </summary>
+    void Tip(Rectangle bounds, string text)
+    {
+        if (text.Length > 0)
+        {
+            tips.Add((bounds, text));
+        }
+    }
+
+    void ShowTip(Point at)
+    {
+        var text = TipAt(at);
+        // Still over the same thing, so the wait, or what is already up, carries on. Without this
+        // every pixel of movement inside one cell would start the delay again and nothing would
+        // ever be shown.
+        if (text == tipPending)
+        {
+            return;
+        }
+
+        tipPending = text;
+        tipTimer.Stop();
+        HideTip();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        tipAt = at;
+        tipTimer.Start();
+    }
+
+    void ShowPendingTip()
+    {
+        tipTimer.Stop();
+        if (tipPending.Length == 0)
+        {
+            return;
+        }
+
+        toolTip.Show(tipPending, this, tipAt.X + tipOffset, tipAt.Y + tipOffset, tipDuration);
+        tipVisible = true;
+    }
+
+    void HideTip()
+    {
+        if (tipVisible)
+        {
+            toolTip.Hide(this);
+            tipVisible = false;
+        }
+    }
+
+    /// <summary>
+    /// The hover text under the pointer: the last one recorded that covers it, so a cell's own text
+    /// wins over the one for the whole row it was drawn on.
+    /// </summary>
+    string TipAt(Point at)
+    {
+        for (var index = tips.Count - 1; index >= 0; index--)
+        {
+            if (tips[index].Bounds.Contains(at))
+            {
+                return tips[index].Text;
+            }
+        }
+
+        return "";
+    }
+
     protected override void OnMouseLeave(EventArgs args)
     {
         hoverRow = -1;
         hoverLink = Rectangle.Empty;
+        ShowTip(new(-1, -1));
         Invalidate();
         base.OnMouseLeave(args);
     }
 
     protected override void OnMouseDown(MouseEventArgs args)
     {
+        // Whatever the click does, a tooltip left over the row it was aimed at is in the way of it.
+        tipTimer.Stop();
+        HideTip();
         Focus();
         var row = RowAt(args.Y);
         if (args.Button == MouseButtons.Right)
@@ -724,6 +911,8 @@ sealed class RowsCanvas : Control
 
     protected override void OnMouseWheel(MouseEventArgs args)
     {
+        // The rows are about to move out from under it.
+        HideTip();
         scrollDelta -= args.Delta / 40;
         base.OnMouseWheel(args);
     }
@@ -744,8 +933,11 @@ sealed class RowsCanvas : Control
         if (disposing)
         {
             contextMenu.Dispose();
+            tipTimer.Dispose();
+            toolTip.Dispose();
             bold.Dispose();
             underline.Dispose();
+            boldUnderline.Dispose();
         }
 
         base.Dispose(disposing);

@@ -23,18 +23,30 @@ Rows sort what is happening now to the top: running, then queued, then failed, t
 
 Type in the Filter box at the top right to show only the builds whose repository, pipeline or branch, as the row names them, contain the text, ignoring case. A group keeps only the builds that match, so a filter reaches a build inside a closed group. The counts in the header and the tray icon still describe every build. The filter is not saved; to hide a pipeline for good, use [Filters](filters.md).
 
-Two or more failed builds of one project share a group, and so do two or more that passed; a group never mixes the two. The group's row names the project and says how many builds it holds and how long since the latest. Failed groups start open, with each build on a row beneath, its project column left blank; passed groups start closed. Click a group, press Enter on it or right click it to open or close it; right click a build inside it to close it again. Projects are matched by repository name, so the same repository on two CI services is one group.
+Two or more failed builds of one project share a group, and so do two or more that passed; a group never mixes the two. The group's row names the project and says how many builds it holds and how long since the latest. Failed groups start open, with each build on a row beneath, its project column left blank and its pipeline named; passed groups start closed. Click a group, press Enter on it or right click it to open or close it; right click a build inside it to close it again. Projects are matched by repository name, so the same repository on two CI services is one group.
 
 Each row carries:
 
  * a status square; the squares of neighbouring rows touch, so a run of failures reads as one block
- * the provider's logo, when the connections span more than one CI service
- * the repository, then the pipeline and branch; the pipeline is left out when it is named after the repository, as an AppVeyor project is. A Dependabot branch leaves out the ecosystem it names second, so `dependabot/nuget/src/Foo-1.0` reads `dependabot/src/Foo-1.0`
+ * the provider's logo
+ * the repository, then the pipeline and branch; the pipeline is left out when it is named after the repository, as an AppVeyor project is. A Dependabot branch is the same 🤖 and the package it updates, so `dependabot/nuget/src/Foo-1.0` reads `🤖 Foo-1.0`
  * a progress bar and a countdown while the build runs, from the provider's own estimate where it gives one and otherwise from the median of the pipeline's last ten successful runs. A build that runs past its estimate shows how far over it is. Without any estimate the elapsed time is shown
- * links in the text: the pipeline opens the run and the branch opens the branch in the repository. Where the pipeline is left out, the repository opens the run instead
- * PR, which opens the pull request
- * Retry, for a failed or cancelled run; Cancel, for a queued or running one. Neither shows where the provider reports that the credential or its user may not do it
- * Log, for a failed run, which fetches the log of what failed and puts it on the clipboard. The status line says when it has arrived
+ * who broke it, on a failed run only: their first name, or their whole name where two people on screen share one. An app is a 🤖 rather than a login, since which app it was says nothing the mark does not; two apps at once keep their names behind it
+ * a pull request button, the number beside its mark, which opens the pull request
+ * a retry button, for a failed or cancelled run; Cancel, in words, for a queued or running one. Neither shows where the provider reports that the credential or its user may not do it
+ * a log button, for a failed run, which fetches the log of what failed and puts it on the clipboard. The status line says when it has arrived
+
+Each part of a row opens one thing, and only that thing:
+
+ * the status square opens the run. It is on every build row, including one whose pipeline is left out and one inside a group, so the run is always a click away
+ * the repository opens the repository, on GitHub, GitLab, Bitbucket or wherever the build came from. Jenkins, TeamCity and Octopus do not report a repository, so on their rows the name is plain text rather than a link somewhere else
+ * the provider's logo opens the pipeline's own page on that service: the AppVeyor project, the Jenkins job, the Actions workflow
+ * the pipeline opens the run, and the branch opens the branch
+ * a group's row names the repository its builds share and opens it. Its members name their pipeline, since their own repository column is blank
+
+Hover any of them and it says where it goes, after about a second. Hover the rest of a row and it says what the row could not fit: the whole repository name and branch, the commit and who wrote it, and how long ago it started. The timing says where its estimate came from, and each button says what it does.
+
+The buttons are marks rather than words, so a row carries all of them in the width one label used to take; Cancel keeps its word, since it is the one that stops something already running and the rows that carry it carry nothing else. The drop down names each of them in full, and so does the hover.
 
 When the window is too narrow for a row's buttons, the repository, pipeline and branch keep their width and the buttons that do not fit go behind a … button at the end of the row, which lists them in a drop down. A pipeline and branch longer than about forty characters are cut short before that happens.
 

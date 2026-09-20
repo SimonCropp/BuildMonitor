@@ -78,6 +78,19 @@ final class MonitorView: NSView {
         if search.currentEditor() == nil && search.stringValue != model.search {
             search.stringValue = model.search
         }
+
+        search.toolTip = model.searchTooltip.isEmpty ? nil : model.searchTooltip
+        applyTooltips()
+    }
+
+    /// The hover texts of the frame just drawn, as tool tip rects. Rebuilt on every draw because a
+    /// poll moves the rows under them, and a rect left behind would describe the row that used to
+    /// be there. AppKit owns the delay, which is the system's and not ours to set.
+    private func applyTooltips() {
+        removeAllToolTips()
+        for tip in renderer.tips {
+            addToolTipRect(tip.rect, owner: tip.text as NSString, userData: nil)
+        }
     }
 
     @objc private func searched(_ sender: NSSearchField) {

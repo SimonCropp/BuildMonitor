@@ -55,7 +55,7 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             return null;
         }
 
-        if (!Init(title, width, height, hidden, EmbeddedFont.Bytes()))
+        if (!Init(title, width, height, hidden, EmbeddedFont.Bytes(), EmbeddedFont.Emoji()))
         {
             error = "The native renderer could not open a window.";
             return null;
@@ -76,10 +76,13 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             SetRowIcon(descriptor.Id, $"provider-{descriptor.Id}");
         }
 
-        // Not a provider logo but registered the same way: the open folder chip is drawn as a
-        // picture rather than a label, so the head needs its texture before the first frame. The
-        // name is what bm.cpp and BuildsRenderer.swift look the chip's image up by.
-        SetRowIcon("folder", "folder");
+        // Not provider logos but registered the same way: a row's chips are drawn as pictures
+        // rather than labels, so the head needs their textures before the first frame. Each name is
+        // what RowChip.Icon carries and what bm.cpp and BuildsRenderer.swift look the image up by.
+        foreach (var chip in (string[]) ["folder", "pull-request", "retry", "log", "triage"])
+        {
+            SetRowIcon(chip, chip);
+        }
     }
 
     static void SetRowIcon(string name, string glyph)
@@ -96,11 +99,12 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
         }
     }
 
-    static bool Init(string title, int width, int height, bool hidden, byte[] font)
+    static bool Init(string title, int width, int height, bool hidden, byte[] font, byte[] emoji)
     {
         fixed (byte* bytes = font)
+        fixed (byte* emojiBytes = emoji)
         {
-            return Bm.Init(width, height, title, bytes, font.Length, 17f, hidden ? 1 : 0) == 1;
+            return Bm.Init(width, height, title, bytes, font.Length, emojiBytes, emoji.Length, 17f, hidden ? 1 : 0) == 1;
         }
     }
 

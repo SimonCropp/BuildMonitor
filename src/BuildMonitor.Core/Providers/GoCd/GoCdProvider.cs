@@ -165,7 +165,10 @@ sealed class GoCdProvider : ProviderBase
             .SelectMany(_ => _.Modifications)
             .FirstOrDefault();
         var branch = instance.BuildCause?.MaterialRevisions
-            .Select(_ => Branch(_.Material?.Description))
+            .Select(_ => Part(_.Material?.Description, "Branch: "))
+            .FirstOrDefault(_ => _ is not null);
+        var repo = instance.BuildCause?.MaterialRevisions
+            .Select(_ => Part(_.Material?.Description, "URL: "))
             .FirstOrDefault(_ => _ is not null);
         var started = instance.ScheduledDate is { } date ? DateTimeOffset.FromUnixTimeMilliseconds(date) : (DateTimeOffset?) null;
         var jobDates = stages.SelectMany(_ => _.Jobs).Select(_ => _.ScheduledDate).Where(_ => _ is not null).ToList();
@@ -199,26 +202,29 @@ sealed class GoCdProvider : ProviderBase
                        last?.OperatePermission != false &&
                        status == BuildStatus.Running,
             Join(pipeline.Id, instance.Counter.ToString(), failed?.Name, failed?.Counter, last?.Name, last?.Counter),
-            pipeline.Url);
+            pipeline.Url,
+            repo);
     }
 
     /// <summary>
-    /// A git material describes itself as "URL: ..., Branch: main".
+    /// One comma separated part of a material's own description, which a git material writes as
+    /// "URL: https://host/owner/name, Branch: main". The repository is only ever named there, so a
+    /// row whose material is of another kind has no name to link.
     /// </summary>
-    static string? Branch(string? description)
+    static string? Part(string? description, string label)
     {
         if (description is null)
         {
             return null;
         }
 
-        var index = description.IndexOf("Branch: ", StringComparison.Ordinal);
+        var index = description.IndexOf(label, StringComparison.Ordinal);
         if (index < 0)
         {
             return null;
         }
 
-        var rest = description[(index + 8)..];
+        var rest = description[(index + label.Length)..];
         var end = rest.IndexOf(',');
         return end < 0 ? rest.Trim() : rest[..end].Trim();
     }

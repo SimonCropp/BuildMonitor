@@ -16,7 +16,10 @@ enum CommandKind
     OpenBuild,
     OpenBranch,
     OpenPullRequest,
-    OpenProject,
+    // The pipeline's page on the CI service, and the source repository: two pages, because one
+    // command for both had the provider icon open whichever page its provider happened to know.
+    OpenPipeline,
+    OpenRepo,
     CopyBuildUrl,
     CopyLog,
     // Gathers a failed build's log and artifacts, then copies a prompt naming them.

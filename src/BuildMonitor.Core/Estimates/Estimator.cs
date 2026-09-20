@@ -20,6 +20,26 @@ static class Estimator
     }
 
     /// <summary>
+    /// Which of the two <see cref="Estimate"/> would have taken, for a row that wants to say so.
+    /// Follows the same precedence rather than restating it, so the answer cannot drift from the
+    /// number it describes.
+    /// </summary>
+    public static EstimateSource Source(Build build, ImmutableDictionary<string, TimeSpan> medians)
+    {
+        if (build.Estimate is { Duration: not null } or { Percent: not null } or { Remaining: not null })
+        {
+            return EstimateSource.Provider;
+        }
+
+        if (medians.ContainsKey(build.PipelineKey))
+        {
+            return EstimateSource.History;
+        }
+
+        return EstimateSource.None;
+    }
+
+    /// <summary>
     /// The stretch of its run in which a build is expected to finish. The provider's own duration
     /// wins, as it does for <see cref="Estimate"/>, from three quarters of it to all of it, since one
     /// number says nothing of how runs vary; otherwise the fastest to the slowest of the pipeline's

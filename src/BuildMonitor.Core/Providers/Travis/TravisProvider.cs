@@ -14,7 +14,7 @@ sealed class TravisProvider : ProviderBase
     {
         var repositories = await context.Http.Get("repos?repository.active=true&limit=100&sort_by=default_branch.last_build:desc", TravisContext.Default.TravisRepositories, cancel);
         return repositories.Repositories
-            .Select(_ => new Pipeline(_.Slug, _.Slug, _.Slug, null, $"{Web(context)}/{_.Slug}"))
+            .Select(_ => new Pipeline(_.Slug, _.Slug, _.Slug, null, $"{Web(context)}/{_.Slug}", $"https://github.com/{_.Slug}"))
             .ToList();
     }
 
@@ -105,7 +105,8 @@ sealed class TravisProvider : ProviderBase
             CanCancel: build.Permissions?.Cancel != false &&
                        status is BuildStatus.Queued or BuildStatus.Running,
             build.Id.ToString(),
-            $"https://github.com/{pipeline.RepoName}");
+            pipeline.Url,
+            pipeline.RepoUrl);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel) =>

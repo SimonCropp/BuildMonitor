@@ -43,7 +43,14 @@ static class Program
         ("issue", Lucide.Bug),
         ("update", Lucide.CircleArrowUp),
         ("exit", Lucide.LogOut),
-        ("folder", Lucide.Folder)
+        ("folder", Lucide.Folder),
+        // The row chips. Each is the noun the drop down spells out, so a row can carry all of them
+        // in the width one label used to take. Retry is a plain rotate rather than the refresh
+        // arrows, which are the Refresh button beneath the rows.
+        ("pull-request", Lucide.GitPullRequest),
+        ("retry", Lucide.RotateCw),
+        ("log", Lucide.ScrollText),
+        ("triage", Lucide.Stethoscope)
     ];
 
     static SKColor glyphColour = new(0x8A, 0x8A, 0x8A);

@@ -40,7 +40,7 @@ sealed class GitLabProvider : ProviderBase
         var projects = await context.Http.Get(Listing(context, readsPipelines), GitLabContext.Default.ListGitLabProject, cancel);
         context.Memory.Set(readOnly, await ReadOnly(context, projects, cancel));
         return projects
-            .Select(_ => new Pipeline(_.Id.ToString(), _.PathWithNamespace, _.PathWithNamespace, null, $"{_.WebUrl}/-/pipelines"))
+            .Select(_ => new Pipeline(_.Id.ToString(), _.PathWithNamespace, _.PathWithNamespace, null, $"{_.WebUrl}/-/pipelines", _.WebUrl))
             .ToList();
     }
 
@@ -240,7 +240,7 @@ sealed class GitLabProvider : ProviderBase
     static GitLabPipeline Run(GitLabGraphPipeline node, Pipeline pipeline)
     {
         var id = long.Parse(node.Id[(node.Id.LastIndexOf('/') + 1)..], CultureInfo.InvariantCulture);
-        var web = pipeline.Url[..pipeline.Url.LastIndexOf("/-/", StringComparison.Ordinal)];
+        var web = pipeline.RepoUrl!;
         return new()
         {
             Id = id,
@@ -267,7 +267,7 @@ sealed class GitLabProvider : ProviderBase
             "canceled" => BuildStatus.Cancelled,
             _ => BuildStatus.Unknown
         };
-        var web = pipeline.Url[..pipeline.Url.LastIndexOf("/-/", StringComparison.Ordinal)];
+        var web = pipeline.RepoUrl!;
         string? mergeRequest = null;
         var branch = run.Ref;
         if (run.Ref is not null &&
@@ -301,6 +301,7 @@ sealed class GitLabProvider : ProviderBase
             CanRetry: status is BuildStatus.Failed or BuildStatus.Cancelled,
             CanCancel: status is BuildStatus.Queued or BuildStatus.Running,
             Join(pipeline.Id, run.Id.ToString()),
+            pipeline.Url,
             web);
     }
 

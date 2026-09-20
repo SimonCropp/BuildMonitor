@@ -131,12 +131,13 @@ static class InputApplier
     static SessionState ClickChip(SessionState state, int row, ChipKind chip, MonitorActions actions, IMonitorWindow? window)
     {
         var rows = RowProjection.Rows(state);
-        // The folder is the one chip a group's row carries, since it resolves its members rather
-        // than one build. Every other command reads the row's build, so a group would do nothing
-        // anyway, and letting one through would have a stale frame's click toggle the group.
+        // The folder and the repository are what a group's row carries, since both resolve its
+        // members rather than one build. Every other command reads the row's build, so a group
+        // would do nothing anyway, and letting one through would have a stale frame's click toggle
+        // the group.
         if (row < 0 ||
             row >= rows.Length ||
-            (rows[row].Build is null && chip != ChipKind.OpenDirectory))
+            (rows[row].Build is null && chip is not (ChipKind.OpenDirectory or ChipKind.Repo)))
         {
             return state;
         }
@@ -147,6 +148,11 @@ static class InputApplier
     /// <summary>
     /// The window is passed on only where a field needs it. Browse is the one that does: a folder
     /// chooser belongs to the toolkit, the way the clipboard does.
+    /// </summary>
+    /// <summary>
+    /// What a click on a form's field does, by the field's id. The one rule: a field used to carry
+    /// the command as well, and nothing read it, so the two could say different things and only
+    /// this one was ever obeyed.
     /// </summary>
     static SessionState ClickField(SessionState state, string id, MonitorActions actions, IMonitorWindow? window)
     {
@@ -246,7 +252,8 @@ static class InputApplier
             case CommandKind.OpenBuild:
             case CommandKind.OpenBranch:
             case CommandKind.OpenPullRequest:
-            case CommandKind.OpenProject:
+            case CommandKind.OpenPipeline:
+            case CommandKind.OpenRepo:
             {
                 // A group has no one build to open, so Enter or a double click opens or closes it.
                 if (command == CommandKind.OpenBuild &&
@@ -255,7 +262,17 @@ static class InputApplier
                     return MonitorSession.ToggleGroup(state, group);
                 }
 
-                if (MonitorSession.SelectedBuild(state) is not { } build)
+                // A group's name is its members' repository, which every member of a group agrees
+                // on, so the first of them answers for the row that has no build of its own.
+                var selected = MonitorSession.SelectedBuild(state);
+                if (selected is null &&
+                    command == CommandKind.OpenRepo &&
+                    MonitorSession.SelectedRow(state) is { Kind: RowKind.Group, Members: [var first, ..] })
+                {
+                    selected = first;
+                }
+
+                if (selected is not { } build)
                 {
                     return state;
                 }
@@ -264,7 +281,8 @@ static class InputApplier
                 {
                     CommandKind.OpenBranch => build.BranchUrl,
                     CommandKind.OpenPullRequest => build.PullRequestUrl,
-                    CommandKind.OpenProject => build.ProjectUrl,
+                    CommandKind.OpenPipeline => build.PipelineUrl,
+                    CommandKind.OpenRepo => build.RepoUrl,
                     _ => build.BuildUrl
                 };
                 if (url is not null)

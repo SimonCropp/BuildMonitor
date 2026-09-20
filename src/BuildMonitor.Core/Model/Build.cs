@@ -13,9 +13,16 @@
 /// Whatever the provider needs to retry or cancel this run: a numeric build id, a task link, a
 /// stage locator. Opaque to everything but the provider that wrote it.
 /// </param>
-/// <param name="ProjectUrl">
-/// The repository or project page the provider icon opens. Null when the provider has no page
-/// above the build, and then clicking the icon does nothing.
+/// <param name="RepoUrl">
+/// The source repository's page, which the row's name opens. Null where the provider does not
+/// know it, and then the name is plain text rather than a link to something else. Kept apart from
+/// <paramref name="PipelineUrl"/> because one field for both had every provider choose which it
+/// meant: an AppVeyor logo opened github.com while a Jenkins one opened Jenkins.
+/// </param>
+/// <param name="PipelineUrl">
+/// The pipeline's own page on the CI service, which the provider's icon opens: the AppVeyor
+/// project, the Jenkins job, the Actions workflow. Always known, since it is the page every
+/// provider already builds its build URLs under.
 /// </param>
 record Build(
     string ConnectionId,
@@ -40,7 +47,8 @@ record Build(
     bool CanRetry,
     bool CanCancel,
     string ProviderRef,
-    string? ProjectUrl = null)
+    string PipelineUrl,
+    string? RepoUrl = null)
 {
     /// <summary>
     /// What a row is: a pipeline on a branch. Stable across polls so the selection survives a

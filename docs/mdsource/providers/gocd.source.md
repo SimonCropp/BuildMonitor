@@ -10,7 +10,7 @@ A [personal access token](https://api.gocd.org/current/#access-tokens), created 
 
 ## Rows
 
-One per pipeline. The stages of an instance fold into one status: building while any stage builds, failed or cancelled when one is, passed when every scheduled stage passed. The branch comes from the git material.
+One per pipeline. The stages of an instance fold into one status: building while any stage builds, failed or cancelled when one is, passed when every scheduled stage passed. The branch and the repository both come from the git material, which describes itself as `URL: ..., Branch: main`; a pipeline whose material is not git names no repository, so its row's name is plain text.
 
 
 ## Actions

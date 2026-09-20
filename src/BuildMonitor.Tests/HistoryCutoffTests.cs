@@ -29,5 +29,5 @@ public class HistoryCutoffTests
         await Assert.That(HistoryCutoff.Keeps(Build(BuildStatus.Succeeded, null, null), HistoryCutoff.Of(now, 30))).IsTrue();
 
     static Build Build(BuildStatus status, DateTimeOffset? started, DateTimeOffset? finished) =>
-        new("connection", "pipeline", "build.yml", "repo", "main", "1", status, null, started, started, finished, null, "https://example.com/1", null, null, null, null, null, null, false, false, "");
+        new("connection", "pipeline", "build.yml", "repo", "main", "1", status, null, started, started, finished, null, "https://example.com/1", null, null, null, null, null, null, false, false, "", "https://example.com");
 }

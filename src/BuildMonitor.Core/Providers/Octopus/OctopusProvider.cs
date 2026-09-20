@@ -438,7 +438,12 @@ sealed class OctopusProvider : ProviderBase
 
         var rest = description[(index + 9)..];
         var end = rest.IndexOf(" to ", StringComparison.Ordinal);
-        return end < 0 ? rest.Trim() : rest[..end].Trim();
+        if (end < 0)
+        {
+            return rest.Trim();
+        }
+
+        return rest[..end].Trim();
     }
 
     /// <summary>

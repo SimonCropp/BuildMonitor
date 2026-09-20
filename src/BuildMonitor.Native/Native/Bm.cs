@@ -8,7 +8,7 @@ static partial class Bm
     /// <summary>
     /// Keep in sync with BM_VERSION in bm.h.
     /// </summary>
-    public const int ExpectedVersion = 8;
+    public const int ExpectedVersion = 11;
 
     /// <summary>
     /// BmInput.ChangedField for an edit of the filter box, which is not one of BmScreen.Fields.
@@ -17,7 +17,7 @@ static partial class Bm
     public const int SearchField = -2;
 
     [LibraryImport(library, EntryPoint = "bm_init", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial int Init(int width, int height, string title, byte* fontTtf, int fontLength, float fontSize, int hidden);
+    public static partial int Init(int width, int height, string title, byte* fontTtf, int fontLength, byte* emojiTtf, int emojiLength, float fontSize, int hidden);
 
     [LibraryImport(library, EntryPoint = "bm_present")]
     public static partial int Present(BmScreen* screen);

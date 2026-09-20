@@ -34,6 +34,7 @@ struct State {
     int height = 640;
     float fontPixels = 20.0f;
     std::vector<unsigned char> font;
+    std::vector<unsigned char> emoji;
     Texture2D fontTexture{};
     std::unordered_map<std::string, Texture2D> rowIcons;
     BmInput input{};
@@ -345,27 +346,8 @@ int TextResize(ImGuiInputTextCallbackData* data) {
     return 0;
 }
 
-// A line of the font with a pixel above and below, as the WinForms canvas sizes its chips, so a chip
-// grows with the text in it.
-bool Chip(const char* label, const ImVec4& colour, const ImVec4& foreground) {
-    ImGui::PushStyleColor(ImGuiCol_Button, colour);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(colour.x + 0.08f, colour.y + 0.08f, colour.z + 0.08f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, colour);
-    ImGui::PushStyleColor(ImGuiCol_Text, foreground);
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 1.0f));
-    bool clicked = ImGui::Button(label);
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor(4);
-    return clicked;
-}
-
-float ChipWidth(const char* label) {
-    return ImGui::CalcTextSize(label).x + 2.0f * ImGui::GetStyle().FramePadding.x;
-}
-
-// Stands in for the chips a row has no room for. Plain dots, as the group arrows are plain letters,
-// because the font atlas is built for Latin text.
-const char* const overflowLabel = "...";
+// Stands in for the chips a row has no room for.
+const char* const overflowLabel = "…";
 
 // Retry and Cancel on colours of their own, links in the link colour, as the WinForms canvas draws them.
 ImVec4 ChipColour(int32_t kind) {
@@ -394,37 +376,63 @@ float ChipHeight() {
 
 // The side of a chip's picture, matching the provider logo that leads the detail cell.
 const float chipIconSize = 16.0f;
+// Between a chip's icon and the text after it, where it has both.
+const float chipIconGap = 4.0f;
 
-// Which chips are drawn as a picture rather than a label. A folder says what "Open dir" would in
-// the width a row has to spare; the label is kept for the drop down, where there is room for words.
-bool IsIconChip(int32_t kind) {
-    return kind == BM_CHIP_OPEN_DIRECTORY;
+bool Empty(const char* value) {
+    return value == nullptr || value[0] == '\0';
 }
 
-// The picture stands where the label would, so the pill is padded the same and the chips keep one
-// rhythm across the row.
-float IconChipWidth() {
-    return chipIconSize + 2.0f * ImGui::GetStyle().FramePadding.x;
+float ChipWidth(const char* icon, const char* label) {
+    float width = 2.0f * ImGui::GetStyle().FramePadding.x;
+    if (!Empty(icon)) {
+        width += chipIconSize;
+    }
+
+    if (!Empty(label)) {
+        width += ImGui::CalcTextSize(label).x;
+    }
+
+    if (!Empty(icon) && !Empty(label)) {
+        width += chipIconGap;
+    }
+
+    return width;
 }
 
-// A chip whose picture is its label. An invisible button under a hand drawn pill, rather than
-// ImGui::Button, because a button's label is text and this one's is a texture. Clicked through the
-// same path as any other chip.
-bool IconChip(const char* icon, const ImVec4& colour) {
-    const ImVec2 size(IconChipWidth(), ChipHeight());
+// One pill: its icon, then its text, either of which may be empty. An invisible button under a
+// hand drawn pill, rather than ImGui::Button, because a button's label is text and a chip's may be
+// a texture. The icon stands where the text would start, so a row of chips keeps one rhythm
+// whichever of the two each one carries.
+bool Chip(const char* icon, const char* label, const ImVec4& colour, const ImVec4& foreground) {
+    const ImVec2 size(ChipWidth(icon, label), ChipHeight());
     const ImVec2 at = ImGui::GetCursorScreenPos();
-    const bool clicked = ImGui::InvisibleButton("##icon", size);
+    const bool clicked = ImGui::InvisibleButton("##chip", size);
     const bool hovered = ImGui::IsItemHovered();
     const ImVec4 fill = hovered
         ? ImVec4(colour.x + 0.08f, colour.y + 0.08f, colour.z + 0.08f, 1.0f)
         : colour;
     ImDrawList* draw = ImGui::GetWindowDrawList();
     draw->AddRectFilled(at, ImVec2(at.x + size.x, at.y + size.y), ImGui::GetColorU32(fill), ImGui::GetStyle().FrameRounding);
-    auto found = g.rowIcons.find(icon);
-    if (found != g.rowIcons.end()) {
-        const float left = at.x + (size.x - chipIconSize) / 2.0f;
-        const float top = at.y + (size.y - chipIconSize) / 2.0f;
-        draw->AddImage(static_cast<ImTextureID>(found->second.id), ImVec2(left, top), ImVec2(left + chipIconSize, top + chipIconSize));
+    float left = at.x + ImGui::GetStyle().FramePadding.x;
+    if (!Empty(icon)) {
+        // A chip whose glyph was never registered is still drawn and still clickable: an empty pill
+        // is odd, but one that vanished because IconBuilder never ran would be worse.
+        auto found = g.rowIcons.find(icon);
+        if (found != g.rowIcons.end()) {
+            const float top = at.y + (size.y - chipIconSize) / 2.0f;
+            draw->AddImage(static_cast<ImTextureID>(found->second.id), ImVec2(left, top), ImVec2(left + chipIconSize, top + chipIconSize));
+        }
+
+        left += chipIconSize;
+        if (!Empty(label)) {
+            left += chipIconGap;
+        }
+    }
+
+    if (!Empty(label)) {
+        const float top = at.y + (size.y - ImGui::GetTextLineHeight()) / 2.0f;
+        draw->AddText(ImVec2(left, top), ImGui::GetColorU32(foreground), label);
     }
 
     if (hovered) {
@@ -434,11 +442,37 @@ bool IconChip(const char* icon, const ImVec4& colour) {
     return clicked;
 }
 
+// A hover text on the item just submitted. Delayed: a row's cells touch, and without a wait a
+// pointer crossing one row pops four tooltips on its way past.
+void Tip(const std::string& text) {
+    if (!text.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal | ImGuiHoveredFlags_NoSharedDelay)) {
+        ImGui::SetTooltip("%s", text.c_str());
+    }
+}
+
+// What one part of a row says on hover, falling back to what the row itself says, so a caller can
+// ask for any part without first checking whether this row has one.
+std::string TipOf(const BmScreen& screen, const BmRow& row, int32_t part) {
+    const BmTooltip* fallback = nullptr;
+    for (int32_t i = 0; i < row.tooltipCount; i++) {
+        const BmTooltip& tooltip = screen.tooltips[row.tooltipOffset + i];
+        if (tooltip.part == part) {
+            return Str(screen, tooltip.text);
+        }
+
+        if (tooltip.part == BM_PART_ROW) {
+            fallback = &tooltip;
+        }
+    }
+
+    return fallback == nullptr ? std::string() : Str(screen, fallback->text);
+}
+
 // Text that opens something: an invisible button the size of the text, which takes the click from the
 // row's selectable beneath it, with the text drawn over it in the link colour and underlined while the
 // pointer is over it. The button is the last item, so the cursor is never left moved with nothing
 // submitted after it, which ImGui reports as an error.
-void LinkText(const char* begin, const char* end, int32_t row, int32_t kind) {
+void LinkText(const char* begin, const char* end, int32_t row, int32_t kind, const std::string& tip = std::string()) {
     ImVec2 at = ImGui::GetCursorScreenPos();
     ImVec2 size = ImGui::CalcTextSize(begin, end);
     if (ImGui::InvisibleButton("##link", size)) {
@@ -446,6 +480,7 @@ void LinkText(const char* begin, const char* end, int32_t row, int32_t kind) {
         g.input.clickedChip = kind;
     }
 
+    Tip(tip);
     ImDrawList* draw = ImGui::GetWindowDrawList();
     draw->AddText(at, ImGui::GetColorU32(chipText), begin, end);
     if (ImGui::IsItemHovered()) {
@@ -476,7 +511,12 @@ void DrawDetail(const BmScreen& screen, const BmRow& row, int32_t index) {
         }
 
         ImGui::PushID(s);
-        LinkText(Begin(screen, span.text), End(screen, span.text), index, span.link);
+        LinkText(
+            Begin(screen, span.text),
+            End(screen, span.text),
+            index,
+            span.link,
+            TipOf(screen, row, span.link == BM_CHIP_BRANCH ? BM_PART_BRANCH : BM_PART_PIPELINE));
         ImGui::PopID();
     }
 }
@@ -511,6 +551,7 @@ void DrawHeader(const BmScreen& screen) {
         g.input.key = BM_KEY_OPEN_BUILD;
     }
 
+    Tip(Str(screen, screen.searchTooltip));
     g.searchActive = ImGui::IsItemActive();
     if (ImGui::IsItemEdited()) {
         g.edits.push_back({BM_SEARCH_FIELD, std::string(g.search.c_str())});
@@ -605,8 +646,15 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         const float timingWidth = ImGui::CalcTextSize("0:00:00 left").x;
         // Every labelled chip at its longest, then the open folder chip's square, with a gap
         // between each, so the columns before them do not move as builds gain and lose chips.
-        const float widestChips = ChipWidth("PR 9999") + ChipWidth("Retry") + ChipWidth("Log") + ChipWidth("Triage") + IconChipWidth() + 4.0f * style.ItemSpacing.x;
-        const float overflowWidth = ChipWidth(overflowLabel);
+        // A failed pull request build with a checkout, which carries every chip there is. Cancel
+        // is not among them; it never shares a row with Retry, and a row that has it has nothing else.
+        const float widestChips = ChipWidth("pull-request", "9999") +
+                                  ChipWidth("retry", nullptr) +
+                                  ChipWidth("log", nullptr) +
+                                  ChipWidth("folder", nullptr) +
+                                  ChipWidth("triage", nullptr) +
+                                  4.0f * style.ItemSpacing.x;
+        const float overflowWidth = ChipWidth(nullptr, overflowLabel);
         // Each boundary between the six columns carries cell padding on both sides of it. What is
         // left, the name, the detail, the bar and the chips share.
         const float shared = tableWidth - timingWidth - authorWidth - 5.0f * 2.0f * style.CellPadding.x;
@@ -650,10 +698,15 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             }
 
             ImGui::TableSetColumnIndex(0);
-            std::string name = Str(screen, row.name);
+            // The arrow is drawn before the name but is no part of it: it is what opens and
+            // closes the group, so it rides on the selectable rather than the link and a click on
+            // it reaches the row. Inside the link it left a closed group with no way to expand.
+            std::string arrow;
             if (group) {
-                name = std::string((row.flags & BM_ROW_EXPANDED) ? "v " : "> ") + name;
+                arrow = (row.flags & BM_ROW_EXPANDED) ? "▾ " : "▸ ";
             }
+
+            std::string name = Str(screen, row.name);
 
             ImVec4 colour = StatusColour(row.status);
             ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -663,12 +716,31 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             // below the top of its row, and every row is exactly rowHeight tall.
             float top = cursor.y - style.CellPadding.y;
             draw->AddRectFilled(ImVec2(cursor.x, top), ImVec2(cursor.x + rowHeight, top + rowHeight), ImGui::GetColorU32(colour));
+            // Over the row's selectable, which allows overlap, so the square opens the run rather
+            // than selecting the row. A group's square reports nothing: it stands for several runs.
+            if (row.statusLink != BM_CHIP_NONE) {
+                ImGui::SetCursorScreenPos(ImVec2(cursor.x, top));
+                ImGui::PushID(i);
+                if (ImGui::InvisibleButton("##status", ImVec2(rowHeight, rowHeight))) {
+                    g.input.clickedChipRow = i;
+                    g.input.clickedChip = row.statusLink;
+                }
+
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                }
+
+                Tip(TipOf(screen, row, BM_PART_STATUS));
+                ImGui::PopID();
+                ImGui::SetCursorScreenPos(cursor);
+            }
+
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + rowHeight + style.ItemSpacing.x);
             // A name that opens the run is drawn as a link over the selectable rather than as its
             // label, and only its text is the link, so a click beside it still selects the row.
             bool nameLink = row.nameLink != BM_CHIP_NONE;
             ImVec2 nameAt = ImGui::GetCursorScreenPos();
-            std::string selectableLabel = (nameLink ? std::string() : name) + "##row";
+            std::string selectableLabel = (nameLink ? arrow : arrow + name) + "##row";
             // As tall as the cell, so a click anywhere on the row selects it. A click on a group
             // toggles it, so the second press of a double click is dropped, or it would close what
             // the first opened.
@@ -677,14 +749,19 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                 g.input.clickedRow = i;
             }
 
+            // On the selectable, which spans the row, so anywhere the row does not name something
+            // more specific says what the row could not fit.
+            Tip(TipOf(screen, row, BM_PART_ROW));
+
             if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
                 g.input.rightClickedRow = i;
             }
 
             if (nameLink) {
-                ImGui::SetCursorScreenPos(ImVec2(nameAt.x, nameAt.y + textOffset));
+                float arrowWidth = arrow.empty() ? 0.0f : ImGui::CalcTextSize(arrow.c_str()).x;
+                ImGui::SetCursorScreenPos(ImVec2(nameAt.x + arrowWidth, nameAt.y + textOffset));
                 ImGui::PushID("name");
-                LinkText(name.c_str(), name.c_str() + name.size(), i, row.nameLink);
+                LinkText(name.c_str(), name.c_str() + name.size(), i, row.nameLink, TipOf(screen, row, BM_PART_NAME));
                 ImGui::PopID();
             }
 
@@ -698,14 +775,15 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                     float iconTop = top + (rowHeight - iconSize) / 2.0f;
                     draw->AddImage(static_cast<ImTextureID>(icon->second.id), ImVec2(at.x, iconTop), ImVec2(at.x + iconSize, iconTop + iconSize));
                     // Over the row's selectable, which allows overlap, so the icon opens the
-                    // project page rather than selecting the row. The cursor goes back after.
+                    // pipeline's page rather than selecting the row. The cursor goes back after.
                     ImGui::SetCursorScreenPos(ImVec2(at.x, iconTop));
                     ImGui::PushID(i);
-                    if (ImGui::InvisibleButton("##project", ImVec2(iconSize, iconSize))) {
+                    if (ImGui::InvisibleButton("##pipeline", ImVec2(iconSize, iconSize))) {
                         g.input.clickedChipRow = i;
-                        g.input.clickedChip = BM_CHIP_PROJECT;
+                        g.input.clickedChip = BM_CHIP_PIPELINE;
                     }
 
+                    Tip(TipOf(screen, row, BM_PART_PROVIDER));
                     ImGui::PopID();
                     ImGui::SetCursorScreenPos(at);
                 }
@@ -734,6 +812,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             ImGui::TableSetColumnIndex(3);
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
             ImGui::TextColored(dim, "%s", Str(screen, row.timing).c_str());
+            Tip(TipOf(screen, row, BM_PART_TIMING));
             ImGui::TableSetColumnIndex(4);
             if (row.author.length > 0) {
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textOffset);
@@ -753,32 +832,35 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             const float chipsRight = ImGui::GetCursorScreenPos().x + chipsWidth;
             for (int32_t c = 0; c < row.chipCount; c++) {
                 const BmChip& item = screen.chips[row.chipOffset + c];
-                std::string label = Str(screen, item.label);
+                std::string icon = Str(screen, item.icon);
+                std::string label = Str(screen, item.text);
                 if (c > 0) {
                     ImGui::SameLine();
                 }
 
                 ImGui::PushID(c);
                 const float reserve = c == row.chipCount - 1 ? 0.0f : style.ItemSpacing.x + overflowWidth;
-                const float width = IsIconChip(item.kind) ? IconChipWidth() : ChipWidth(label.c_str());
+                const float width = ChipWidth(icon.c_str(), label.c_str());
                 if (ImGui::GetCursorScreenPos().x + width + reserve > chipsRight) {
-                    if (Chip("...##overflow", chip, text)) {
+                    if (Chip(nullptr, overflowLabel, chip, text)) {
                         g.input.clickedOverflowRow = i;
                         g.input.overflowFrom = item.kind;
                     }
+
+                    Tip("More actions");
 
                     g.overflowAnchors[static_cast<size_t>(i)] = ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y);
                     ImGui::PopID();
                     break;
                 }
 
-                const bool clicked = IsIconChip(item.kind)
-                    ? IconChip("folder", ChipColour(item.kind))
-                    : Chip(label.c_str(), ChipColour(item.kind), ChipTextColour(item.kind));
+                const bool clicked = Chip(icon.c_str(), label.c_str(), ChipColour(item.kind), ChipTextColour(item.kind));
                 if (clicked) {
                     g.input.clickedChipRow = i;
                     g.input.clickedChip = item.kind;
                 }
+
+                Tip(Str(screen, item.tooltip));
 
                 ImGui::PopID();
             }
@@ -1026,6 +1108,8 @@ void DrawFooter(const BmScreen& screen) {
             g.input.clickedButton = i;
         }
 
+        Tip(Str(screen, button.tooltip));
+
         ImGui::EndDisabled();
         ImGui::PopID();
         ImGui::SameLine();
@@ -1036,7 +1120,8 @@ void DrawFooter(const BmScreen& screen) {
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - width - 12.0f);
     ImGui::TextColored(dim, "%s", status.c_str());
     // A click copies the status, as text drawn by ImGui can not be selected and an error in it can
-    // run past the window's edge.
+    // run past the window's edge; a hover shows it whole first.
+    Tip(Str(screen, screen.statusTooltip));
     if (ImGui::IsItemHovered()) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     }
@@ -1098,6 +1183,9 @@ void ApplyStyle() {
     style.ItemSpacing = ImVec2(8.0f, 6.0f);
     style.FrameRounding = 4.0f;
     style.GrabRounding = 4.0f;
+    // Longer than the 0.4s default. A row's cells touch, so at the default a pointer crossing one
+    // row on its way somewhere else popped a tooltip over every cell it passed.
+    style.HoverDelayNormal = 1.2f;
     style.WindowBorderSize = 0.0f;
     style.Colors[ImGuiCol_WindowBg] = background;
     style.Colors[ImGuiCol_ChildBg] = background;
@@ -1140,9 +1228,39 @@ bool LoadFont() {
     if (g.font.empty()) {
         io.Fonts->AddFontDefault();
     } else {
+        // Latin, and the marks a row draws beyond it. Spelled out because a source added with
+        // no range of its own covers Latin alone, whatever else its cmap holds: the group
+        // arrows came out as this font's missing-glyph lozenge until they were named here.
+        // Static, because the atlas keeps the pointer.
+        static const ImWchar textRange[] = {
+            0x0020, 0x00FF,
+            0x2026, 0x2026,
+            0x25B8, 0x25B8,
+            0x25BE, 0x25BE,
+            0
+        };
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
+        config.GlyphRanges = textRange;
         io.Fonts->AddFontFromMemoryTTF(g.font.data(), static_cast<int>(g.font.size()), g.fontPixels, &config);
+    }
+
+    // Merged over whatever went first, so a row's marks come out of it where the text font has no
+    // glyph: the text font is a programming face with no emoji in it at all. Merged rather than
+    // drawn as a picture because the marks sit inside runs of text, in a branch name and in the
+    // author column. The build defines IMGUI_USE_WCHAR32, without which a codepoint above U+FFFF
+    // does not survive being decoded and no font could supply it.
+    if (!g.emoji.empty()) {
+        // Bounded to the marks it actually carries. stb_truetype answers a codepoint it does not
+        // have with glyph zero rather than a miss, so an unbounded source claims everything the
+        // font before it did not supply and draws its own .notdef over it: the group arrows came
+        // out as this font's missing-glyph lozenge. Static, because the atlas keeps the pointer.
+        static const ImWchar emojiRange[] = {0x1F916, 0x1F916, 0};
+        ImFontConfig emojiConfig;
+        emojiConfig.FontDataOwnedByAtlas = false;
+        emojiConfig.MergeMode = true;
+        emojiConfig.GlyphRanges = emojiRange;
+        io.Fonts->AddFontFromMemoryTTF(g.emoji.data(), static_cast<int>(g.emoji.size()), g.fontPixels, &emojiConfig);
     }
 
     unsigned char* pixels = nullptr;
@@ -1164,7 +1282,7 @@ bool LoadFont() {
 
 extern "C" {
 
-BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const uint8_t* fontTtf, int32_t fontLength, float fontSize, int32_t hidden) {
+BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const uint8_t* fontTtf, int32_t fontLength, const uint8_t* emojiTtf, int32_t emojiLength, float fontSize, int32_t hidden) {
     if (g.initialised) {
         return 1;
     }
@@ -1177,6 +1295,10 @@ BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const u
     g.fontPixels = fontSize * 1.33f;
     if (fontTtf != nullptr && fontLength > 0) {
         g.font.assign(fontTtf, fontTtf + fontLength);
+    }
+
+    if (emojiTtf != nullptr && emojiLength > 0) {
+        g.emoji.assign(emojiTtf, emojiTtf + emojiLength);
     }
 
     SetTraceLogLevel(LOG_WARNING);

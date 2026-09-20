@@ -21,6 +21,9 @@ record BuildsPage(
     bool Loading,
     // The filter box's text, which a head shows unless someone is typing in it.
     string Search,
+    // What the filter box says on hover. The box has no label, so without it nothing says what it
+    // matches against.
+    string SearchTooltip,
     // What the body says when it has no rows, composed once so every head says the same: loading,
     // nothing matching the filter, or nothing yet. Empty while there are rows.
     string Empty,

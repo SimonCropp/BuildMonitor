@@ -17,7 +17,7 @@ An [access token](https://www.jetbrains.com/help/teamcity/configuring-your-user-
 
 ## Rows
 
-One per build configuration. Branches named `pull/n` or `n/merge`, as the pull request features create them, are shown as pull request n.
+One per build configuration. Branches named `pull/n` or `n/merge`, as the pull request features create them, are shown as pull request n. The VCS root's address is not read, so a row's name is plain text; the logo opens the build configuration.
 
 TeamCity numbers a build when it starts, so a queued build shows no number until then. A build removed from the queue before it started is left out, and the row keeps showing the configuration's last run.
 

@@ -57,13 +57,15 @@ enum BmRowFlags {
 };
 
 /*
- * Keep in sync with ChipKind.cs. A row's chips come in the order of these values, links then
- * actions, and a click reports the kind rather than a position.
+ * Keep in sync with ChipKind.cs. The chips that are drawn come in the order of these values, links
+ * then actions, and a click reports the kind rather than a position. The kinds that are never drawn
+ * as a chip sit outside that order and are added at the end, so the numbers a built binary already
+ * reports keep their meaning.
  */
 enum BmChipKind {
     BM_CHIP_NONE = 0,
-    /* The run: a link in a row's text, the pipeline's name in its detail or, where the pipeline is
-       named after the project, its name. Never among a row's chips. */
+    /* The run: the status square, and the pipeline's name in a row's detail. Never among a row's
+       chips. */
     BM_CHIP_BUILD = 1,
     /* The branch: a link in a row's detail. Never among a row's chips. */
     BM_CHIP_BRANCH = 2,
@@ -71,19 +73,54 @@ enum BmChipKind {
     BM_CHIP_RETRY = 4,
     BM_CHIP_CANCEL = 5,
     BM_CHIP_COPY_LOG = 6,
-    /* The provider icon: the repository or project page. Clicked like a chip, never among a row's chips. */
-    BM_CHIP_PROJECT = 7,
+    /* The provider icon: the pipeline's own page on that CI service. Clicked like a chip, never
+       among a row's chips. */
+    BM_CHIP_PIPELINE = 7,
     /* The local checkout of the build's repository, in the file manager. Drawn as the row icon
        registered under "folder" rather than as its label, which is only for the overflow menu. */
     BM_CHIP_OPEN_DIRECTORY = 8,
     /* Downloads the build's artifacts and log, and copies a prompt naming them. Drawn as its
        label, so no glyph has to be registered for it. */
-    BM_CHIP_TRIAGE = 9
+    BM_CHIP_TRIAGE = 9,
+    /* The row's name: the source repository. Reported through BmRow.nameLink. */
+    BM_CHIP_REPO = 10
 };
 
-/* One button on a row. */
+/*
+ * Keep in sync with RowPart.cs. Which part of a row a tooltip belongs to; a renderer draws the
+ * cells, so it asks by the part it is drawing. BM_PART_ROW is what the rest of the row says.
+ */
+enum BmRowPart {
+    BM_PART_ROW = 0,
+    BM_PART_STATUS = 1,
+    BM_PART_NAME = 2,
+    BM_PART_PROVIDER = 3,
+    BM_PART_PIPELINE = 4,
+    BM_PART_BRANCH = 5,
+    BM_PART_TIMING = 6
+};
+
+/* What one part of a row says on hover. */
+typedef struct BmTooltip {
+    BmString text;
+    /* A BmRowPart. */
+    int32_t part;
+} BmTooltip;
+
+/*
+ * One button on a row, drawn as icon then text, either of which may be empty. Which picture a kind
+ * gets is decided on the managed side, so three renderers cannot choose three different ones.
+ */
 typedef struct BmChip {
+    /* What the drop down calls it, in words. Not what the chip draws. */
     BmString label;
+    /* What the button does, said in full, for a hover. The one thing most chips say, since most of
+       them are only a picture. */
+    BmString tooltip;
+    /* A name given to bm_set_row_icon, or empty for a chip that is only its text. */
+    BmString icon;
+    /* Drawn after the icon, or empty for a chip that is only a picture. */
+    BmString text;
     /* A BmChipKind. */
     int32_t kind;
 } BmChip;
@@ -117,6 +154,9 @@ typedef struct BmRow {
     float progress;
     /* A BmChipKind a click on the name reports, drawn in the link colour, or BM_CHIP_NONE. */
     int32_t nameLink;
+    /* A BmChipKind a click on the status square reports, or BM_CHIP_NONE for a square that opens
+       nothing, which is a group's. The square is not drawn any differently for it. */
+    int32_t statusLink;
     /*
      * The detail in runs, drawn one after another: a range into BmScreen.spans. A click on a link run
      * reports its kind through BmInput.clickedChipRow and clickedChip, as a chip's does.
@@ -125,6 +165,12 @@ typedef struct BmRow {
     int32_t spanCount;
     /* Who broke a failed build, drawn after the timing, or empty for any other row. */
     BmString author;
+    /*
+     * What each part of the row says on hover: a range into BmScreen.tooltips. A part with no entry
+     * falls back to the row's BM_PART_ROW one, so a renderer can ask for any part.
+     */
+    int32_t tooltipOffset;
+    int32_t tooltipCount;
 } BmRow;
 
 /* Keep in sync with FieldKind.cs */
@@ -167,6 +213,8 @@ enum BmButtonFlags {
 
 typedef struct BmButton {
     BmString label;
+    /* What it does, for a hover, or empty for a button that needs no explaining. */
+    BmString tooltip;
     int32_t flags;
 } BmButton;
 
@@ -214,6 +262,9 @@ typedef struct BmScreen {
     int32_t page;
     BmString title;
     BmString status;
+    /* The footer in full, for a hover: a connection's error is usually longer than the one line the
+       footer has for it. */
+    BmString statusTooltip;
 
     /* The builds page. rows is the visible slice; totalRows and scrollTop size a scrollbar. */
     BmString header;
@@ -245,9 +296,14 @@ typedef struct BmScreen {
     /* Every visible row's detail runs, which BmRow.spanOffset and spanCount index. */
     const BmSpan* spans;
     int32_t spanCount;
+    /* Every visible row's tooltips, which BmRow.tooltipOffset and tooltipCount index. */
+    const BmTooltip* tooltips;
+    int32_t tooltipCount;
     /* The filter box at the right of the builds page's header: its text, shown unless the box is being
        typed in. An edit is reported through BmInput.changedField as BM_SEARCH_FIELD. */
     BmString search;
+    /* What the filter box says on hover. It carries no label, so nothing else says what it matches. */
+    BmString searchTooltip;
     /* What the body says when rowCount is 0, beside the spinner while loading. */
     BmString empty;
 
@@ -359,7 +415,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 8
+#define BM_VERSION 11
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -367,13 +423,19 @@ typedef struct BmInput {
  */
 #ifndef BM_TYPES_ONLY
 
-/* Returns 1 on success. fontTtf may be NULL for a built in font. hidden starts without a visible window. */
+/*
+ * Returns 1 on success. fontTtf may be NULL for a built in font. emojiTtf is merged over it for the
+ * marks the text font has no glyph for, and may be NULL; a renderer that draws through the platform
+ * rather than its own atlas has no use for it. hidden starts without a visible window.
+ */
 BM_API int32_t bm_init(
     int32_t width,
     int32_t height,
     const char* title,
     const uint8_t* fontTtf,
     int32_t fontLength,
+    const uint8_t* emojiTtf,
+    int32_t emojiLength,
     float fontSize,
     int32_t hidden);
 

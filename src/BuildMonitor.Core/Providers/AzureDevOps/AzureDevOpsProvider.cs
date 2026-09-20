@@ -174,7 +174,7 @@ sealed class AzureDevOpsProvider : ProviderBase
             }
         }
 
-        var (branchUrl, pullRequestUrl) = RepositoryLinks(context, project, build.Repository, branch, pullRequest);
+        var (repositoryWeb, branchUrl, pullRequestUrl) = RepositoryLinks(context, project, build.Repository, branch, pullRequest);
         return new(
             context.Connection.Id,
             pipeline.Id,
@@ -198,7 +198,8 @@ sealed class AzureDevOpsProvider : ProviderBase
             CanRetry: build.Status == "completed",
             CanCancel: build.Status is "inProgress" or "notStarted" or "postponed",
             Join(project, build.Id.ToString()),
-            $"{context.Http.BaseAddress}{Encode(project)}");
+            pipeline.Url,
+            repositoryWeb);
     }
 
     /// <summary>
@@ -209,26 +210,32 @@ sealed class AzureDevOpsProvider : ProviderBase
         TriggeredBy.Author(context, build.Property(TriggeredBy.Property), $"Build {build.Id}") ??
         build.RequestedFor?.DisplayName;
 
-    static (string? Branch, string? PullRequest) RepositoryLinks(ProviderContext context, string project, AzureDevOpsRepository? repository, string? branch, string? pullRequest)
+    /// <summary>
+    /// The repository behind the build, and the branch and pull request pages on it. A pipeline may
+    /// build a repository the server does not host, and only these two types give an address the
+    /// build carries enough of to reach; for the rest the row's name is plain text rather than a
+    /// link to the Azure DevOps project, which is not the repository.
+    /// </summary>
+    static (string? Repository, string? Branch, string? PullRequest) RepositoryLinks(ProviderContext context, string project, AzureDevOpsRepository? repository, string? branch, string? pullRequest)
     {
         if (repository is null)
         {
-            return (null, null);
+            return (null, null, null);
         }
 
         if (string.Equals(repository.Type, "GitHub", StringComparison.OrdinalIgnoreCase))
         {
             var web = $"https://github.com/{repository.Id}";
-            return (branch is null ? null : $"{web}/tree/{branch}", pullRequest is null ? null : $"{web}/pull/{pullRequest}");
+            return (web, branch is null ? null : $"{web}/tree/{branch}", pullRequest is null ? null : $"{web}/pull/{pullRequest}");
         }
 
         if (string.Equals(repository.Type, "TfsGit", StringComparison.OrdinalIgnoreCase))
         {
             var web = $"{context.Http.BaseAddress}{Encode(project)}/_git/{Encode(repository.Name ?? "")}";
-            return (branch is null ? null : $"{web}?version=GB{Encode(branch)}", pullRequest is null ? null : $"{web}/pullrequest/{pullRequest}");
+            return (web, branch is null ? null : $"{web}?version=GB{Encode(branch)}", pullRequest is null ? null : $"{web}/pullrequest/{pullRequest}");
         }
 
-        return (null, null);
+        return (null, null, null);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

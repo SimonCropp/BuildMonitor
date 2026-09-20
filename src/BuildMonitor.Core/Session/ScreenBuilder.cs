@@ -20,7 +20,7 @@ static class ScreenBuilder
         var status = Status(state, now);
         return state.Page switch
         {
-            Page.Builds when state.Hidden => HiddenScreen(state, builds, tray, status),
+            Page.Builds when state.Hidden => HiddenScreen(state, now, builds, tray, status),
             Page.Builds => BuildsScreen(state, now, builds, tray, status),
             _ => FormScreen(state, now, tray, status)
         };
@@ -32,17 +32,18 @@ static class ScreenBuilder
     /// sized each row of a large account. Showing the window changes the state, which rebuilds the
     /// page whole.
     /// </summary>
-    static Screen HiddenScreen(SessionState state, ImmutableArray<Build> builds, TrayModel tray, string status)
+    static Screen HiddenScreen(SessionState state, DateTimeOffset now, ImmutableArray<Build> builds, TrayModel tray, string status)
     {
         var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
         var running = builds.Count(_ => _.IsActive);
         return new(
             Title,
             Page.Builds,
-            new(Header(state, builds.Length, failing, running), [], 0, 0, -1, failing, running, [], [], [], false, state.Search, ""),
+            new(Header(state, builds.Length, failing, running), [], 0, 0, -1, failing, running, [], [], [], false, state.Search, SearchTooltip, ""),
             null,
             Buttons(state),
             status,
+            StatusTooltip(state, status, now),
             tray,
             state.Columns,
             state.Rows,
@@ -84,10 +85,11 @@ static class ScreenBuilder
         return new(
             Title,
             Page.Builds,
-            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized), loading, state.Search, Empty(state, rows.Length, loading), authors.Values.Distinct().ToList()),
+            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized), loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), authors.Values.Distinct().ToList()),
             null,
             Buttons(state),
             status,
+            StatusTooltip(state, status, now),
             tray,
             state.Columns,
             state.Rows,
@@ -195,15 +197,15 @@ static class ScreenBuilder
         };
 
     /// <summary>
-    /// What a click on a row's first cell opens: the run, where the pipeline is named after the
-    /// project. The second cell leaves such a pipeline out, so without this the row, an AppVeyor
-    /// project's for one, would name its run nowhere a click could reach.
+    /// What a click on a row's first cell opens: the source repository, which is what the cell
+    /// names. One cell, one destination; the run is on the status square, which every row has even
+    /// where the second cell leaves the pipeline out.
     /// </summary>
     static ChipKind NameLinkOf(Row row)
     {
-        if (row is { Kind: RowKind.Build, Build: { } build } && NamedAfterProject(build))
+        if (row is { Kind: RowKind.Build, Build.RepoUrl: not null })
         {
-            return ChipKind.Build;
+            return ChipKind.Repo;
         }
 
         return ChipKind.None;
@@ -230,13 +232,13 @@ static class ScreenBuilder
     /// </summary>
     static void AddDetail(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> details, Row row)
     {
-        if (row.Build is not { } build)
+        if (row.Build is null)
         {
             AddDistinct(seen, details, GroupDetail(row));
             return;
         }
 
-        var (pipeline, branch) = DetailParts(build);
+        var (pipeline, branch) = DetailParts(row);
         var separator = pipeline.Length > 0 && branch.Length > 0 ? " " : "";
         var length = pipeline.Length + separator.Length + branch.Length;
         var text = length <= 256 ? stackalloc char[length] : new char[length];
@@ -246,12 +248,14 @@ static class ScreenBuilder
 
     /// <summary>
     /// The pipeline and branch a build's second cell names, either empty when left out. The pipeline
-    /// is left out when the provider names it after the repository, as AppVeyor does, rather than
-    /// the same name reading in both columns. The name links to the run instead.
+    /// is left out only where the first cell is already showing that name, as it is on an AppVeyor
+    /// row whose project is named after its repository. A member of a group has no first cell to
+    /// repeat, so its pipeline stays: without it the row named its run nowhere a click could reach.
     /// </summary>
-    static (string Pipeline, string Branch) DetailParts(Build build)
+    static (string Pipeline, string Branch) DetailParts(Row row)
     {
-        if (NamedAfterProject(build))
+        var build = row.Build!;
+        if (row.Kind == RowKind.Build && NamedAfterProject(build))
         {
             return ("", build.ShortBranchName());
         }
@@ -282,7 +286,7 @@ static class ScreenBuilder
             return [new(GroupDetail(row))];
         }
 
-        var (pipeline, branch) = DetailParts(build);
+        var (pipeline, branch) = DetailParts(row);
         var spans = new List<DetailSpan>();
         Append(spans, pipeline, ChipKind.Build);
         Append(spans, branch, build.BranchUrl is null ? ChipKind.None : ChipKind.Branch);
@@ -350,18 +354,21 @@ static class ScreenBuilder
                      authors.TryGetValue(build.Author.Trim(), out var shown)
             ? shown
             : "";
+        var descriptor = ProviderDescriptors.Get(row.Connection!.Connection.ProviderId);
         return new(
             row.Kind,
             build.Status,
             NameOf(row),
             NameLinkOf(row),
+            ChipKind.Build,
             DetailOf(row),
-            row.Connection!.Connection.ProviderId,
+            descriptor.Id,
             fraction,
             timing,
             selected,
             false,
-            RowChips.Of(build, state.LocalRepos),
+            RowChips.Of(build, descriptor, state.LocalRepos),
+            RowTooltips.Of(state, build, descriptor.Name, now),
             author);
     }
 
@@ -376,11 +383,14 @@ static class ScreenBuilder
     {
         var latest = row.Members.MaxBy(_ => _.Finished ?? _.Started ?? _.Queued ?? DateTimeOffset.MinValue)!;
         var (_, timing) = Progress.Compute(latest, null, now);
-
+        var shared = LocalRepos.Shared(state.LocalRepos, row.Members);
         return new(
             RowKind.Group,
             group.Failed ? BuildStatus.Failed : BuildStatus.Succeeded,
             NameOf(row),
+            // A member's own first cell is blank, so this row is the only place the repository is
+            // named. Without the link a group would hide the repository of every row inside it.
+            RowTooltips.Shared(row.Members) is null ? ChipKind.None : ChipKind.Repo,
             ChipKind.None,
             DetailOf(row),
             "",
@@ -388,25 +398,55 @@ static class ScreenBuilder
             timing,
             selected,
             row.Expanded,
-            LocalRepos.Shared(state.LocalRepos, row.Members) is null ? [] : [new(ChipKind.OpenDirectory, "Open dir")]);
+            shared is null ? [] : [new(ChipKind.OpenDirectory, "Open dir", shared, "folder")],
+            RowTooltips.OfGroup(group, row.Members, latest, now));
     }
 
+
+    /// <summary>
+    /// What the filter box matches against. The box carries no label, so this is the only place
+    /// that says the text is tried against three different parts of a row.
+    /// </summary>
+    public const string SearchTooltip = "Show only builds whose repository, pipeline or branch contain the text";
+
+    /// <summary>
+    /// Every failing connection, for a hover on the footer. The footer is one line beside the
+    /// buttons and names only the first problem, and the error it carries is usually longer than
+    /// the line, so what a connection is actually complaining about is the part that is cut off.
+    /// Empty where nothing is wrong: a tooltip repeating "Polled 5s ago" would pop over every
+    /// hover of the footer without adding anything.
+    /// </summary>
+    static string StatusTooltip(SessionState state, string status, DateTimeOffset now)
+    {
+        if (status.Length == 0)
+        {
+            return "";
+        }
+
+        var problems = state.Connections
+            .Where(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error or ConnectionHealth.RateLimited)
+            .OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(_ => _.Health == ConnectionHealth.NeedsAuth
+                ? $"Sign in required for {_.Connection.Name}"
+                : $"{_.Connection.Name}: {_.Describe(now)}");
+        return string.Join("\n", problems);
+    }
 
     public static IReadOnlyList<Button> Buttons(SessionState state) =>
         state.Page switch
         {
             Page.Builds =>
             [
-                new("Refresh", state.Connections.Length > 0, CommandKind.Refresh),
-                new("Options", true, CommandKind.OpenOptions),
-                new("Filters", true, CommandKind.OpenFilters),
-                new("Hide", true, CommandKind.Hide)
+                new("Refresh", state.Connections.Length > 0, CommandKind.Refresh, "Poll every connection now (F5)"),
+                new("Options", true, CommandKind.OpenOptions, "Connections, polling and what the window shows"),
+                new("Filters", true, CommandKind.OpenFilters, "Hide pipelines for good"),
+                new("Hide", true, CommandKind.Hide, "Hide the window; the tray keeps running")
             ],
             Page.Connection => ConnectionButtons(state),
             Page.SignIn => SignInButtons(state),
             Page.Update =>
             [
-                new("Update", true, CommandKind.ConfirmUpdate),
+                new("Update", true, CommandKind.ConfirmUpdate, "Close BuildMonitor, update it and start it again"),
                 new("Cancel", true, CommandKind.CancelForm)
             ],
             _ =>
@@ -439,13 +479,13 @@ static class ScreenBuilder
         var buttons = new List<Button>(5)
         {
             new("Sign in", method != AuthMethod.Token, CommandKind.SignIn),
-            new("Test", true, CommandKind.TestConnection),
+            new("Test", true, CommandKind.TestConnection, "Check the server and credential without saving"),
             new("Save", true, CommandKind.Save),
             new("Cancel", true, CommandKind.CancelForm)
         };
         if (form.EditingConnectionId is not null)
         {
-            buttons.Add(new("Remove", true, CommandKind.RemoveConnection));
+            buttons.Add(new("Remove", true, CommandKind.RemoveConnection, "Forget this connection and its stored credential"));
         }
 
         return buttons;
@@ -514,6 +554,7 @@ static class ScreenBuilder
             form,
             Buttons(state),
             status,
+            StatusTooltip(state, status, now),
             tray,
             state.Columns,
             state.Rows,
@@ -595,7 +636,7 @@ static class ScreenBuilder
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),
             new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Hint: "Running and queued builds always show."),
             new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Hint: "Used by the launcher and the MCP server. Takes effect after a restart."),
-            new(FormFields.CodeDirectory, FieldKind.Directory, "Code directory", form.Value(FormFields.CodeDirectory), Hint: "Where your checkouts live", Command: CommandKind.BrowseCodeDirectory),
+            new(FormFields.CodeDirectory, FieldKind.Directory, "Code directory", form.Value(FormFields.CodeDirectory), Hint: "Where your checkouts live"),
             new("connectionsLabel", FieldKind.Label, "Connections", "")
         };
         foreach (var connection in state.Connections.OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase))
@@ -605,16 +646,15 @@ static class ScreenBuilder
                 FormFields.Connection(connection.Connection.Id),
                 FieldKind.EditRow,
                 connection.Connection.Name,
-                ConnectionSummary(descriptor, connection),
-                Command: CommandKind.EditConnection));
+                ConnectionSummary(descriptor, connection)));
         }
 
-        fields.Add(new(FormFields.AddConnection, FieldKind.Button, "Add connection", "", Command: CommandKind.AddConnection));
+        fields.Add(new(FormFields.AddConnection, FieldKind.Button, "Add connection", ""));
         fields.Add(new(FormFields.Version, FieldKind.Label, "Version", VersionReader.VersionString));
         fields.Add(new(FormFields.Documentation, FieldKind.Link, "Documentation", "https://github.com/SimonCropp/BuildMonitor"));
-        fields.Add(new(FormFields.OpenLogs, FieldKind.Button, "Open logs", "", Command: CommandKind.OpenLogs));
-        fields.Add(new(FormFields.RaiseIssue, FieldKind.Button, "Raise issue", "", Command: CommandKind.RaiseIssue));
-        fields.Add(new(FormFields.Update, FieldKind.Button, "Update", "", Command: CommandKind.Update));
+        fields.Add(new(FormFields.OpenLogs, FieldKind.Button, "Open logs", ""));
+        fields.Add(new(FormFields.RaiseIssue, FieldKind.Button, "Raise issue", ""));
+        fields.Add(new(FormFields.Update, FieldKind.Button, "Update", ""));
         AddError(fields, form);
         return new("Options", fields);
     }
@@ -656,13 +696,13 @@ static class ScreenBuilder
 
         for (var index = 0; index < form.Filters.Length; index++)
         {
-            fields.Add(new(FormFields.Filter(index), FieldKind.ListRow, "Exclude", form.Filters[index].Describe(), Command: CommandKind.RemoveFilter));
+            fields.Add(new(FormFields.Filter(index), FieldKind.ListRow, "Exclude", form.Filters[index].Describe()));
         }
 
         fields.Add(new(FormFields.FilterTarget, FieldKind.Select, "Target", form.Value(FormFields.FilterTarget), Options: Enum.GetNames<FilterTarget>()));
         fields.Add(new(FormFields.FilterKind, FieldKind.Select, "Match", form.Value(FormFields.FilterKind), Options: Enum.GetNames<FilterKind>()));
         fields.Add(new(FormFields.FilterText, FieldKind.Text, "Text", form.Value(FormFields.FilterText)));
-        fields.Add(new(FormFields.AddFilter, FieldKind.Button, "Add filter", "", Command: CommandKind.AddFilter));
+        fields.Add(new(FormFields.AddFilter, FieldKind.Button, "Add filter", ""));
         AddError(fields, form);
         return new("Filters", fields);
     }

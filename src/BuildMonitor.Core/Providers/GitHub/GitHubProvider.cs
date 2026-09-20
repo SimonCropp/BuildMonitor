@@ -103,7 +103,8 @@ sealed class GitHubProvider : ProviderBase
                         _.Name,
                         repository.FullName,
                         repository.FullName,
-                        $"{repository.HtmlUrl}/actions/workflows/{Path.GetFileName(_.Path)}"))
+                        $"{repository.HtmlUrl}/actions/workflows/{Path.GetFileName(_.Path)}",
+                        repository.HtmlUrl))
                     .ToList();
             },
             cancel,
@@ -331,7 +332,8 @@ sealed class GitHubProvider : ProviderBase
             CanRetry: change && run.Status == "completed",
             CanCancel: change && run.Status != "completed",
             Join(repository, run.Id.ToString(), run.Conclusion),
-            web);
+            pipeline.Url,
+            pipeline.RepoUrl ?? web);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

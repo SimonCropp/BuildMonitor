@@ -4,7 +4,6 @@
 /// </summary>
 /// <param name="Value">A checkbox carries "true"/"false", a select carries the chosen option,
 /// a label carries its text.</param>
-/// <param name="Command">What a Button, Link, ListRow or EditRow does when clicked.</param>
 record Field(
     string Id,
     FieldKind Kind,
@@ -12,5 +11,4 @@ record Field(
     string Value,
     bool Enabled = true,
     IReadOnlyList<string>? Options = null,
-    string? Hint = null,
-    CommandKind Command = CommandKind.None);
+    string? Hint = null);

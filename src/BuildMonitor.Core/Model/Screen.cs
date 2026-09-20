@@ -15,6 +15,9 @@ record Screen(
     FormPage? Form,
     IReadOnlyList<Button> Buttons,
     string Status,
+    // The footer in full, for a hover: the footer line is one line and a connection's error is
+    // usually longer, so the one place that says a connection is failing says only its start.
+    string StatusTooltip,
     TrayModel Tray,
     int Columns,
     int Rows,

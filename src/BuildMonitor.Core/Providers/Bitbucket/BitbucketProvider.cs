@@ -26,7 +26,8 @@ sealed class BitbucketProvider : ProviderBase
                 _.FullName,
                 _.FullName,
                 null,
-                $"{_.Links?.Html?.Href}/pipelines")));
+                $"{_.Links?.Html?.Href}/pipelines",
+                _.Links?.Html?.Href)));
             path = repositories.Next;
         }
 
@@ -115,7 +116,8 @@ sealed class BitbucketProvider : ProviderBase
             CanRetry: state == "COMPLETED" && run.Target?.Commit?.Hash is not null,
             CanCancel: state is "PENDING" or "IN_PROGRESS",
             Join(run.Uuid, run.Target?.RefType, run.Target?.RefName, run.Target?.Commit?.Hash),
-            web);
+            pipeline.Url,
+            pipeline.RepoUrl ?? web);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

@@ -197,7 +197,12 @@ static class Fixtures
             author,
             status is BuildStatus.Queued or BuildStatus.Running ? canRetry && false : canRetry,
             status is BuildStatus.Queued or BuildStatus.Running && canCancel,
-            run);
+            run,
+            $"https://example.com/{connectionId}/{pipelineId}",
+            // A repository named "owner/name" is one the provider knows the address of, as GitHub,
+            // GitLab and Bitbucket do; one named after a job or a project, as Jenkins and Octopus
+            // name theirs, has none, so those rows draw their name as plain text.
+            repo.Contains('/') ? $"https://github.com/{repo}" : null);
 
     public static readonly GroupKey VerifyPassing = new("Verify", false);
 
@@ -277,7 +282,8 @@ static class Fixtures
                     BuildStatus.Failed,
                     started: Now - TimeSpan.FromMinutes(10),
                     finished: Now - TimeSpan.FromMinutes(8),
-                    branchUrl: $"https://github.com/VerifyTests/Reports/tree/{branch}")
+                    branchUrl: $"https://github.com/VerifyTests/Reports/tree/{branch}",
+                    author: "dependabot[bot]")
             ],
             Now - TimeSpan.FromSeconds(12));
     }
@@ -311,7 +317,7 @@ static class Fixtures
     }
 
     /// <summary>
-    /// Only GitHub. Rows still carry the provider icon, since it is also the link to the project.
+    /// Only GitHub. Rows still carry the provider icon, since it is also the link to the pipeline.
     /// </summary>
     public static SessionState SingleProvider()
     {

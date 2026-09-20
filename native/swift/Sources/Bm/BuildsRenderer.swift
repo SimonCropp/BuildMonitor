@@ -25,6 +25,8 @@ final class BuildsRenderer {
     let gap: CGFloat = 10
     let chipPadding: CGFloat = 8
     let chipGap: CGFloat = 6
+    /// Between a chip's icon and the text after it, where it has both.
+    let chipIconGap: CGFloat = 4
     /// The button beside a directory field's box. Matches FormView, which draws the same field
     /// with real controls for the window this one only captures.
     let browseLabel = "Browse"
@@ -50,6 +52,9 @@ final class BuildsRenderer {
     private(set) var rowRects: [CGRect] = []
     private(set) var chips: [Hit] = []
     private(set) var buttonRects: [CGRect] = []
+    /// Where each hover text belongs, in the order drawn. The view registers these as tool tip
+    /// rects; a later one wins where they overlap, so a cell's own text beats the row's.
+    private(set) var tips: [(rect: CGRect, text: String)] = []
     // Where the footer status was drawn, which a click copies.
     private(set) var statusRect = CGRect.zero
     private(set) var bodyRect = CGRect.zero
@@ -104,6 +109,7 @@ final class BuildsRenderer {
         rowRects.removeAll()
         chips.removeAll()
         buttonRects.removeAll()
+        tips.removeAll()
 
         context.setFillColor(Palette.background.cgColor)
         context.fill(CGRect(origin: .zero, size: size))
@@ -174,7 +180,11 @@ final class BuildsRenderer {
         let timingWidth = measure("0:00:00 left")
         // Every labelled chip at its longest, then the open folder chip's square, with a gap
         // between each, so the columns before them do not move as builds gain and lose chips.
-        let widestChips = ["PR 9999", "Retry", "Log", "Triage"].map(chipWidth).reduce(0, +) + iconChipWidth + 4 * chipGap
+        // A failed pull request build with a checkout, which carries every chip there is. Cancel is
+        // not among them; it never shares a row with Retry, and a row that has it has nothing else.
+        let widestChips = [("pull-request", "9999"), ("retry", ""), ("log", ""), ("folder", ""), ("triage", "")]
+            .map { chipWidth($0.0, $0.1) }
+            .reduce(0, +) + 4 * chipGap
         let overflowWidth = chipWidth(overflowLabel)
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
         // name in line with the rows under it.
@@ -211,6 +221,8 @@ final class BuildsRenderer {
         for (index, row) in frame.rows.enumerated() {
             let rect = CGRect(x: 0, y: bodyRect.minY + CGFloat(index) * rowHeight, width: width, height: rowHeight)
             rowRects.append(rect)
+            // First, so every cell drawn after it covers it where it has something of its own.
+            tip(rect, row.tooltip(BM_PART_ROW))
             if row.isSelected {
                 Palette.selectedRow.setFill()
                 rect.fill()
@@ -221,17 +233,39 @@ final class BuildsRenderer {
             colour.setFill()
             // The full height of the row and flush with its neighbours, so a run of rows in one status
             // reads as one block rather than a column of dots.
-            CGRect(x: rect.minX, y: rect.minY, width: rowHeight, height: rowHeight).fill()
+            let square = CGRect(x: rect.minX, y: rect.minY, width: rowHeight, height: rowHeight)
+            square.fill()
+            // The square opens the run: an AppVeyor row, whose pipeline is left out of the detail,
+            // has no other part that does. A group's square reports nothing: it stands for several.
+            if row.statusLink != Int32(BM_CHIP_NONE.rawValue) {
+                chips.append(Hit(row: index, chip: row.statusLink, overflow: false, rect: square))
+                tip(square, row.tooltip(BM_PART_STATUS))
+            }
 
             var x = textX
+            // The arrow is drawn before the name but is no part of it: it is what opens and closes
+            // the group, so it stays in the ordinary colour and outside the link, and a click on it
+            // reaches the row. Inside the link it left a closed group with no way to expand.
+            var nameX = x
+            var nameRoom = nameWidth
+            let arrow = groupArrow(row)
+            if !arrow.isEmpty {
+                drawText(arrow, at: CGPoint(x: nameX, y: textY), font: font, colour: Palette.text, width: nameRoom)
+                let arrowWidth = min(measure(arrow).rounded(.up), nameRoom)
+                nameX += arrowWidth
+                nameRoom -= arrowWidth
+            }
+
             if row.isNameLink {
-                // A name that opens the run, in the link colour. Only its text is the link, so a click
-                // beside it still selects the row.
-                drawText(row.name, at: CGPoint(x: x, y: textY), font: font, colour: Palette.chipText, width: nameWidth)
-                let linkWidth = min(measure(row.name).rounded(.up), nameWidth)
-                chips.append(Hit(row: index, chip: row.nameLink, overflow: false, rect: CGRect(x: x, y: textY, width: linkWidth, height: lineHeight)))
+                // A name that opens the repository, in the link colour. Only its text is the link,
+                // so a click beside it still selects the row.
+                drawText(row.name, at: CGPoint(x: nameX, y: textY), font: font, colour: Palette.chipText, width: nameRoom)
+                let linkWidth = min(measure(row.name).rounded(.up), nameRoom)
+                let nameRect = CGRect(x: nameX, y: textY, width: linkWidth, height: lineHeight)
+                chips.append(Hit(row: index, chip: row.nameLink, overflow: false, rect: nameRect))
+                tip(nameRect, row.tooltip(BM_PART_NAME))
             } else {
-                drawText(displayName(row), at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: nameWidth)
+                drawText(row.name, at: CGPoint(x: nameX, y: textY), font: font, colour: Palette.text, width: nameRoom)
             }
 
             x += nameWidth + gap
@@ -240,7 +274,8 @@ final class BuildsRenderer {
             if let icon = RowIcons.images[row.provider] {
                 let iconRect = CGRect(x: x, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize)
                 icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-                chips.append(Hit(row: index, chip: Int32(BM_CHIP_PROJECT.rawValue), overflow: false, rect: iconRect))
+                chips.append(Hit(row: index, chip: Int32(BM_CHIP_PIPELINE.rawValue), overflow: false, rect: iconRect))
+                tip(iconRect, row.tooltip(BM_PART_PROVIDER))
             }
 
             drawDetail(row, index: index, from: x + iconWidth, width: detailWidth - iconWidth, textY: textY)
@@ -259,6 +294,7 @@ final class BuildsRenderer {
             }
 
             drawText(row.timing, at: CGPoint(x: x, y: textY), font: font, colour: Palette.dim, width: timingWidth)
+            tip(CGRect(x: x, y: rect.minY, width: timingWidth, height: rowHeight), row.tooltip(BM_PART_TIMING))
             x += timingWidth + gap
             if authorWidth > 0 {
                 drawText(row.author, at: CGPoint(x: x, y: textY), font: font, colour: Palette.text, width: authorWidth)
@@ -283,7 +319,9 @@ final class BuildsRenderer {
             let spanWidth = measure(span.text)
             drawText(span.text, at: CGPoint(x: x, y: textY), font: font, colour: span.isLink ? Palette.chipText : Palette.dim, width: right - x)
             if span.isLink {
-                chips.append(Hit(row: index, chip: span.link, overflow: false, rect: CGRect(x: x, y: textY, width: min(spanWidth, right - x), height: lineHeight)))
+                let spanRect = CGRect(x: x, y: textY, width: min(spanWidth, right - x), height: lineHeight)
+                chips.append(Hit(row: index, chip: span.link, overflow: false, rect: spanRect))
+                tip(spanRect, row.tooltip(span.link == Int32(BM_CHIP_BRANCH.rawValue) ? BM_PART_BRANCH : BM_PART_PIPELINE))
             }
 
             x += spanWidth
@@ -298,16 +336,16 @@ final class BuildsRenderer {
         for (position, chip) in row.chips.enumerated() {
             let reserve = position == row.chips.count - 1 ? 0 : chipGap + overflowWidth
             if x + width(of: chip) + reserve > right {
-                let chipRect = drawChip(overflowLabel, x: x, rowRect: rowRect, fill: Palette.chip, textColour: Palette.text)
+                let chipRect = drawChip("", overflowLabel, x: x, rowRect: rowRect, fill: Palette.chip, textColour: Palette.text)
                 chips.append(Hit(row: index, chip: chip.kind, overflow: true, rect: chipRect))
+                tip(chipRect, "More actions")
                 return
             }
 
             let (fill, textColour) = colours(chip.kind)
-            let chipRect = isIconChip(chip.kind)
-                ? drawIconChip("folder", x: x, rowRect: rowRect, fill: fill)
-                : drawChip(chip.label, x: x, rowRect: rowRect, fill: fill, textColour: textColour)
+            let chipRect = drawChip(chip.icon, chip.text, x: x, rowRect: rowRect, fill: fill, textColour: textColour)
             chips.append(Hit(row: index, chip: chip.kind, overflow: false, rect: chipRect))
+            tip(chipRect, chip.tooltip)
             x = chipRect.maxX + chipGap
         }
     }
@@ -324,27 +362,35 @@ final class BuildsRenderer {
         }
     }
 
-    private func chipWidth(_ label: String) -> CGFloat {
-        measure(label) + 2 * chipPadding
+    private func chipWidth(_ icon: String, _ label: String) -> CGFloat {
+        var width = 2 * chipPadding
+        if !icon.isEmpty {
+            width += iconSize
+        }
+
+        if !label.isEmpty {
+            width += measure(label)
+        }
+
+        if !icon.isEmpty && !label.isEmpty {
+            width += chipIconGap
+        }
+
+        return width
     }
 
     /// The picture stands where the label would, so the pill is padded the same.
-    private var iconChipWidth: CGFloat {
-        iconSize + 2 * chipPadding
-    }
+
 
     private func width(of chip: Frame.Chip) -> CGFloat {
-        isIconChip(chip.kind) ? iconChipWidth : chipWidth(chip.label)
+        chipWidth(chip.icon, chip.text)
     }
 
     /// Which chips are drawn as a picture. The label is kept for the drop down, where there is
     /// room for words.
-    private func isIconChip(_ kind: Int32) -> Bool {
-        UInt32(kind) == BM_CHIP_OPEN_DIRECTORY.rawValue
-    }
-
-    private func displayName(_ row: Frame.Row) -> String {
-        row.isGroup ? (row.isExpanded ? "▾ " : "▸ ") + row.name : row.name
+    /// The open or closed arrow a group's row is drawn behind, and nothing for any other row.
+    private func groupArrow(_ row: Frame.Row) -> String {
+        row.isGroup ? (row.isExpanded ? "▾ " : "▸ ") : ""
     }
 
     private func drawForm(_ frame: Frame) {
@@ -436,30 +482,34 @@ final class BuildsRenderer {
     /// tested like any other chip, so the click path does not know the difference. A missing image
     /// still leaves a clickable pill: a chip that vanished because the icons were never built
     /// would be worse than an empty one.
-    private func drawIconChip(_ icon: String, x: CGFloat, rowRect: CGRect, fill: NSColor) -> CGRect {
-        let rect = CGRect(x: x, y: rowRect.midY - chipHeight / 2, width: iconChipWidth, height: chipHeight)
+    /// In the row's font, as tall as a line of it, so a chip reads at the size of the row it sits in.
+    /// One pill: its icon, then its text, either of which may be empty. The icon stands where the
+    /// text would start, so a row of chips keeps one rhythm whichever of the two each one carries.
+    private func drawChip(_ icon: String, _ label: String, x: CGFloat, rowRect: CGRect, fill: NSColor, textColour: NSColor) -> CGRect {
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: textColour]
+        let rect = CGRect(x: x, y: rowRect.midY - chipHeight / 2, width: chipWidth(icon, label), height: chipHeight)
         fill.setFill()
         NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
-        if let image = RowIcons.images[icon] {
-            let square = CGRect(
-                x: rect.midX - iconSize / 2,
-                y: rect.midY - iconSize / 2,
-                width: iconSize,
-                height: iconSize)
-            image.draw(in: square, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        var left = rect.minX + chipPadding
+        if !icon.isEmpty {
+            // A chip whose glyph was never registered is still drawn and still clickable: an empty
+            // pill is odd, but one that vanished because IconBuilder never ran would be worse.
+            if let image = RowIcons.images[icon] {
+                let square = CGRect(x: left, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize)
+                image.draw(in: square, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+            }
+
+            left += iconSize
+            if !label.isEmpty {
+                left += chipIconGap
+            }
         }
 
-        return rect
-    }
+        if !label.isEmpty {
+            let textSize = (label as NSString).size(withAttributes: attributes)
+            (label as NSString).draw(at: CGPoint(x: left, y: rect.midY - textSize.height / 2), withAttributes: attributes)
+        }
 
-    /// In the row's font, as tall as a line of it, so a chip reads at the size of the row it sits in.
-    private func drawChip(_ label: String, x: CGFloat, rowRect: CGRect, fill: NSColor, textColour: NSColor) -> CGRect {
-        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: textColour]
-        let textSize = (label as NSString).size(withAttributes: attributes)
-        let rect = CGRect(x: x, y: rowRect.midY - chipHeight / 2, width: textSize.width + 2 * chipPadding, height: chipHeight)
-        fill.setFill()
-        NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
-        (label as NSString).draw(at: CGPoint(x: rect.minX + chipPadding, y: rect.midY - textSize.height / 2), withAttributes: attributes)
         return rect
     }
 
@@ -476,6 +526,7 @@ final class BuildsRenderer {
             // label that would not fit it.
             let rect = CGRect(x: x, y: top + (footerHeight - buttonHeight) / 2, width: max(90, textSize.width + 2 * chipPadding), height: buttonHeight)
             buttonRects.append(rect)
+            tip(rect, button.tooltip)
             (button.enabled ? Palette.chip : Palette.surface).setFill()
             NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
             (button.label as NSString).draw(
@@ -488,7 +539,18 @@ final class BuildsRenderer {
         let statusSize = (frame.status as NSString).size(withAttributes: attributes)
         let statusOrigin = CGPoint(x: size.width - statusSize.width - padding, y: top + footerHeight / 2 - statusSize.height / 2)
         statusRect = CGRect(origin: statusOrigin, size: statusSize)
+        tip(statusRect, frame.statusTooltip)
         (frame.status as NSString).draw(at: statusOrigin, withAttributes: attributes)
+    }
+
+    /// Records a hover text, dropping the empty ones so a part with nothing to say leaves whatever
+    /// was registered under it showing rather than blanking it.
+    private func tip(_ rect: CGRect, _ text: String) {
+        if text.isEmpty {
+            return
+        }
+
+        tips.append((rect, text))
     }
 
     private func measure(_ text: String) -> CGFloat {

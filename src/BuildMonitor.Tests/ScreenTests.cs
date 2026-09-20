@@ -144,22 +144,60 @@ public class ScreenTests
     public Task SearchedToNothing() =>
         Verify(Fixtures.Render(MonitorSession.Search(Fixtures.WithBuilds(), "nothing like it")));
 
+    /// <summary>
+    /// One destination per part of a row. The square is in because it is the only part of a row
+    /// whose pipeline is named after its project, as an AppVeyor or Octopus one is, that reaches
+    /// the run at all; the name is the repository's and opens the repository, or is plain text on
+    /// the providers that do not report one.
+    /// </summary>
     [Test]
-    public Task RowsLinkTheRunAndTheBranch() =>
+    public Task RowsLinkTheRunTheRepositoryAndTheBranch() =>
         Verify(ScreenBuilder.Build(Fixtures.WithGreenProject(), Fixtures.Now).Builds!.Rows
-            .Select(_ => $"{Link(_.Name, _.NameLink)} | {string.Concat(_.Detail.Select(span => Link(span.Text, span.Link)))}"))
+            .Select(_ => $"[{_.StatusLink}] {Link(_.Name, _.NameLink)} | {string.Concat(_.Detail.Select(span => Link(span.Text, span.Link)))}"))
             .Snapshot(
                 """
                 [
-                  build-all | [Build all](Build) main,
-                  [Deploy Web](Build) | ,
-                  DiffEngine | [test.yml](Build) [main](Branch),
-                  [nightly](Build) | ,
-                  Verify | [test.yml](Build) [feature/inline](Branch),
-                  Verify | 2 passing,
-                  DiffEngine | [docs.yml](Build) [main](Branch)
+                  [Build] build-all | [Build all](Build) main,
+                  [Build] Deploy Web | ,
+                  [Build] [DiffEngine](Repo) | [test.yml](Build) [main](Branch),
+                  [Build] nightly | ,
+                  [Build] [Verify](Repo) | [test.yml](Build) [feature/inline](Branch),
+                  [None] [Verify](Repo) | 2 passing,
+                  [Build] [DiffEngine](Repo) | [docs.yml](Build) [main](Branch)
                 ]
                 """);
+
+    /// <summary>
+    /// A group's members get their pipeline back, because their first cell is blank and the
+    /// pipeline is the only text left that can reach the run. The group's own row links the
+    /// repository its members share, which is otherwise named nowhere a click could reach.
+    /// </summary>
+    [Test]
+    public Task AGroupNamesItsMembersPipelines() =>
+        Verify(ScreenBuilder.Build(Fixtures.WithFailedGroup(), Fixtures.Now).Builds!.Rows
+            .Where(_ => _.Kind is RowKind.Group or RowKind.Member)
+            .Select(_ => $"{_.Kind}: {Link(_.Name, _.NameLink)} | {string.Concat(_.Detail.Select(span => Link(span.Text, span.Link)))}"))
+            .Snapshot(
+                """
+                [
+                  Group: [Verify](Repo) | 2 failing,
+                  Member:  | [test.yml](Build) [feature/inline](Branch),
+                  Member:  | [release.yml](Build) [main](Branch),
+                  Group: [Verify](Repo) | 2 passing
+                ]
+                """);
+
+    /// <summary>
+    /// The footer names only the first failing connection and cuts its error off at the window's
+    /// edge, so the hover is the one place the rest of it can be read.
+    /// </summary>
+    [Test]
+    public async Task TheFooterSaysEveryFailingConnectionOnHover()
+    {
+        var screen = ScreenBuilder.Build(Fixtures.ConnectionErrors(), Fixtures.Now);
+        await Assert.That(screen.Status).IsEqualTo("GitHub: rate limited, retrying in 4m (+1 more)");
+        await Assert.That(screen.StatusTooltip).IsEqualTo("GitHub: rate limited, retrying in 4m\nJenkins: error: 500 Internal Server Error");
+    }
 
     static string Link(string text, ChipKind link) =>
         link == ChipKind.None ? text : $"[{text}]({link})";

@@ -365,7 +365,7 @@ static class MonitorSession
             return state;
         }
 
-        var items = RowChips.Of(build, state.LocalRepos)
+        var items = RowChips.Of(build, ProviderDescriptors.Get(rows[row].Connection!.Connection.ProviderId), state.LocalRepos)
             .Where(_ => _.Kind >= from)
             .Select(_ => new MenuItem(_.Label, RowChips.Command(_.Kind)))
             .ToImmutableArray();

@@ -55,6 +55,11 @@ add_library(buildmonitor_ui SHARED
   ${imgui_SOURCE_DIR}/imgui_widgets.cpp)
 
 target_include_directories(buildmonitor_ui PRIVATE include ${imgui_SOURCE_DIR})
+# ImWchar is sixteen bits unless this is defined, and the robot a Dependabot row carries is
+# U+1F916. Without it the codepoint does not survive ImGui's own UTF-8 decoding, whatever font is
+# loaded. Set on the target, so imgui's own sources are compiled with it too: it changes a type
+# they share with this one.
+target_compile_definitions(buildmonitor_ui PRIVATE IMGUI_USE_WCHAR32)
 target_link_libraries(buildmonitor_ui PRIVATE raylib)
 
 # The managed side probes for a bare name; keep it identical on every platform apart from the

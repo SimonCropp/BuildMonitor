@@ -21,15 +21,21 @@ struct BmRow
     public int ChipCount;
     public float Progress;
     public int NameLink;
+    public int StatusLink;
     public int SpanOffset;
     public int SpanCount;
     public BmString Author;
+    public int TooltipOffset;
+    public int TooltipCount;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 struct BmChip
 {
     public BmString Label;
+    public BmString Tooltip;
+    public BmString Icon;
+    public BmString Text;
     public int Kind;
 }
 
@@ -38,6 +44,13 @@ struct BmSpan
 {
     public BmString Text;
     public int Link;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+struct BmTooltip
+{
+    public BmString Text;
+    public int Part;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -57,6 +70,7 @@ struct BmField
 struct BmButton
 {
     public BmString Label;
+    public BmString Tooltip;
     public int Flags;
 }
 
@@ -84,6 +98,7 @@ struct BmScreen
     public int Page;
     public BmString Title;
     public BmString Status;
+    public BmString StatusTooltip;
 
     public BmString Header;
     public BmRow* Rows;
@@ -103,7 +118,10 @@ struct BmScreen
     public int ChipCount;
     public BmSpan* Spans;
     public int SpanCount;
+    public BmTooltip* Tooltips;
+    public int TooltipCount;
     public BmString Search;
+    public BmString SearchTooltip;
     public BmString Empty;
 
     public BmString FormTitle;

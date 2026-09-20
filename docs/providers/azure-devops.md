@@ -19,7 +19,7 @@ For Azure DevOps Server enter the server URL and the collection as the organizat
 
 ## Rows
 
-One per pipeline definition. Pull request builds show the pull request number and link to it, on Azure Repos and on GitHub repositories.
+One per pipeline definition. Pull request builds show the pull request number and link to it, on Azure Repos and on GitHub repositories, which are also the two kinds whose name links to the repository. The logo opens the pipeline definition.
 
 
 ## Authors

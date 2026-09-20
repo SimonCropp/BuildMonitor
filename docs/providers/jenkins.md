@@ -17,7 +17,7 @@ An [API token](https://www.jenkins.io/doc/book/system-administration/authenticat
 
 ## Rows
 
-One per job. A job with a queued build shows a queued row until it starts.
+One per job. A job with a queued build shows a queued row until it starts. Jenkins does not report which repository a job builds, so a row's name is plain text; the logo opens the job.
 
 
 ## Authors

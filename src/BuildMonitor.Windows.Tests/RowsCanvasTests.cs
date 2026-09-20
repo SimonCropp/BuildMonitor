@@ -131,6 +131,66 @@ public class RowsCanvasTests
         return canvas;
     }
 
+    /// <summary>
+    /// The arrow is drawn in the name's cell and the name beside it is now a link, so the two have
+    /// to be told apart: a click on the arrow that opened the repository would leave a closed group
+    /// with no way to expand.
+    /// </summary>
+    [Test]
+    public async Task AGroupsArrowSelectsTheRowRatherThanOpeningTheRepository()
+    {
+        var state = Fixtures.WithFailedGroup();
+        using var canvas = Drawn(1000, state);
+        var row = Fixtures.RowOf(state, _ => _.Kind == RowKind.Group);
+        var y = canvas.RowHeight * row + canvas.RowHeight / 2;
+
+        // The first pixel of the name cell, which is where the arrow is drawn.
+        Click(canvas, MouseButtons.Left, canvas.RowHeight + 11, y);
+        var input = canvas.Drain();
+        await Assert.That(input.ClickedRow).IsEqualTo(row);
+        await Assert.That(input.ClickedChip).IsEqualTo(ChipKind.None);
+
+        // And the name beside it still opens the repository.
+        var opened = ClickAlong(canvas, row, _ => _.ClickedChip == ChipKind.Repo);
+        await Assert.That(opened.ClickedChipRow).IsEqualTo(row);
+    }
+
+    /// <summary>
+    /// The folder chip is a bare picture, so its hover is the only thing that says which directory
+    /// it opens. Without one it fell through to the row's own text, which is about the build.
+    /// </summary>
+    [Test]
+    public async Task TheFolderChipSaysWhichDirectoryItOpens()
+    {
+        var state = Fixtures.WithLocalRepos();
+        using var canvas = Drawn(1000, state);
+        var row = Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main");
+        var directory = LocalRepos.Find(state.LocalRepos, RowProjection.Rows(state)[row].Build!)!;
+        await Assert.That(TipAlong(canvas, row)).Contains(directory);
+    }
+
+    /// <summary>
+    /// Hovers along a row from its right end and collects what each part says, because where a chip
+    /// lands depends on the fonts of the machine running the test.
+    /// </summary>
+    static List<string> TipAlong(RowsCanvas canvas, int row)
+    {
+        var move = typeof(Control).GetMethod("OnMouseMove", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var tip = typeof(RowsCanvas).GetField("tipPending", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var y = canvas.RowHeight * row + canvas.RowHeight / 2;
+        var texts = new List<string>();
+        for (var x = canvas.Width - 1; x >= 0; x -= 2)
+        {
+            move.Invoke(canvas, [new MouseEventArgs(MouseButtons.None, 0, x, y, 0)]);
+            if (tip.GetValue(canvas) is string { Length: > 0 } text)
+            {
+                texts.Add(text);
+            }
+        }
+
+        return texts;
+    }
+
     static int FailedRow() =>
         Fixtures.RowOf(Fixtures.WithBuilds(), _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
 

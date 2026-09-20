@@ -7,6 +7,15 @@ struct Frame {
     struct Chip {
         let kind: Int32
         let label: String
+        let tooltip: String
+        let icon: String
+        let text: String
+    }
+
+    /// What one part of a row says on hover.
+    struct Tooltip {
+        let part: Int32
+        let text: String
     }
 
     /// One run of a row's detail: plain text, or a link a click reports as a chip's kind.
@@ -22,6 +31,7 @@ struct Frame {
         let flags: Int32
         let name: String
         let nameLink: Int32
+        let statusLink: Int32
         let detail: String
         let spans: [Span]
         let provider: String
@@ -29,6 +39,22 @@ struct Frame {
         let chips: [Chip]
         let progress: Float
         let author: String
+        let tooltips: [Tooltip]
+
+        /// What `part` says on hover, falling back to what the row itself says, so a caller can ask
+        /// for any part without first checking whether this row has one.
+        func tooltip(_ part: BmRowPart) -> String {
+            let wanted = Int32(part.rawValue)
+            if let found = tooltips.first(where: { $0.part == wanted }) {
+                return found.text
+            }
+
+            if wanted == Int32(BM_PART_ROW.rawValue) {
+                return ""
+            }
+
+            return tooltips.first { $0.part == Int32(BM_PART_ROW.rawValue) }?.text ?? ""
+        }
 
         var isGroup: Bool { flags & Int32(BM_ROW_GROUP.rawValue) != 0 }
         var isSelected: Bool { flags & Int32(BM_ROW_SELECTED.rawValue) != 0 }
@@ -48,6 +74,7 @@ struct Frame {
 
     struct Button {
         let label: String
+        let tooltip: String
         let enabled: Bool
     }
 
@@ -62,6 +89,7 @@ struct Frame {
     let page: Int32
     let title: String
     let status: String
+    let statusTooltip: String
     let header: String
     let rows: [Row]
     let scrollTop: Int32
@@ -73,6 +101,7 @@ struct Frame {
     let details: [String]
     let authors: [String]
     let search: String
+    let searchTooltip: String
     let empty: String
     let formTitle: String
     let fields: [Field]
@@ -101,7 +130,11 @@ struct Frame {
         }
 
         let chips = UnsafeBufferPointer(start: screen.chips, count: Int(screen.chipCount)).map {
-            Chip(kind: $0.kind, label: text($0.label))
+            Chip(kind: $0.kind, label: text($0.label), tooltip: text($0.tooltip), icon: text($0.icon), text: text($0.text))
+        }
+
+        let tooltips = UnsafeBufferPointer(start: screen.tooltips, count: Int(screen.tooltipCount)).map {
+            Tooltip(part: $0.part, text: text($0.text))
         }
 
         let spans = UnsafeBufferPointer(start: screen.spans, count: Int(screen.spanCount)).map {
@@ -113,18 +146,22 @@ struct Frame {
             let end = min(chips.count, start + Int(row.chipCount))
             let spanStart = Int(row.spanOffset)
             let spanEnd = min(spans.count, spanStart + Int(row.spanCount))
+            let tipStart = Int(row.tooltipOffset)
+            let tipEnd = min(tooltips.count, tipStart + Int(row.tooltipCount))
             return Row(
                 status: row.status,
                 flags: row.flags,
                 name: text(row.name),
                 nameLink: row.nameLink,
+                statusLink: row.statusLink,
                 detail: text(row.detail),
                 spans: spanStart >= 0 && spanStart < spanEnd ? Array(spans[spanStart..<spanEnd]) : [],
                 provider: text(row.provider),
                 timing: text(row.timing),
                 chips: start >= 0 && start < end ? Array(chips[start..<end]) : [],
                 progress: row.progress,
-                author: text(row.author))
+                author: text(row.author),
+                tooltips: tipStart >= 0 && tipStart < tipEnd ? Array(tooltips[tipStart..<tipEnd]) : [])
         }
 
         let options = UnsafeBufferPointer(start: screen.options, count: Int(screen.optionCount)).map(text)
@@ -143,7 +180,7 @@ struct Frame {
         }
 
         let buttons = UnsafeBufferPointer(start: screen.buttons, count: Int(screen.buttonCount)).map {
-            Button(label: text($0.label), enabled: $0.flags & Int32(BM_BUTTON_ENABLED.rawValue) != 0)
+            Button(label: text($0.label), tooltip: text($0.tooltip), enabled: $0.flags & Int32(BM_BUTTON_ENABLED.rawValue) != 0)
         }
 
         let menu = UnsafeBufferPointer(start: screen.menu, count: Int(screen.menuCount)).map { text($0.label) }
@@ -164,6 +201,7 @@ struct Frame {
             page: screen.page,
             title: text(screen.title),
             status: text(screen.status),
+            statusTooltip: text(screen.statusTooltip),
             header: text(screen.header),
             rows: rows,
             scrollTop: screen.scrollTop,
@@ -175,6 +213,7 @@ struct Frame {
             details: details,
             authors: authors,
             search: text(screen.search),
+            searchTooltip: text(screen.searchTooltip),
             empty: text(screen.empty),
             formTitle: text(screen.formTitle),
             fields: fields,

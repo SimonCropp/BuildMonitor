@@ -42,4 +42,9 @@ include: doc-index
 
 ## Icons
 
-Icons are from [Lucide](https://lucide.dev/) (ISC), bundled through [IconifyBundle](https://github.com/Papyrine/IconifyBundle).
+Icons are from [Lucide](https://lucide.dev/) (ISC), bundled through [IconifyBundle](https://github.com/Papyrine/IconifyBundle). Provider logos are from [Simple Icons](https://simpleicons.org/) (CC0), in each brand's own colour.
+
+
+## Fonts
+
+The heads that rasterise their own text draw with [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (OFL), with [Noto Emoji](https://fonts.google.com/noto/specimen/Noto+Emoji) (OFL) merged over it for the 🤖 a bot's row carries, which a programming face has no glyph for. Both are embedded, and Noto Emoji is cut down to the marks actually drawn; see `EmbeddedFont` for the command that cuts it. Each licence sits beside its font under `src/BuildMonitor.Core/Assets`.
