@@ -450,9 +450,24 @@ function Initialize-GhRepo([string] $slug, [System.Collections.IDictionary] $fil
     }
 }
 
+# A failed run that reached a job, which is the only kind that leaves a log behind. A run that broke
+# before starting one, as a workflow with bad YAML does, is still reported as a failed run; counting
+# it would call the sandbox ready and leave the live tests reading a log that was never written.
+# Asked the way the provider asks it: jobs of the latest attempt whose conclusion is failure.
 function Test-GhFailure([string] $slug, [string] $workflow) {
-    $runs = Get-GhJson "repos/$slug/actions/workflows/$workflow/runs?status=failure&per_page=1"
-    return [bool]($runs -and $runs.total_count -gt 0)
+    $runs = Get-GhJson "repos/$slug/actions/workflows/$workflow/runs?status=failure&per_page=5"
+    if (-not $runs -or $runs.total_count -eq 0) {
+        return $false
+    }
+
+    foreach ($run in $runs.workflow_runs) {
+        $jobs = Get-GhJson "repos/$slug/actions/runs/$($run.id)/jobs?filter=latest&per_page=100"
+        if ($jobs -and @($jobs.jobs | Where-Object { $_.conclusion -in 'failure', 'timed_out' }).Count -gt 0) {
+            return $true
+        }
+    }
+
+    return $false
 }
 
 function Start-GhFailure([string] $slug, [string] $workflow) {
@@ -579,23 +594,31 @@ function Initialize-AzureDevOps {
             Write-Done 'created the pipeline Sandbox'
         }
 
-        $runs = "$base/Sandbox/_apis/pipelines/$($pipeline.id)/runs?api-version=7.1"
-        if (-not (Get-AzureFailure $runs $headers)) {
-            if (@((Invoke-Api $runs -Headers $headers).value).Count -eq 0) {
-                Request-Person @(
-                    'Microsoft-hosted jobs need one of these. Skip this if either is done:',
-                    '  link an Azure subscription (this page), or',
-                    '  ask for the free grant for private projects, which takes a few days: https://aka.ms/azpipelines-parallelism-request'
-                ) "$base/_settings/billing"
-                $null = Invoke-Api $runs -Method POST -Headers $headers -Body @{}
-                Write-Done 'started the pipeline'
+        $runsPath = "$base/Sandbox/_apis/pipelines/$($pipeline.id)/runs"
+        $runs = "$runsPath?api-version=7.1"
+        if (-not (Get-AzureFailure $base $runs $headers)) {
+            Request-Person @(
+                'Microsoft-hosted jobs need one of these. Skip this if either is done:',
+                '  link an Azure subscription (this page), or',
+                '  ask for the free grant for private projects, which takes a few days: https://aka.ms/azpipelines-parallelism-request'
+            ) "$base/_settings/billing"
+            $started = Invoke-Api $runs -Method POST -Headers $headers -Body @{}
+            Write-Done 'started the pipeline'
+            $null = Wait-For 'the run to finish' {
+                (Invoke-Api "$runsPath/$($started.id)?api-version=7.1" -Headers $headers).state -eq 'completed'
             }
 
-            $null = Wait-For 'a failed run' { $null -ne (Get-AzureFailure $runs $headers) }
+            # A run refused an agent fails in under a second with nothing in its timeline, and every
+            # API that reports a failed run reports it as one. Without this the script would call the
+            # sandbox ready, and the failure would surface days later as a live test reading a log
+            # that was never written.
+            if (-not (Test-AzureLogged $base $started.id $headers)) {
+                throw "Run $($started.id) failed before it started a job, so it has no log for the live tests to read. Microsoft-hosted parallelism is the usual reason: $base/_settings/buildqueue?_a=concurrentJobs"
+            }
         }
 
         # Retention deletes failed runs, and the action round needs one to retry.
-        $failed = Get-AzureFailure $runs $headers
+        $failed = Get-AzureFailure $base $runs $headers
         if ($failed) {
             $leases = "$base/Sandbox/_apis/build/builds/$($failed.id)/leases?api-version=7.1"
             if (@((Invoke-Api $leases -Headers $headers).value).Count -eq 0) {
@@ -632,8 +655,29 @@ function Initialize-AzureDevOps {
     }
 }
 
-function Get-AzureFailure([string] $runs, [hashtable] $headers) {
-    return @((Invoke-Api $runs -Headers $headers).value) | Where-Object result -eq 'failed' | Select-Object -First 1
+# The newest failed run the live tests can actually use. Bounded, because the list grows by a run
+# every time the sandbox is rebuilt and only the newest few are ever candidates.
+function Get-AzureFailure([string] $base, [string] $runs, [hashtable] $headers) {
+    $failures = @((Invoke-Api $runs -Headers $headers).value) | Where-Object result -eq 'failed' | Select-Object -First 5
+    foreach ($run in $failures) {
+        if (Test-AzureLogged $base $run.id $headers) {
+            return $run
+        }
+    }
+
+    return $null
+}
+
+# Whether a failed run reached a job, which is the only kind that leaves a log behind. Asked the way
+# the provider asks it: a failed timeline record carrying a log is exactly what FetchLog reads, so
+# the script and the test cannot disagree about whether the sandbox is ready.
+function Test-AzureLogged([string] $base, $runId, [hashtable] $headers) {
+    $timeline = Invoke-Api "$base/Sandbox/_apis/build/builds/$runId/timeline?api-version=7.1" -Headers $headers -Allow 404
+    if (-not $timeline) {
+        return $false
+    }
+
+    return @($timeline.records | Where-Object { $_.result -eq 'failed' -and $_.log }).Count -gt 0
 }
 
 # GitLab CI
