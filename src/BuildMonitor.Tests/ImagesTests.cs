@@ -38,7 +38,7 @@ public class ImagesTests
     public async Task EveryMarkARowCanNameExists()
     {
         foreach (var name in RepoHosts.All
-                     .Concat(ProviderDescriptors.All.Select(_ => $"provider-{_.Id}"))
+                     .Concat(ProviderMarks.All)
                      .Concat(RowChips.Icons))
         {
             await Assert.That(Images.Glyph(name, 16)).IsNotNull();

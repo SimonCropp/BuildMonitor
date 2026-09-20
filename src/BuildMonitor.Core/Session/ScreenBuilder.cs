@@ -239,7 +239,7 @@ static class ScreenBuilder
 
         if (build.NeedsAttention())
         {
-            return $"provider-{descriptor.Id}";
+            return ProviderMarks.Of(descriptor.Id, build.Status);
         }
 
         return RepoHosts.MarkOf(build.RepoUrl);
@@ -267,7 +267,7 @@ static class ScreenBuilder
             return ("", ChipKind.None);
         }
 
-        return ($"provider-{descriptor.Id}", ChipKind.Pipeline);
+        return (ProviderMarks.Of(descriptor.Id, build.Status), ChipKind.Pipeline);
     }
 
     static bool NamedAfterProject(Build build) =>

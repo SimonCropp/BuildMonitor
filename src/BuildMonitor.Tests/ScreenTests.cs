@@ -184,7 +184,7 @@ public class ScreenTests
                   Deploy Web | provider-octopus | ,
                   DiffEngine | provider-github | host-github,
                   nightly | provider-jenkins | ,
-                  Verify | provider-github | host-github,
+                  Verify | provider-github-failed | host-github,
                   Verify | host-github | ,
                   DiffEngine | host-github | provider-github
                 ]

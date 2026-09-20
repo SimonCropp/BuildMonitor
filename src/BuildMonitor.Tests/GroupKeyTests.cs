@@ -14,7 +14,7 @@ public class GroupKeyTests
     public async Task AProjectTooLongForTheStackIsLowerCasedToo()
     {
         var project = new string('A', 300);
-        await Assert.That(new GroupKey(project).Id).IsEqualTo(new string('a', 300));
+        await Assert.That(new GroupKey(project).Id).IsEqualTo(new('a', 300));
     }
 
     [Test]

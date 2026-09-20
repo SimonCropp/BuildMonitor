@@ -61,11 +61,14 @@ static class Program
     static SKColor glyphColour = new(0x8A, 0x8A, 0x8A);
 
     /// <summary>
-    /// The blue GitHub draws Actions in, and the mark that badges the octocat with it. Its own
-    /// logo, a graph of four nodes, is illegible at the size a row draws a logo, and drawing the
-    /// octocat alone would put the same picture on the row twice.
+    /// The badge every provider logo carries, in the tray's own running and failed colours: a
+    /// play for a service's pipeline, and a cross where the run the mark opens broke. The badge
+    /// is what tells a CI service's logo from the source host's, which for GitHub is the same
+    /// octocat, and it is read as a state, so it has to be one.
     /// </summary>
-    static SKColor actionsColour = new(0x20, 0x88, 0xFF);
+    static SKColor runningColour = new(0x3B, 0x82, 0xF6);
+
+    static SKColor failedColour = new(0xD9, 0x3A, 0x3A);
 
     /// <summary>
     /// Provider logos from Simple Icons, keyed by provider id. Iconify carries the shapes but not
@@ -156,8 +159,13 @@ static class Program
         {
             foreach (var size in glyphSizes)
             {
-                using var bitmap = ProviderGlyph(id, icon, colour, size);
-                File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-{size}.png"), Png(bitmap));
+                // Two of each: the one a row draws for a pipeline or a run still going, and the
+                // one it draws for a run that broke. Which is which is decided by ProviderMarks
+                // in the core, from these names.
+                using var running = Badged(icon, colour, size, runningColour, Play);
+                File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-{size}.png"), Png(running));
+                using var failed = Badged(icon, colour, size, failedColour, Cross);
+                File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-failed-{size}.png"), Png(failed));
             }
         }
 
@@ -281,26 +289,12 @@ static class Program
     }
 
     /// <summary>
-    /// A provider's logo. GitHub's is the octocat badged with Actions blue, since the plain
-    /// octocat is what the same row draws before the repository name.
+    /// A logo with a badge in its corner: the service's own mark, so the row still says which
+    /// service, and the badge saying that this is the run there rather than the source. The badge
+    /// is punched out of the logo before it is drawn, so the two read as two things rather than
+    /// one blob wherever a row's background shows between them.
     /// </summary>
-    static SKBitmap ProviderGlyph(string id, Icon icon, SKColor colour, int size)
-    {
-        if (id == "github")
-        {
-            return Badged(icon, colour, size);
-        }
-
-        return Glyph(icon, colour, size);
-    }
-
-    /// <summary>
-    /// A mark with a small play button in its corner: the service's own logo, so the row still says
-    /// which service, with the badge saying it is the pipeline there rather than the source. The
-    /// badge is punched out of the mark before it is drawn, so the two read as two things rather
-    /// than one blob wherever a row's background shows between them.
-    /// </summary>
-    static SKBitmap Badged(Icon icon, SKColor colour, int size)
+    static SKBitmap Badged(Icon icon, SKColor colour, int size, SKColor badgeColour, Action<SKCanvas, SKPoint, float> mark)
     {
         var bitmap = new SKBitmap(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(bitmap);
@@ -320,30 +314,52 @@ static class Program
 
         using (var paint = new SKPaint
                {
-                   Color = actionsColour,
+                   Color = badgeColour,
                    IsAntialias = true
                })
         {
             canvas.DrawCircle(centre, radius, paint);
         }
 
-        // Drawn rather than taken from Lucide: a stroked triangle with rounded joins closes up at
-        // the few pixels across a badge is, where a solid one still reads as pointing somewhere.
-        var half = radius * 0.52f;
+        mark(canvas, centre, radius * 0.52f);
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Drawn rather than taken from Lucide: a stroked triangle with rounded joins closes up at the
+    /// few pixels across a badge is, where a solid one still reads as pointing somewhere.
+    /// </summary>
+    static void Play(SKCanvas canvas, SKPoint centre, float half)
+    {
         using var builder = new SKPathBuilder();
         builder.MoveTo(centre.X - half * 0.8f, centre.Y - half);
         builder.LineTo(centre.X + half * 0.9f, centre.Y);
         builder.LineTo(centre.X - half * 0.8f, centre.Y + half);
         builder.Close();
-        using var white = new SKPaint
+        using var path = builder.Snapshot();
+        canvas.DrawPath(path, White());
+    }
+
+    /// <summary>
+    /// Two strokes rather than a glyph, for the same reason: at a badge's size Lucide's cross is
+    /// mostly the round caps at its ends.
+    /// </summary>
+    static void Cross(SKCanvas canvas, SKPoint centre, float half)
+    {
+        using var paint = White();
+        paint.Style = SKPaintStyle.Stroke;
+        paint.StrokeWidth = half * 0.62f;
+        paint.StrokeCap = SKStrokeCap.Round;
+        canvas.DrawLine(centre.X - half, centre.Y - half, centre.X + half, centre.Y + half, paint);
+        canvas.DrawLine(centre.X + half, centre.Y - half, centre.X - half, centre.Y + half, paint);
+    }
+
+    static SKPaint White() =>
+        new()
         {
             Color = SKColors.White,
             IsAntialias = true
         };
-        using var path = builder.Snapshot();
-        canvas.DrawPath(path, white);
-        return bitmap;
-    }
 
     static SKBitmap Glyph(Icon icon, SKColor colour, int size)
     {

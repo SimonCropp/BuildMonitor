@@ -75,7 +75,7 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
         // cells with, and its chips, which are drawn as pictures rather than labels. The names are
         // what BuildRow.NameIcon, DetailIcon and RowChip.Icon carry, and what bm.cpp and
         // BuildsRenderer.swift look each image up by.
-        foreach (var name in ProviderDescriptors.All.Select(_ => $"provider-{_.Id}")
+        foreach (var name in ProviderMarks.All
                      .Concat(RepoHosts.All)
                      .Concat(RowChips.Icons))
         {

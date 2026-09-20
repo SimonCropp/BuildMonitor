@@ -21,8 +21,7 @@ static class Concurrently
         progress?.Invoke(new(0, items.Count));
         for (var index = 0; index < items.Count; index++)
         {
-            var slot = index;
-            tasks[index] = Run(slot);
+            tasks[index] = Run(index);
         }
 
         await Task.WhenAll(tasks);
@@ -63,8 +62,7 @@ static class Concurrently
         progress?.Invoke(new(0, items.Count));
         for (var index = 0; index < items.Count; index++)
         {
-            var slot = index;
-            tasks[index] = Run(slot);
+            tasks[index] = Run(index);
         }
 
         await Task.WhenAll(tasks);

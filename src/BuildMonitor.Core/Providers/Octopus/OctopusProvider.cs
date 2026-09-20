@@ -328,7 +328,7 @@ sealed class OctopusProvider : ProviderBase
         }
 
         var wanted = releaseIds
-            .Where(_ => _ is { Length: > 0 } id && !known.ContainsKey(id))
+            .Where(_ => _ is { Length: > 0 } && !known.ContainsKey(_))
             .Select(_ => _!)
             .Distinct()
             .ToList();
