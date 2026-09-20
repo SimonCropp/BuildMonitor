@@ -191,6 +191,35 @@ public class ScreenTests
                 """);
 
     /// <summary>
+    /// A row whose pipeline is named after its project, as an AppVeyor one is, leaves the pipeline
+    /// out of its second cell. It still leads with its run while that run is going: the cell it
+    /// leads with is chosen by the status, and never by what the cell beside it happens to hold.
+    /// </summary>
+    [Test]
+    public async Task ARowNamedAfterItsProjectStillLeadsWithItsRun()
+    {
+        var state = Fixtures.WithBuilds();
+        var running = Fixtures.Build(
+            Fixtures.GitHub.Id,
+            "Verify.PdfPig",
+            "Verify.PdfPig",
+            "VerifyTests/Verify.PdfPig",
+            "main",
+            "1635",
+            BuildStatus.Running,
+            started: Fixtures.Now - TimeSpan.FromMinutes(2));
+        var builds = state.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id).Append(running);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [..builds], Fixtures.Now);
+        var row = ScreenBuilder.Build(next, Fixtures.Now).Builds!.Rows.Single(_ => _.Name == "Verify.PdfPig");
+
+        await Assert.That(row.DetailText).IsEqualTo("main");
+        await Assert.That(row.NameLink).IsEqualTo(ChipKind.Build);
+        await Assert.That(row.NameIcon).IsEqualTo("provider-github");
+        await Assert.That(row.DetailIconLink).IsEqualTo(ChipKind.Repo);
+        await Assert.That(row.DetailIcon).IsEqualTo("host-github");
+    }
+
+    /// <summary>
     /// A group's members get their pipeline back, because their first cell is blank and the
     /// pipeline is the only text left that can reach the run. The group's own row links the
     /// repository its members share, which is otherwise named nowhere a click could reach.
