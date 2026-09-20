@@ -72,6 +72,16 @@ static class Program
     /// </summary>
     static SKColor runningColour = new(0x3B, 0x82, 0xF6);
 
+    /// <summary>
+    /// How much of the mark a badge takes. The clock's is larger than the play's and the cross's
+    /// because it carries more: a dial and two hands, where they are one solid shape each, and at
+    /// the play's size the hands closed up. Sized to what each has to show rather than to each
+    /// other, since no row draws two of them at once.
+    /// </summary>
+    const float badgeFill = 0.2f;
+
+    const float clockFill = 0.28f;
+
     static SKColor failedColour = new(0xD9, 0x3A, 0x3A);
 
     /// <summary>
@@ -169,7 +179,7 @@ static class Program
                 File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-run-{size}.png"), Png(run));
                 using var failed = Badged(icon, colour, size, failedColour, Cross);
                 File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-failed-{size}.png"), Png(failed));
-                using var history = Badged(icon, colour, size, glyphColour, Clock);
+                using var history = Badged(icon, colour, size, glyphColour, Clock, clockFill);
                 File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-history-{size}.png"), Png(history));
             }
         }
@@ -299,14 +309,17 @@ static class Program
     /// is punched out of the logo before it is drawn, so the two read as two things rather than
     /// one blob wherever a row's background shows between them.
     /// </summary>
-    static SKBitmap Badged(Icon icon, SKColor colour, int size, SKColor badgeColour, Action<SKCanvas, SKPoint, float> mark)
+    static SKBitmap Badged(Icon icon, SKColor colour, int size, SKColor badgeColour, Action<SKCanvas, SKPoint, float> mark) =>
+        Badged(icon, colour, size, badgeColour, mark, badgeFill);
+
+    static SKBitmap Badged(Icon icon, SKColor colour, int size, SKColor badgeColour, Action<SKCanvas, SKPoint, float> mark, float fill)
     {
         var bitmap = new SKBitmap(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(SKColors.Transparent);
         Draw(canvas, icon, colour, 0, 0, size * 0.88f);
 
-        var radius = size * 0.2f;
+        var radius = size * fill;
         var centre = new SKPoint(size - radius, size - radius);
         using (var clear = new SKPaint
                {
@@ -360,23 +373,29 @@ static class Program
     }
 
     /// <summary>
-    /// A white dial with the hands knocked out of it, rather than a ring with hands drawn on it: a
-    /// solid shape holds at the nine pixels across a badge is on a row, where a ring closed up
-    /// into a doughnut and the hands with it.
+    /// A white dial with grey hands drawn on it, rather than a ring, and rather than hands knocked
+    /// through to whatever is behind: a ring closes into a doughnut at the size a badge is drawn,
+    /// and knocked out hands are the row's own colour, which on a light theme is a white dial with
+    /// white hands and no clock at all.
+    /// <para>
+    /// The face fills the badge past its rim, leaving the grey showing as the clock's own edge,
+    /// and the hands reach most of the way across it. Everything smaller read as a dot.
+    /// </para>
     /// </summary>
     static void Clock(SKCanvas canvas, SKPoint centre, float half)
     {
-        canvas.DrawCircle(centre, half, White());
-        using var clear = new SKPaint
+        var face = half * 1.35f;
+        canvas.DrawCircle(centre, face, White());
+        using var paint = new SKPaint
         {
-            BlendMode = SKBlendMode.Clear,
+            Color = glyphColour,
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = half * 0.36f,
+            StrokeWidth = half * 0.42f,
             StrokeCap = SKStrokeCap.Round
         };
-        canvas.DrawLine(centre.X, centre.Y, centre.X, centre.Y - half * 0.62f, clear);
-        canvas.DrawLine(centre.X, centre.Y, centre.X + half * 0.55f, centre.Y, clear);
+        canvas.DrawLine(centre.X, centre.Y, centre.X, centre.Y - face * 0.85f, paint);
+        canvas.DrawLine(centre.X, centre.Y, centre.X + face * 0.68f, centre.Y, paint);
     }
 
     static SKPaint White() =>
