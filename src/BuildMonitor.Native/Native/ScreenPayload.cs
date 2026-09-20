@@ -147,12 +147,14 @@ sealed unsafe class ScreenPayload
                                 (row.Kind == RowKind.Member ? BmFlags.RowMember : 0),
                         Name = Add(row.Name),
                         Detail = Add(row.DetailText),
-                        Provider = Add(row.Provider),
+                        NameIcon = Add(row.NameIcon),
+                        DetailIcon = Add(row.DetailIcon),
                         Timing = Add(row.Timing),
                         ChipOffset = chipOffset,
                         ChipCount = row.Chips.Count,
                         Progress = (float) row.Progress,
                         NameLink = (int) row.NameLink,
+                        DetailIconLink = (int) row.DetailIconLink,
                         StatusLink = (int) row.StatusLink,
                         SpanOffset = spanOffset,
                         SpanCount = row.Detail.Count,
@@ -314,7 +316,7 @@ sealed unsafe class ScreenPayload
         {
             var rowChips = chips.Skip(row.ChipOffset).Take(row.ChipCount).Select(_ => $"{(ChipKind) _.Kind}:{Text(_.Label)}[{Text(_.Icon)}|{Text(_.Text)}]");
             var rowSpans = spans.Skip(row.SpanOffset).Take(row.SpanCount).Select(_ => $"{(ChipKind) _.Link}:'{Text(_.Text)}'");
-            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' link={(ChipKind) row.NameLink} status={(ChipKind) row.StatusLink} '{Text(row.Detail)}' spans={string.Join(',', rowSpans)} provider='{Text(row.Provider)}' '{Text(row.Timing)}' author='{Text(row.Author)}' chips={string.Join(',', rowChips)}");
+            builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' link={(ChipKind) row.NameLink} status={(ChipKind) row.StatusLink} '{Text(row.Detail)}' spans={string.Join(',', rowSpans)} icon='{Text(row.NameIcon)}' detail={(ChipKind) row.DetailIconLink}:'{Text(row.DetailIcon)}' '{Text(row.Timing)}' author='{Text(row.Author)}' chips={string.Join(',', rowChips)}");
             // A line each, and on their own lines: a tooltip runs to a sentence, and several of
             // them joined onto the row would put what a link opens past the width of the snapshot.
             foreach (var tooltip in tooltips.Skip(row.TooltipOffset).Take(row.TooltipCount))

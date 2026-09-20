@@ -83,13 +83,13 @@ public class ScreenTests
         return Verify(Fixtures.Render(MonitorSession.OpenMenu(state, Fixtures.RowOf(state, _ => _.Kind == RowKind.Member))));
     }
 
+    /// <summary>
+    /// Two failing workflows of one project, each on a row of its own rather than folded into a
+    /// group that named neither.
+    /// </summary>
     [Test]
-    public Task FailedGroup() =>
-        Verify(Fixtures.Render(Fixtures.WithFailedGroup()));
-
-    [Test]
-    public Task FailedGroupCollapsed() =>
-        Verify(Fixtures.Render(MonitorSession.ToggleGroup(Fixtures.WithFailedGroup(), Fixtures.VerifyFailing)));
+    public Task TwoFailures() =>
+        Verify(Fixtures.Render(Fixtures.WithTwoFailures()));
 
     [Test]
     public Task SingleProvider() =>
@@ -107,10 +107,10 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
                 +----------------------------------------------------------------------------------------------------------------------+
+                |   > DiffEngine github   test.yml main           [####----] 03:00 left               [Cancel]                         |
                 |   ? nightly    jenkins                                     queued 30s               [Cancel]                         |
-                |   x [-] Verify          2 failing                          25m ago                                                   |
-                |   x            github   test.yml feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]              |
-                |   x            github   release.yml main                   50m ago                  [Retry] [Log]                    |
+                |   x Verify     github   test.yml feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]              |
+                |   x Verify     github   release.yml main                   50m ago                  [Retry] [Log]                    |
                 |   + [+] Verify          2 passing                          2h ago                                                    |
                 | > + DiffEngine github   docs.yml main                      23h ago                                                   |
                 +----------------------------------------------------------------------------------------------------------------------+
@@ -157,13 +157,36 @@ public class ScreenTests
             .Snapshot(
                 """
                 [
-                  [Build] build-all | [Build all](Build) main,
-                  [Build] Deploy Web | ,
-                  [Build] [DiffEngine](Repo) | [test.yml](Build) [main](Branch),
-                  [Build] nightly | ,
-                  [Build] [Verify](Repo) | [test.yml](Build) [feature/inline](Branch),
+                  [Build] [build-all](Build) | [Build all](Pipeline) main,
+                  [Build] [Deploy Web](Build) | ,
+                  [Build] [DiffEngine](Build) | [test.yml](Pipeline) [main](Branch),
+                  [Build] [nightly](Build) | ,
+                  [Build] [Verify](Build) | [test.yml](Pipeline) [feature/inline](Branch),
                   [None] [Verify](Repo) | 2 passing,
                   [Build] [DiffEngine](Repo) | [docs.yml](Build) [main](Branch)
+                ]
+                """);
+
+    /// <summary>
+    /// The two marks, and which way round they sit: a row that broke or is still running leads
+    /// with the service that ran it, and carries the host of its source in the second cell; a
+    /// settled one is the other way round. The two are never the same picture, and a host nothing
+    /// here has a mark for leaves its cell with none.
+    /// </summary>
+    [Test]
+    public Task RowsLeadWithTheMarkOfWhatTheyAreAbout() =>
+        Verify(ScreenBuilder.Build(Fixtures.WithGreenProject(), Fixtures.Now).Builds!.Rows
+            .Select(_ => $"{_.Name} | {_.NameIcon} | {_.DetailIcon}"))
+            .Snapshot(
+                """
+                [
+                  build-all | provider-jenkins | ,
+                  Deploy Web | provider-octopus | ,
+                  DiffEngine | provider-github | host-github,
+                  nightly | provider-jenkins | ,
+                  Verify | provider-github | host-github,
+                  Verify | host-github | ,
+                  DiffEngine | host-github | provider-github
                 ]
                 """);
 
@@ -174,16 +197,15 @@ public class ScreenTests
     /// </summary>
     [Test]
     public Task AGroupNamesItsMembersPipelines() =>
-        Verify(ScreenBuilder.Build(Fixtures.WithFailedGroup(), Fixtures.Now).Builds!.Rows
+        Verify(ScreenBuilder.Build(MonitorSession.ToggleGroup(Fixtures.WithGreenProject(), Fixtures.VerifyPassing), Fixtures.Now).Builds!.Rows
             .Where(_ => _.Kind is RowKind.Group or RowKind.Member)
             .Select(_ => $"{_.Kind}: {Link(_.Name, _.NameLink)} | {string.Concat(_.Detail.Select(span => Link(span.Text, span.Link)))}"))
             .Snapshot(
                 """
                 [
-                  Group: [Verify](Repo) | 2 failing,
-                  Member:  | [test.yml](Build) [feature/inline](Branch),
-                  Member:  | [release.yml](Build) [main](Branch),
-                  Group: [Verify](Repo) | 2 passing
+                  Group: [Verify](Repo) | 2 passing,
+                  Member:  | [docs.yml](Build) [main](Branch),
+                  Member:  | [nuget.yml](Build) [main](Branch)
                 ]
                 """);
 

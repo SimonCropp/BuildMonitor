@@ -30,11 +30,13 @@ struct Frame {
         let status: Int32
         let flags: Int32
         let name: String
+        let nameIcon: String
         let nameLink: Int32
         let statusLink: Int32
         let detail: String
         let spans: [Span]
-        let provider: String
+        let detailIcon: String
+        let detailIconLink: Int32
         let timing: String
         let chips: [Chip]
         let progress: Float
@@ -152,11 +154,13 @@ struct Frame {
                 status: row.status,
                 flags: row.flags,
                 name: text(row.name),
+                nameIcon: text(row.nameIcon),
                 nameLink: row.nameLink,
                 statusLink: row.statusLink,
                 detail: text(row.detail),
                 spans: spanStart >= 0 && spanStart < spanEnd ? Array(spans[spanStart..<spanEnd]) : [],
-                provider: text(row.provider),
+                detailIcon: text(row.detailIcon),
+                detailIconLink: row.detailIconLink,
                 timing: text(row.timing),
                 chips: start >= 0 && start < end ? Array(chips[start..<end]) : [],
                 progress: row.progress,

@@ -15,12 +15,14 @@ struct BmRow
     public int Flags;
     public BmString Name;
     public BmString Detail;
-    public BmString Provider;
+    public BmString NameIcon;
+    public BmString DetailIcon;
     public BmString Timing;
     public int ChipOffset;
     public int ChipCount;
     public float Progress;
     public int NameLink;
+    public int DetailIconLink;
     public int StatusLink;
     public int SpanOffset;
     public int SpanCount;

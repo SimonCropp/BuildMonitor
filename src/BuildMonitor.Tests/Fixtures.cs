@@ -204,9 +204,7 @@ static class Fixtures
             // name theirs, has none, so those rows draw their name as plain text.
             repo.Contains('/') ? $"https://github.com/{repo}" : null);
 
-    public static readonly GroupKey VerifyPassing = new("Verify", false);
-
-    public static readonly GroupKey VerifyFailing = new("Verify", true);
+    public static readonly GroupKey VerifyPassing = new("Verify");
 
     public static int RowOf(SessionState state, Func<Row, bool> match)
     {
@@ -292,7 +290,12 @@ static class Fixtures
     /// <see cref="WithGreenProject"/> plus a failing release workflow, so Verify has an open red
     /// group of two beside its closed green one.
     /// </summary>
-    public static SessionState WithFailedGroup()
+    /// <summary>
+    /// A second failing workflow of the project that already has one, which is the case that used
+    /// to be folded into a group. Each keeps a row of its own; the project's passing workflows are
+    /// still the one closed group.
+    /// </summary>
+    public static SessionState WithTwoFailures()
     {
         var state = WithGreenProject();
         return MonitorSession.ApplyPoll(
@@ -350,10 +353,10 @@ static class Fixtures
             Now);
 
     /// <summary>
-    /// Nine rows in a body of six, with the last selected, so the first three scroll away.
+    /// Eight rows in a body of six, with the last selected, so the first two scroll away.
     /// </summary>
     public static SessionState Scrolled() =>
-        MonitorSession.SelectRow(MonitorSession.Resize(WithFailedGroup(), 120, 12), 8);
+        MonitorSession.SelectRow(MonitorSession.Resize(WithTwoFailures(), 120, 12), 7);
 
     public static SessionState Narrow() =>
         MonitorSession.Resize(WithBuilds(), 80, 30);

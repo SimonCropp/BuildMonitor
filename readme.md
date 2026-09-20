@@ -74,7 +74,7 @@ MyGet is not supported: it exposes no build API, only a status badge, a trigger 
 
 ## Icons
 
-Icons are from [Lucide](https://lucide.dev/) (ISC), bundled through [IconifyBundle](https://github.com/Papyrine/IconifyBundle). Provider logos are from [Simple Icons](https://simpleicons.org/) (CC0), in each brand's own colour.
+Icons are from [Lucide](https://lucide.dev/) (ISC), bundled through [IconifyBundle](https://github.com/Papyrine/IconifyBundle). Provider logos are from [Simple Icons](https://simpleicons.org/) (CC0), in each brand's own colour. GitHub's is the octocat badged with a play mark, since a row draws the repository's host beside the service that built it and the two cannot be one picture.
 
 
 ## Fonts

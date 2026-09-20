@@ -71,23 +71,21 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     /// </summary>
     static void SetRowIcons()
     {
-        foreach (var descriptor in ProviderDescriptors.All)
+        // Every picture a row can name, under the name it names it by: the two marks it leads its
+        // cells with, and its chips, which are drawn as pictures rather than labels. The names are
+        // what BuildRow.NameIcon, DetailIcon and RowChip.Icon carry, and what bm.cpp and
+        // BuildsRenderer.swift look each image up by.
+        foreach (var name in ProviderDescriptors.All.Select(_ => $"provider-{_.Id}")
+                     .Concat(RepoHosts.All)
+                     .Concat(["folder", "pull-request", "retry", "log", "triage"]))
         {
-            SetRowIcon(descriptor.Id, $"provider-{descriptor.Id}");
-        }
-
-        // Not provider logos but registered the same way: a row's chips are drawn as pictures
-        // rather than labels, so the head needs their textures before the first frame. Each name is
-        // what RowChip.Icon carries and what bm.cpp and BuildsRenderer.swift look the image up by.
-        foreach (var chip in (string[]) ["folder", "pull-request", "retry", "log", "triage"])
-        {
-            SetRowIcon(chip, chip);
+            SetRowIcon(name);
         }
     }
 
-    static void SetRowIcon(string name, string glyph)
+    static void SetRowIcon(string name)
     {
-        var bytes = Images.Glyph(glyph, 32);
+        var bytes = Images.Glyph(name, 32);
         if (bytes is null)
         {
             return;

@@ -236,11 +236,11 @@ static class MonitorSession
     /// </summary>
     public static SessionState ToggleGroup(SessionState state, GroupKey key)
     {
-        var removed = state.ToggledGroups.Remove(key.Id);
-        var toggled = ReferenceEquals(removed, state.ToggledGroups)
-            ? state.ToggledGroups.Add(key.Id)
+        var removed = state.OpenGroups.Remove(key.Id);
+        var toggled = ReferenceEquals(removed, state.OpenGroups)
+            ? state.OpenGroups.Add(key.Id)
             : removed;
-        var next = state with { ToggledGroups = toggled };
+        var next = state with { OpenGroups = toggled };
         var rows = RowProjection.Rows(next);
         for (var index = 0; index < rows.Length; index++)
         {

@@ -56,6 +56,13 @@ static class Program
     static SKColor glyphColour = new(0x8A, 0x8A, 0x8A);
 
     /// <summary>
+    /// The blue GitHub draws Actions in, and the mark that badges the octocat with it. Its own
+    /// logo, a graph of four nodes, is illegible at the size a row draws a logo, and drawing the
+    /// octocat alone would put the same picture on the row twice.
+    /// </summary>
+    static SKColor actionsColour = new(0x20, 0x88, 0xFF);
+
+    /// <summary>
     /// Provider logos from Simple Icons, keyed by provider id. Iconify carries the shapes but not
     /// the brand colours, so those are transcribed from simple-icons. A brand that is near black,
     /// GitHub and TeamCity, is drawn in the glyph grey instead, or it would vanish on a dark theme.
@@ -73,6 +80,28 @@ static class Program
         ("bitbucket", SimpleIcons.Bitbucket, new(0x00, 0x52, 0xCC)),
         ("octopus", SimpleIcons.Octopusdeploy, new(0x2F, 0x93, 0xE0))
     ];
+
+    /// <summary>
+    /// The marks for the services that host source, drawn before a row's repository name. The
+    /// same drawings as the provider logos of the same name, under the names the rows ask for.
+    /// GitHub is the exception the pair exists for: its provider logo is the octocat badged with
+    /// Actions, since a row shows the repository beside the pipeline that built it.
+    /// <para>
+    /// This list and RepoHosts.All, in the core, say the same thing twice, and nothing in a normal
+    /// build runs this, so a mark named there and not here is a row with a gap where its picture
+    /// should be. ImagesTests is what notices.
+    /// </para>
+    /// </summary>
+    static (string Id, Icon Icon, SKColor Colour)[] hosts =
+    [
+        Provider("github"),
+        Provider("gitlab"),
+        Provider("bitbucket"),
+        Provider("azure-devops")
+    ];
+
+    static (string Id, Icon Icon, SKColor Colour) Provider(string id) =>
+        providers.Single(_ => _.Id == id);
 
     static int Main()
     {
@@ -122,8 +151,17 @@ static class Program
         {
             foreach (var size in glyphSizes)
             {
-                using var bitmap = Glyph(icon, colour, size);
+                using var bitmap = ProviderGlyph(id, icon, colour, size);
                 File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-{size}.png"), Png(bitmap));
+            }
+        }
+
+        foreach (var (id, icon, colour) in hosts)
+        {
+            foreach (var size in glyphSizes)
+            {
+                using var bitmap = Glyph(icon, colour, size);
+                File.WriteAllBytes(Path.Combine(images, $"glyph-host-{id}-{size}.png"), Png(bitmap));
             }
         }
 
@@ -235,6 +273,71 @@ static class Program
     {
         var heavier = svg.Replace("stroke-width=\"2\"", $"stroke-width=\"{markStroke}\"");
         return heavier == svg ? throw new InvalidOperationException("No stroke width to change") : heavier;
+    }
+
+    /// <summary>
+    /// A provider's logo. GitHub's is the octocat badged with Actions blue, since the plain
+    /// octocat is what the same row draws before the repository name.
+    /// </summary>
+    static SKBitmap ProviderGlyph(string id, Icon icon, SKColor colour, int size)
+    {
+        if (id == "github")
+        {
+            return Badged(icon, colour, size);
+        }
+
+        return Glyph(icon, colour, size);
+    }
+
+    /// <summary>
+    /// A mark with a small play button in its corner: the service's own logo, so the row still says
+    /// which service, with the badge saying it is the pipeline there rather than the source. The
+    /// badge is punched out of the mark before it is drawn, so the two read as two things rather
+    /// than one blob wherever a row's background shows between them.
+    /// </summary>
+    static SKBitmap Badged(Icon icon, SKColor colour, int size)
+    {
+        var bitmap = new SKBitmap(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.Transparent);
+        Draw(canvas, icon, colour, 0, 0, size * 0.88f);
+
+        var radius = size * 0.2f;
+        var centre = new SKPoint(size - radius, size - radius);
+        using (var clear = new SKPaint
+               {
+                   BlendMode = SKBlendMode.Clear,
+                   IsAntialias = true
+               })
+        {
+            canvas.DrawCircle(centre, radius + MathF.Max(1, size * 0.06f), clear);
+        }
+
+        using (var paint = new SKPaint
+               {
+                   Color = actionsColour,
+                   IsAntialias = true
+               })
+        {
+            canvas.DrawCircle(centre, radius, paint);
+        }
+
+        // Drawn rather than taken from Lucide: a stroked triangle with rounded joins closes up at
+        // the few pixels across a badge is, where a solid one still reads as pointing somewhere.
+        var half = radius * 0.52f;
+        using var builder = new SKPathBuilder();
+        builder.MoveTo(centre.X - half * 0.8f, centre.Y - half);
+        builder.LineTo(centre.X + half * 0.9f, centre.Y);
+        builder.LineTo(centre.X - half * 0.8f, centre.Y + half);
+        builder.Close();
+        using var white = new SKPaint
+        {
+            Color = SKColors.White,
+            IsAntialias = true
+        };
+        using var path = builder.Snapshot();
+        canvas.DrawPath(path, white);
+        return bitmap;
     }
 
     static SKBitmap Glyph(Icon icon, SKColor colour, int size)

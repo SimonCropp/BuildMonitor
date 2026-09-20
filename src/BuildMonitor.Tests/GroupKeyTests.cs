@@ -7,24 +7,22 @@ public class GroupKeyTests
     [Arguments("ÄÖÜ.Net")]
     [Arguments("İstanbul")]
     [Arguments("")]
-    public async Task TheIdLowerCasesTheProject(string project)
-    {
-        await Assert.That(new GroupKey(project, true).Id).IsEqualTo($"failed/{project.ToLowerInvariant()}");
-        await Assert.That(new GroupKey(project, false).Id).IsEqualTo($"passed/{project.ToLowerInvariant()}");
-    }
+    public async Task TheIdLowerCasesTheProject(string project) =>
+        await Assert.That(new GroupKey(project).Id).IsEqualTo(project.ToLowerInvariant());
 
     [Test]
     public async Task AProjectTooLongForTheStackIsLowerCasedToo()
     {
         var project = new string('A', 300);
-        await Assert.That(new GroupKey(project, false).Id).IsEqualTo($"passed/{new string('a', 300)}");
+        await Assert.That(new GroupKey(project).Id).IsEqualTo(new string('a', 300));
     }
 
     [Test]
-    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Failed), "failed/verify")]
-    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Succeeded), "passed/verify")]
-    [Arguments("Verify", nameof(BuildStatus.Succeeded), "passed/verify")]
-    [Arguments("owner/", nameof(BuildStatus.Failed), "failed/")]
+    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Succeeded), "verify")]
+    [Arguments("Verify", nameof(BuildStatus.Succeeded), "verify")]
+    [Arguments("owner/", nameof(BuildStatus.Succeeded), "")]
+    // Only passes group: a failure keeps the row of its own that says which pipeline broke.
+    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Failed), null)]
     [Arguments("VerifyTests/Verify", nameof(BuildStatus.Running), null)]
     [Arguments("VerifyTests/Verify", nameof(BuildStatus.Queued), null)]
     [Arguments("VerifyTests/Verify", nameof(BuildStatus.Cancelled), null)]

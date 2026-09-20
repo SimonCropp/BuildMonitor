@@ -631,12 +631,18 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
         authorWidth = std::min(authorWidth, ImGui::CalcTextSize("00000000000000000000").x);
 
-        // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
-        // name in line with the rows under it.
-        const float iconSize = 16.0f;
+        // Short of the row's height rather than the sixteen a chip's icon is: the marks carry
+        // detail, a Jenkins butler's face and the play badge on the Actions mark, that a sixteen
+        // pixel square turned to a smudge.
+        const float iconSize = rowHeight - 6.0f;
+        // Reserved on every row once any row has one, so a group's row, which has no provider
+        // logo, keeps its name in line with the rows under it, and the names line up where a
+        // provider gave no repository URL to read a host mark from.
         bool anyIcon = false;
+        bool anyMark = false;
         for (int32_t i = 0; i < screen.rowCount; i++) {
-            anyIcon = anyIcon || screen.rows[i].provider.length > 0;
+            anyIcon = anyIcon || screen.rows[i].detailIcon.length > 0;
+            anyMark = anyMark || screen.rows[i].nameIcon.length > 0;
         }
 
         const ImGuiStyle& style = ImGui::GetStyle();
@@ -658,7 +664,8 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         // Each boundary between the six columns carries cell padding on both sides of it. What is
         // left, the name, the detail, the bar and the chips share.
         const float shared = tableWidth - timingWidth - authorWidth - 5.0f * 2.0f * style.CellPadding.x;
-        const float nameWanted = rowHeight + style.ItemSpacing.x + nameText + 2.0f * style.CellPadding.x;
+        const float markWidth = anyMark ? iconSize + style.ItemSpacing.x : 0.0f;
+        const float nameWanted = rowHeight + style.ItemSpacing.x + markWidth + nameText + 2.0f * style.CellPadding.x;
         const float detailWanted = (anyIcon ? iconSize + style.ItemSpacing.x : 0.0f) + detailText;
         // The bar gives way before anything else, since the timing beside it says the same: it shows
         // only while the names, the detail and every chip still fit. Hidden, its column is kept at no
@@ -740,7 +747,10 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             // label, and only its text is the link, so a click beside it still selects the row.
             bool nameLink = row.nameLink != BM_CHIP_NONE;
             ImVec2 nameAt = ImGui::GetCursorScreenPos();
-            std::string selectableLabel = (nameLink ? arrow : arrow + name) + "##row";
+            // The label carries the name only where nothing before it is drawn by hand. A mark
+            // before the name is, and a label cannot be told to start after it.
+            bool nameDrawn = nameLink || markWidth > 0.0f;
+            std::string selectableLabel = (nameDrawn ? arrow : arrow + name) + "##row";
             // As tall as the cell, so a click anywhere on the row selects it. A click on a group
             // toggles it, so the second press of a double click is dropped, or it would close what
             // the first opened.
@@ -757,33 +767,65 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                 g.input.rightClickedRow = i;
             }
 
-            if (nameLink) {
+            if (nameDrawn) {
                 float arrowWidth = arrow.empty() ? 0.0f : ImGui::CalcTextSize(arrow.c_str()).x;
-                ImGui::SetCursorScreenPos(ImVec2(nameAt.x + arrowWidth, nameAt.y + textOffset));
-                ImGui::PushID("name");
-                LinkText(name.c_str(), name.c_str() + name.size(), i, row.nameLink, TipOf(screen, row, BM_PART_NAME));
-                ImGui::PopID();
+                float markLeft = nameAt.x + arrowWidth;
+                // The host's mark leads the name, and opens what the name does: it stands for the
+                // same page, so a click on it is not a click on nothing.
+                auto mark = g.rowIcons.find(Str(screen, row.nameIcon));
+                if (row.nameIcon.length > 0 && mark != g.rowIcons.end()) {
+                    float markTop = top + (rowHeight - iconSize) / 2.0f;
+                    draw->AddImage(static_cast<ImTextureID>(mark->second.id), ImVec2(markLeft, markTop), ImVec2(markLeft + iconSize, markTop + iconSize));
+                    if (nameLink) {
+                        ImGui::SetCursorScreenPos(ImVec2(markLeft, markTop));
+                        ImGui::PushID("mark");
+                        if (ImGui::InvisibleButton("##repo", ImVec2(iconSize, iconSize))) {
+                            g.input.clickedChipRow = i;
+                            g.input.clickedChip = row.nameLink;
+                        }
+
+                        if (ImGui::IsItemHovered()) {
+                            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                        }
+
+                        Tip(TipOf(screen, row, BM_PART_NAME));
+                        ImGui::PopID();
+                    }
+                }
+
+                ImVec2 textAt(markLeft + markWidth, nameAt.y + textOffset);
+                if (nameLink) {
+                    ImGui::SetCursorScreenPos(textAt);
+                    ImGui::PushID("name");
+                    LinkText(name.c_str(), name.c_str() + name.size(), i, row.nameLink, TipOf(screen, row, BM_PART_NAME));
+                    ImGui::PopID();
+                } else {
+                    // Drawn where the label would have gone, without moving ImGui's cursor there:
+                    // a cursor left past the end of a cell with no item after it is ImGui's
+                    // "submit an item e.g. Dummy() afterwards" error, over the whole window.
+                    draw->AddText(textAt, ImGui::GetColorU32(ImGuiCol_Text), name.c_str(), name.c_str() + name.size());
+                }
             }
 
             ImGui::TableSetColumnIndex(1);
             // The logo leads the detail cell, beside the pipeline it ran, so a group's members,
             // whose first cell is empty, still show which service each came from.
             if (anyIcon) {
-                auto icon = g.rowIcons.find(Str(screen, row.provider));
+                auto icon = g.rowIcons.find(Str(screen, row.detailIcon));
                 ImVec2 at = ImGui::GetCursorScreenPos();
-                if (row.provider.length > 0 && icon != g.rowIcons.end()) {
+                if (row.detailIcon.length > 0 && icon != g.rowIcons.end()) {
                     float iconTop = top + (rowHeight - iconSize) / 2.0f;
                     draw->AddImage(static_cast<ImTextureID>(icon->second.id), ImVec2(at.x, iconTop), ImVec2(at.x + iconSize, iconTop + iconSize));
-                    // Over the row's selectable, which allows overlap, so the icon opens the
-                    // pipeline's page rather than selecting the row. The cursor goes back after.
+                    // Over the row's selectable, which allows overlap, so the mark opens what
+                    // it stands for rather than selecting the row. The cursor goes back after.
                     ImGui::SetCursorScreenPos(ImVec2(at.x, iconTop));
                     ImGui::PushID(i);
-                    if (ImGui::InvisibleButton("##pipeline", ImVec2(iconSize, iconSize))) {
+                    if (ImGui::InvisibleButton("##detailIcon", ImVec2(iconSize, iconSize))) {
                         g.input.clickedChipRow = i;
-                        g.input.clickedChip = BM_CHIP_PIPELINE;
+                        g.input.clickedChip = row.detailIconLink;
                     }
 
-                    Tip(TipOf(screen, row, BM_PART_PROVIDER));
+                    Tip(TipOf(screen, row, BM_PART_DETAIL_ICON));
                     ImGui::PopID();
                     ImGui::SetCursorScreenPos(at);
                 }

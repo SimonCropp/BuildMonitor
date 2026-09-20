@@ -9,7 +9,15 @@ sealed class RowsCanvas : Control
     const int padding = 10;
     const int chipPadding = 8;
     const int chipSpacing = 6;
+    // The icon inside a chip, which is a pill the height of a line of text.
     const int iconSize = 16;
+    // How far short of the row's height a logo is drawn: enough that the logos of the rows above
+    // and below do not touch, and no more. The marks carry detail, a Jenkins butler's face and the
+    // play badge on the Actions mark, that a sixteen pixel square turned to a smudge.
+    const int logoInset = 6;
+    // The glyph a logo is scaled from: the larger of the two written, scaled down, where a chip's
+    // icon is drawn at the size it was written. Scaled up from the smaller a logo came out soft.
+    const int logoSource = 32;
     const int spinnerSize = 18;
     const int barLength = 110;
     // A floor rather than the width: the column is as wide as the widest timing text in the font
@@ -159,6 +167,13 @@ sealed class RowsCanvas : Control
     /// </summary>
     public int RowHeight => Font.Height + LogicalToDeviceUnits(14);
 
+    /// <summary>
+    /// The square a row's two marks are drawn in: the host's before the name, and the provider's
+    /// before the pipeline. Taken from the row for the same reason its height is, so a scaled
+    /// display grows the pictures with the text rather than leaving them in a corner of the row.
+    /// </summary>
+    int LogoSize => RowHeight - LogicalToDeviceUnits(logoInset);
+
     int ChipHeight => Font.Height + LogicalToDeviceUnits(2);
 
     public int VisibleRows => Math.Max(1, Height / RowHeight);
@@ -255,6 +270,10 @@ sealed class RowsCanvas : Control
         graphics.Clear(Palette.Background);
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+        // The logos are scaled from a glyph larger than the square they are drawn in, and the
+        // default filter left the small detail in one, a play badge or a face, muddy.
+        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
         chips.Clear();
         tips.Clear();
         if (page is null)
@@ -278,8 +297,11 @@ sealed class RowsCanvas : Control
         }
 
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps
-        // its name in line with the rows under it.
-        var iconWidth = page.Rows.Any(_ => _.Provider.Length > 0) ? LogicalToDeviceUnits(iconSize + padding) : 0;
+        // its name in line with the rows under it. The same for the host's mark before the name,
+        // which a row whose provider gave no repository URL does not have.
+        var logo = LogoSize + LogicalToDeviceUnits(padding);
+        var iconWidth = page.Rows.Any(_ => _.DetailIcon.Length > 0) ? logo : 0;
+        var markWidth = page.Rows.Any(_ => _.NameIcon.Length > 0) ? logo : 0;
         // A detail's runs are measured as the text so far, which differs by row, so the widths would
         // grow without end as builds come and go. Emptied once they hold several times what the
         // columns measure, which leaves room for every row's runs, and here rather than as they
@@ -290,7 +312,7 @@ sealed class RowsCanvas : Control
             widths.Clear();
         }
 
-        var layout = ColumnWidths(page, iconWidth);
+        var layout = ColumnWidths(page, iconWidth, markWidth);
         for (var index = 0; index < page.Rows.Count; index++)
         {
             var top = index * RowHeight;
@@ -312,7 +334,7 @@ sealed class RowsCanvas : Control
                 graphics.FillRectangle(brush, bounds);
             }
 
-            DrawRow(graphics, row, bounds, index, iconWidth, layout);
+            DrawRow(graphics, row, bounds, index, iconWidth, markWidth, layout);
         }
 
         // A poll moves the rows under a pointer that has not moved, and a tooltip stays up for
@@ -333,7 +355,7 @@ sealed class RowsCanvas : Control
     /// without room for all of them puts the last behind an overflow chip, where a fixed chips column
     /// cut the names short instead. Only once no chip but that one fits do the names shrink.
     /// </summary>
-    (int Name, int Detail, int Bar, int Author, int Chips) ColumnWidths(BuildsPage builds, int iconWidth)
+    (int Name, int Detail, int Bar, int Author, int Chips) ColumnWidths(BuildsPage builds, int iconWidth, int markWidth)
     {
         var gap = LogicalToDeviceUnits(padding);
         // As wide as the widest name shown, up to twenty characters, and gone with its gap when no
@@ -345,7 +367,7 @@ sealed class RowsCanvas : Control
         // author and its gap when shown.
         var available = Width - RowHeight - TimingWidth() - 5 * gap - (authorWidth > 0 ? authorWidth + gap : 0);
         // With the padding Draw leaves, so the widest text fits without an ellipsis.
-        var nameWanted = builds.Names
+        var nameWanted = markWidth + builds.Names
             .Select(_ => MeasureName(_, Font))
             .Concat(builds.GroupNames.Select(_ => MeasureName($"▾ {_}", bold)))
             .DefaultIfEmpty()
@@ -402,7 +424,7 @@ sealed class RowsCanvas : Control
         return Font;
     }
 
-    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, (int Name, int Detail, int Bar, int Author, int Chips) layout)
+    void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, int markWidth, (int Name, int Detail, int Bar, int Author, int Chips) layout)
     {
         // First, so every cell drawn after it covers it where that cell has something of its own.
         Tip(bounds, row.Tooltip(RowPart.Row));
@@ -428,21 +450,21 @@ sealed class RowsCanvas : Control
         var centreY = bounds.Top + bounds.Height / 2;
         var timingWidth = TimingWidth();
 
-        DrawName(graphics, row, index, x, bounds, layout.Name);
+        DrawName(graphics, row, index, x, bounds, layout.Name, markWidth);
         x += layout.Name + gap;
-        // The logo leads the second cell, beside the pipeline it ran, so a group's members, whose
-        // first cell is empty, still show which service each one came from.
-        if (row.Provider.Length > 0)
+        // The second of the row's two marks leads the second cell, beside the pipeline, so a
+        // group's members, whose first cell is empty, still show which service each one came from.
+        if (row.DetailIcon.Length > 0)
         {
-            var side = LogicalToDeviceUnits(iconSize);
+            var side = LogoSize;
             var iconBounds = new Rectangle(x, centreY - side / 2, side, side);
-            // Hit tested like a chip, so the icon shows the hand and opens the pipeline's page on
-            // that service rather than selecting the row. Only where one was drawn: a picture that
-            // is not there is not something to aim at.
-            if (Icons.Draw(graphics, $"provider-{row.Provider}", iconBounds))
+            // Hit tested like a chip, so the mark shows the hand and opens what it stands for
+            // rather than selecting the row. Only where one was drawn: a picture that is not there
+            // is not something to aim at.
+            if (Icons.Draw(graphics, row.DetailIcon, iconBounds, logoSource))
             {
-                chips.Add((index, ChipKind.Pipeline, false, iconBounds));
-                Tip(iconBounds, row.Tooltip(RowPart.Provider));
+                chips.Add((index, row.DetailIconLink, false, iconBounds));
+                Tip(iconBounds, row.Tooltip(RowPart.DetailIcon));
             }
         }
 
@@ -480,7 +502,7 @@ sealed class RowsCanvas : Control
     /// The first cell, in the link colour where the name opens the run. Its hit rectangle is the text
     /// as drawn rather than the cell, so a click beside a short name still selects the row.
     /// </summary>
-    void DrawName(Graphics graphics, BuildRow row, int index, int x, Rectangle bounds, int width)
+    void DrawName(Graphics graphics, BuildRow row, int index, int x, Rectangle bounds, int width, int markWidth)
     {
         // Through NameFont, so a group's name keeps the weight that makes it read as a heading
         // while it takes the link colour, and the hit rectangle is measured in the font drawn.
@@ -497,6 +519,21 @@ sealed class RowsCanvas : Control
             width -= arrowWidth;
         }
 
+        // The host's mark leads the name, in a width reserved on every row once any row has one,
+        // so the names still line up where a provider gave no repository URL to read a host from.
+        var markLeft = x;
+        if (markWidth > 0)
+        {
+            if (row.NameIcon.Length > 0)
+            {
+                var side = LogoSize;
+                Icons.Draw(graphics, row.NameIcon, new(x, bounds.Top + (bounds.Height - side) / 2, side, side), logoSource);
+            }
+
+            x += markWidth;
+            width -= markWidth;
+        }
+
         if (row.NameLink == ChipKind.None)
         {
             Draw(graphics, row.Name, font, x, bounds, width, Palette.Text);
@@ -504,6 +541,14 @@ sealed class RowsCanvas : Control
         }
 
         var link = LinkBounds(x, Math.Min(MeasureName(row.Name, font), width), bounds);
+        if (row.NameIcon.Length > 0)
+        {
+            // The mark opens what the name does, so the two are one target rather than a link with
+            // a picture beside it that does nothing. As tall as the mark, which stands above and
+            // below a line of text.
+            link = new(markLeft, bounds.Top + (bounds.Height - LogoSize) / 2, link.Right - markLeft, LogoSize);
+        }
+
         Draw(graphics, row.Name, link == hoverLink ? Hovered(font) : font, x, bounds, width, Palette.ChipText);
         chips.Add((index, row.NameLink, false, link));
         Tip(link, row.Tooltip(RowPart.Name));

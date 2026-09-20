@@ -220,7 +220,7 @@ public class ApplyTests
     public async Task AGroupOpensTheRepositoryItsMembersShare()
     {
         var actions = new RecordingActions();
-        var state = Fixtures.WithFailedGroup();
+        var state = Fixtures.WithGreenProject();
         var group = RowProjection.Rows(state).Select((row, index) => (row, index)).First(_ => _.row.Kind == RowKind.Group);
         Apply(state, new(ClickedChipRow: group.index, ClickedChip: ChipKind.Repo), actions);
         await Assert.That(actions.Calls).IsEquivalentTo(["OpenUrl https://github.com/VerifyTests/Verify"]);
@@ -498,7 +498,7 @@ public class ApplyTests
     {
         var actions = new RecordingActions();
         var grouped = MonitorSession.ApplyLocalRepos(
-            Fixtures.WithFailedGroup(),
+            Fixtures.WithGreenProject(),
             LocalRepos.Index([new("/code/Verify", "Verify", "VerifyTests/Verify")]));
         var row = Fixtures.RowOf(grouped, _ => _.Kind == RowKind.Group);
         var chips = ScreenBuilder.Build(grouped, Fixtures.Now).Builds!.Rows[row].Chips;

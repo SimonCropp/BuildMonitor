@@ -197,18 +197,77 @@ static class ScreenBuilder
         };
 
     /// <summary>
-    /// What a click on a row's first cell opens: the source repository, which is what the cell
-    /// names. One cell, one destination; the run is on the status square, which every row has even
-    /// where the second cell leaves the pipeline out.
+    /// What a click on a row's first cell opens. A broken or running build's row leads with the
+    /// run: it is the reason the row is being read, so the first thing on it is the thing to open.
+    /// A settled row leads with the repository, which is what its cell names.
+    /// <para>
+    /// The name is the repository's either way. It is the run's title as much as the project's,
+    /// and a row that renamed its first cell by status would be unreadable as a column.
+    /// </para>
     /// </summary>
     static ChipKind NameLinkOf(Row row)
     {
-        if (row is { Kind: RowKind.Build, Build.RepoUrl: not null })
+        if (row is not { Kind: RowKind.Build, Build: { } build })
+        {
+            return ChipKind.None;
+        }
+
+        if (build.NeedsAttention())
+        {
+            return ChipKind.Build;
+        }
+
+        if (build.RepoUrl is not null)
         {
             return ChipKind.Repo;
         }
 
         return ChipKind.None;
+    }
+
+    /// <summary>
+    /// The mark before a row's first cell: the service that ran the build where the cell opens the
+    /// run, and the host of the source where it opens the repository. A member's first cell is
+    /// blank, and a mark before nothing would only say what the row above already does.
+    /// </summary>
+    static string NameIconOf(Row row, ProviderDescriptor descriptor)
+    {
+        if (row is not { Kind: RowKind.Build, Build: { } build })
+        {
+            return "";
+        }
+
+        if (build.NeedsAttention())
+        {
+            return $"provider-{descriptor.Id}";
+        }
+
+        return RepoHosts.MarkOf(build.RepoUrl);
+    }
+
+    /// <summary>
+    /// The mark leading the second cell: whichever of the two the first cell did not take.
+    /// </summary>
+    static (string Icon, ChipKind Link) DetailIconOf(Row row, ProviderDescriptor descriptor)
+    {
+        if (row.Build is not { } build)
+        {
+            return ("", ChipKind.None);
+        }
+
+        if (build.NeedsAttention())
+        {
+            // No mark for a host nothing here has one for, and then no link either: a link on a
+            // cell with no picture in it is a rectangle of nothing that reports a click.
+            if (RepoHosts.MarkOf(build.RepoUrl) is { Length: > 0 } mark)
+            {
+                return (mark, ChipKind.Repo);
+            }
+
+            return ("", ChipKind.None);
+        }
+
+        return ($"provider-{descriptor.Id}", ChipKind.Pipeline);
     }
 
     static bool NamedAfterProject(Build build) =>
@@ -263,15 +322,8 @@ static class ScreenBuilder
         return (build.PipelineName, build.ShortBranchName());
     }
 
-    static string GroupDetail(Row row)
-    {
-        if (row.Group!.Failed)
-        {
-            return $"{row.Members.Length} failing";
-        }
-
-        return $"{row.Members.Length} passing";
-    }
+    static string GroupDetail(Row row) =>
+        $"{row.Members.Length} passing";
 
     /// <summary>
     /// What a row's second cell says, in runs, one rule for the row and for the details the column is
@@ -288,7 +340,11 @@ static class ScreenBuilder
 
         var (pipeline, branch) = DetailParts(row);
         var spans = new List<DetailSpan>();
-        Append(spans, pipeline, ChipKind.Build);
+        // The run where the first cell did not take it, and the pipeline's own page where it did,
+        // so that no part of a row repeats the one beside it. A row that leads with its run and
+        // leaves the pipeline out, because the first cell already names it, has nothing left to
+        // carry that page; it is the least of the four, and the run's own page links to it.
+        Append(spans, pipeline, build.NeedsAttention() ? ChipKind.Pipeline : ChipKind.Build);
         Append(spans, branch, build.BranchUrl is null ? ChipKind.None : ChipKind.Branch);
         return spans;
     }
@@ -355,13 +411,17 @@ static class ScreenBuilder
             ? shown
             : "";
         var descriptor = ProviderDescriptors.Get(row.Connection!.Connection.ProviderId);
+        var detailIcon = DetailIconOf(row, descriptor);
         return new(
             row.Kind,
             build.Status,
             NameOf(row),
             NameLinkOf(row),
+            NameIconOf(row, descriptor),
             ChipKind.Build,
             DetailOf(row),
+            detailIcon.Icon,
+            detailIcon.Link,
             descriptor.Id,
             fraction,
             timing,
@@ -384,15 +444,20 @@ static class ScreenBuilder
         var latest = row.Members.MaxBy(_ => _.Finished ?? _.Started ?? _.Queued ?? DateTimeOffset.MinValue)!;
         var (_, timing) = Progress.Compute(latest, null, now);
         var shared = LocalRepos.Shared(state.LocalRepos, row.Members);
+        var repo = RowTooltips.Shared(row.Members);
         return new(
             RowKind.Group,
-            group.Failed ? BuildStatus.Failed : BuildStatus.Succeeded,
+            // Only passes are grouped, so a group's square is always green.
+            BuildStatus.Succeeded,
             NameOf(row),
             // A member's own first cell is blank, so this row is the only place the repository is
             // named. Without the link a group would hide the repository of every row inside it.
-            RowTooltips.Shared(row.Members) is null ? ChipKind.None : ChipKind.Repo,
+            repo is null ? ChipKind.None : ChipKind.Repo,
+            RepoHosts.MarkOf(repo),
             ChipKind.None,
             DetailOf(row),
+            "",
+            ChipKind.None,
             "",
             -1,
             timing,

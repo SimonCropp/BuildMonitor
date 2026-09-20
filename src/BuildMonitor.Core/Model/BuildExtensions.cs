@@ -1,5 +1,17 @@
 static class BuildExtensions
 {
+    /// <summary>
+    /// Whether the run, rather than the project, is what the row is about: one that broke, and one
+    /// still going, which is the next thing to break or to go green. Such a row leads with its run;
+    /// a settled green one leads with the project, since its run is of no interest.
+    /// <para>
+    /// A cancelled or unknown build is not one of them. Nobody is waiting on it and nothing broke,
+    /// so it reads as the project's row like a passing one.
+    /// </para>
+    /// </summary>
+    public static bool NeedsAttention(this Build build) =>
+        build.Status is BuildStatus.Failed or BuildStatus.Running or BuildStatus.Queued;
+
     public static string RunNumberLabel(this Build build)
     {
         if (build.RunNumber.Length == 0)

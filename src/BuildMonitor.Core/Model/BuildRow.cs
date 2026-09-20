@@ -5,20 +5,32 @@
 /// </summary>
 /// <param name="Name">The first cell, drawn bright: the project of a build or a group, and empty
 /// for a build under its group, whose row above already names the project.</param>
-/// <param name="NameLink">What a click on the name opens: <see cref="ChipKind.Repo"/> where the
-/// provider knows the source repository, else <see cref="ChipKind.None"/>. The name is the
-/// repository's, so it opens the repository and nothing else; the run is on the status square.
-/// </param>
+/// <param name="NameLink">What a click on the name, and on the mark before it, opens:
+/// <see cref="ChipKind.Build"/> on a row that broke or is still going, which leads with its run,
+/// and <see cref="ChipKind.Repo"/> on a settled one, which leads with its project. The cell names
+/// the repository either way; what it opens is decided here, so no head reads the status and
+/// guesses.</param>
+/// <param name="NameIcon">The mark drawn before the name: the service hosting the source, or, on
+/// a row that leads with its run, the service that ran it. Empty where there is no mark for
+/// either. It is part of the same target as the name, and never the same picture as
+/// <paramref name="DetailIcon"/>, which is the other of the two: a row shows the repository beside
+/// the pipeline, so the two marks cannot be one picture and still say which is which.</param>
 /// <param name="StatusLink">What a click on the status square opens: <see cref="ChipKind.Build"/>
 /// on a build's row and <see cref="ChipKind.None"/> on a group's, which stands for several runs and
 /// so has no one run to open. The square is the one cell every build row has, and the only part of
 /// a row whose pipeline is named after its project that can reach the run. Decided here rather than
 /// by each head testing the row's kind, which is how the row's links drifted apart in the first
 /// place.</param>
-/// <param name="Detail">The second cell, in runs: the pipeline, linked to the run, and the branch,
-/// linked to the branch where the provider gave it a page; or a group's count.</param>
-/// <param name="Provider">The provider whose icon leads the second cell, and opens the pipeline's
-/// page on that service when clicked, or empty for a group's own row.</param>
+/// <param name="Detail">The second cell, in runs: the pipeline, linked to whichever of the run
+/// and its own page on the service the first cell did not take, and the branch, linked to the
+/// branch where the provider gave it a page; or a group's count.</param>
+/// <param name="DetailIcon">The mark leading the second cell, the other of the row's two, or
+/// empty for a group's own row.</param>
+/// <param name="DetailIconLink">What a click on <paramref name="DetailIcon"/> opens:
+/// <see cref="ChipKind.Pipeline"/> where it is the service that ran the build,
+/// <see cref="ChipKind.Repo"/> where it is the host of the source.</param>
+/// <param name="Provider">The provider's id. Only the text renderer uses it, which cannot draw a
+/// logo and gives the id a column of its own instead; every other head draws the two marks.</param>
 /// <param name="Progress">0 to 1 while a bar should be drawn, -1 when there is nothing to
 /// estimate against.</param>
 /// <param name="Timing">The countdown, over-run, elapsed or age text beside the bar.</param>
@@ -35,8 +47,11 @@ record BuildRow(
     BuildStatus Status,
     string Name,
     ChipKind NameLink,
+    string NameIcon,
     ChipKind StatusLink,
     IReadOnlyList<DetailSpan> Detail,
+    string DetailIcon,
+    ChipKind DetailIconLink,
     string Provider,
     double Progress,
     string Timing,

@@ -3,10 +3,10 @@
 /// goes through here, so the selection, the menu, the tray and the screen agree.
 /// <para>
 /// One list across every connection: grouping by connection split what needs attention into as
-/// many lists as there were services. Finished builds of one project share a group instead, where
-/// its most recent member would have been. Failures default open, because each one wants reading;
-/// passes default closed, because a repository with a handful of passing workflows otherwise
-/// buries the red and running rows under ones that need nothing.
+/// many lists as there were services. Passing builds of one project share a closed group instead,
+/// where its most recent member would have been, because a repository with a handful of passing
+/// workflows otherwise buries the red and running rows under ones that need nothing. A failure is
+/// never grouped: each one wants reading, and a group is a line that hides its members.
 /// </para>
 /// <para>
 /// The last projection is handed back while a state holds the same instances of what it reads. A
@@ -39,7 +39,7 @@ static class RowProjection
         }
 
         var rows = Project(state, sorted);
-        lastRows = new(sorted, state.Connections, state.ToggledGroups, state.Search, rows);
+        lastRows = new(sorted, state.Connections, state.OpenGroups, state.Search, rows);
         return rows;
     }
 
@@ -51,7 +51,7 @@ static class RowProjection
         var builds = sorted.Where(_ => Matches(_, search)).ToImmutableArray();
         var connections = state.Connections.ToDictionary(_ => _.Connection.Id);
         // Each build's group id once, and a key only for a group's row. Making a key for every
-        // finished build at every step cost each of them a handful of strings a projection.
+        // passing build at every step cost each of them a handful of strings a projection.
         var ids = builds.Select(GroupKey.IdOf).ToArray();
         var groups = Enumerable.Range(0, builds.Length)
             .Where(_ => ids[_] is not null)
@@ -94,12 +94,11 @@ static class RowProjection
     }
 
     /// <summary>
-    /// <see cref="SessionState.ToggledGroups"/> holds the groups flipped from their default.
-    /// Storing the open ones instead would leave a project that starts failing closed until
-    /// someone opened it.
+    /// A group is closed until someone opens it, and <see cref="SessionState.OpenGroups"/> holds
+    /// the ones they did.
     /// </summary>
     public static bool IsExpanded(SessionState state, GroupKey key) =>
-        key.Failed != state.ToggledGroups.Contains(key.Id);
+        state.OpenGroups.Contains(key.Id);
 
     /// <summary>
     /// Whether the build's project, pipeline or branch contains the text, ignoring case. The project

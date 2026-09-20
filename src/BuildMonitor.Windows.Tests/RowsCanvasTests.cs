@@ -139,7 +139,7 @@ public class RowsCanvasTests
     [Test]
     public async Task AGroupsArrowSelectsTheRowRatherThanOpeningTheRepository()
     {
-        var state = Fixtures.WithFailedGroup();
+        var state = Fixtures.WithTwoFailures();
         using var canvas = Drawn(1000, state);
         var row = Fixtures.RowOf(state, _ => _.Kind == RowKind.Group);
         var y = canvas.RowHeight * row + canvas.RowHeight / 2;
@@ -153,6 +153,28 @@ public class RowsCanvasTests
         // And the name beside it still opens the repository.
         var opened = ClickAlong(canvas, row, _ => _.ClickedChip == ChipKind.Repo);
         await Assert.That(opened.ClickedChipRow).IsEqualTo(row);
+    }
+
+    /// <summary>
+    /// The mark before the name opens what the name does, which is the run on a row that broke
+    /// and the repository on a settled one. A picture standing for the same page as the link
+    /// beside it, and doing nothing, reads as a link that failed.
+    /// </summary>
+    [Test]
+    [Arguments("gh/DiffEngine/docs.yml/main", nameof(ChipKind.Repo))]
+    [Arguments("gh/Verify/test.yml/feature/inline", nameof(ChipKind.Build))]
+    public async Task TheMarkBeforeTheNameOpensWhatTheNameDoes(string key, string expected)
+    {
+        var state = Fixtures.WithBuilds();
+        using var canvas = Drawn(1000, state);
+        var row = Fixtures.RowOf(state, _ => _.Build?.Key == key);
+        var y = canvas.RowHeight * row + canvas.RowHeight / 2;
+
+        // The first pixels of the name cell, which is where the mark is drawn.
+        Click(canvas, MouseButtons.Left, canvas.RowHeight + 12, y);
+        var input = canvas.Drain();
+        await Assert.That(input.ClickedChip).IsEqualTo(Enum.Parse<ChipKind>(expected));
+        await Assert.That(input.ClickedChipRow).IsEqualTo(row);
     }
 
     /// <summary>

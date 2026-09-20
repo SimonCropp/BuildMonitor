@@ -10,8 +10,11 @@ enum RowPart
     // the whole repository name, the commit and who wrote it.
     Row = 0,
     Status = 1,
+    // The first cell, its mark and its text, which are one target.
     Name = 2,
-    Provider = 3,
+    // The mark leading the second cell, which is the service that ran the build, or the one
+    // hosting the source on a row that leads with its run.
+    DetailIcon = 3,
     Pipeline = 4,
     Branch = 5,
     Timing = 6

@@ -13,16 +13,34 @@ static class RowTooltips
     /// </summary>
     public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, string providerName, DateTimeOffset now)
     {
+        var run = OpensRun(build);
+        var pipeline = $"Open {build.PipelineName} on {providerName}";
         List<RowTooltip> tooltips =
         [
             new(RowPart.Row, Summary(build, now)),
-            new(RowPart.Status, OpensRun(build)),
-            new(RowPart.Pipeline, OpensRun(build)),
-            new(RowPart.Provider, $"Open {build.PipelineName} on {providerName}")
+            new(RowPart.Status, run)
         ];
-        if (build.RepoUrl is { } repo)
+        // Which cell holds which is decided by the row, so each part says what that row's part
+        // opens. A hover that named the usual destination rather than this one would be worse
+        // than none: it is the only thing saying where a click goes.
+        var repository = build.RepoUrl is { } repo ? $"Open {build.ShortRepoName()} on {Host(repo)}" : null;
+        if (build.NeedsAttention())
         {
-            tooltips.Add(new(RowPart.Name, $"Open {build.ShortRepoName()} on {Host(repo)}"));
+            tooltips.Add(new(RowPart.Name, run));
+            tooltips.Add(new(RowPart.Pipeline, pipeline));
+            if (repository is not null)
+            {
+                tooltips.Add(new(RowPart.DetailIcon, repository));
+            }
+        }
+        else
+        {
+            tooltips.Add(new(RowPart.Pipeline, run));
+            tooltips.Add(new(RowPart.DetailIcon, pipeline));
+            if (repository is not null)
+            {
+                tooltips.Add(new(RowPart.Name, repository));
+            }
         }
 
         if (build.BranchUrl is not null &&
@@ -49,7 +67,7 @@ static class RowTooltips
     {
         var lines = new List<string>
         {
-            $"{group.Project}: {Plural(members.Length, group.Failed ? "failing build" : "passing build")}"
+            $"{group.Project}: {Plural(members.Length, "passing build")}"
         };
         lines.AddRange(members
             .Select(_ => _.Branch is null ? _.PipelineName : $"{_.PipelineName} {_.ShortBranchName()}")

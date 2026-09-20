@@ -13,7 +13,7 @@ public class MonitorFormTests
     // What the readme shows: running builds, a failure, a closed group and the filter box in use.
     [Test]
     public Task Searched() =>
-        Capture(MonitorSession.Search(Fixtures.WithFailedGroup(), "main"));
+        Capture(MonitorSession.Search(Fixtures.WithTwoFailures(), "main"));
 
     [Test]
     public Task Empty() =>
@@ -21,7 +21,7 @@ public class MonitorFormTests
 
     [Test]
     public Task Groups() =>
-        Capture(Fixtures.WithFailedGroup());
+        Capture(Fixtures.WithTwoFailures());
 
     // The rows of the repositories found under the code directory, whose chip is a folder rather
     // than a word. The only baseline that shows it drawn.

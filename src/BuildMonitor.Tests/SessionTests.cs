@@ -30,25 +30,28 @@ public class SessionTests
         await Assert.That(rows.Count(_ => _.Build is { RepoName: "VerifyTests/DiffEngine", PipelineName: "docs.yml" })).IsEqualTo(1);
     }
 
+    /// <summary>
+    /// Two failures of one project are two rows, not a group that says "2 failing" and hides which
+    /// pipeline broke. The project's passing workflows are still one group.
+    /// </summary>
     [Test]
-    public async Task FailedBuildsOfOneProjectShareAnOpenGroup()
+    public async Task FailedBuildsOfOneProjectEachKeepTheirRow()
     {
-        var rows = RowProjection.Rows(Fixtures.WithFailedGroup());
-        var failed = rows.Single(_ => _.Group == Fixtures.VerifyFailing && _.Kind == RowKind.Group);
-        await Assert.That(failed.Expanded).IsTrue();
-        await Assert.That(rows.Count(_ => _.Kind == RowKind.Member && _.Group == Fixtures.VerifyFailing)).IsEqualTo(2);
-        // Green and red of one project are two groups.
-        await Assert.That(rows.Count(_ => _.Kind == RowKind.Group)).IsEqualTo(2);
+        var rows = RowProjection.Rows(Fixtures.WithTwoFailures());
+        var failures = rows.Where(_ => _.Build is { RepoName: "VerifyTests/Verify", Status: BuildStatus.Failed }).ToList();
+        await Assert.That(failures.Select(_ => _.Build!.PipelineName).Order()).IsEquivalentTo(["release.yml", "test.yml"]);
+        await Assert.That(failures.All(_ => _.Kind == RowKind.Build)).IsTrue();
+        await Assert.That(rows.Count(_ => _.Kind == RowKind.Group)).IsEqualTo(1);
     }
 
     [Test]
     public async Task GroupsSpanConnections()
     {
-        var state = Fixtures.WithFailedGroup();
-        var job = Fixtures.Build(Fixtures.Jenkins.Id, "verify", "verify", "Verify", "main", "9", BuildStatus.Failed, started: Fixtures.Now - TimeSpan.FromHours(2), finished: Fixtures.Now - TimeSpan.FromHours(2) + TimeSpan.FromMinutes(3));
+        var state = Fixtures.WithGreenProject();
+        var job = Fixtures.Build(Fixtures.Jenkins.Id, "verify", "verify", "Verify", "main", "9", BuildStatus.Succeeded, started: Fixtures.Now - TimeSpan.FromHours(2), finished: Fixtures.Now - TimeSpan.FromHours(2) + TimeSpan.FromMinutes(3));
         var next = MonitorSession.ApplyPoll(state, Fixtures.Jenkins.Id, [], [..Fixtures.JenkinsBuilds(), job], Fixtures.Now);
-        var failed = RowProjection.Rows(next).Single(_ => _.Group == Fixtures.VerifyFailing && _.Kind == RowKind.Group);
-        await Assert.That(failed.Members.Select(_ => _.ConnectionId).Distinct().Count()).IsEqualTo(2);
+        var passing = RowProjection.Rows(next).Single(_ => _.Group == Fixtures.VerifyPassing && _.Kind == RowKind.Group);
+        await Assert.That(passing.Members.Select(_ => _.ConnectionId).Distinct().Count()).IsEqualTo(2);
     }
 
     [Test]
@@ -62,7 +65,7 @@ public class SessionTests
         var once = MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing);
         var twice = MonitorSession.ToggleGroup(once, Fixtures.VerifyPassing);
         await Assert.That(RowProjection.Rows(once).Count(_ => _.Kind == RowKind.Member)).IsEqualTo(2);
-        await Assert.That(twice.ToggledGroups).IsEmpty();
+        await Assert.That(twice.OpenGroups).IsEmpty();
         await Assert.That(RowProjection.Rows(twice).Length).IsEqualTo(RowProjection.Rows(state).Length);
     }
 
@@ -81,6 +84,10 @@ public class SessionTests
         await Assert.That(MonitorSession.SelectedRow(collapsed)!.Kind).IsEqualTo(RowKind.Group);
     }
 
+    /// <summary>
+    /// The group it leaves holds the one workflow still passing, and a group of one is no group,
+    /// so both of them end up on rows of their own.
+    /// </summary>
     [Test]
     public async Task AGreenBuildThatFailsLeavesItsGreenGroup()
     {
@@ -88,8 +95,9 @@ public class SessionTests
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], WithStatus(state, "Verify/nuget.yml", BuildStatus.Failed), Fixtures.Now);
         var rows = RowProjection.Rows(next);
         await Assert.That(rows.Any(_ => _.Group == Fixtures.VerifyPassing)).IsFalse();
-        var failed = rows.Single(_ => _.Group == Fixtures.VerifyFailing && _.Kind == RowKind.Group);
-        await Assert.That(failed.Members.Any(_ => _.PipelineName == "nuget.yml")).IsTrue();
+        var failed = rows.Single(_ => _.Build is { PipelineName: "nuget.yml" });
+        await Assert.That(failed.Kind).IsEqualTo(RowKind.Build);
+        await Assert.That(failed.Build!.Status).IsEqualTo(BuildStatus.Failed);
     }
 
     [Test]
@@ -98,7 +106,7 @@ public class SessionTests
         var green = Fixtures.WithGreenProject();
         var state = MonitorSession.SelectRow(green, Fixtures.RowOf(green, _ => _.Kind == RowKind.Group));
         var next = InputApplier.Execute(state, CommandKind.OpenBuild, null, MonitorActions.None, null);
-        await Assert.That(next.ToggledGroups).Contains(Fixtures.VerifyPassing.Id);
+        await Assert.That(next.OpenGroups).Contains(Fixtures.VerifyPassing.Id);
     }
 
     [Test]
@@ -268,7 +276,7 @@ public class SessionTests
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], builds, Fixtures.Now);
         var selected = MonitorSession.SelectedRow(next)!;
         await Assert.That(selected.Kind).IsEqualTo(RowKind.Group);
-        await Assert.That(selected.Group).IsEqualTo(new("DiffEngine", false));
+        await Assert.That(selected.Group).IsEqualTo(new("DiffEngine"));
     }
 
     [Test]

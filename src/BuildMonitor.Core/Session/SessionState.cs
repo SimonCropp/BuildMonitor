@@ -25,8 +25,8 @@ record SessionState(
     int ScrollTop,
     int Columns,
     int Rows,
-    // Group ids the user opened or closed against their default. See RowProjection.IsExpanded.
-    ImmutableHashSet<string> ToggledGroups,
+    // The ids of the groups the user opened. A group is closed until they do.
+    ImmutableHashSet<string> OpenGroups,
     // The last thing worth telling the user, shown on the status line until the next input.
     string Status,
     bool Hidden,
@@ -55,7 +55,7 @@ record SessionState(
             ScrollTop: 0,
             Columns: 120,
             Rows: 30,
-            ToggledGroups: [],
+            OpenGroups: [],
             Status: "",
             Hidden: !settings.ShowWindowAtStart,
             Exit: false);

@@ -94,7 +94,7 @@ enum BmRowPart {
     BM_PART_ROW = 0,
     BM_PART_STATUS = 1,
     BM_PART_NAME = 2,
-    BM_PART_PROVIDER = 3,
+    BM_PART_DETAIL_ICON = 3,
     BM_PART_PIPELINE = 4,
     BM_PART_BRANCH = 5,
     BM_PART_TIMING = 6
@@ -140,8 +140,18 @@ typedef struct BmRow {
        joined, for measuring; the cell is drawn from the spans. */
     BmString name;
     BmString detail;
-    /* A name given to bm_set_row_icon, drawn at the start of the detail cell, or empty for none. */
-    BmString provider;
+    /*
+     * The row's two marks, each a name given to bm_set_row_icon, or empty for none: nameIcon is
+     * drawn before the name and detailIcon at the start of the detail cell. One is the service
+     * that ran the build and the other the service hosting its source, and which is which depends
+     * on the row: one that broke or is still running leads with its run, and a settled one leads
+     * with its project. They are never the same picture, since the row shows both at once.
+     *
+     * nameIcon is part of the same target as the name, so a click on it reports nameLink;
+     * detailIcon reports detailIconLink.
+     */
+    BmString nameIcon;
+    BmString detailIcon;
     BmString timing;
     /*
      * The row's chips: a range into BmScreen.chips. A row without room for all of them draws those
@@ -154,6 +164,8 @@ typedef struct BmRow {
     float progress;
     /* A BmChipKind a click on the name reports, drawn in the link colour, or BM_CHIP_NONE. */
     int32_t nameLink;
+    /* A BmChipKind a click on detailIcon reports, or BM_CHIP_NONE. */
+    int32_t detailIconLink;
     /* A BmChipKind a click on the status square reports, or BM_CHIP_NONE for a square that opens
        nothing, which is a group's. The square is not drawn any differently for it. */
     int32_t statusLink;
@@ -415,7 +427,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 11
+#define BM_VERSION 13
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

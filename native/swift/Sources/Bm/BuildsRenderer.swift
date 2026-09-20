@@ -32,6 +32,7 @@ final class BuildsRenderer {
     let browseLabel = "Browse"
     let browseWidth: CGFloat = 82
     let browseGap: CGFloat = 8
+    /// The icon inside a chip, which is a pill the height of a line of text.
     let iconSize: CGFloat = 16
     /// The filter box at the right of the header.
     let searchWidth: CGFloat = 240
@@ -43,6 +44,11 @@ final class BuildsRenderer {
     let smallFont: NSFont
     let lineHeight: CGFloat
     let rowHeight: CGFloat
+    /// The square a row's two marks are drawn in: the host's before the name, and the provider's
+    /// before the pipeline. Short of the row's height rather than the sixteen a chip's icon is,
+    /// since the marks carry detail, a Jenkins butler's face and the play badge on the Actions
+    /// mark, that a sixteen pixel square turned to a smudge.
+    let logoSize: CGFloat
     let headerHeight: CGFloat
     let footerHeight: CGFloat
     let chipHeight: CGFloat
@@ -72,6 +78,7 @@ final class BuildsRenderer {
         // Whole points, so the rows and their status squares land on pixel edges.
         lineHeight = (font.ascender - font.descender + font.leading).rounded(.up)
         rowHeight = lineHeight + 14
+        logoSize = rowHeight - 6
         headerHeight = lineHeight + 14
         footerHeight = lineHeight + 28
         chipHeight = lineHeight + 2
@@ -186,9 +193,11 @@ final class BuildsRenderer {
             .map { chipWidth($0.0, $0.1) }
             .reduce(0, +) + 4 * chipGap
         let overflowWidth = chipWidth(overflowLabel)
-        // Reserved on every row once any row has an icon, so a group's row, which has none, keeps its
-        // name in line with the rows under it.
-        let iconWidth: CGFloat = frame.rows.contains { !$0.provider.isEmpty } ? iconSize + gap : 0
+        // Reserved on every row once any row has one, so a group's row, which has no provider
+        // logo, keeps its name in line with the rows under it, and the names line up where a
+        // provider gave no repository URL to read a host mark from.
+        let iconWidth: CGFloat = frame.rows.contains { !$0.detailIcon.isEmpty } ? logoSize + gap : 0
+        let markWidth: CGFloat = frame.rows.contains { !$0.nameIcon.isEmpty } ? logoSize + gap : 0
         // The author of a failed build, as wide as the widest name up to twenty characters, and gone
         // with its gap when no failed build names anyone.
         let authorWidth = min(frame.authors.map { measure($0).rounded(.up) }.max() ?? 0, measure(String(repeating: "0", count: 20)))
@@ -199,9 +208,9 @@ final class BuildsRenderer {
         // As wide as the widest name across every row, not only those on screen, so it does not shift
         // while scrolling; the detail likewise, up to forty characters, past which a long pipeline or
         // branch is cut short rather than pushing every row's chips into the drop down.
-        let nameWanted = (frame.names + frame.groupNames.map { "▾ " + $0 })
+        let nameWanted = markWidth + ((frame.names + frame.groupNames.map { "▾ " + $0 })
             .map { measure($0).rounded(.up) }
-            .max() ?? 0
+            .max() ?? 0)
         let detailWanted = iconWidth + min(
             frame.details.map { measure($0).rounded(.up) }.max() ?? 0,
             measure(String(repeating: "0", count: 40)))
@@ -256,12 +265,31 @@ final class BuildsRenderer {
                 nameRoom -= arrowWidth
             }
 
+            // The host's mark leads the name, in a width reserved on every row once any row has
+            // one, so the names still line up where a provider gave no repository URL.
+            let markX = nameX
+            if markWidth > 0 {
+                if let mark = RowIcons.images[row.nameIcon] {
+                    let markRect = CGRect(x: markX, y: rect.midY - logoSize / 2, width: logoSize, height: logoSize)
+                    mark.draw(in: markRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                }
+
+                nameX += markWidth
+                nameRoom -= markWidth
+            }
+
             if row.isNameLink {
                 // A name that opens the repository, in the link colour. Only its text is the link,
-                // so a click beside it still selects the row.
+                // so a click beside it still selects the row. The mark is part of it: it stands for
+                // the same page, so a click on it is not a click on nothing.
                 drawText(row.name, at: CGPoint(x: nameX, y: textY), font: font, colour: Palette.chipText, width: nameRoom)
                 let linkWidth = min(measure(row.name).rounded(.up), nameRoom)
-                let nameRect = CGRect(x: nameX, y: textY, width: linkWidth, height: lineHeight)
+                var nameRect = CGRect(x: nameX, y: textY, width: linkWidth, height: lineHeight)
+                if !row.nameIcon.isEmpty {
+                    // As tall as the mark, which stands above and below a line of text.
+                    nameRect = CGRect(x: markX, y: rect.midY - logoSize / 2, width: nameX - markX + linkWidth, height: logoSize)
+                }
+
                 chips.append(Hit(row: index, chip: row.nameLink, overflow: false, rect: nameRect))
                 tip(nameRect, row.tooltip(BM_PART_NAME))
             } else {
@@ -269,13 +297,13 @@ final class BuildsRenderer {
             }
 
             x += nameWidth + gap
-            // The logo leads the detail cell, beside the pipeline it ran, so a group's members, whose
-            // first cell is empty, still show which service each came from.
-            if let icon = RowIcons.images[row.provider] {
-                let iconRect = CGRect(x: x, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize)
+            // The second of the row's two marks leads the detail cell, beside the pipeline, so a
+            // group's members, whose first cell is empty, still show which service each came from.
+            if let icon = RowIcons.images[row.detailIcon] {
+                let iconRect = CGRect(x: x, y: rect.midY - logoSize / 2, width: logoSize, height: logoSize)
                 icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-                chips.append(Hit(row: index, chip: Int32(BM_CHIP_PIPELINE.rawValue), overflow: false, rect: iconRect))
-                tip(iconRect, row.tooltip(BM_PART_PROVIDER))
+                chips.append(Hit(row: index, chip: row.detailIconLink, overflow: false, rect: iconRect))
+                tip(iconRect, row.tooltip(BM_PART_DETAIL_ICON))
             }
 
             drawDetail(row, index: index, from: x + iconWidth, width: detailWidth - iconWidth, textY: textY)
