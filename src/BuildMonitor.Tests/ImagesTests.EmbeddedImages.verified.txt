@@ -1,4 +1,6 @@
 ﻿[
+  glyph-cancel-16.png,
+  glyph-cancel-32.png,
   glyph-exit-16.png,
   glyph-exit-32.png,
   glyph-filters-16.png,

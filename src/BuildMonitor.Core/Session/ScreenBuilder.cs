@@ -472,7 +472,7 @@ static class ScreenBuilder
     /// What the filter box matches against. The box carries no label, so this is the only place
     /// that says the text is tried against three different parts of a row.
     /// </summary>
-    public const string SearchTooltip = "Show only builds whose repository, pipeline or branch contain the text";
+    public const string SearchTooltip = "Filter by repository, pipeline or branch";
 
     /// <summary>
     /// Every failing connection, for a hover on the footer. The footer is one line beside the
@@ -494,7 +494,8 @@ static class ScreenBuilder
             .Select(_ => _.Health == ConnectionHealth.NeedsAuth
                 ? $"Sign in required for {_.Connection.Name}"
                 : $"{_.Connection.Name}: {_.Describe(now)}");
-        return string.Join("\n", problems);
+        // A line each, and each wrapped: a provider's error can be a paragraph of its own.
+        return Tooltips.Wrap(string.Join("\n", problems));
     }
 
     public static IReadOnlyList<Button> Buttons(SessionState state) =>

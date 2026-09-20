@@ -77,7 +77,7 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
         // BuildsRenderer.swift look each image up by.
         foreach (var name in ProviderDescriptors.All.Select(_ => $"provider-{_.Id}")
                      .Concat(RepoHosts.All)
-                     .Concat(["folder", "pull-request", "retry", "log", "triage"]))
+                     .Concat(RowChips.Icons))
         {
             SetRowIcon(name);
         }

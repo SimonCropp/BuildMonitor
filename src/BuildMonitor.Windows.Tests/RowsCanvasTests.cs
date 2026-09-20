@@ -188,7 +188,7 @@ public class RowsCanvasTests
         using var canvas = Drawn(1000, state);
         var row = Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main");
         var directory = LocalRepos.Find(state.LocalRepos, RowProjection.Rows(state)[row].Build!)!;
-        await Assert.That(TipAlong(canvas, row)).Contains(directory);
+        await Assert.That(TipAlong(canvas, row)).Contains($"Open folder: {directory}");
     }
 
     /// <summary>

@@ -30,38 +30,70 @@ static class RepoHosts
     /// </summary>
     public static string MarkOf(string? url)
     {
+        if (Known(url) is { } known)
+        {
+            return known.Mark;
+        }
+
+        return "";
+    }
+
+    /// <summary>
+    /// What to call the service holding <paramref name="url"/>, for a hover that says where a
+    /// click goes: the name of the one whose mark it carries, or the host itself where there is
+    /// no mark for it. An enterprise server is named for what it runs rather than for its own
+    /// address, since that is the thing being opened; a host nobody here knows is named by its
+    /// address, which is all that is known about it.
+    /// </summary>
+    public static string NameOf(string url)
+    {
+        if (Known(url) is { } known)
+        {
+            return known.Name;
+        }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var parsed))
+        {
+            return parsed.Host;
+        }
+
+        return url;
+    }
+
+    static (string Mark, string Name)? Known(string? url)
+    {
         if (url is null ||
             !Uri.TryCreate(url, UriKind.Absolute, out var parsed))
         {
-            return "";
+            return null;
         }
 
         foreach (var label in parsed.Host.Split('.'))
         {
             if (Is(label, "github"))
             {
-                return github;
+                return (github, "GitHub");
             }
 
             if (Is(label, "gitlab"))
             {
-                return gitlab;
+                return (gitlab, "GitLab");
             }
 
             if (Is(label, "bitbucket"))
             {
-                return bitbucket;
+                return (bitbucket, "Bitbucket");
             }
 
             // dev.azure.com, and the {account}.visualstudio.com it grew out of, which still answers.
             if (Is(label, "azure") ||
                 Is(label, "visualstudio"))
             {
-                return azure;
+                return (azure, "Azure DevOps");
             }
         }
 
-        return "";
+        return null;
     }
 
     static bool Is(string label, string host) =>

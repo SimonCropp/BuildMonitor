@@ -14,7 +14,7 @@ static class RowTooltips
     public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, string providerName, DateTimeOffset now)
     {
         var run = OpensRun(build);
-        var pipeline = $"Open {build.PipelineName} on {providerName}";
+        var pipeline = $"Open {providerName} pipeline: {build.PipelineName}";
         List<RowTooltip> tooltips =
         [
             new(RowPart.Row, Summary(build, now)),
@@ -23,7 +23,7 @@ static class RowTooltips
         // Which cell holds which is decided by the row, so each part says what that row's part
         // opens. A hover that named the usual destination rather than this one would be worse
         // than none: it is the only thing saying where a click goes.
-        var repository = build.RepoUrl is { } repo ? $"Open {build.ShortRepoName()} on {Host(repo)}" : null;
+        var repository = build.RepoUrl is { } repo ? $"Open {RepoHosts.NameOf(repo)} project: {build.ShortRepoName()}" : null;
         if (build.NeedsAttention())
         {
             tooltips.Add(new(RowPart.Name, run));
@@ -46,7 +46,7 @@ static class RowTooltips
         if (build.BranchUrl is not null &&
             build.ShortBranchName() is { Length: > 0 } branch)
         {
-            tooltips.Add(new(RowPart.Branch, $"Open the {branch} branch"));
+            tooltips.Add(new(RowPart.Branch, $"Open branch: {branch}"));
         }
 
         if (Timing(state, build) is { Length: > 0 } timing)
@@ -79,7 +79,7 @@ static class RowTooltips
         ];
         if (Shared(members) is { } repo)
         {
-            tooltips.Add(new(RowPart.Name, $"Open {group.Project} on {Host(repo)}"));
+            tooltips.Add(new(RowPart.Name, $"Open {RepoHosts.NameOf(repo)} project: {group.Project}"));
         }
 
         return tooltips;
@@ -154,14 +154,18 @@ static class RowTooltips
         return string.Join("\n", lines);
     }
 
+    /// <summary>
+    /// Every tooltip for something a click opens is written the same way: what it is, then which
+    /// one, so the part that varies, and is the part that can run long, comes last.
+    /// </summary>
     static string OpensRun(Build build)
     {
         if (build.RunNumberLabel() is { Length: > 0 } number)
         {
-            return $"Open run {number}";
+            return $"Open run: {number}";
         }
 
-        return "Open the latest run";
+        return "Open run: latest";
     }
 
     /// <summary>
@@ -174,9 +178,9 @@ static class RowTooltips
         {
             return Estimator.Source(build, state.Medians) switch
             {
-                EstimateSource.Provider => "Counting down from the service's own estimate",
-                EstimateSource.History => "Counting down from the median of this pipeline's recent successful runs",
-                _ => "No estimate for this pipeline yet, so this is how long it has run"
+                EstimateSource.Provider => "Counting down from the service's estimate",
+                EstimateSource.History => "Counting down from the median of recent runs",
+                _ => "No estimate yet, so this is how long it has run"
             };
         }
 
@@ -198,21 +202,6 @@ static class RowTooltips
         }
 
         return $"{Progress.Age(now - at.Value)} ago";
-    }
-
-    /// <summary>
-    /// The host as the URL spells it, rather than the provider's name. A repository link is the one
-    /// place the two differ for an enterprise server, where the service is GitHub but the page is
-    /// not on github.com, and a tooltip that named the service would be the wrong half of that.
-    /// </summary>
-    static string Host(string url)
-    {
-        if (Uri.TryCreate(url, UriKind.Absolute, out var parsed))
-        {
-            return parsed.Host;
-        }
-
-        return url;
     }
 
     static string Plural(int count, string noun)

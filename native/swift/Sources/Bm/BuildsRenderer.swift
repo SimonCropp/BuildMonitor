@@ -185,10 +185,10 @@ final class BuildsRenderer {
         // Measured rather than fixed, so each cell holds its widest text at whatever size the font
         // is: a countdown past an hour, and the widest set of chips a row carries.
         let timingWidth = measure("0:00:00 left")
-        // Every labelled chip at its longest, then the open folder chip's square, with a gap
-        // between each, so the columns before them do not move as builds gain and lose chips.
-        // A failed pull request build with a checkout, which carries every chip there is. Cancel is
-        // not among them; it never shares a row with Retry, and a row that has it has nothing else.
+        // Every chip the widest row can carry, with a gap between each, so the columns before
+        // them do not move as builds gain and lose chips: a failed pull request build with a
+        // checkout carries every one of them. Cancel is not among them; it never shares a row
+        // with Retry, and a row that has it has nothing else.
         let widestChips = [("pull-request", "9999"), ("retry", ""), ("log", ""), ("folder", ""), ("triage", "")]
             .map { chipWidth($0.0, $0.1) }
             .reduce(0, +) + 4 * chipGap

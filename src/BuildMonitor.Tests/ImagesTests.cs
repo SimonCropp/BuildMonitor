@@ -30,17 +30,41 @@ public class ImagesTests
     }
 
     /// <summary>
-    /// The host marks and the provider logos are written by IconBuilder, which nothing in a build
-    /// runs, from a list of its own. A mark named here and not there is a row with a gap where its
+    /// Every picture a row can name is written by IconBuilder, which nothing in a build runs, from
+    /// a list of its own. A name used here and not written there is a row with a gap where its
     /// picture should be, which no other test would notice.
     /// </summary>
     [Test]
-    public async Task EveryHostAndProviderMarkExists()
+    public async Task EveryMarkARowCanNameExists()
     {
-        foreach (var name in RepoHosts.All.Concat(ProviderDescriptors.All.Select(_ => $"provider-{_.Id}")))
+        foreach (var name in RepoHosts.All
+                     .Concat(ProviderDescriptors.All.Select(_ => $"provider-{_.Id}"))
+                     .Concat(RowChips.Icons))
         {
             await Assert.That(Images.Glyph(name, 16)).IsNotNull();
             await Assert.That(Images.Glyph(name, 32)).IsNotNull();
+        }
+    }
+
+    /// <summary>
+    /// And the other way round: a chip drawn with a picture that the heads were never handed is an
+    /// empty button, which is how Cancel shipped the first time it stopped being a word. The
+    /// fixtures between them carry every chip there is.
+    /// </summary>
+    [Test]
+    public async Task EveryChipTheFixturesDrawIsHandedOver()
+    {
+        var drawn = new[] { Fixtures.WithBuilds(), Fixtures.WithLocalRepos(), Fixtures.WithTwoFailures() }
+            .SelectMany(_ => ScreenBuilder.Build(_, Fixtures.Now).Builds!.Rows)
+            .SelectMany(_ => _.Chips)
+            .Select(_ => _.Icon)
+            .Where(_ => _.Length > 0)
+            .Distinct()
+            .ToList();
+        await Assert.That(drawn).IsNotEmpty();
+        foreach (var icon in drawn)
+        {
+            await Assert.That(RowChips.Icons).Contains(icon);
         }
     }
 

@@ -650,10 +650,10 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         // was loaded: a countdown past an hour, and the widest set of chips a row carries.
         const float barWidth = 104.0f;
         const float timingWidth = ImGui::CalcTextSize("0:00:00 left").x;
-        // Every labelled chip at its longest, then the open folder chip's square, with a gap
-        // between each, so the columns before them do not move as builds gain and lose chips.
-        // A failed pull request build with a checkout, which carries every chip there is. Cancel
-        // is not among them; it never shares a row with Retry, and a row that has it has nothing else.
+        // Every chip the widest row can carry, with a gap between each, so the columns before
+        // them do not move as builds gain and lose chips: a failed pull request build with a
+        // checkout carries every one of them. Cancel is not among them; it never shares a row
+        // with Retry, and a row that has it has nothing else.
         const float widestChips = ChipWidth("pull-request", "9999") +
                                   ChipWidth("retry", nullptr) +
                                   ChipWidth("log", nullptr) +

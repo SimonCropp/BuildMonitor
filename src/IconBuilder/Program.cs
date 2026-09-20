@@ -49,6 +49,11 @@ static class Program
         // arrows, which are the Refresh button beneath the rows.
         ("pull-request", Lucide.GitPullRequest),
         ("retry", Lucide.RotateCw),
+        // A cross rather than a stop: Lucide's stop is a square inside a circle, and at the size a
+        // chip draws one the square closed up into a dot. The cross is also the tray's mark for a
+        // build that failed, which this is not, but it sits in a red button on a row that says
+        // "Cancel" in the drop down and on hover, where nothing else reads as clearly.
+        ("cancel", Lucide.X),
         ("log", Lucide.ScrollText),
         ("triage", Lucide.Stethoscope)
     ];

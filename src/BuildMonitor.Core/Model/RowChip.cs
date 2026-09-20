@@ -11,4 +11,7 @@
 /// for a chip that is only its text.</param>
 /// <param name="Text">What is drawn on the chip, after the icon where there is one. Empty for a
 /// chip that is only a picture.</param>
-record RowChip(ChipKind Kind, string Label, string Tooltip = "", string Icon = "", string Text = "");
+record RowChip(ChipKind Kind, string Label, string Tooltip = "", string Icon = "", string Text = "")
+{
+    public string Tooltip { get; } = Tooltips.Wrap(Tooltip);
+}

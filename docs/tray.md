@@ -40,7 +40,7 @@ Each row carries:
  * a progress bar and a countdown while the build runs, from the provider's own estimate where it gives one and otherwise from the median of the pipeline's last ten successful runs. A build that runs past its estimate shows how far over it is. Without any estimate the elapsed time is shown
  * who broke it, on a failed run only: their first name, or their whole name where two people on screen share one. An app is a 🤖 rather than a login, since which app it was says nothing the mark does not; two apps at once keep their names behind it
  * a pull request button, the number beside its mark, which opens the pull request
- * a retry button, for a failed or cancelled run; Cancel, in words, for a queued or running one. Neither shows where the provider reports that the credential or its user may not do it
+ * a retry button, for a failed or cancelled run; a cancel button, for a queued or running one. Neither shows where the provider reports that the credential or its user may not do it
  * a log button, for a failed run, which fetches the log of what failed and puts it on the clipboard. The status line says when it has arrived
 
 A row that broke, or is still running or queued, leads with its run: it is the reason the row is being read, so the first cell and the mark before it open the run, and the mark of the source's host moves to the second cell. A settled row leads with its project instead, since its run is of no interest.
@@ -54,9 +54,9 @@ Either way the row shows both marks, and each part of it opens one thing, and on
  * the branch opens the branch
  * a group's row names the repository its builds share and opens it. Its members name their pipeline, since their own repository column is blank
 
-Hover any of them and it says where it goes, after about a second. Hover the rest of a row and it says what the row could not fit: the whole repository name and branch, the commit and who wrote it, and how long ago it started. The timing says where its estimate came from, and each button says what it does.
+Hover any of them and it says where it goes, after about a second, written as what it opens and then which one: `Open branch: main`. Hover the rest of a row and it says what the row could not fit: the whole repository name and branch, the commit and who wrote it, and how long ago it started. The timing says where its estimate came from, and each button says what it does.
 
-The buttons are marks rather than words, so a row carries all of them in the width one label used to take; Cancel keeps its word, since it is the one that stops something already running and the rows that carry it carry nothing else. The drop down names each of them in full, and so does the hover.
+The buttons are marks rather than words, so a row carries all of them in the width one label used to take. The drop down names each of them in full, and so does the hover.
 
 When the window is too narrow for a row's buttons, the repository, pipeline and branch keep their width and the buttons that do not fit go behind a … button at the end of the row, which lists them in a drop down. A pipeline and branch longer than about forty characters are cut short before that happens.
 

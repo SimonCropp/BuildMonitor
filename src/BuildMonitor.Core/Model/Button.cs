@@ -3,4 +3,7 @@
 /// </summary>
 /// <param name="Tooltip">What it does, where the label does not say it, or empty for a button that
 /// needs no explaining.</param>
-record Button(string Label, bool Enabled, CommandKind Command, string Tooltip = "");
+record Button(string Label, bool Enabled, CommandKind Command, string Tooltip = "")
+{
+    public string Tooltip { get; } = Tooltips.Wrap(Tooltip);
+}
