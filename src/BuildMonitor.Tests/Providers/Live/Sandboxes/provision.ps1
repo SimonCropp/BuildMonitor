@@ -206,10 +206,13 @@ function Request-Person([string[]] $lines, [string[]] $urls = @(), [switch] $Sho
     $null = Read-Host '   Press Enter when done'
 }
 
+# A value the script already knows is offered rather than asked for, and the prompt says so: the
+# bare "[value]" convention reads as a label, and a stored organization was typed back in by hand
+# twice before this said what the empty answer does.
 function Read-Value([string] $prompt, [string] $default) {
     $suffix = ''
     if ($default) {
-        $suffix = " [$default]"
+        $suffix = " [Enter to keep $default]"
     }
 
     $value = Read-Host ">> $prompt$suffix"
@@ -339,6 +342,14 @@ function Invoke-Api {
         [int[]] $Allow = @()
     )
 
+    # A URL read off an answer that did not carry one. Invoke-RestMethod reports an empty URI as a
+    # hostname it could not parse, which reads as a bad server name rather than as a missing value,
+    # and names neither the call that wanted it nor the one that came back short.
+    if ([string]::IsNullOrWhiteSpace($Uri)) {
+        $caller = @(Get-PSCallStack)[1]
+        throw "No URL to call, wanted at line $($caller.ScriptLineNumber) of $($caller.FunctionName). Something the service was expected to return did not come back."
+    }
+
     $parameters = @{
         Uri = $Uri
         Method = $Method
@@ -357,6 +368,14 @@ function Invoke-Api {
 
     $response = Invoke-RestMethod @parameters
     if ($status -ge 200 -and $status -lt 300) {
+        # Azure DevOps answers a refused token with 203 and a sign-in page rather than 401, and a
+        # client that follows redirects sees the same for its 302. Taken for success, the HTML flows
+        # on as an object with no properties, and the run stops several calls later on a URL built
+        # from one of them, saying only that a hostname could not be parsed.
+        if ($response -is [string] -and $response -match '(?i)<html') {
+            throw "$Method $Uri answered $status with a sign-in page rather than JSON, which means the token was refused. Check it belongs to this organization, has not expired, and has the scopes named above."
+        }
+
         return $response
     }
 
@@ -530,7 +549,12 @@ function Initialize-AzureDevOps {
     $setupToken = Read-Token 'the temporary Azure DevOps token'
     $headers = @{ Authorization = Get-Basic '' $setupToken }
     try {
-        $null = Invoke-Api "$base/_apis/projects?api-version=7.1" -Headers $headers
+        # A token made for another organization still authenticates here: Azure DevOps answers with
+        # an empty list rather than refusing it. Left to run on, the script reads that as an
+        # organization with nothing in it and sets about creating a project it has no right to.
+        if (@((Invoke-Api "$base/_apis/projects?api-version=7.1" -Headers $headers).value).Count -eq 0) {
+            throw "The token sees no projects in $organization, so it was made for another organization. Create it from $base/_usersSettings/tokens, which has this one already chosen."
+        }
 
         $project = Invoke-Api "$base/_apis/projects/Sandbox?api-version=7.1" -Headers $headers -Allow 404
         if (-not $project) {
