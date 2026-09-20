@@ -85,7 +85,8 @@ public class PixelTests
     }
 }
 
-public sealed class PixelTestAttribute() : SkipAttribute($"Set {Variable}=true to run pixel snapshots.")
+public sealed class PixelTestAttribute() :
+    SkipAttribute($"Set {Variable}=true to run pixel snapshots.")
 {
     public const string Variable = "BUILDMONITOR_PIXEL_TESTS";
 
