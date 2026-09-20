@@ -538,11 +538,34 @@ sealed class OctopusProvider : ProviderBase
         return BuildAccess.Unknown;
     }
 
+    /// <summary>
+    /// The ids Octopus answers an unrestricted grant with. It does not leave the list empty: a
+    /// permission that reaches every project comes back restricted to <c>projects-all</c>, and one
+    /// that project groups do not scope at all to <c>projectgroups-unrelated</c>. Read as ids of
+    /// their own, every grant looked restricted to something no deployment is, so the row offered
+    /// no cancel and a key that may cancel anything reported Unknown rather than Change.
+    /// </summary>
+    static ImmutableHashSet<string> sentinels =
+    [
+        "projects-all",
+        "environments-all",
+        "tenants-all",
+        "projectgroups-all",
+        "projectgroups-unrelated"
+    ];
+
+    static bool Anything(List<string> restriction) =>
+        restriction.All(sentinels.Contains);
+
+    static bool Restricts(List<string>? restriction) =>
+        restriction is { Count: > 0 } &&
+        !Anything(restriction);
+
     static bool Unrestricted(OctopusGrant grant) =>
-        grant.RestrictedToProjectIds is not { Count: > 0 } &&
-        grant.RestrictedToEnvironmentIds is not { Count: > 0 } &&
-        grant.RestrictedToTenantIds is not { Count: > 0 } &&
-        grant.RestrictedToProjectGroupIds is not { Count: > 0 };
+        !Restricts(grant.RestrictedToProjectIds) &&
+        !Restricts(grant.RestrictedToEnvironmentIds) &&
+        !Restricts(grant.RestrictedToTenantIds) &&
+        !Restricts(grant.RestrictedToProjectGroupIds);
 
     /// <summary>
     /// The grants of TaskCancel the last check found in the space, or null when it found nothing
@@ -568,7 +591,14 @@ sealed class OctopusProvider : ProviderBase
         grants.Any(_ => Covers(_.RestrictedToProjectIds, projectId) &&
                         Covers(_.RestrictedToEnvironmentIds, environmentId));
 
-    static bool Covers(List<string>? restriction, string id) =>
-        restriction is not { Count: > 0 } ||
-        restriction.Contains(id);
+    static bool Covers(List<string>? restriction, string id)
+    {
+        if (restriction is not { Count: > 0 } ||
+            Anything(restriction))
+        {
+            return true;
+        }
+
+        return restriction.Contains(id);
+    }
 }

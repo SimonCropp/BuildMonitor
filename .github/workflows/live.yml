@@ -152,9 +152,12 @@ jobs:
           --configuration Debug --no-build
           -- --treenode-filter "/*/*/LiveReadTests/*" --output Detailed
 
-      # Only on request, because it spends the sandbox's build minutes.
+      # Only on request, because it spends the sandbox's build minutes. Octopus is the exception:
+      # its round deploys rather than building, so it spends none, and an Octopus Cloud Free
+      # instance that deploys nothing for 60 days is deactivated. A read only weekly run would
+      # therefore let the sandbox lapse.
       - name: Retry and cancel
-        if: inputs.actions
+        if: inputs.actions || matrix.provider == 'octopus'
         timeout-minutes: 65
         env:
           BUILDMONITOR_LIVE_ACTIONS: true

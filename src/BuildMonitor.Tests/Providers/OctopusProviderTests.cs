@@ -286,7 +286,12 @@ public class OctopusProviderTests
     [Arguments("""{"SpacePermissions":{"ProjectView":[{"SpaceId":"Spaces-1"}]},"SystemPermissions":["SpaceView"],"IsPermissionsComplete":true}""", nameof(BuildAccess.Watch))]
     [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-2"}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Watch))]
     [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToProjectIds":[],"RestrictedToEnvironmentIds":[],"RestrictedToTenantIds":[],"RestrictedToProjectGroupIds":[]}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Change))]
+    // What a server really answers for a grant over the whole space: sentinel ids rather than
+    // empty lists.
+    [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToProjectIds":["projects-all"],"RestrictedToEnvironmentIds":["environments-all"],"RestrictedToTenantIds":["tenants-all"],"RestrictedToProjectGroupIds":["projectgroups-unrelated"]}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Change))]
     [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToEnvironmentIds":["Environments-2"]}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Unknown))]
+    // And for one restricted to an environment: the kinds that do not restrict it still carry theirs.
+    [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToProjectIds":["projects-all"],"RestrictedToEnvironmentIds":["Environments-2"],"RestrictedToTenantIds":["tenants-all"],"RestrictedToProjectGroupIds":["projectgroups-unrelated"]}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Unknown))]
     [Arguments("""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToTenantIds":["Tenants-1"]}]},"IsPermissionsComplete":true}""", nameof(BuildAccess.Unknown))]
     [Arguments("""{"SpacePermissions":{},"IsPermissionsComplete":false}""", nameof(BuildAccess.Unknown))]
     [Arguments("""{"SpacePermissions":{},"SystemPermissions":["AdministerSystem"],"IsPermissionsComplete":true}""", nameof(BuildAccess.Unknown))]
@@ -302,12 +307,27 @@ public class OctopusProviderTests
     [Arguments("Environments-2", false)]
     public async Task AGrantLimitedToEnvironmentsDecidesPerDeployment(string environment, bool cancellable)
     {
-        var handler = Permissions(Handler(), $$"""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToEnvironmentIds":["{{environment}}"]}]},"IsPermissionsComplete":true}""");
+        var handler = Permissions(Handler(), $$"""{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToProjectIds":["projects-all"],"RestrictedToEnvironmentIds":["{{environment}}"],"RestrictedToTenantIds":["tenants-all"],"RestrictedToProjectGroupIds":["projectgroups-unrelated"]}]},"IsPermissionsComplete":true}""");
         var context = ProviderTestHelpers.Context("octopus", handler, server);
         await ProviderTestHelpers.Provider("octopus").Access(context, Cancel.None);
         var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
         // The deployment to Production, Environments-1, is the one executing.
         await Assert.That(builds.Single(_ => _.Branch == "Production").CanCancel).IsEqualTo(cancellable);
+    }
+
+    /// <summary>
+    /// The answer every key that may cancel anything gets. Read as ids of their own, the sentinels
+    /// matched no deployment, so the row offered no cancel to anybody.
+    /// </summary>
+    [Test]
+    public async Task AGrantOverTheWholeSpaceLeavesTheDeploymentCancellable()
+    {
+        var handler = Permissions(Handler(), """{"SpacePermissions":{"TaskCancel":[{"SpaceId":"Spaces-1","RestrictedToProjectIds":["projects-all"],"RestrictedToEnvironmentIds":["environments-all"],"RestrictedToTenantIds":["tenants-all"],"RestrictedToProjectGroupIds":["projectgroups-unrelated"]}]},"IsPermissionsComplete":true}""");
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        var access = await ProviderTestHelpers.Provider("octopus").Access(context, Cancel.None);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", context);
+        await Assert.That(access).IsEqualTo(BuildAccess.Change);
+        await Assert.That(builds.Single(_ => _.Branch == "Production").CanCancel).IsTrue();
     }
 
     [Test]

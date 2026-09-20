@@ -126,6 +126,8 @@ Checked 2026-09-16. An API key has no scopes and acts as its user.
 
  * `users/{id}/permissions?spaces={space}&includeSystem=true` lists each space permission with every grant of it, each with its space and any restriction to projects, environments, tenants or project groups. `IsPermissionsComplete` says whether the requesting user could see all of it [OctopusClients].
  * Cancelling a task needs `TaskCancel`, which can be restricted to projects, environments and tenants [OctopusClients].
+ * A grant that is not restricted is not answered with an empty list. Each kind carries a sentinel id instead: `projects-all`, `environments-all`, `tenants-all`, and `projectgroups-unrelated` for a permission project groups do not scope. Read as ids of their own, they match no deployment, so the row offers no cancel and the connection reports Unknown rather than Change.
+ * A grant scoped to a project group is expanded into the projects in it, so the project group ids never say what a grant reaches. A group holding no projects leaves the project ids empty, which is the one case where an empty list means no project rather than every one.
  * Whether a system administrator's grants in a space are listed is not documented.
 
 

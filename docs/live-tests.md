@@ -111,7 +111,7 @@ Starting the TeamCity server accepts the [TeamCity license agreement](https://ww
 
 | Job | Providers | Runs on | Retries and cancels |
 |---|---|---|---|
-| `hosted` | AppVeyor, Azure DevOps, Bitbucket, GitHub, GitLab, Octopus, Travis | Dispatch and the weekly schedule, on this repository only | Only when the `actions` input is ticked |
+| `hosted` | AppVeyor, Azure DevOps, Bitbucket, GitHub, GitLab, Octopus, Travis | Dispatch and the weekly schedule, on this repository only | Only when the `actions` input is ticked, except for Octopus, which runs every time |
 | `servers` | GoCD, Jenkins, TeamCity | Dispatch, the weekly schedule, and pull requests that change those providers | Always, since the servers are thrown away |
 
 Each provider is its own job, so a failure names its provider.
@@ -341,7 +341,7 @@ script:
 ### Octopus Deploy
 
  * Use a space kept for the sandbox, on an existing instance or a separate Octopus Cloud Free instance.
-   * Cloud Free has one space, and deactivates an instance that deploys nothing for 60 days.
+   * Cloud Free has one space, and deactivates an instance that deploys nothing for 60 days. So the workflow runs Octopus's action round on every run, including the weekly one, rather than only when `actions` is ticked. That round deploys, which keeps the instance alive; it also costs no build minutes, because Octopus deploys rather than builds.
  * Create an environment `Sandbox`, and a project `BuildMonitor Sandbox`.
  * Add one **Run a Script** step that runs once on a worker from the dynamic Ubuntu pool:
 

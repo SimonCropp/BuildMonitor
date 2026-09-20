@@ -1,5 +1,8 @@
 /// <summary>
-/// Where one grant of a permission applies. An empty list is no restriction of that kind.
+/// Where one grant of a permission applies. A list holding the sentinel id for its kind, such as
+/// <c>projects-all</c>, is no restriction of that kind, and neither is an empty one. Octopus
+/// expands a grant scoped to a project group into the projects in it, so the group ids never say
+/// what a grant reaches.
 /// </summary>
 class OctopusGrant
 {
