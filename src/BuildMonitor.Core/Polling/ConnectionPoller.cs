@@ -48,6 +48,16 @@ sealed class ConnectionPoller
     int probeFailures;
     bool probeWorks = true;
     bool probedOnce;
+    // The fetch cycles since the last summary line, and the requests sent before them.
+    DateTimeOffset? summarized;
+    int summaryCycles;
+    int summaryGroups;
+    long summarySent;
+
+    /// <summary>
+    /// How often the information log summarises a connection's fetch cycles.
+    /// </summary>
+    public static readonly TimeSpan SummaryEvery = TimeSpan.FromMinutes(10);
 
     /// <summary>
     /// How often the pipeline list is re-read. New pipelines are rare and discovery is the
@@ -439,14 +449,7 @@ sealed class ConnectionPoller
 
         if (plan.Fetch.Length > 0)
         {
-            Log.Information(
-                "{Connection}: fetched {Attempted} of {Groups} groups, {Deferred} deferred, {Requests} requests sent, {Remaining} of the limit left",
-                connection.Name,
-                attempted,
-                groups.Length,
-                plan.Deferred.Length,
-                budget.SentCount,
-                budget.State.Remaining);
+            LogCycle(connection, plan, attempted, groups.Length, after);
             // A line per group, and built before Log.Debug could check the level, so every cycle
             // formatted the whole table to throw it away.
             if (Log.IsEnabled(LogEventLevel.Debug))
@@ -456,6 +459,58 @@ sealed class ConnectionPoller
         }
 
         return health;
+    }
+
+    /// <summary>
+    /// Each cycle goes to the debug log, and the information log gets a summary of them every
+    /// <see cref="SummaryEvery"/>. A line a cycle was one every few seconds for a connection of many
+    /// quiet groups, most fetching one or two, and buried the warnings in the log a user sends with
+    /// an issue. The first cycle is summarised at once, and a cycle the quota deferred groups in is
+    /// logged as it happens: a quota running short is worth seeing when it did.
+    /// </summary>
+    void LogCycle(Connection connection, SchedulePlan plan, int attempted, int groups, DateTimeOffset now)
+    {
+        var remaining = budget.State.Remaining;
+        var sent = budget.SentCount;
+        Log.Debug(
+            "{Connection}: fetched {Attempted} of {Groups} groups, {Deferred} deferred, {Requests} requests sent, {Remaining} of the limit left",
+            connection.Name,
+            attempted,
+            groups,
+            plan.Deferred.Length,
+            sent,
+            remaining);
+        if (plan.Deferred.Length > 0)
+        {
+            Log.Information(
+                "{Connection}: the request quota deferred {Deferred} of {Groups} groups",
+                connection.Name,
+                plan.Deferred.Length,
+                groups);
+        }
+
+        summaryCycles++;
+        summaryGroups += attempted;
+        if (summarized is { } since &&
+            now - since < SummaryEvery)
+        {
+            return;
+        }
+
+        var cycles = summaryCycles == 1 ? "1 cycle" : $"{summaryCycles} cycles";
+        var limit = remaining is { } left ? $", {left} of the limit left" : "";
+        Log.Information(
+            "{Connection}: fetched {Fetched} groups of {Groups} in {Cycles}, {Requests} requests{Limit}",
+            connection.Name,
+            summaryGroups,
+            groups,
+            cycles,
+            sent - summarySent,
+            limit);
+        summarized = now;
+        summaryCycles = 0;
+        summaryGroups = 0;
+        summarySent = sent;
     }
 
     /// <summary>
