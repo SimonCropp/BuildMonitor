@@ -80,15 +80,19 @@ sealed class FormsMonitorWindow : IMonitorWindow
         form.Activate();
     }
 
-    public void SetClipboard(string text)
+    public bool SetClipboard(string text)
     {
         try
         {
+            // SetText and not SetDataObject: the toolkit's own ten attempts over a second are most
+            // of what a clipboard another process has open needs, and ClipboardPump has the rest.
             Clipboard.SetText(text);
+            return true;
         }
         catch (Exception exception)
         {
-            Log.Warning(exception, "Clipboard");
+            Log.Warning(exception, "Could not put {Length} characters on the clipboard", text.Length);
+            return false;
         }
     }
 

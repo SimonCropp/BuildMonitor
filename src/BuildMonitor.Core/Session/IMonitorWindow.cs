@@ -28,8 +28,14 @@ interface IMonitorWindow : IDisposable
     /// <summary>
     /// Puts text on the system clipboard. Here rather than in <see cref="MonitorActions"/>
     /// because a clipboard belongs to a toolkit the way a window does.
+    /// <para>
+    /// False when the desktop would not take it, which on Windows is an ordinary outcome: one
+    /// process owns the clipboard at a time, and a clipboard manager or a remote desktop session
+    /// holding it fails the set outright. <see cref="ClipboardPump"/> is what does something about
+    /// that, so an implementation only has to answer honestly rather than retry.
+    /// </para>
     /// </summary>
-    void SetClipboard(string text);
+    bool SetClipboard(string text);
 
     /// <summary>
     /// Asks the desktop for a directory, starting at <paramref name="start"/> where it is one.

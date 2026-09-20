@@ -945,8 +945,38 @@ static class MonitorSession
     /// <summary>
     /// Clears only the text the loop copied, so a second log that arrived meanwhile keeps its turn.
     /// </summary>
-    public static SessionState Copied(SessionState state, string text) =>
-        ReferenceEquals(state.Clipboard, text) ? state with { Clipboard = null } : state;
+    public static SessionState Copied(SessionState state, string text)
+    {
+        if (ReferenceEquals(state.Clipboard, text))
+        {
+            return state with { Clipboard = null };
+        }
+
+        return state;
+    }
+
+    /// <summary>
+    /// What the status says when the desktop would not take the text. It asks for the click again
+    /// because that is the whole remedy: whatever is holding the clipboard lets go of it in a
+    /// moment, and every button that copies can be pressed twice.
+    /// </summary>
+    public const string ClipboardBusy = "Could not copy: another app is holding the clipboard. Try again.";
+
+    /// <summary>
+    /// Gives up on text the window would not take, after <see cref="ClipboardPump"/> has tried.
+    /// Clears it for the same reason <see cref="Copied"/> does, and replaces the status that said
+    /// it had been copied: a stale clipboard under a status line claiming otherwise is how this was
+    /// invisible in the first place.
+    /// </summary>
+    public static SessionState CopyFailed(SessionState state, string text)
+    {
+        if (ReferenceEquals(state.Clipboard, text))
+        {
+            return state with { Clipboard = null, Status = ClipboardBusy };
+        }
+
+        return state;
+    }
 
     public static SessionState Hide(SessionState state) =>
         state with { Hidden = true, Menu = null };

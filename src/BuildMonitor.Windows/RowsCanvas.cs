@@ -370,7 +370,7 @@ sealed class RowsCanvas : Control
         // With the padding Draw leaves, so the widest text fits without an ellipsis.
         var nameWanted = markWidth + builds.Names
             .Select(_ => MeasureName(_, Font))
-            .Concat(builds.GroupNames.Select(_ => MeasureName($"▾ {_}", bold)))
+            .Concat(builds.GroupNames.Select(_ => MeasureName($"▼ {_}", bold)))
             .DefaultIfEmpty()
             .Max();
         // Forty characters at most: past that a long pipeline or branch is cut short rather than
@@ -401,7 +401,7 @@ sealed class RowsCanvas : Control
     {
         if (row.Kind == RowKind.Group)
         {
-            return row.Expanded ? "▾ " : "▸ ";
+            return row.Expanded ? "▼ " : "▶ ";
         }
 
         return "";

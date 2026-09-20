@@ -1,7 +1,16 @@
 [TUnit.Core.Executors.STAThreadExecutor]
-[NotInParallel(nameof(RowsCanvasTests))]
+[NotInParallel(Painting.Key)]
 public class RowsCanvasTests
 {
+    /// <summary>
+    /// Pinned rather than inherited: the theme is a process wide switch, and the form captures
+    /// leave it wherever the last of them put it, so a canvas drew in whichever theme the test
+    /// before it happened to end in.
+    /// </summary>
+    [Before(Test)]
+    public void PinTheTheme() =>
+        Palette.Use(Theme.Dark);
+
     [Test]
     public async Task ReportsClickedRowsAndDrains()
     {

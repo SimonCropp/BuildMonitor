@@ -175,6 +175,7 @@ static class MonitorProgram
         }
 
         var screens = new ScreenCache();
+        var clipboard = new ClipboardPump();
         while (true)
         {
             // Socket driven window changes are applied on this thread rather than the listener's,
@@ -230,10 +231,9 @@ static class MonitorProgram
 
             if (state.Clipboard is { } text)
             {
-                // Cleared before the window is asked, like the notification, so a clipboard that
-                // throws is not asked again every frame.
-                host.Mutate(_ => MonitorSession.Copied(_, text));
-                window.SetClipboard(text);
+                // Not cleared before the window is asked, unlike the notification: see
+                // ClipboardPump, which owns the clearing and the few frames of retry.
+                clipboard.Push(host, window, text);
             }
 
             if (!window.Present(screen))

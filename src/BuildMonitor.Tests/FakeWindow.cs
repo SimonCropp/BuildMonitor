@@ -26,8 +26,17 @@ class FakeWindow : IMonitorWindow
     public void Focus() =>
         Calls.Add("Focus");
 
-    public void SetClipboard(string text) =>
+    /// <summary>
+    /// Whether the desktop refuses the text, which is what a Windows clipboard another process has
+    /// open does. False by default, so a test that never sets it copies.
+    /// </summary>
+    public bool ClipboardBusy { get; set; }
+
+    public bool SetClipboard(string text)
+    {
         Calls.Add($"SetClipboard {text}");
+        return !ClipboardBusy;
+    }
 
     /// <summary>
     /// What the chooser returns next, or null for a cancel, which is the default so a test that

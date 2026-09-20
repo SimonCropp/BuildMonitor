@@ -208,7 +208,7 @@ final class BuildsRenderer {
         // As wide as the widest name across every row, not only those on screen, so it does not shift
         // while scrolling; the detail likewise, up to forty characters, past which a long pipeline or
         // branch is cut short rather than pushing every row's chips into the drop down.
-        let nameWanted = markWidth + ((frame.names + frame.groupNames.map { "▾ " + $0 })
+        let nameWanted = markWidth + ((frame.names + frame.groupNames.map { "▼ " + $0 })
             .map { measure($0).rounded(.up) }
             .max() ?? 0)
         let detailWanted = iconWidth + min(
@@ -413,7 +413,7 @@ final class BuildsRenderer {
 
     /// The open or closed arrow a group's row is drawn behind, and nothing for any other row.
     private func groupArrow(_ row: Frame.Row) -> String {
-        row.isGroup ? (row.isExpanded ? "▾ " : "▸ ") : ""
+        row.isGroup ? (row.isExpanded ? "▼ " : "▶ ") : ""
     }
 
     private func drawForm(_ frame: Frame) {

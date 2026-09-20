@@ -198,8 +198,16 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     public void Focus() =>
         Bm.Focus();
 
-    public void SetClipboard(string text) =>
+    /// <summary>
+    /// Always true: bm_set_clipboard returns void, and both backends own their pasteboard rather
+    /// than asking a desktop that can refuse, the way Windows does. Answering with a guess at a
+    /// failure would cost the text three attempts and an untrue status.
+    /// </summary>
+    public bool SetClipboard(string text)
+    {
         Bm.SetClipboard(text);
+        return true;
+    }
 
     /// <summary>
     /// The library's own panel where it has one, which on macOS is what this has to be: a chooser

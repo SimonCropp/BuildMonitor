@@ -295,7 +295,15 @@ static class InputApplier
             case CommandKind.CopyBuildUrl:
                 if (MonitorSession.SelectedBuild(state) is { } copied)
                 {
-                    window?.SetClipboard(copied.BuildUrl);
+                    // Straight at the window rather than through the state, because a URL is
+                    // already in hand and has nothing to fetch. That skips ClipboardPump's retry,
+                    // so the one thing it has to keep is the honest status.
+                    if (window is not null &&
+                        !window.SetClipboard(copied.BuildUrl))
+                    {
+                        return MonitorSession.SetStatus(state, MonitorSession.ClipboardBusy);
+                    }
+
                     return MonitorSession.SetStatus(state, "Copied build URL");
                 }
 

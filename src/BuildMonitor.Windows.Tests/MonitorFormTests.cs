@@ -3,7 +3,7 @@
 /// The WinForms head drawing each canonical state. These are the pictures the docs show.
 /// </summary>
 [TUnit.Core.Executors.STAThreadExecutor]
-[NotInParallel(nameof(MonitorFormTests))]
+[NotInParallel(Painting.Key)]
 public class MonitorFormTests
 {
     [Test]

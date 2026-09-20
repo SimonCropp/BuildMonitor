@@ -710,7 +710,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             // it reaches the row. Inside the link it left a closed group with no way to expand.
             std::string arrow;
             if (group) {
-                arrow = (row.flags & BM_ROW_EXPANDED) ? "▾ " : "▸ ";
+                arrow = (row.flags & BM_ROW_EXPANDED) ? "▼ " : "▶ ";
             }
 
             std::string name = Str(screen, row.name);
@@ -1277,8 +1277,8 @@ bool LoadFont() {
         static const ImWchar textRange[] = {
             0x0020, 0x00FF,
             0x2026, 0x2026,
-            0x25B8, 0x25B8,
-            0x25BE, 0x25BE,
+            0x25B6, 0x25B6,
+            0x25BC, 0x25BC,
             0
         };
         ImFontConfig config;
