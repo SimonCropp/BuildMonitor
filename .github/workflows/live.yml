@@ -1,0 +1,236 @@
+name: Live
+
+# Runs the live provider tests (src/BuildMonitor.Tests/Providers/Live) against real services.
+# Hosted providers are tested through sandbox accounts, whose credentials are secrets of the live
+# environment. Jenkins, TeamCity and GoCD run in Docker on the runner. docs/live-tests.md covers
+# the setup. This is separate from Test: it needs credentials, spends sandbox build minutes, and
+# fails whenever a service is down.
+#
+# The repository is public, so this workflow's logs are public too. The runner masks secrets in
+# logs and job summaries, but not in artifacts. So nothing here uploads an artifact, and TUnit's
+# report files and summary are off.
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Provider to test
+        type: choice
+        default: all
+        options:
+          - all
+          - appveyor
+          - azure-devops
+          - bitbucket
+          - github
+          - gitlab
+          - gocd
+          - jenkins
+          - octopus
+          - teamcity
+          - travis
+      actions:
+        description: Also retry and cancel builds of the hosted sandboxes (spends their build minutes)
+        type: boolean
+        default: false
+  # Weekly, and read only for the hosted providers, so an expired token or a changed API shows up
+  # before an on-demand run needs it. A scheduled run has no inputs, so it covers every provider
+  # and does not retry or cancel.
+  schedule:
+    - cron: '23 5 * * 1'
+  # The Docker servers need no secrets, so a change to their providers is tested before it merges.
+  pull_request:
+    paths:
+      - 'src/BuildMonitor.Core/Providers/GoCd/**'
+      - 'src/BuildMonitor.Core/Providers/Jenkins/**'
+      - 'src/BuildMonitor.Core/Providers/TeamCity/**'
+      - 'src/BuildMonitor.Core/Providers/HttpJson.cs'
+      - 'src/BuildMonitor.Tests/Providers/Live/**'
+      - '.github/workflows/live.yml'
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+  # TUnit's HTML and JSON reports, and its artifact upload, are files the runner never masks. A
+  # failure's message can carry a request URL. Its job summary is masked, but it rewrites messages,
+  # and masking only catches an exact match.
+  TUNIT_DISABLE_HTML_REPORTER: true
+  TUNIT_DISABLE_JSON_REPORT: true
+  TUNIT_DISABLE_ARTIFACT_UPLOAD: true
+  TUNIT_DISABLE_GITHUB_REPORTER: true
+
+jobs:
+  hosted:
+    name: ${{ matrix.provider }}
+    # A fork has neither the secrets nor the sandboxes, and a pull request never gets them.
+    if: >-
+      github.repository == 'SimonCropp/BuildMonitor' &&
+      github.event_name != 'pull_request' &&
+      contains(fromJSON('["all","appveyor","azure-devops","bitbucket","github","gitlab","octopus","travis"]'), inputs.provider || 'all')
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    # Used only for its secrets. The environment's branch policy gives them to main alone. With
+    # deployment: false, a run records no deployment.
+    environment:
+      name: live
+      deployment: false
+    # One round at a time per sandbox. A new run queues rather than cancels, because a round
+    # cancelled halfway leaves a build running for the next round to trip over.
+    concurrency:
+      group: live-${{ matrix.provider }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        # vars.BUILDMONITOR_LIVE_HOSTED is a JSON array of the providers that have a sandbox. With
+        # it unset, all of them run, and one without a sandbox fails rather than skips. It must be a
+        # repository variable: the matrix is planned before the job starts, and an environment's
+        # variables are only read after that.
+        provider: ${{ fromJSON((inputs.provider || 'all') == 'all' && (vars.BUILDMONITOR_LIVE_HOSTED || '["appveyor","azure-devops","bitbucket","github","gitlab","octopus","travis"]') || format('["{0}"]', inputs.provider)) }}
+    env:
+      BUILDMONITOR_LIVE_PROVIDERS: ${{ matrix.provider }}
+      # Keys cannot be expressions, so every setting is listed. An unset one arrives empty, which
+      # the tests treat as unset. Listing every secret also makes the runner mask them all.
+      BUILDMONITOR_APPVEYOR_TOKEN: ${{ secrets.BUILDMONITOR_APPVEYOR_TOKEN }}
+      BUILDMONITOR_APPVEYOR_SCOPE_ACCOUNT: ${{ vars.BUILDMONITOR_APPVEYOR_SCOPE_ACCOUNT }}
+      BUILDMONITOR_APPVEYOR_PIPELINE: ${{ vars.BUILDMONITOR_APPVEYOR_PIPELINE }}
+      BUILDMONITOR_AZURE_DEVOPS_TOKEN: ${{ secrets.BUILDMONITOR_AZURE_DEVOPS_TOKEN }}
+      BUILDMONITOR_AZURE_DEVOPS_SCOPE_ORGANIZATION: ${{ vars.BUILDMONITOR_AZURE_DEVOPS_SCOPE_ORGANIZATION }}
+      BUILDMONITOR_AZURE_DEVOPS_SCOPE_PROJECT: ${{ vars.BUILDMONITOR_AZURE_DEVOPS_SCOPE_PROJECT }}
+      BUILDMONITOR_AZURE_DEVOPS_PIPELINE: ${{ vars.BUILDMONITOR_AZURE_DEVOPS_PIPELINE }}
+      BUILDMONITOR_BITBUCKET_TOKEN: ${{ secrets.BUILDMONITOR_BITBUCKET_TOKEN }}
+      BUILDMONITOR_BITBUCKET_USER: ${{ secrets.BUILDMONITOR_BITBUCKET_USER }}
+      BUILDMONITOR_BITBUCKET_SCOPE_WORKSPACE: ${{ vars.BUILDMONITOR_BITBUCKET_SCOPE_WORKSPACE }}
+      BUILDMONITOR_BITBUCKET_PIPELINE: ${{ vars.BUILDMONITOR_BITBUCKET_PIPELINE }}
+      BUILDMONITOR_GITHUB_TOKEN: ${{ secrets.BUILDMONITOR_GITHUB_TOKEN }}
+      BUILDMONITOR_GITHUB_SCOPE_OWNER: ${{ vars.BUILDMONITOR_GITHUB_SCOPE_OWNER }}
+      BUILDMONITOR_GITHUB_PIPELINE: ${{ vars.BUILDMONITOR_GITHUB_PIPELINE }}
+      BUILDMONITOR_GITLAB_TOKEN: ${{ secrets.BUILDMONITOR_GITLAB_TOKEN }}
+      BUILDMONITOR_GITLAB_SCOPE_GROUP: ${{ vars.BUILDMONITOR_GITLAB_SCOPE_GROUP }}
+      BUILDMONITOR_GITLAB_PIPELINE: ${{ vars.BUILDMONITOR_GITLAB_PIPELINE }}
+      BUILDMONITOR_OCTOPUS_TOKEN: ${{ secrets.BUILDMONITOR_OCTOPUS_TOKEN }}
+      BUILDMONITOR_OCTOPUS_SERVER: ${{ secrets.BUILDMONITOR_OCTOPUS_SERVER }}
+      BUILDMONITOR_OCTOPUS_SCOPE_SPACE: ${{ vars.BUILDMONITOR_OCTOPUS_SCOPE_SPACE }}
+      BUILDMONITOR_OCTOPUS_ENVIRONMENT: ${{ vars.BUILDMONITOR_OCTOPUS_ENVIRONMENT }}
+      BUILDMONITOR_OCTOPUS_PIPELINE: ${{ vars.BUILDMONITOR_OCTOPUS_PIPELINE }}
+      BUILDMONITOR_TRAVIS_TOKEN: ${{ secrets.BUILDMONITOR_TRAVIS_TOKEN }}
+      BUILDMONITOR_TRAVIS_PIPELINE: ${{ vars.BUILDMONITOR_TRAVIS_PIPELINE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Masking only catches an exact match, and a failed lookup prints the bare host.
+      - name: Mask the Octopus host
+        env:
+          SERVER: ${{ secrets.BUILDMONITOR_OCTOPUS_SERVER }}
+        run: |
+          host="${SERVER#*://}"
+          host="${host%%/*}"
+          if [ -n "$host" ]; then
+            echo "::add-mask::$host"
+          fi
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # The test project alone, in Debug. A Release build of the launcher publishes and bundles
+      # all six heads.
+      - name: Build
+        run: dotnet build src/BuildMonitor.Tests/BuildMonitor.Tests.csproj --configuration Debug
+
+      - name: Read
+        timeout-minutes: 20
+        run: >-
+          dotnet test --project src/BuildMonitor.Tests/BuildMonitor.Tests.csproj
+          --configuration Debug --no-build
+          -- --treenode-filter "/*/*/LiveReadTests/*" --output Detailed
+
+      # Only on request, because it spends the sandbox's build minutes.
+      - name: Retry and cancel
+        if: inputs.actions
+        timeout-minutes: 65
+        env:
+          BUILDMONITOR_LIVE_ACTIONS: true
+        run: >-
+          dotnet test --project src/BuildMonitor.Tests/BuildMonitor.Tests.csproj
+          --configuration Debug --no-build
+          -- --treenode-filter "/*/*/LiveActionTests/*" --output Detailed
+
+  servers:
+    name: ${{ matrix.provider }}
+    if: contains(fromJSON('["all","gocd","jenkins","teamcity"]'), inputs.provider || 'all')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # A newer push to a pull request replaces the run in progress. Each server lives on its
+    # runner, so nothing else needs one at a time.
+    concurrency:
+      group: live-${{ matrix.provider }}-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: ${{ fromJSON((inputs.provider || 'all') == 'all' && '["gocd","jenkins","teamcity"]' || format('["{0}"]', inputs.provider)) }}
+    env:
+      BUILDMONITOR_LIVE_PROVIDERS: ${{ matrix.provider }}
+      # The server is thrown away afterwards, so retrying and cancelling costs nothing.
+      BUILDMONITOR_LIVE_ACTIONS: true
+      SERVER: src/BuildMonitor.Tests/Providers/Live/Servers/${{ matrix.provider }}/provision.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # TeamCity's images unpack to over 6 GB. The runner's Android and Haskell toolchains, which
+      # nothing here uses, take more than that.
+      - name: Free disk space
+        if: matrix.provider == 'teamcity'
+        run: sudo rm -rf /usr/local/lib/android /opt/ghc /usr/local/.ghcup
+
+      # Started first, so the server boots while .NET restores and builds.
+      - name: Start the server
+        run: bash "$SERVER" up
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build src/BuildMonitor.Tests/BuildMonitor.Tests.csproj --configuration Debug
+
+      # Waits for the server, then creates a user, a token, and the sandbox job with one failed
+      # run. It masks every credential before use, and writes the BUILDMONITOR_* settings to
+      # GITHUB_ENV. So nothing here sets them for these providers: a step env would shadow them.
+      - name: Provision the server
+        run: bash "$SERVER" provision
+
+      - name: Read
+        timeout-minutes: 20
+        run: >-
+          dotnet test --project src/BuildMonitor.Tests/BuildMonitor.Tests.csproj
+          --configuration Debug --no-build
+          -- --treenode-filter "/*/*/LiveReadTests/*" --output Detailed
+
+      - name: Retry and cancel
+        timeout-minutes: 30
+        run: >-
+          dotnet test --project src/BuildMonitor.Tests/BuildMonitor.Tests.csproj
+          --configuration Debug --no-build
+          -- --treenode-filter "/*/*/LiveActionTests/*" --output Detailed
+
+      # To the log, where the masks apply. Never uploaded.
+      - name: Server logs
+        if: failure()
+        run: bash "$SERVER" logs
+
+      - name: Stop the server
+        if: always()
+        run: bash "$SERVER" down
