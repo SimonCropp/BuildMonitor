@@ -316,8 +316,14 @@ sealed class AzureDevOpsProvider : ProviderBase
 
     /// <summary>
     /// Through the connection's own address with <c>$format=zip</c> rather than the resource's
-    /// downloadUrl, which points at a separate artifacts host where the handler drops the
-    /// credential and the request is refused.
+    /// downloadUrl, so that one shape of URL covers a container artifact and a pipeline artifact
+    /// alike.
+    /// <para>
+    /// It does not avoid the artifacts host: Azure DevOps answers this with a redirect to the same
+    /// place the downloadUrl names, and that host wants the personal access token too. Nothing here
+    /// makes that work, <see cref="RedirectingHandler"/> does, and without it every download landed
+    /// anonymous and was answered with a sign in page.
+    /// </para>
     /// </summary>
     public override Task<long> DownloadArtifact(ProviderContext context, Build build, BuildArtifact artifact, Stream destination, long maxBytes, Cancel cancel)
     {

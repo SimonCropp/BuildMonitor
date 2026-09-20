@@ -92,11 +92,15 @@ static class MonitorProgram
 
         var secrets = new CachingSecretStore(SecretStores.ForPlatform(AppPaths.Secrets));
         var history = DurationHistory.Load(AppPaths.History);
-        var handler = new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            AutomaticDecompression = DecompressionMethods.All
-        };
+        var handler = new RedirectingHandler(
+            new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                AutomaticDecompression = DecompressionMethods.All,
+                // Followed by RedirectingHandler instead, which carries the credential to a host of
+                // the same service rather than dropping it at every host boundary. See its summary.
+                AllowAutoRedirect = false
+            });
         var windowCommands = new ConcurrentQueue<WindowCommand>();
         var signIn = new SignInCoordinator(host, secrets, handler);
         var runAtLogin = RunAtLogin.ForPlatform();

@@ -3,6 +3,18 @@
 /// </summary>
 static class Credential
 {
+    /// <summary>
+    /// Every header <see cref="Apply"/> can put the secret in, for <see cref="RedirectingHandler"/>
+    /// to strip when a redirect leaves the service. Authorization is the only one the transport
+    /// knew to drop; the other two are as secret and used to cross with the request.
+    /// </summary>
+    public static readonly string[] Headers =
+    [
+        "Authorization",
+        "PRIVATE-TOKEN",
+        "X-Octopus-ApiKey"
+    ];
+
     public static void Apply(HttpRequestHeaders headers, AuthScheme scheme, string secret, string? user)
     {
         switch (scheme)

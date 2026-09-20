@@ -56,7 +56,7 @@ The tests read each setting from the environment first, then from the file a loc
 | `BUILDMONITOR_{ID}_PIPELINE` | The sandbox pipeline, by id or by name as the tray shows it. Required for the action round. |
 | `BUILDMONITOR_{ID}_AUTH` | `Token` (the default), `Browser` or `Device`. Either sign in method sends the token the way a signed in connection does. |
 | `BUILDMONITOR_{ID}_ACCESS` | What the token should be allowed to do: `Change`, `Watch` or `Unknown`. |
-| `BUILDMONITOR_{ID}_ARTIFACT` | The file the sandbox's build publishes, as the service names it: a file name on most, a path on GoCD. Unset for a sandbox that publishes nothing, whose files are then reported rather than checked. |
+| `BUILDMONITOR_{ID}_ARTIFACT` | The file the sandbox's build publishes, as the service names it: a file name on most, a path on GoCD. Unset for a sandbox that publishes nothing, whose files are then reported rather than checked. It is the only setting that makes a download run, so a sandbox left without one covers listing alone, which is how an Azure DevOps download that lost its credential on the redirect to the artifacts host went unnoticed. |
 | `BUILDMONITOR_OCTOPUS_ENVIRONMENT` | The environment a sandbox deployment goes to. The space's first environment otherwise. |
 | `BUILDMONITOR_LIVE_PROVIDERS` | `all` (the default), or a comma separated list of provider ids. A provider named here fails, rather than skips, when a setting it needs is missing. |
 | `BUILDMONITOR_LIVE_ACTIONS` | `true` to run the action round. |
@@ -133,6 +133,7 @@ The `hosted` job reads its credentials from the `live` environment. Create the e
 |---|---|
 | `BUILDMONITOR_{ID}_PIPELINE` | For each hosted provider with a sandbox |
 | `BUILDMONITOR_{ID}_SCOPE_{FIELD}` | As in the settings table |
+| `BUILDMONITOR_{ID}_ARTIFACT` | For each hosted sandbox whose build publishes one |
 | `BUILDMONITOR_OCTOPUS_ENVIRONMENT` | The sandbox environment |
 
 `BUILDMONITOR_LIVE_HOSTED` lists the hosted providers that have a sandbox, as a JSON array such as `["github","azure-devops","octopus"]`. Runs for `all` cover only these, since a provider without a sandbox fails.
@@ -171,7 +172,9 @@ Each token is created while signed in as the sandbox account:
  * Create an organization for the sandbox, with a public repository `sandbox`. Public repositories get GitHub hosted runners for free.
  * Create a fine grained personal access token at https://github.com/settings/personal-access-tokens/new. Set its resource owner to the organization, and give it access to the `sandbox` repository only, with Actions read and write and Metadata read.
    * Its connection test reports access as Unknown, since GitHub does not say what a fine grained token may do.
- * Settings: `BUILDMONITOR_GITHUB_SCOPE_OWNER` is the organization, and `BUILDMONITOR_GITHUB_PIPELINE` is `Sandbox`.
+ * Settings: `BUILDMONITOR_GITHUB_SCOPE_OWNER` is the organization, `BUILDMONITOR_GITHUB_PIPELINE` is `Sandbox`, and `BUILDMONITOR_GITHUB_ARTIFACT` is `marker.zip`.
+
+The marker is published so that a download runs here too, for the opposite reason to Azure DevOps: GitHub redirects to storage that carries its own signature, and the credential has to be dropped on the way rather than carried, or the blob store refuses it.
 
 `.github/workflows/sandbox.yml`:
 
@@ -185,6 +188,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Write the marker
+        run: echo "BuildMonitor live test" > marker.txt
+      # Published before the failure, since a step after it is skipped.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: marker
+          path: marker.txt
       - name: Fail after a minute
         run: |
           echo "BuildMonitor live test"
@@ -228,7 +238,9 @@ jobs:
  * Add `azure-pipelines.yml` as a new pipeline and run it once.
  * Retention deletes failed runs, so open the failed run's menu and choose **Retain**.
  * Create a personal access token at `https://dev.azure.com/<organization>/_usersSettings/tokens`, limited to the sandbox organization, with the custom scope Build: Read & execute. If `SignIn` is refused, add Project and Team: Read.
- * Settings: `BUILDMONITOR_AZURE_DEVOPS_SCOPE_ORGANIZATION`, `BUILDMONITOR_AZURE_DEVOPS_SCOPE_PROJECT` is `Sandbox`, and `BUILDMONITOR_AZURE_DEVOPS_PIPELINE` is the pipeline's name.
+ * Settings: `BUILDMONITOR_AZURE_DEVOPS_SCOPE_ORGANIZATION`, `BUILDMONITOR_AZURE_DEVOPS_SCOPE_PROJECT` is `Sandbox`, `BUILDMONITOR_AZURE_DEVOPS_PIPELINE` is the pipeline's name, and `BUILDMONITOR_AZURE_DEVOPS_ARTIFACT` is `container.zip`.
+
+The marker is published twice, because Azure DevOps serves the two kinds of artifact from two hosts and neither is the one the API answers on: a container artifact from `{region}.artifacts.visualstudio.com`, a pipeline artifact from `vsblob.vsassets.io`. Both redirects have to carry the personal access token, which is what `RedirectingHandler` is for, and a sandbox that published nothing listed its files without ever fetching one.
 
 ```yml
 trigger: none
@@ -241,6 +253,17 @@ jobs:
     timeoutInMinutes: 10
     steps:
       - checkout: none
+      - bash: echo "BuildMonitor live test" > "$(Build.ArtifactStagingDirectory)/marker.txt"
+        displayName: Write the marker
+      # Published before the failure, since a step after it is skipped.
+      - task: PublishBuildArtifacts@1
+        displayName: Publish the marker as a container artifact
+        inputs:
+          pathToPublish: $(Build.ArtifactStagingDirectory)
+          artifactName: container
+      - publish: $(Build.ArtifactStagingDirectory)
+        displayName: Publish the marker as a pipeline artifact
+        artifact: pipeline
       - bash: |
           echo "BuildMonitor live test"
           sleep 60
