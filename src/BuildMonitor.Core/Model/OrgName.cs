@@ -15,6 +15,11 @@ static class OrgName
         }
 
         var org = repoName[..separator].Trim();
-        return org.Length == 0 ? null : org;
+        if (org.Length == 0)
+        {
+            return null;
+        }
+
+        return org;
     }
 }

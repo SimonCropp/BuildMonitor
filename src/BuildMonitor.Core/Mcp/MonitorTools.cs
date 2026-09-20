@@ -106,16 +106,18 @@ sealed class MonitorTools(IProtocolClient client)
     async Task<string> Send(Message message, Cancel cancel)
     {
         var response = await client.Send(message, cancel);
+        var body = response.Body;
+
         if (!response.Ok)
         {
-            throw new InvalidOperationException(response.Body);
+            throw new InvalidOperationException(body);
         }
 
-        if (response.Body.Length == 0)
+        if (body.Length == 0)
         {
             return "Done";
         }
 
-        return response.Body;
+        return body;
     }
 }
