@@ -766,11 +766,30 @@ function Initialize-GitLab {
             $null = Wait-For 'a failed pipeline' { Test-GitLabFailure $pipelines $headers }
         }
 
+        # The permissions are named per tab rather than as one list. GitLab keeps them under a
+        # Resource access selector of three tabs, and holds a token to the permissions of the tab
+        # the call belongs to: a token carrying every project permission is still refused for
+        # "user permissions: [User: Read]" while the User tab is empty.
+        # Straight to the fine-grained form rather than the token list, which reaches it through a
+        # Generate token menu. Nothing on it can be filled in from the URL: the legacy form still
+        # takes name and scopes, and this one ignores both, so every field below is typed by hand.
+        # The form is two passes: a resource is added, and then the permissions are set on it. The
+        # box under the Resource access tabs says "Search for resources to add" and searches groups
+        # and projects, not permissions, so a permission typed into it finds nothing. Nothing on the
+        # form can be filled in from the URL either: the legacy form still takes name and scopes,
+        # this one ignores both.
         Request-Person @(
-            'Create the token the live tests use: Generate token > Fine-grained token.',
-            "  Name: BuildMonitor live tests. Expiration: up to a year. Resources: the group $group only.",
-            '  Permissions: User read, Personal access token read, Project read, Pipeline read and update, Job read.'
-        ) 'https://gitlab.com/-/user_settings/personal_access_tokens'
+            'Create the token the live tests use. Nothing here can be filled in from the link:',
+            '  Name: BuildMonitor live tests. Expiration: up to a year.',
+            "  Group and project access: Only specific groups or projects that I'm a member of.",
+            "    Add group or project, then $group under Groups.",
+            '  Add resource permissions: pick a tab under Resource access, add the resource, then set',
+            '  its permissions in the table on the right. Each tab is counted on its own, so one left',
+            '  empty is a permission the token lacks however full the others are:',
+            "    Group and project: add $group, with Project read, Pipeline read and update, Job read.",
+            '    User: add yourself, with User read and Personal access token read.',
+            '    Global: nothing.'
+        ) 'https://gitlab.com/-/user_settings/personal_access_tokens/granular/new'
         $token = Read-Token 'the GitLab token'
         $null = Invoke-Api "${pipelines}?per_page=1" -Headers @{ Authorization = "Bearer $token" }
         Write-Done 'the token reads the sandbox'
