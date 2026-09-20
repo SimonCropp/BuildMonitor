@@ -180,13 +180,13 @@ public class ScreenTests
             .Snapshot(
                 """
                 [
-                  build-all | provider-jenkins | ,
-                  Deploy Web | provider-octopus | ,
-                  DiffEngine | provider-github | host-github,
-                  nightly | provider-jenkins | ,
+                  build-all | provider-jenkins-run | ,
+                  Deploy Web | provider-octopus-run | ,
+                  DiffEngine | provider-github-run | host-github,
+                  nightly | provider-jenkins-run | ,
                   Verify | provider-github-failed | host-github,
                   Verify | host-github | ,
-                  DiffEngine | host-github | provider-github
+                  DiffEngine | host-github | provider-github-history
                 ]
                 """);
 
@@ -214,7 +214,7 @@ public class ScreenTests
 
         await Assert.That(row.DetailText).IsEqualTo("main");
         await Assert.That(row.NameLink).IsEqualTo(ChipKind.Build);
-        await Assert.That(row.NameIcon).IsEqualTo("provider-github");
+        await Assert.That(row.NameIcon).IsEqualTo("provider-github-run");
         await Assert.That(row.DetailIconLink).IsEqualTo(ChipKind.Repo);
         await Assert.That(row.DetailIcon).IsEqualTo("host-github");
     }

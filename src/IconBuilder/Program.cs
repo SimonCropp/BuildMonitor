@@ -61,10 +61,14 @@ static class Program
     static SKColor glyphColour = new(0x8A, 0x8A, 0x8A);
 
     /// <summary>
-    /// The badge every provider logo carries, in the tray's own running and failed colours: a
-    /// play for a service's pipeline, and a cross where the run the mark opens broke. The badge
-    /// is what tells a CI service's logo from the source host's, which for GitHub is the same
-    /// octocat, and it is read as a state, so it has to be one.
+    /// The badge every provider logo carries, saying what the mark opens: a play for a run, in
+    /// the tray's running blue, a cross for one that broke, in its failed red, and a clock for
+    /// the pipeline's own page, which is a list of past runs and no run at all. The badge is what
+    /// tells a CI service's logo from the source host's, which for GitHub is the same octocat.
+    /// <para>
+    /// The clock is the glyph grey rather than a third colour, so that a coloured badge keeps
+    /// meaning "this run" and a grey one "the pipeline".
+    /// </para>
     /// </summary>
     static SKColor runningColour = new(0x3B, 0x82, 0xF6);
 
@@ -159,13 +163,14 @@ static class Program
         {
             foreach (var size in glyphSizes)
             {
-                // Two of each: the one a row draws for a pipeline or a run still going, and the
-                // one it draws for a run that broke. Which is which is decided by ProviderMarks
-                // in the core, from these names.
-                using var running = Badged(icon, colour, size, runningColour, Play);
-                File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-{size}.png"), Png(running));
+                // One for each thing the mark can open. Which is which is decided by
+                // ProviderMarks in the core, from these names.
+                using var run = Badged(icon, colour, size, runningColour, Play);
+                File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-run-{size}.png"), Png(run));
                 using var failed = Badged(icon, colour, size, failedColour, Cross);
                 File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-failed-{size}.png"), Png(failed));
+                using var history = Badged(icon, colour, size, glyphColour, Clock);
+                File.WriteAllBytes(Path.Combine(images, $"glyph-provider-{id}-history-{size}.png"), Png(history));
             }
         }
 
@@ -352,6 +357,26 @@ static class Program
         paint.StrokeCap = SKStrokeCap.Round;
         canvas.DrawLine(centre.X - half, centre.Y - half, centre.X + half, centre.Y + half, paint);
         canvas.DrawLine(centre.X + half, centre.Y - half, centre.X - half, centre.Y + half, paint);
+    }
+
+    /// <summary>
+    /// A white dial with the hands knocked out of it, rather than a ring with hands drawn on it: a
+    /// solid shape holds at the nine pixels across a badge is on a row, where a ring closed up
+    /// into a doughnut and the hands with it.
+    /// </summary>
+    static void Clock(SKCanvas canvas, SKPoint centre, float half)
+    {
+        canvas.DrawCircle(centre, half, White());
+        using var clear = new SKPaint
+        {
+            BlendMode = SKBlendMode.Clear,
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = half * 0.36f,
+            StrokeCap = SKStrokeCap.Round
+        };
+        canvas.DrawLine(centre.X, centre.Y, centre.X, centre.Y - half * 0.62f, clear);
+        canvas.DrawLine(centre.X, centre.Y, centre.X + half * 0.55f, centre.Y, clear);
     }
 
     static SKPaint White() =>

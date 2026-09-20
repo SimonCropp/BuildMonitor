@@ -14,7 +14,7 @@ static class RowTooltips
     public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, string providerName, DateTimeOffset now)
     {
         var run = OpensRun(build);
-        var pipeline = $"Open {providerName} pipeline: {build.PipelineName}";
+        var pipeline = $"Open {providerName} history: {build.PipelineName}";
         List<RowTooltip> tooltips =
         [
             new(RowPart.Row, Summary(build, now)),
