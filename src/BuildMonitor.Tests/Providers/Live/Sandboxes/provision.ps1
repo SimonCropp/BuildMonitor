@@ -342,12 +342,13 @@ function Invoke-Api {
         [int[]] $Allow = @()
     )
 
-    # A URL read off an answer that did not carry one. Invoke-RestMethod reports an empty URI as a
-    # hostname it could not parse, which reads as a bad server name rather than as a missing value,
-    # and names neither the call that wanted it nor the one that came back short.
-    if ([string]::IsNullOrWhiteSpace($Uri)) {
+    # A URL built around a value that was not there. Empty it is, or relative where the part before
+    # the path was, and Invoke-RestMethod calls both a hostname it could not parse, which reads as a
+    # bad server name rather than as a missing value and names neither the call that wanted it nor
+    # the one that came back short.
+    if ($Uri -notmatch '^https?://') {
         $caller = @(Get-PSCallStack)[1]
-        throw "No URL to call, wanted at line $($caller.ScriptLineNumber) of $($caller.FunctionName). Something the service was expected to return did not come back."
+        throw "Not a URL to call: '$Uri', wanted at line $($caller.ScriptLineNumber) of $($caller.FunctionName). Something the service was expected to return did not come back."
     }
 
     $parameters = @{
@@ -619,7 +620,10 @@ function Initialize-AzureDevOps {
         }
 
         $runsPath = "$base/Sandbox/_apis/pipelines/$($pipeline.id)/runs"
-        $runs = "$runsPath?api-version=7.1"
+        # Braced, because a question mark is a valid character in a variable name: unbraced, the
+        # parser reads "$runsPath?api" as the name, finds nothing, and leaves the query string
+        # standing on its own as the URL.
+        $runs = "${runsPath}?api-version=7.1"
         if (-not (Get-AzureFailure $base $runs $headers)) {
             Request-Person @(
                 'Microsoft-hosted jobs need one of these. Skip this if either is done:',
@@ -1350,7 +1354,14 @@ foreach ($id in $providers.Keys) {
         }
     }
     catch {
+        # With the line it stopped on. A message from inside a framework call, such as a URI the web
+        # client could not parse, says nothing about which of a hundred calls asked for it, and the
+        # setup is too long to bisect by rerunning it.
         Write-Host "   $($details.Name) stopped: $_" -ForegroundColor Red
+        if ($_.InvocationInfo) {
+            Write-Host "   at line $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())" -ForegroundColor Red
+        }
+
         $failures += $details.Name
     }
 }
