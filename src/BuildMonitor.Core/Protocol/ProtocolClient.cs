@@ -13,7 +13,7 @@ sealed class ProtocolClient(int port) : IProtocolClient
     static TimeSpan Limit(Verb verb) =>
         verb switch
         {
-            Verb.Retry or Verb.Cancel => TimeSpan.FromSeconds(30),
+            Verb.Retry or Verb.Cancel or Verb.RunNext => TimeSpan.FromSeconds(30),
             Verb.Log => TimeSpan.FromSeconds(60),
             // The same log fetch Log is given a minute for, and then a download each on top of it.
             // Nothing is sent until they have all landed, so this is also how long the caller waits.

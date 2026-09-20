@@ -22,6 +22,14 @@ abstract class ProviderBase : IProvider
 
     public abstract Task Cancel(ProviderContext context, Build build, Cancel cancel);
 
+    /// <summary>
+    /// Virtual rather than abstract, as <see cref="ListArtifacts"/> is: eight of the ten services
+    /// run their queue in the order it was filled and have no call for this. Their descriptors say
+    /// so with <see cref="ProviderDescriptor.HasQueuePriority"/>, and nothing asks them.
+    /// </summary>
+    public virtual Task RunNext(ProviderContext context, Build build, Cancel cancel) =>
+        throw new NotSupportedException($"{Descriptor.Name} cannot reorder its build queue");
+
     public abstract Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel);
 
     /// <summary>

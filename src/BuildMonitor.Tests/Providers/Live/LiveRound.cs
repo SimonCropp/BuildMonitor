@@ -88,13 +88,25 @@ sealed class LiveRound(LiveConnection live, ProviderContext context, Pipeline sa
     }
 
     /// <summary>
-    /// Starts a second run behind the running one, and cancels it while it waits.
+    /// Starts a second run behind the running one, moves it to the front of the queue where the
+    /// service can, and cancels it while it waits.
     /// </summary>
     async Task<IReadOnlyList<Build>> CancelQueued(IReadOnlyList<Build> builds)
     {
         await LiveStarter.Start(live, context, sandbox, builds, skipWhenNone: false, cancel);
         var waiting = await Until("a build queued behind the running one", _ => _.Any(Queued), TimeSpan.FromMinutes(2));
-        await Cancel(waiting.First(Queued));
+        var queued = waiting.First(Queued);
+        // The one moment in the round where a real build is sitting in a real queue, which is the
+        // only state Run next applies to. What this proves is that the service accepts the call:
+        // the route, the body and the token's rights. Whether the build then moved would take a
+        // third run to sit behind it, and the sandbox runs one at a time.
+        if (live.Descriptor.HasQueuePriority)
+        {
+            LiveLog.Line($"{Id}: moving {LiveLog.Row(queued)} to the front of the queue");
+            await live.Provider.RunNext(context, queued, cancel);
+        }
+
+        await Cancel(queued);
         return await Until(
             "the queued build to leave the queue while the first still runs",
             _ => !_.Any(Queued) &&

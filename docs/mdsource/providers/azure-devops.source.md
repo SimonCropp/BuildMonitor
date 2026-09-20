@@ -39,6 +39,8 @@ Every build also leaves behind the name of the identity it was queued for, id an
 
  * Retry re-runs the build
  * Cancel cancels a queued or running build
+ * Run next moves a build still in the queue to the front of it, which is what the run's own page
+   calls Run next. Only on a queued row: a build that has started has left the queue
  * Log copies the logs of the failed tasks, or of a failed job when none of its tasks failed
 
 
@@ -141,6 +143,13 @@ None. Builds, definitions and pipelines lists send no ETag or Last-Modified, and
  * The builds list needs a project in the path [docs].
 
 
+### Queue order
+
+`PATCH build/builds/{id}` with `{"queuePosition":1}`. Azure DevOps documents no verb for this: the run's own page has a Run next button, and `queuePosition` is one of the fields Update Build takes [docs]. `priority`, which is set when a build is queued, is the other candidate and is not what the button is described as changing.
+
+Not checked live: it needs a real organization with a build waiting behind another, which the read tests' sandbox does not have. The live action round exercises the equivalent call for TeamCity only.
+
+
 ### Authentication
 
 Checked 2026-09-16.
@@ -155,6 +164,7 @@ Checked 2026-09-16.
  * [Rate and usage limits](https://learn.microsoft.com/en-us/azure/devops/integrate/concepts/rate-limits)
  * [Use personal access tokens](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) and [REST API samples](https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/rest/samples)
  * [Builds - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-7.1)
+ * [Builds - Update Build](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/update-build?view=azure-devops-rest-7.1), which lists `queuePosition` and `priority` among the fields it takes
  * [Properties - Update Build Properties](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/properties/update-build-properties?view=azure-devops-rest-7.1)
  * [Definitions - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/definitions/list?view=azure-devops-rest-7.1)
  * [Pushes - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pushes/list?view=azure-devops-rest-7.1)

@@ -1,5 +1,6 @@
 /// <summary>
-/// Retries and cancels real builds, of one sandbox pipeline per provider, named by
+/// Retries, cancels, and where the service can reorder its queue moves, real builds of one sandbox
+/// pipeline per provider, named by
 /// <c>BUILDMONITOR_{PROVIDER}_PIPELINE</c>. Two opt-ins guard it, because it spends the
 /// sandbox's build minutes and changes what the account shows. The class is explicit, and it also
 /// needs <c>BUILDMONITOR_LIVE_ACTIONS=true</c>. A filter meant for the read tests alone then never

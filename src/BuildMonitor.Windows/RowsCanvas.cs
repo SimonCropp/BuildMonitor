@@ -43,8 +43,9 @@ sealed class RowsCanvas : Control
     // Between a chip's icon and the text after it, where it has both.
     const int chipIconGap = 4;
     // The chips of the widest row, which the chips column is as wide as while there is room: a
-    // failed pull request build with a checkout carries every one of them. Cancel is not among
-    // them; it never shares a row with Retry, and a row that has it has nothing else.
+    // failed pull request build with a checkout carries every one of them. Cancel and Run next are
+    // not among them; both belong to a build still going or still waiting, which has neither a log
+    // to copy nor anything to triage, so that row is the narrower of the two whatever it carries.
     static (string Icon, string Text)[] widestChips =
     [
         ("pull-request", "9999"),

@@ -312,6 +312,11 @@ static class MonitorSession
                 items.Add(new("Cancel build", CommandKind.Cancel));
             }
 
+            if (build.CanRunNext(ProviderDescriptors.Get(target.Connection!.Connection.ProviderId)))
+            {
+                items.Add(new("Run next", CommandKind.RunNext));
+            }
+
             if (LocalRepos.Find(state.LocalRepos, build) is not null)
             {
                 items.Add(new("Open directory", CommandKind.OpenRepoDirectory));
@@ -579,6 +584,13 @@ static class MonitorSession
     /// </summary>
     public static string PipelineNoun(SessionState state, Build build) =>
         ProviderDescriptors.PipelineNoun(state.Connection(build.ConnectionId)?.Connection.ProviderId);
+
+    /// <summary>
+    /// The service the build ran on, or null when its connection has gone, which a poll between the
+    /// frame being drawn and a click on it can do.
+    /// </summary>
+    public static ProviderDescriptor? Descriptor(SessionState state, Build build) =>
+        ProviderDescriptors.Find(state.Connection(build.ConnectionId)?.Connection.ProviderId);
 
     /// <summary>
     /// The context menu's "Exclude": an exact filter on the pipeline name, applied at once.

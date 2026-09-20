@@ -5,4 +5,5 @@
 [JsonSerializable(typeof(TeamCityServer))]
 [JsonSerializable(typeof(TeamCityQueueRequest))]
 [JsonSerializable(typeof(TeamCityCancel))]
+[JsonSerializable(typeof(TeamCityBuildReference))]
 partial class TeamCityContext : JsonSerializerContext;

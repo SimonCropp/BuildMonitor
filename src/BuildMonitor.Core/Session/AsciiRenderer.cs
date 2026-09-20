@@ -205,12 +205,19 @@ static class AsciiRenderer
     }
 
     /// <summary>
-    /// Links bare and actions bracketed, as the pixel heads colour the two apart.
+    /// Links bare and actions bracketed, as the pixel heads colour the two apart. The links are
+    /// named rather than the actions, because that is the closed set: a chip that opens a page is
+    /// one of these five, where a chip that does something is whatever has been added since.
     /// </summary>
-    static string ChipText(RowChip chip) =>
-        chip.Kind is ChipKind.Retry or ChipKind.Cancel or ChipKind.CopyLog or ChipKind.OpenDirectory or ChipKind.Triage
-            ? $"[{chip.Label}]"
-            : chip.Label;
+    static string ChipText(RowChip chip)
+    {
+        if (chip.Kind is ChipKind.Build or ChipKind.Branch or ChipKind.PullRequest or ChipKind.Pipeline or ChipKind.Repo)
+        {
+            return chip.Label;
+        }
+
+        return $"[{chip.Label}]";
+    }
 
     static char Glyph(BuildStatus status) =>
         status switch

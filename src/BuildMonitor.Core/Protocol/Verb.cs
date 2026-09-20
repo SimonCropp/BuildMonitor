@@ -17,6 +17,8 @@ enum Verb
     Refresh,
     Retry,
     Cancel,
+    // Move a queued build to the front of its service's queue.
+    RunNext,
     Connections,
     // Every pipeline being monitored, whether or not it has a recent build.
     Pipelines,

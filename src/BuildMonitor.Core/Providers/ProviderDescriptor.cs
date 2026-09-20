@@ -15,6 +15,10 @@
 /// or Bitbucket; null when the token stands alone.</param>
 /// <param name="CustomClientId">Whether a user may supply their own OAuth client id, which a self
 /// hosted instance with its own application registration needs.</param>
+/// <param name="HasQueuePriority">Whether the service can move a build already in its queue to the
+/// front of it. Most cannot: a queue that only runs in the order it was filled has nothing to ask,
+/// and a row on such a service offers no Run next rather than one that would be refused. Asked
+/// before the chip is drawn, as <paramref name="HasArtifacts"/> is.</param>
 /// <param name="ActionPermission">What a credential needs to retry and cancel, named in the
 /// status when one is refused; null when the provider does not document it.</param>
 /// <param name="FetchUnit">What one fetch covers, which the poller schedules as one group.</param>
@@ -51,6 +55,7 @@ record ProviderDescriptor(
     bool HasBranches,
     bool HasPullRequests,
     bool HasArtifacts,
+    bool HasQueuePriority = false,
     string? OrgNoun = null,
     bool CustomClientId = false,
     string? TokenNote = null,

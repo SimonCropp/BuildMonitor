@@ -52,6 +52,12 @@ public class ApplyTests
     static int RunningRow(SessionState state) =>
         Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main");
 
+    static int QueuedRow(SessionState state) =>
+        Fixtures.RowOf(state, _ => _.Build?.Key == "tc/Verify_Build/main");
+
+    static int RunningTeamCityRow(SessionState state) =>
+        Fixtures.RowOf(state, _ => _.Build?.Key == "tc/Verify_Package/main");
+
     [Test]
     public async Task ClickingRetryAsksForARetry()
     {
@@ -67,6 +73,45 @@ public class ApplyTests
     {
         var actions = new RecordingActions();
         Apply(Fixtures.WithBuilds(), new(ClickedChipRow: 1, ClickedChip: ChipKind.Retry), actions);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    [Test]
+    public async Task ClickingRunNextAsksForTheMove()
+    {
+        var actions = new RecordingActions();
+        var queued = Fixtures.WithQueuePriority();
+        var state = Apply(queued, new(ClickedChipRow: QueuedRow(queued), ClickedChip: ChipKind.RunNext), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["RunNext tc/Verify_Build/main"]);
+        // No run number: TeamCity numbers a build when it starts, so the one thing the status can
+        // name is the pipeline.
+        await Assert.That(state.Status).IsEqualTo("Moving Verify / Build to the front of the queue");
+    }
+
+    /// <summary>
+    /// The build started between the frame being drawn and the click landing on it, which is the
+    /// case the applier re-checks for rather than trusting the chip.
+    /// </summary>
+    [Test]
+    public async Task RunNextOnABuildThatHasLeftTheQueueIsIgnored()
+    {
+        var actions = new RecordingActions();
+        var queued = Fixtures.WithQueuePriority();
+        Apply(queued, new(ClickedChipRow: RunningTeamCityRow(queued), ClickedChip: ChipKind.RunNext), actions);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    /// <summary>
+    /// Jenkins queues builds but has no call to reorder the queue, so its queued row offers nothing
+    /// and a command aimed at it anyway is refused.
+    /// </summary>
+    [Test]
+    public async Task RunNextOnAServiceThatCannotReorderIsIgnored()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithBuilds();
+        var row = Fixtures.RowOf(builds, _ => _.Build?.Key == "jenkins/nightly/");
+        Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.RunNext), actions);
         await Assert.That(actions.Calls).IsEmpty();
     }
 

@@ -10,6 +10,8 @@ record MonitorActions(
     Action<string?> Refresh,
     Action<Build> Retry,
     Action<Build> Cancel,
+    // Moves a queued build to the front of its service's queue.
+    Action<Build> RunNext,
     // Fetches a failed build's log, which arrives on the clipboard through the state.
     Action<Build> CopyLog,
     // Downloads a failed build's artifacts and writes its log beside them, then puts a prompt
@@ -44,6 +46,7 @@ record MonitorActions(
         _ => throw new InvalidOperationException("Refresh"),
         _ => throw new InvalidOperationException("Retry"),
         _ => throw new InvalidOperationException("Cancel"),
+        _ => throw new InvalidOperationException("RunNext"),
         _ => throw new InvalidOperationException("CopyLog"),
         _ => throw new InvalidOperationException("Triage"),
         (_, _, _) => throw new InvalidOperationException("SignIn"),

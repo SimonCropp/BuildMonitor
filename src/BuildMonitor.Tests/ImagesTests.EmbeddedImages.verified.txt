@@ -91,6 +91,8 @@
   glyph-refresh-32.png,
   glyph-retry-16.png,
   glyph-retry-32.png,
+  glyph-run-next-16.png,
+  glyph-run-next-32.png,
   glyph-triage-16.png,
   glyph-triage-32.png,
   glyph-update-16.png,

@@ -34,5 +34,11 @@ enum ChipKind
     // The row's name, which opens the source repository. Added after the actions rather than beside
     // the other links because the numbers are the wire format: renumbering them would have every
     // committed native binary report the wrong kind until it was rebuilt.
-    Repo = 10
+    Repo = 10,
+
+    // Moves a queued build to the front of its service's queue. Here rather than next to Cancel,
+    // where it belongs by what it does, for the reason Repo is here: the numbers are the wire
+    // format. It is drawn, so it is the last chip of the row that has it; the only chips a queued
+    // row can carry beside it are the pull request, Cancel and the checkout.
+    RunNext = 11
 }

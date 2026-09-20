@@ -55,7 +55,10 @@ static class Program
         // "Cancel" in the drop down and on hover, where nothing else reads as clearly.
         ("cancel", Lucide.X),
         ("log", Lucide.ScrollText),
-        ("triage", Lucide.Stethoscope)
+        ("triage", Lucide.Stethoscope),
+        // An arrow into a bar: the queue's front is a place a build is moved to, which a plain up
+        // arrow reads as one step up rather than all the way.
+        ("run-next", Lucide.ArrowUpToLine)
     ];
 
     static SKColor glyphColour = new(0x8A, 0x8A, 0x8A);

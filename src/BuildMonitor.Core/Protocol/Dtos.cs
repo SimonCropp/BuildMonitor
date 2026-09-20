@@ -24,6 +24,9 @@ record BuildDto(
     string? Author,
     bool CanRetry,
     bool CanCancel,
+    // Whether this run is still in a queue its service can be asked to reorder, so it could be made
+    // the next one to start.
+    bool CanRunNext = false,
     // Where this repository is checked out under the code directory, or absent when it is not one
     // the tray found. An assistant reading a failure can open the code it broke without being told
     // where it lives.

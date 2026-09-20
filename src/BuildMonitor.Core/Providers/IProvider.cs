@@ -29,6 +29,13 @@ interface IProvider
     Task Cancel(ProviderContext context, Build build, Cancel cancel);
 
     /// <summary>
+    /// Moves a build still in the queue to the front of it, so it is the next one an agent picks
+    /// up. Only for a service whose <see cref="ProviderDescriptor.HasQueuePriority"/> says it can:
+    /// nothing asks the rest, and their rows offer no such button.
+    /// </summary>
+    Task RunNext(ProviderContext context, Build build, Cancel cancel);
+
+    /// <summary>
     /// The log of a failed build, as text: the logs of the jobs, steps or tasks that failed, each
     /// under its name, or the whole build's where the service keeps one log a build. Empty when
     /// nothing that failed has a log, such as a run that failed before it started a job.

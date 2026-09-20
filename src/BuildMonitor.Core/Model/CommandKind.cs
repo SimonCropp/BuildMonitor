@@ -26,6 +26,8 @@ enum CommandKind
     Triage,
     Retry,
     Cancel,
+    // Moves a queued build to the front of its service's queue.
+    RunNext,
     OpenRepoDirectory,
     OpenCodeDirectory,
     BrowseCodeDirectory,

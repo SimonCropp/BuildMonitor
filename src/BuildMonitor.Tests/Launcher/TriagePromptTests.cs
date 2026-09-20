@@ -367,5 +367,6 @@ public class TriagePromptTests
             author,
             true,
             false,
+            false,
             directory);
 }

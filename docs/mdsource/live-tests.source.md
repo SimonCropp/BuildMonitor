@@ -25,7 +25,7 @@ They live in `src/BuildMonitor.Tests/Providers/Live`. Both classes are `[Explici
 
  1. Cancels anything an earlier round left running, then waits until the sandbox is idle.
  2. Retries the newest failed or cancelled build. Octopus has no retry, so it deploys the sandbox project's newest release instead.
- 3. Once that build runs, cancels it. On Jenkins and TeamCity, the round first starts a second build, which waits in the queue behind the first, and cancels it there.
+ 3. Once that build runs, cancels it. On Jenkins and TeamCity, the round first starts a second build, which waits in the queue behind the first, and cancels it there. On TeamCity it also moves that waiting build to the front of the queue first, which is the only moment a real build is sitting in a real queue. That proves the service accepts the call; whether the build moved would need a third run behind it, and the sandbox runs one at a time.
  4. Waits for the newest build to show Cancelled.
  5. Retries the cancelled build (Octopus deploys again), and waits for it to fail.
  6. Checks that the failed build offers a retry, and that its log contains the marker.

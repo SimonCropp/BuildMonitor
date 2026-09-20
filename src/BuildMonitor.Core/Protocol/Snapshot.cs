@@ -102,6 +102,7 @@ static class Snapshot
             build.Author,
             build.Retryable(),
             build.CanCancel,
+            build.CanRunNext(ProviderDescriptors.Get(connection.ProviderId)),
             LocalRepos.Find(state.LocalRepos, build));
     }
 

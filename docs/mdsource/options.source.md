@@ -86,7 +86,7 @@ The CI services being watched. Click one to edit it, or Add connection for a new
 
 Test checks the credential without saving. Sign in starts a browser or device sign in where the provider supports one. Save stores the credential in the platform's secret store and starts polling; nothing secret is written to settings.json.
 
-Where the provider reports what a credential may do, Test says so, and a connection whose credential can only watch shows as watch only in the list. Its rows offer no Retry or Cancel. Each provider's page says what it checks.
+Where the provider reports what a credential may do, Test says so, and a connection whose credential can only watch shows as watch only in the list. Its rows offer no Retry, Cancel or Run next. Each provider's page says what it checks.
 
 
 ## Update

@@ -16,7 +16,8 @@
     CommitMessage: Fix the thing,
     Author: SimonCropp,
     CanRetry: false,
-    CanCancel: true
+    CanCancel: true,
+    CanRunNext: false
   },
   {
     Key: gh/Verify/test.yml/feature/inline,
@@ -40,7 +41,8 @@ Inline snapshots
 longer description,
     Author: SimonCropp,
     CanRetry: true,
-    CanCancel: false
+    CanCancel: false,
+    CanRunNext: false
   },
   {
     Key: gh/DiffEngine/docs.yml/main,
@@ -57,6 +59,7 @@ longer description,
     BuildUrl: https://example.com/gh/DiffEngine/docs.yml/300,
     BranchUrl: https://github.com/VerifyTests/DiffEngine/tree/main,
     CanRetry: false,
-    CanCancel: false
+    CanCancel: false,
+    CanRunNext: false
   }
 ]

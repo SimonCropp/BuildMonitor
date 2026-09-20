@@ -15,3 +15,23 @@ How each CI service limits requests, whether it answers conditional requests, an
 | [Octopus Deploy](octopus.md#api-notes) | None | None | No | Newest task, or deployment events | `dashboard/dynamic` |
 | [TeamCity](teamcity.md#api-notes) | None | None | No | `sinceBuild` locator | Nested build type locator |
 | [Travis CI](travis.md#api-notes) | 2,000 a minute | None | No | Repositories sorted by `current_build` | None |
+
+
+## Queue order
+
+Whether a build already waiting in the service's queue can be moved to the front of it, which is what the Run next button on a queued row does. Researched 2026-09-20.
+
+| Provider | Move a queued build to the front |
+|---|---|
+| [AppVeyor](appveyor.md#api-notes) | No |
+| [Azure DevOps](azure-devops.md#queue-order) | `PATCH build/builds/{id}` with `queuePosition`, which is what the run's page calls Run next |
+| [Bitbucket Pipelines](bitbucket.md#api-notes) | No |
+| [GitHub Actions](github.md#api-notes) | No |
+| [GitLab CI](gitlab.md#api-notes) | No; job priority is an open feature request |
+| [GoCD](gocd.md#api-notes) | No |
+| [Jenkins](jenkins.md#api-notes) | Not in core; plugins such as Priority Sorter add it |
+| [Octopus Deploy](octopus.md#api-notes) | Move to top is in the UI only; the documented script cancels and requeues everything ahead instead |
+| [TeamCity](teamcity.md#queue-order) | `PUT buildQueue/order/first` with the build's id |
+| [Travis CI](travis.md#api-notes) | No |
+
+Only the two with a call of their own offer the button. A plugin cannot be relied on to be installed, and cancelling other people's work to make room is not something a button should do unasked.

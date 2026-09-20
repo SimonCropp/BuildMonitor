@@ -393,6 +393,59 @@ static class Fixtures
                 new("/code/Verify", "Verify", "VerifyTests/Verify")
             ]));
 
+    public static readonly Connection TeamCity = new()
+    {
+        Id = "tc",
+        ProviderId = "teamcity",
+        Name = "TeamCity",
+        Server = "https://teamcity.example.com",
+        Auth = AuthMethod.Token
+    };
+
+    /// <summary>
+    /// A connection on the one kind of service whose queue can be reordered, holding a queued build
+    /// and a running one. Only the queued row carries Run next: the running one has left the queue,
+    /// and every other fixture is on a service with no such call, so no other snapshot moves.
+    /// <para>
+    /// A connection of its own rather than a fourth in <see cref="Settings"/>, for the reason
+    /// <see cref="WithTriageableFailure"/> is separate: a fixture every other snapshot shares
+    /// cannot gain a row without moving all of them.
+    /// </para>
+    /// </summary>
+    public static SessionState WithQueuePriority()
+    {
+        var state = MonitorSession.Resize(SessionState.Start(new() { Connections = [TeamCity] }), 120, 30);
+        return MonitorSession.ApplyPoll(
+            state,
+            TeamCity.Id,
+            [],
+            [
+                Build(
+                    TeamCity.Id,
+                    "Verify_Build",
+                    "Verify / Build",
+                    "Verify",
+                    "main",
+                    "",
+                    BuildStatus.Queued,
+                    queued: Now - TimeSpan.FromMinutes(2),
+                    canRetry: false,
+                    canCancel: true),
+                Build(
+                    TeamCity.Id,
+                    "Verify_Package",
+                    "Verify / Package",
+                    "Verify",
+                    "main",
+                    "204",
+                    BuildStatus.Running,
+                    started: Now - TimeSpan.FromMinutes(1),
+                    canRetry: false,
+                    canCancel: true)
+            ],
+            Now - TimeSpan.FromSeconds(8));
+    }
+
     public static ImmutableDictionary<string, string> LocalRepoIndex() =>
         LocalRepos.Index(
         [

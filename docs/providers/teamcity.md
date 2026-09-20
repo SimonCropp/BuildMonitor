@@ -40,6 +40,8 @@ Only that one parameter is asked for, by name, so a configuration's other parame
 
  * Retry queues a new build of the configuration on the same branch
  * Cancel cancels a queued or running build
+ * Run next moves a build still in the queue to the front of it, so it is the next one an agent
+   picks up. Only on a queued row: a build that has started has left the queue
  * Log copies the build log
 
 
@@ -119,6 +121,13 @@ A build with the usual fields is about 0.38 KB, so 500 configurations is about a
  * Neither sees a state change of an older build.
 
 
+### Queue order
+
+`PUT buildQueue/order/first` with `{"id":N}` moves a queued build to the front of the queue [docker]. The position is a word: the call takes `first`, `last` or `1` and answers 400 for anything else [docs]. It is marked experimental in the REST source, and has been there since 2019.
+
+A build that is no longer queued is refused with "Cannot move build which is not queued" [docs], which is why the row offers the button only while the build waits.
+
+
 ### Quirks
 
 With `state:any` the builds list puts queued builds first, so a long queue fills `count` and hides configurations: 74 of 100 builds were queued, and `count:1` returned a build queued six hours earlier [live].
@@ -138,3 +147,5 @@ A build removed from the queue stays in the history, and `canceled:any` returns 
  * [Get build details](https://www.jetbrains.com/help/teamcity/rest/get-build-details.html)
  * [Locators](https://www.jetbrains.com/help/teamcity/rest/locators.html)
  * [All projects and build types in one call](https://teamcity-support.jetbrains.com/hc/en-us/community/posts/360000484950-Return-all-projects-and-buildTypes-with-single-rest-api-call)
+ * [Build queue API](https://www.jetbrains.com/help/teamcity/rest/buildqueueapi.html)
+ * [BuildQueueRequest.java](https://github.com/JetBrains/teamcity-rest/blob/master/rest-api/src/jetbrains/buildServer/server/rest/request/BuildQueueRequest.java), which is where the accepted positions are written down

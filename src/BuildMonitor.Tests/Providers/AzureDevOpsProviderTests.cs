@@ -1,4 +1,4 @@
-public class AzureDevOpsProviderTests
+﻿public class AzureDevOpsProviderTests
 {
     const string organization = "https://dev.azure.com/contoso";
 
@@ -189,6 +189,54 @@ public class AzureDevOpsProviderTests
                 ]
                 """);
     }
+
+    /// <summary>
+    /// Azure DevOps documents no verb for its Run next, only the queue position as a field of the
+    /// build that Update Build will take, so this pins the shape of the patch rather than a route.
+    /// <para>
+    /// On a handler of its own rather than the shared one: every other test here reads the same
+    /// three builds, and a fourth in the list would move the fetch snapshot for the sake of one
+    /// call.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task RunNextMovesAQueuedBuildToTheFrontOfTheQueue()
+    {
+        var handler = Queued()
+            .Map("PATCH", $"{organization}/Web/_apis/build/builds/302?api-version=7.1", "{}");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        handler.Requests.Clear();
+        await ProviderTestHelpers.Provider("azure-devops").RunNext(context, builds.Single(_ => _.Status == BuildStatus.Queued), Cancel.None);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  PATCH https://dev.azure.com/contoso/Web/_apis/build/builds/302?api-version=7.1
+                  {"queuePosition":1}
+                ]
+                """);
+    }
+
+    /// <summary>
+    /// One build, waiting: notStarted is what Azure DevOps calls a run that has been queued and has
+    /// not been given an agent.
+    /// </summary>
+    static FakeHttpHandler Queued() =>
+        new FakeHttpHandler()
+            .Get(
+                $"{organization}/_apis/projects?api-version=7.1&$top=100",
+                """{"count":1,"value":[{"id":"p1","name":"Web"}]}""")
+            .Get(
+                $"{organization}/Web/_apis/pipelines?api-version=7.1",
+                """{"count":1,"value":[{"id":1,"name":"CI","folder":"\\"}]}""")
+            .Get(
+                $"{organization}/Web/_apis/build/builds",
+                """
+                {"count":1,"value":[
+                  {"id":302,"buildNumber":"20260101.4","status":"notStarted","result":null,"queueTime":"2026-01-01T11:58:00Z","sourceBranch":"refs/heads/main","definition":{"id":1,"name":"CI"},"repository":{"id":"r1","type":"TfsGit","name":"Web"}}
+                ]}
+                """);
 
     [Test]
     public async Task FetchLogOfTheFailedTasksAsText()

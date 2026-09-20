@@ -102,6 +102,13 @@ sealed class Poller(
         Nudge(build);
     }
 
+    public async Task RunNext(Build build, Cancel token)
+    {
+        var connection = Connection(build.ConnectionId);
+        await Providers.Get(connection.ProviderId).RunNext(Context(connection), build, token);
+        Nudge(build);
+    }
+
     public Task<string> FetchLog(Build build, Cancel token)
     {
         var connection = Connection(build.ConnectionId);

@@ -60,6 +60,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 return Response.Success();
             case Verb.Retry:
             case Verb.Cancel:
+            case Verb.RunNext:
             {
                 var build = state.Builds.FirstOrDefault(_ => _.HasKey(message.Key));
                 if (build is null)
@@ -77,6 +78,22 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                     await poller.Retry(build, Cancel.None);
                     host.Mutate(_ => MonitorSession.SetStatus(_, $"Retried {build.PipelineName} {build.RunNumberLabel()}".TrimEnd()));
                     return Response.Success("Retried");
+                }
+
+                if (message.Verb == Verb.RunNext)
+                {
+                    // Through the same check the chip is drawn from, so an assistant cannot ask for
+                    // something a click could not: the service has the call, and the run is still
+                    // queued rather than already going.
+                    if (MonitorSession.Descriptor(state, build) is not { } descriptor ||
+                        !build.CanRunNext(descriptor))
+                    {
+                        return Response.Error("That build cannot be moved to the front of the queue");
+                    }
+
+                    await poller.RunNext(build, Cancel.None);
+                    host.Mutate(_ => MonitorSession.SetStatus(_, $"Moved {build.PipelineName} to the front of the queue"));
+                    return Response.Success("Moved to the front of the queue");
                 }
 
                 if (!build.CanCancel)

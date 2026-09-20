@@ -124,6 +124,17 @@
     ]
   },
   {
+    Name: run_build_next,
+    Description: Moves a build that is still queued to the front of its service's queue, so it is the next one to start. Only some services can reorder a queue; a build that says canRunNext is one of them.,
+    Parameters: [
+      {
+        Name: key,
+        Type: String,
+        Description: The build key from list_builds.
+      }
+    ]
+  },
+  {
     Name: summary,
     Description: Counts of failing and running builds, the tray icon state, and the health of every connection.,
     Parameters: []

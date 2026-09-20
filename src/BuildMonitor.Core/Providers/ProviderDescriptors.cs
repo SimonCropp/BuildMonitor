@@ -135,6 +135,7 @@ static class ProviderDescriptors
         HasBranches: true,
         HasPullRequests: true,
         HasArtifacts: true,
+        HasQueuePriority: true,
         TokenNote: "The token needs Build (Read & execute).",
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
@@ -169,6 +170,7 @@ static class ProviderDescriptors
         HasBranches: true,
         HasPullRequests: false,
         HasArtifacts: true,
+        HasQueuePriority: true,
         TokenNote: "Create the token under Profile, Access Tokens.",
         FetchUnit: FetchUnit.Group,
         // Fewer than the hosted services get: a self hosted server may be a small one.
@@ -318,6 +320,14 @@ static class ProviderDescriptors
     /// </summary>
     public static string? OrgNoun(string? id) =>
         All.SingleOrDefault(_ => _.Id == id)?.OrgNoun;
+
+    /// <summary>
+    /// The provider, or null when the id belongs to none, as a connection written by a newer
+    /// version can. For a caller that has a question to answer rather than a descriptor to draw
+    /// from, and would rather answer no than throw.
+    /// </summary>
+    public static ProviderDescriptor? Find(string? id) =>
+        All.SingleOrDefault(_ => _.Id == id);
 
     public static ProviderDescriptor? ByName(string name) =>
         All.SingleOrDefault(_ => _.Name == name);

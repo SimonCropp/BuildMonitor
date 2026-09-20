@@ -33,6 +33,6 @@ public class BuildToolsTests
     public async Task EveryToolIsDescribed()
     {
         await Assert.That(methods.All(_ => _.GetCustomAttribute<DescriptionAttribute>() is not null)).IsTrue();
-        await Assert.That(methods.Length).IsEqualTo(13);
+        await Assert.That(methods.Length).IsEqualTo(14);
     }
 }

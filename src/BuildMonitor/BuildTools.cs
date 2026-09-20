@@ -84,6 +84,13 @@ sealed class BuildTools(MonitorTools tools)
         Cancel cancel = default) =>
         tools.CancelBuild(key, cancel);
 
+    [McpServerTool(Name = "run_build_next")]
+    [Description("Moves a build that is still queued to the front of its service's queue, so it is the next one to start. Only some services can reorder a queue; a build that says canRunNext is one of them.")]
+    public Task<string> RunBuildNext(
+        [Description("The build key from list_builds.")] string key,
+        Cancel cancel = default) =>
+        tools.RunBuildNext(key, cancel);
+
     [McpServerTool(Name = "open_build_in_browser")]
     [Description("Opens a build's page, its branch, or its pull request in the user's browser.")]
     public Task<string> OpenBuild(

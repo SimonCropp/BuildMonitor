@@ -329,6 +329,14 @@ public class ScreenTests
         Verify(Fixtures.Render(Fixtures.WatchOnly()));
 
     /// <summary>
+    /// A TeamCity connection, whose queue can be reordered: the waiting row carries Run next after
+    /// its Cancel, and the running one below it does not.
+    /// </summary>
+    [Test]
+    public Task QueuePriority() =>
+        Verify(Fixtures.Render(Fixtures.WithQueuePriority()));
+
+    /// <summary>
     /// The connection says why its rows offer no retry or cancel.
     /// </summary>
     [Test]

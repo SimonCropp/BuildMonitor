@@ -349,6 +349,48 @@ public class SessionTests
             .IsEquivalentTo(["Log CopyLog", "Open dir OpenRepoDirectory", "Triage Triage"]);
     }
 
+    /// <summary>
+    /// The two rows of a service whose queue can be reordered: only the one still waiting offers
+    /// the move, since a build already running has left the queue.
+    /// </summary>
+    [Test]
+    public async Task OnlyAQueuedRowOffersRunNext()
+    {
+        var state = Fixtures.WithQueuePriority();
+        var queued = MonitorSession.OpenMenu(state, Fixtures.RowOf(state, _ => _.Build?.PipelineId == "Verify_Build"));
+        await Assert.That(queued.Menu!.Items.Any(_ => _.Command == CommandKind.RunNext)).IsTrue();
+
+        var running = MonitorSession.OpenMenu(state, Fixtures.RowOf(state, _ => _.Build?.PipelineId == "Verify_Package"));
+        await Assert.That(running.Menu!.Items.Any(_ => _.Command == CommandKind.RunNext)).IsFalse();
+    }
+
+    /// <summary>
+    /// Jenkins queues builds too, and has no call to reorder its queue. Its queued row offers Cancel
+    /// and nothing else, rather than a button that would be refused after the click.
+    /// </summary>
+    [Test]
+    public async Task AQueuedRowOnAServiceThatCannotReorderOffersNoRunNext()
+    {
+        var builds = Fixtures.WithBuilds();
+        var state = MonitorSession.OpenMenu(builds, Fixtures.RowOf(builds, _ => _.Build?.PipelineId == "nightly"));
+        await Assert.That(state.Menu!.Items.Any(_ => _.Command == CommandKind.Cancel)).IsTrue();
+        await Assert.That(state.Menu.Items.Any(_ => _.Command == CommandKind.RunNext)).IsFalse();
+    }
+
+    /// <summary>
+    /// A connection found able only to watch loses Run next with Cancel, through the one flag both
+    /// read: the right to reorder a queue is the right to change what is about to run.
+    /// </summary>
+    [Test]
+    public async Task AWatchOnlyConnectionOffersNoRunNext()
+    {
+        var state = Fixtures.WithQueuePriority();
+        var watching = state.Builds.Select(_ => _.WatchOnly());
+        state = MonitorSession.ApplyPoll(state, Fixtures.TeamCity.Id, [], [..watching], Fixtures.Now);
+        var row = Fixtures.RowOf(state, _ => _.Build?.PipelineId == "Verify_Build");
+        await Assert.That(MonitorSession.OpenMenu(state, row).Menu!.Items.Any(_ => _.Command == CommandKind.RunNext)).IsFalse();
+    }
+
     [Test]
     public async Task TheOverflowLeavesOutAChipTheBuildLost()
     {

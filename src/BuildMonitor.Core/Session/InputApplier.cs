@@ -316,6 +316,8 @@ static class InputApplier
                 return MonitorSession.SelectedBuild(state) is { } retry ? Retry(state, retry, actions) : state;
             case CommandKind.Cancel:
                 return MonitorSession.SelectedBuild(state) is { } cancel ? Cancel(state, cancel, actions) : state;
+            case CommandKind.RunNext:
+                return MonitorSession.SelectedBuild(state) is { } next ? RunNext(state, next, actions) : state;
             case CommandKind.OpenRepoDirectory:
             {
                 // Resolved through the same lookup that decided to offer the chip, so the two
@@ -536,6 +538,26 @@ static class InputApplier
 
         actions.Cancel(build);
         return MonitorSession.SetStatus(state, $"Cancelling {build.PipelineName} {build.RunNumberLabel()}".TrimEnd());
+    }
+
+    /// <summary>
+    /// Gated again here rather than trusted from the chip that was drawn, as <see cref="Triage"/>
+    /// is: a poll between the frame and the click can have started the build, and a build already
+    /// running has no place in a queue to be moved to.
+    /// </summary>
+    static SessionState RunNext(SessionState state, Build build, MonitorActions actions)
+    {
+        if (MonitorSession.Descriptor(state, build) is not { } descriptor ||
+            !build.CanRunNext(descriptor))
+        {
+            return state;
+        }
+
+        actions.RunNext(build);
+        // The name is composed first rather than interpolated in place: a queued build often has no
+        // number yet, and trimming the end cannot reach a gap with the rest of the sentence after it.
+        var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
+        return MonitorSession.SetStatus(state, $"Moving {name} to the front of the queue");
     }
 
     static SessionState CopyLog(SessionState state, Build build, MonitorActions actions)

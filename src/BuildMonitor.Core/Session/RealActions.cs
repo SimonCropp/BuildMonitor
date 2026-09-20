@@ -26,6 +26,14 @@ static class RealActions
                 $"Cancelling {build.PipelineName}",
                 $"Cancelled {build.PipelineName} {build.RunNumberLabel()}".TrimEnd(),
                 build.ConnectionId),
+            RunNext: build => Background(
+                () => poller.RunNext(build, Cancel.None),
+                host,
+                $"Moving {build.PipelineName} to the front of the queue",
+                // Without the run number the other two carry: a build still in the queue often has
+                // none yet, since several of the services only number a run once it starts.
+                $"Moved {build.PipelineName} to the front of the queue",
+                build.ConnectionId),
             CopyLog: build => _ = Task.Run(async () =>
             {
                 var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();

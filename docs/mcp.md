@@ -181,6 +181,14 @@ Cancels a queued or running build.
  * "Stop the queued nightly build."
 
 
+### `run_build_next`
+
+Moves a build still in the queue to the front of it, so it is the next one to start. Only some services can reorder a queue, and only a build still waiting can be moved; a build that can says so with `canRunNext`. See [Queue order](providers/api-comparison.md#queue-order).
+
+ * "Push the queued release build to the front of the queue."
+ * "Run the build on main next."
+
+
 ### `open_build_in_browser`
 
 Opens the build, its branch or its pull request.

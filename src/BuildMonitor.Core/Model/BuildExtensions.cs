@@ -34,6 +34,24 @@ static class BuildExtensions
         };
 
     /// <summary>
+    /// Whether this run can be moved to the front of its queue: the service has a call for it, the
+    /// run is still queued, and the credential may change it.
+    /// <para>
+    /// Change is read off <see cref="Build.CanCancel"/> rather than a flag of its own. Cancelling a
+    /// queued build and jumping it up the queue are the same right on both services that offer
+    /// either, so a connection that may only watch loses this button with the other two, through
+    /// the one <see cref="WatchOnly"/> call.
+    /// </para>
+    /// </summary>
+    public static bool CanRunNext(this Build build, ProviderDescriptor descriptor) =>
+        descriptor.HasQueuePriority &&
+        build is
+        {
+            Status: BuildStatus.Queued,
+            CanCancel: true
+        };
+
+    /// <summary>
     /// The build as a connection that may only watch it has it: no retry and no cancel, whatever its
     /// state would allow. Every surface that offers either reads the flags, so clearing them here
     /// takes both off the chips, the menus, the launcher and the MCP tools at once.

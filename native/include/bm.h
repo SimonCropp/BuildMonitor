@@ -83,7 +83,11 @@ enum BmChipKind {
        label, so no glyph has to be registered for it. */
     BM_CHIP_TRIAGE = 9,
     /* The row's name: the source repository. Reported through BmRow.nameLink. */
-    BM_CHIP_REPO = 10
+    BM_CHIP_REPO = 10,
+    /* Moves a queued build to the front of its service's queue. Drawn as the row icon registered
+       under "run-next". Last among a row's chips rather than beside BM_CHIP_CANCEL, where it
+       belongs by what it does, because these numbers are the wire format. */
+    BM_CHIP_RUN_NEXT = 11
 };
 
 /*

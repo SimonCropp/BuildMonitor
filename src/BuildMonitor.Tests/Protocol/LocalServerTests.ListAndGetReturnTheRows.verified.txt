@@ -14,7 +14,8 @@
     "Timing": "04:00 left",
     "BuildUrl": "https://example.com/jenkins/build-all/501",
     "CanRetry": false,
-    "CanCancel": true
+    "CanCancel": true,
+    "CanRunNext": false
   },
   {
     "Key": "octo/Projects-1/",
@@ -28,7 +29,8 @@
     "Timing": "02:15 left",
     "BuildUrl": "https://example.com/octo/Projects-1/12",
     "CanRetry": false,
-    "CanCancel": true
+    "CanCancel": true,
+    "CanRunNext": false
   },
   {
     "Key": "gh/DiffEngine/test.yml/main",
@@ -47,7 +49,8 @@
     "CommitMessage": "Fix the thing",
     "Author": "SimonCropp",
     "CanRetry": false,
-    "CanCancel": true
+    "CanCancel": true,
+    "CanRunNext": false
   },
   {
     "Key": "jenkins/nightly/",
@@ -60,7 +63,8 @@
     "Timing": "queued 30s",
     "BuildUrl": "https://example.com/jenkins/nightly/88",
     "CanRetry": false,
-    "CanCancel": true
+    "CanCancel": true,
+    "CanRunNext": false
   },
   {
     "Key": "gh/Verify/test.yml/feature/inline",
@@ -81,7 +85,8 @@
     "CommitMessage": "Inline snapshots\n\nlonger description",
     "Author": "SimonCropp",
     "CanRetry": true,
-    "CanCancel": false
+    "CanCancel": false,
+    "CanRunNext": false
   },
   {
     "Key": "gh/DiffEngine/docs.yml/main",
@@ -98,7 +103,8 @@
     "BuildUrl": "https://example.com/gh/DiffEngine/docs.yml/300",
     "BranchUrl": "https://github.com/VerifyTests/DiffEngine/tree/main",
     "CanRetry": false,
-    "CanCancel": false
+    "CanCancel": false,
+    "CanRunNext": false
   }
 ],
   get:
@@ -121,6 +127,7 @@
   "CommitMessage": "Inline snapshots\n\nlonger description",
   "Author": "SimonCropp",
   "CanRetry": true,
-  "CanCancel": false
+  "CanCancel": false,
+  "CanRunNext": false
 }
 }

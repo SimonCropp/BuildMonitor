@@ -278,6 +278,34 @@ public class TeamCityProviderTests
                 """);
     }
 
+    /// <summary>
+    /// The queued build named by its id alone, to the position named as a word: the call takes
+    /// "first", "last" or "1" and refuses a computed number, so nothing here can be made wrong by
+    /// the queue moving underneath it.
+    /// </summary>
+    [Test]
+    public async Task RunNextMovesAQueuedBuildToTheFrontOfTheQueue()
+    {
+        var handler = Handler()
+            .Map("PUT", $"{server}/app/rest/buildQueue/order/first", "{}");
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        // The queued build in the canned response is Other_Config's, which discovery does not
+        // return, so the pipelines are named here rather than discovered.
+        Pipeline[] pipelines = [new("Other_Config", "Other / Config", "Other", "Other", $"{server}/buildConfiguration/Other")];
+        var provider = ProviderTestHelpers.Provider("teamcity");
+        var builds = await provider.FetchBuilds(context, pipelines, 5, Cancel.None);
+        handler.Requests.Clear();
+        await provider.RunNext(context, builds.Single(_ => _.Status == BuildStatus.Queued), Cancel.None);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  PUT https://teamcity.example.com/app/rest/buildQueue/order/first
+                  {"id":8998}
+                ]
+                """);
+    }
+
     [Test]
     public async Task FetchLogDownloadsTheBuildLog()
     {

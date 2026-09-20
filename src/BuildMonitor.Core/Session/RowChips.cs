@@ -13,7 +13,7 @@ static class RowChips
     /// below and not here draws an empty button, which is what happened when Cancel stopped being
     /// a word.
     /// </summary>
-    public static readonly string[] Icons = ["pull-request", "retry", "cancel", "log", "folder", "triage"];
+    public static readonly string[] Icons = ["pull-request", "retry", "cancel", "log", "folder", "triage", "run-next"];
 
     /// <summary>
     /// In <see cref="ChipKind"/> order, which is the order a head draws them in.
@@ -69,6 +69,15 @@ static class RowChips
             chips.Add(new(ChipKind.Triage, "Triage", $"Download artifacts and log, and copy a prompt\n{directory}", "triage"));
         }
 
+        // Last, because its kind is: see ChipKind.RunNext. It names the service for the reason
+        // Retry and Cancel do, being the third button that changes what someone's CI is about to
+        // run, and it says what happens rather than what is set, since a position in a queue is
+        // only worth knowing as the order things will run in.
+        if (build.CanRunNext(descriptor))
+        {
+            chips.Add(new(ChipKind.RunNext, "Run next", $"Run this next on {descriptor.Name}, ahead of the rest of the queue", "run-next"));
+        }
+
         return chips;
     }
 
@@ -85,6 +94,7 @@ static class RowChips
             ChipKind.Repo => CommandKind.OpenRepo,
             ChipKind.OpenDirectory => CommandKind.OpenRepoDirectory,
             ChipKind.Triage => CommandKind.Triage,
+            ChipKind.RunNext => CommandKind.RunNext,
             _ => CommandKind.None
         };
 }

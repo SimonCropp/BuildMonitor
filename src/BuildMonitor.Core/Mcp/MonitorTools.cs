@@ -68,6 +68,9 @@ sealed class MonitorTools(IProtocolClient client)
     public Task<string> CancelBuild(string key, Cancel cancel) =>
         Send(new(Verb.Cancel, key), cancel);
 
+    public Task<string> RunBuildNext(string key, Cancel cancel) =>
+        Send(new(Verb.RunNext, key), cancel);
+
     public Task<string> OpenBuild(string key, string which, Cancel cancel) =>
         Send(new(Verb.Open, key, which), cancel);
 

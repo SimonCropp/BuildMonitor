@@ -266,6 +266,17 @@ sealed class TeamCityProvider : ProviderBase
     }
 
     /// <summary>
+    /// Moves the queued build to the front of the queue. The position is a word rather than a
+    /// number: the call takes "first", "last" or "1" and refuses anything else, so there is no
+    /// arithmetic here that a queue changing underneath could make wrong.
+    /// </summary>
+    public override Task RunNext(ProviderContext context, Build build, Cancel cancel)
+    {
+        var body = new TeamCityBuildReference(long.Parse(Split(build)[1]));
+        return context.Http.Send(HttpMethod.Put, "buildQueue/order/first", HttpJson.Json(body, TeamCityContext.Default.TeamCityBuildReference), cancel);
+    }
+
+    /// <summary>
     /// The build log, from the download beside the REST API, which has no call for it. The download
     /// takes the same access token.
     /// </summary>

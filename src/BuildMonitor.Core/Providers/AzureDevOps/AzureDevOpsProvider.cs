@@ -251,6 +251,18 @@ sealed class AzureDevOpsProvider : ProviderBase
     }
 
     /// <summary>
+    /// Moves the queued build to the front of the queue, which is what the run's own page calls
+    /// Run next. Azure DevOps documents no call of its own for it, only the position as a field of
+    /// the build that Update Build will take, so this writes the position the button is seen to
+    /// leave behind rather than a verb.
+    /// </summary>
+    public override Task RunNext(ProviderContext context, Build build, Cancel cancel)
+    {
+        var parts = Split(build);
+        return context.Http.Send(HttpMethod.Patch, $"{Encode(parts[0])}/_apis/build/builds/{parts[1]}?{apiVersion}", HttpJson.Json("""{"queuePosition":1}"""), cancel);
+    }
+
+    /// <summary>
     /// The logs of the failed tasks, each under its job, from the build's timeline. A job that failed
     /// with no task failing, as one whose agent was lost does, gives its own log instead. Asked for
     /// as plain text: accepting JSON, a log comes back as an array of its lines, or not at all.

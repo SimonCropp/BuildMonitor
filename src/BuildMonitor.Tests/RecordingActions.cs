@@ -28,6 +28,7 @@ class RecordingActions
             _ => Calls.Add($"Refresh {_ ?? "all"}"),
             _ => Calls.Add($"Retry {_.Key}"),
             _ => Calls.Add($"Cancel {_.Key}"),
+            _ => Calls.Add($"RunNext {_.Key}"),
             _ => Calls.Add($"CopyLog {_.Key}"),
             _ => Calls.Add($"Triage {_.Key}"),
             (connection, method, _) => Calls.Add($"SignIn {connection.ProviderId} {method}"),
