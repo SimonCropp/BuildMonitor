@@ -59,7 +59,12 @@ sealed class MonitorTools(IProtocolClient client)
     public async Task<string> Refresh(string? connectionId, Cancel cancel)
     {
         await Send(new(Verb.Refresh, connectionId), cancel);
-        return connectionId is null ? "Refreshing every connection" : $"Refreshing {connectionId}";
+        if (connectionId is null)
+        {
+            return "Refreshing every connection";
+        }
+
+        return $"Refreshing {connectionId}";
     }
 
     public Task<string> RetryBuild(string key, Cancel cancel) =>

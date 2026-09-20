@@ -28,7 +28,13 @@ static class DirectoryPicker
             }
 
             var directory = picked.Trim().TrimEnd('/');
-            return directory.Length == 0 || !Directory.Exists(directory) ? null : directory;
+            if (directory.Length == 0 ||
+                !Directory.Exists(directory))
+            {
+                return null;
+            }
+
+            return directory;
         }
         catch (Exception exception)
         {
@@ -53,7 +59,12 @@ static class DirectoryPicker
             }
 
             var (code, output) = ProcessRunner.Run("zenity", arguments, timeout: patience);
-            return code == 0 ? output : null;
+            if (code == 0)
+            {
+                return output;
+            }
+
+            return null;
         }
 
         if (ProcessRunner.OnPath("kdialog") is null)
@@ -66,6 +77,11 @@ static class DirectoryPicker
             "kdialog",
             ["--getexistingdirectory", Directory.Exists(start) ? start : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)],
             timeout: patience);
-        return kdialogCode == 0 ? kdialogOutput : null;
+        if (kdialogCode == 0)
+        {
+            return kdialogOutput;
+        }
+
+        return null;
     }
 }
