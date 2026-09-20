@@ -14,7 +14,12 @@ sealed class AppVeyorProvider : ProviderBase
     static string Prefix(ProviderContext context)
     {
         var account = context.Scope("account");
-        return account.Length == 0 ? "api" : $"api/account/{Encode(account)}";
+        if (account.Length == 0)
+        {
+            return "api";
+        }
+
+        return $"api/account/{Encode(account)}";
     }
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)

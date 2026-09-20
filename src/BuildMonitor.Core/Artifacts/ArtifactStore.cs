@@ -130,7 +130,12 @@ sealed class ArtifactStore(Func<DateTimeOffset>? clock = null)
         }
 
         var safe = builder.ToString().Trim('-', '.');
-        return safe.Length == 0 ? "file" : safe;
+        if (safe.Length == 0)
+        {
+            return "file";
+        }
+
+        return safe;
     }
 
     /// <summary>
@@ -142,7 +147,12 @@ sealed class ArtifactStore(Func<DateTimeOffset>? clock = null)
     static string Stem(Build build)
     {
         var stem = Safe($"{build.ShortRepoName()}-{build.RunNumberLabel()}");
-        return stem.Length > maxStem ? stem[..maxStem].TrimEnd('-', '.') : stem;
+        if (stem.Length > maxStem)
+        {
+            return stem[..maxStem].TrimEnd('-', '.');
+        }
+
+        return stem;
     }
 
     /// <summary>

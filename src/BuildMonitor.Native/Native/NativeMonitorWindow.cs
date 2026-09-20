@@ -232,7 +232,12 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
 
         if (written >= 0)
         {
-            return written == 0 ? null : Encoding.UTF8.GetString(buffer, 0, written);
+            if (written == 0)
+            {
+                return null;
+            }
+
+            return Encoding.UTF8.GetString(buffer, 0, written);
         }
 
         var picking = Task.Run(() => DirectoryPicker.Pick(start));

@@ -9,7 +9,12 @@ public class ConcurrentlyTests
             async (item, _) =>
             {
                 await Task.Yield();
-                return item == 2 ? throw new HttpRequestException("boom") : item * 10;
+                if (item == 2)
+                {
+                    throw new HttpRequestException("boom");
+                }
+
+                return item * 10;
             },
             Cancel.None);
         await Assert.That(string.Join(',', results.Select(_ => _.Value))).IsEqualTo("10,0,30");

@@ -267,7 +267,12 @@ sealed class OctopusProvider : ProviderBase
             return path;
         }
 
-        return path.Contains('?') ? $"{path}&{query}" : $"{path}?{query}";
+        if (path.Contains('?'))
+        {
+            return $"{path}&{query}";
+        }
+
+        return $"{path}?{query}";
     }
 
     static BuildStatus Status(string? state) =>

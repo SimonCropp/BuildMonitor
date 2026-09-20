@@ -173,7 +173,12 @@ sealed class ConnectionPoller
             return TimeSpan.Zero;
         }
 
-        return wakeAt is { } at ? Max(at - now, TimeSpan.Zero) : RediscoverAfter;
+        if (wakeAt is { } at)
+        {
+            return Max(at - now, TimeSpan.Zero);
+        }
+
+        return RediscoverAfter;
     }
 
     /// <summary>
@@ -516,13 +521,26 @@ sealed class ConnectionPoller
         probedOnce = true;
     }
 
-    DateTimeOffset? NextProbe(ProviderDescriptor descriptor) =>
-        probeWorks
-            ? probed + Backoff.Next(descriptor.ProbeInterval ?? Interval(host.State.Settings), probeFailures)
-            : null;
+    DateTimeOffset? NextProbe(ProviderDescriptor descriptor)
+    {
+        if (probeWorks)
+        {
+            return probed + Backoff.Next(descriptor.ProbeInterval ?? Interval(host.State.Settings), probeFailures);
+        }
 
-    static DateTimeOffset Earliest(DateTimeOffset at, DateTimeOffset? other) =>
-        other is { } candidate && candidate < at ? candidate : at;
+        return null;
+    }
+
+    static DateTimeOffset Earliest(DateTimeOffset at, DateTimeOffset? other)
+    {
+        if (other is { } candidate &&
+            candidate < at)
+        {
+            return candidate;
+        }
+
+        return at;
+    }
 
     /// <summary>
     /// Re-reads the pipeline list when due, or at once with another credential, after asking what
@@ -754,11 +772,25 @@ sealed class ConnectionPoller
     DateTimeOffset? PausedUntil()
     {
         var asked = budget.State.PausedUntil;
-        return pausedUntil is { } limited && (asked is null || limited > asked) ? limited : asked;
+        if (pausedUntil is { } limited &&
+            (asked is null || limited > asked))
+        {
+            return limited;
+        }
+
+        return asked;
     }
 
-    TimeSpan? Paused(DateTimeOffset now) =>
-        PausedUntil() is { } until && until > now ? until - now : null;
+    TimeSpan? Paused(DateTimeOffset now)
+    {
+        if (PausedUntil() is { } until &&
+            until > now)
+        {
+            return until - now;
+        }
+
+        return null;
+    }
 
     ConnectionHealth Health() =>
         host.State.Connection(connectionId)?.Health ?? ConnectionHealth.Error;
@@ -805,9 +837,23 @@ sealed class ConnectionPoller
     void Set(ConnectionHealth health, string? error, DateTimeOffset? retryAfter = null) =>
         host.Mutate(_ => MonitorSession.SetHealth(_, connectionId, health, error, retryAfter));
 
-    static TimeSpan Max(TimeSpan left, TimeSpan right) =>
-        left > right ? left : right;
+    static TimeSpan Max(TimeSpan left, TimeSpan right)
+    {
+        if (left > right)
+        {
+            return left;
+        }
 
-    static TimeSpan Min(TimeSpan left, TimeSpan right) =>
-        left < right ? left : right;
+        return right;
+    }
+
+    static TimeSpan Min(TimeSpan left, TimeSpan right)
+    {
+        if (left < right)
+        {
+            return left;
+        }
+
+        return right;
+    }
 }

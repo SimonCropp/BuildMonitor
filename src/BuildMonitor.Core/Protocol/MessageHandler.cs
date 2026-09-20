@@ -176,8 +176,14 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
     /// How much of the log was asked for. A body that is missing or not a size, as one from a
     /// launcher too old to send one is, takes the default rather than the whole log.
     /// </summary>
-    static int Lines(string? body) =>
-        int.TryParse(body, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lines) && lines > 0
-            ? lines
-            : LogTail.DefaultLines;
+    static int Lines(string? body)
+    {
+        if (int.TryParse(body, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lines) &&
+            lines > 0)
+        {
+            return lines;
+        }
+
+        return LogTail.DefaultLines;
+    }
 }

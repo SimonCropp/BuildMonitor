@@ -28,7 +28,12 @@ static class MonitorProgram
     public static SessionState StartState(Settings settings, bool hidden)
     {
         var state = SessionState.Start(settings);
-        return hidden ? MonitorSession.Hide(state) : state;
+        if (hidden)
+        {
+            return MonitorSession.Hide(state);
+        }
+
+        return state;
     }
 
     public static int Run(string[] args, OpenWindow openWindow, OpenTray openTray)

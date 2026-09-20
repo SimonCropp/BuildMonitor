@@ -250,8 +250,15 @@ public class ScreenTests
         await Assert.That(screen.StatusTooltip).IsEqualTo("GitHub: rate limited, retrying in 4m\nJenkins: error: 500 Internal Server Error");
     }
 
-    static string Link(string text, ChipKind link) =>
-        link == ChipKind.None ? text : $"[{text}]({link})";
+    static string Link(string text, ChipKind link)
+    {
+        if (link == ChipKind.None)
+        {
+            return text;
+        }
+
+        return $"[{text}]({link})";
+    }
 
     [Test]
     public async Task DependabotBranchesAreARobotAndThePackage()

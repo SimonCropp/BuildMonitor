@@ -5,6 +5,13 @@
 /// </summary>
 static class Article
 {
-    public static string For(string noun) =>
-        "AEIOUaeiou".Contains(noun[0]) ? "an" : "a";
+    public static string For(string noun)
+    {
+        if ("AEIOUaeiou".Contains(noun[0]))
+        {
+            return "an";
+        }
+
+        return "a";
+    }
 }

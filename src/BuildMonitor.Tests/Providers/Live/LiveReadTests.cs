@@ -290,7 +290,7 @@ public class LiveReadTests
 
         // The budget the collector spends file by file. A provider that never checks it downloads
         // the whole thing and leaves nothing for the rest.
-        await Assert.That(async () => await live.Provider.DownloadArtifact(context, failed, artifact, new MemoryStream(), 1, cancel))
+        await Assert.That(() => live.Provider.DownloadArtifact(context, failed, artifact, new MemoryStream(), 1, cancel))
             .Throws<ArtifactTooLargeException>()
             .Because($"{providerId}: a file past the cap should stop rather than arrive in full");
     }

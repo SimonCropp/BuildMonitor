@@ -313,19 +313,47 @@ static class InputApplier
             case CommandKind.CopyStatus:
                 // The footer as shown, and left as it is: a status saying it was copied would replace
                 // the error being copied, often before it was read in full.
-                return ScreenBuilder.Status(state, DateTimeOffset.UtcNow) is { Length: > 0 } status
-                    ? state with { Clipboard = status }
-                    : state;
+                if (ScreenBuilder.Status(state, DateTimeOffset.UtcNow) is { Length: > 0 } status)
+                {
+                    return state with { Clipboard = status };
+                }
+
+                return state;
             case CommandKind.CopyLog:
-                return MonitorSession.SelectedBuild(state) is { } logged ? CopyLog(state, logged, actions) : state;
+                if (MonitorSession.SelectedBuild(state) is { } logged)
+                {
+                    return CopyLog(state, logged, actions);
+                }
+
+                return state;
             case CommandKind.Triage:
-                return MonitorSession.SelectedBuild(state) is { } triaged ? Triage(state, triaged, actions) : state;
+                if (MonitorSession.SelectedBuild(state) is { } triaged)
+                {
+                    return Triage(state, triaged, actions);
+                }
+
+                return state;
             case CommandKind.Retry:
-                return MonitorSession.SelectedBuild(state) is { } retry ? Retry(state, retry, actions) : state;
+                if (MonitorSession.SelectedBuild(state) is { } retry)
+                {
+                    return Retry(state, retry, actions);
+                }
+
+                return state;
             case CommandKind.Cancel:
-                return MonitorSession.SelectedBuild(state) is { } cancel ? Cancel(state, cancel, actions) : state;
+                if (MonitorSession.SelectedBuild(state) is { } cancel)
+                {
+                    return Cancel(state, cancel, actions);
+                }
+
+                return state;
             case CommandKind.RunNext:
-                return MonitorSession.SelectedBuild(state) is { } next ? RunNext(state, next, actions) : state;
+                if (MonitorSession.SelectedBuild(state) is { } next)
+                {
+                    return RunNext(state, next, actions);
+                }
+
+                return state;
             case CommandKind.OpenRepoDirectory:
             {
                 // Resolved through the same lookup that decided to offer the chip, so the two
@@ -354,9 +382,12 @@ static class InputApplier
                 actions.Refresh(null);
                 return MonitorSession.SetStatus(state, "Refreshing");
             case CommandKind.ToggleGroup:
-                return MonitorSession.SelectedRow(state)?.Group is { } toggled
-                    ? MonitorSession.ToggleGroup(state, toggled)
-                    : state;
+                if (MonitorSession.SelectedRow(state)?.Group is { } toggled)
+                {
+                    return MonitorSession.ToggleGroup(state, toggled);
+                }
+
+                return state;
             case CommandKind.ExcludePipeline:
             {
                 if (MonitorSession.SelectedBuild(state) is not { } build)
@@ -406,7 +437,12 @@ static class InputApplier
             case CommandKind.EditConnection:
             {
                 var id = target ?? MonitorSession.SelectedRow(state)?.Connection?.Connection.Id;
-                return id is null ? state : MonitorSession.OpenConnectionEditor(state, id, Guid.NewGuid().ToString("N"));
+                if (id is null)
+                {
+                    return state;
+                }
+
+                return MonitorSession.OpenConnectionEditor(state, id, Guid.NewGuid().ToString("N"));
             }
             case CommandKind.RemoveConnection:
             {
@@ -424,7 +460,12 @@ static class InputApplier
             case CommandKind.AddFilter:
                 return MonitorSession.AddFilter(state);
             case CommandKind.RemoveFilter:
-                return int.TryParse(target, out var index) ? MonitorSession.RemoveFilter(state, index) : state;
+                if (int.TryParse(target, out var index))
+                {
+                    return MonitorSession.RemoveFilter(state, index);
+                }
+
+                return state;
             case CommandKind.SignIn:
             {
                 if (state.Form is not { Page: Page.Connection } form)
@@ -513,8 +554,15 @@ static class InputApplier
     /// Where the chooser opens: what is typed in the field, so a second Browse starts where the
     /// first one left off rather than at the desktop's idea of home.
     /// </summary>
-    static string? Started(FormState form) =>
-        form.Value(FormFields.CodeDirectory) is { Length: > 0 } typed ? typed : null;
+    static string? Started(FormState form)
+    {
+        if (form.Value(FormFields.CodeDirectory) is { Length: > 0 } typed)
+        {
+            return typed;
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Saves the filters an exclusion added and names what it dropped: the rows it was asked on are

@@ -45,10 +45,21 @@ static class RateHeaders
 
         if (header.Delta is { } delta)
         {
-            return delta > TimeSpan.Zero ? delta : null;
+            if (delta > TimeSpan.Zero)
+            {
+                return delta;
+            }
+
+            return null;
         }
 
-        return header.Date is { } date && date > now ? date - now : null;
+        if (header.Date is { } date &&
+            date > now)
+        {
+            return date - now;
+        }
+
+        return null;
     }
 
     static double? Number(HttpResponseHeaders headers, params string[] names)

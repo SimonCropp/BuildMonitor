@@ -14,5 +14,16 @@ record Row(RowKind Kind, ConnectionState? Connection, Build? Build, GroupKey? Gr
     /// <summary>
     /// Every build the row stands for, so a search does not lose the ones a closed group hides.
     /// </summary>
-    public ImmutableArray<Build> Builds => Build is null ? Members : [Build];
+    public ImmutableArray<Build> Builds
+    {
+        get
+        {
+            if (Build is null)
+            {
+                return Members;
+            }
+
+            return [Build];
+        }
+    }
 }

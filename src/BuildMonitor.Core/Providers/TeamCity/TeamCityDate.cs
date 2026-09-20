@@ -27,6 +27,11 @@ static class TeamCityDate
             }
         }
 
-        return DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out result) ? result : null;
+        if (DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out result))
+        {
+            return result;
+        }
+
+        return null;
     }
 }

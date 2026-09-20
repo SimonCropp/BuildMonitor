@@ -8,8 +8,15 @@ static class ConnectionDraft
     public static ProviderDescriptor Descriptor(FormState form) =>
         ProviderDescriptors.ByName(form.Value(FormFields.Provider)) ?? ProviderDescriptors.All[0];
 
-    public static AuthMethod Method(FormState form) =>
-        Enum.TryParse<AuthMethod>(form.Value(FormFields.Auth), out var method) ? method : AuthMethod.Token;
+    public static AuthMethod Method(FormState form)
+    {
+        if (Enum.TryParse<AuthMethod>(form.Value(FormFields.Auth), out var method))
+        {
+            return method;
+        }
+
+        return AuthMethod.Token;
+    }
 
     /// <summary>
     /// The connection as currently described, without checking it is complete. Enough to start a
@@ -49,7 +56,12 @@ static class ConnectionDraft
     public static string? Token(FormState form)
     {
         var token = form.Value(FormFields.Token).Trim();
-        return token.Length == 0 ? null : token;
+        if (token.Length == 0)
+        {
+            return null;
+        }
+
+        return token;
     }
 
     /// <summary>

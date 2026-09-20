@@ -111,7 +111,12 @@ sealed class FormsMonitorWindow : IMonitorWindow
                 dialog.SelectedPath = start;
             }
 
-            return dialog.ShowDialog(form) == DialogResult.OK ? dialog.SelectedPath : null;
+            if (dialog.ShowDialog(form) == DialogResult.OK)
+            {
+                return dialog.SelectedPath;
+            }
+
+            return null;
         }
         catch (Exception exception)
         {

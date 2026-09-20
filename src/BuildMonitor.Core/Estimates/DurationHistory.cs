@@ -44,7 +44,12 @@ sealed class DurationHistory
     {
         lock (gate)
         {
-            return seconds.TryGetValue(pipelineKey, out var list) ? MedianOf(list) : null;
+            if (seconds.TryGetValue(pipelineKey, out var list))
+            {
+                return MedianOf(list);
+            }
+
+            return null;
         }
     }
 

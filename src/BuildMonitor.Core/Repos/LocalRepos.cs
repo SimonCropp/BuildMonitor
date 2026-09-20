@@ -166,6 +166,12 @@ static class LocalRepos
         }
 
         var last = repoName[(repoName.LastIndexOf('/') + 1)..];
-        return last.Length > 0 && index.TryGetValue(last, out var byName) ? byName : null;
+        if (last.Length > 0 &&
+            index.TryGetValue(last, out var byName))
+        {
+            return byName;
+        }
+
+        return null;
     }
 }

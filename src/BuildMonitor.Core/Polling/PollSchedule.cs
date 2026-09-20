@@ -496,12 +496,33 @@ static class PollSchedule
         return at;
     }
 
-    static TimeSpan Max(TimeSpan left, TimeSpan right) =>
-        left > right ? left : right;
+    static TimeSpan Max(TimeSpan left, TimeSpan right)
+    {
+        if (left > right)
+        {
+            return left;
+        }
 
-    static DateTimeOffset Max(DateTimeOffset left, DateTimeOffset right) =>
-        left > right ? left : right;
+        return right;
+    }
 
-    static TimeSpan Min(TimeSpan left, TimeSpan right) =>
-        left < right ? left : right;
+    static DateTimeOffset Max(DateTimeOffset left, DateTimeOffset right)
+    {
+        if (left > right)
+        {
+            return left;
+        }
+
+        return right;
+    }
+
+    static TimeSpan Min(TimeSpan left, TimeSpan right)
+    {
+        if (left < right)
+        {
+            return left;
+        }
+
+        return right;
+    }
 }

@@ -331,10 +331,15 @@ static class TriagePrompt
     /// prompts so the sentence that authorises a change cannot come to mean two different things
     /// depending on which of them was read.
     /// </summary>
-    static string Fixing(bool fix, string subject, string per) =>
-        fix
-            ? $"Fix {subject} where you reproduced it, and run that project's tests. Leave the changes uncommitted, say where they are so the user can review them, and do not commit, push or open a pull request.\n"
-            : $"Report what you found{per}, with the fix you would make. Do not change any source files.\n";
+    static string Fixing(bool fix, string subject, string per)
+    {
+        if (fix)
+        {
+            return $"Fix {subject} where you reproduced it, and run that project's tests. Leave the changes uncommitted, say where they are so the user can review them, and do not commit, push or open a pull request.\n";
+        }
+
+        return $"Report what you found{per}, with the fix you would make. Do not change any source files.\n";
+    }
 
     /// <summary>
     /// Named rather than dropped: a list that silently answers for some of the failures reads as

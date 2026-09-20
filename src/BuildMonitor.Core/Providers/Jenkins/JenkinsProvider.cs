@@ -281,12 +281,17 @@ sealed class JenkinsProvider : ProviderBase
     /// <summary>
     /// The branch source plugins name a pull request's branch job PR-n.
     /// </summary>
-    static string? PullRequest(Pipeline pipeline) =>
-        pipeline.Group is { } branch &&
-        branch.StartsWith("PR-", StringComparison.Ordinal) &&
-        int.TryParse(branch.AsSpan(3), out var number)
-            ? number.ToString()
-            : null;
+    static string? PullRequest(Pipeline pipeline)
+    {
+        if (pipeline.Group is { } branch &&
+            branch.StartsWith("PR-", StringComparison.Ordinal) &&
+            int.TryParse(branch.AsSpan(3), out var number))
+        {
+            return number.ToString();
+        }
+
+        return null;
+    }
 
     public override async Task Retry(ProviderContext context, Build build, Cancel cancel)
     {

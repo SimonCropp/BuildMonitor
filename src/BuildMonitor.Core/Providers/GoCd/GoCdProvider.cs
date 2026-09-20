@@ -226,7 +226,12 @@ sealed class GoCdProvider : ProviderBase
 
         var rest = description[(index + label.Length)..];
         var end = rest.IndexOf(',');
-        return end < 0 ? rest.Trim() : rest[..end].Trim();
+        if (end < 0)
+        {
+            return rest.Trim();
+        }
+
+        return rest[..end].Trim();
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

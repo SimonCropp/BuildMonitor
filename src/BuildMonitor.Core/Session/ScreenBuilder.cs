@@ -127,7 +127,12 @@ static class ScreenBuilder
         }
 
         var search = state.Search.Trim();
-        return search.Length > 0 ? $"No builds match \"{search}\"" : "Nothing to show yet.";
+        if (search.Length > 0)
+        {
+            return $"No builds match \"{search}\"";
+        }
+
+        return "Nothing to show yet.";
     }
 
     /// <summary>
@@ -940,7 +945,14 @@ static class ScreenBuilder
         return TrayIconKind.Idle;
     }
 
-    static string Plural(int count, string noun) =>
-        count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+    static string Plural(int count, string noun)
+    {
+        if (count == 1)
+        {
+            return $"1 {noun}";
+        }
+
+        return $"{count} {noun}s";
+    }
 
 }

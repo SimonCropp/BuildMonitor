@@ -303,7 +303,12 @@ static class Program
     static string Heavier(string svg)
     {
         var heavier = svg.Replace("stroke-width=\"2\"", $"stroke-width=\"{markStroke}\"");
-        return heavier == svg ? throw new InvalidOperationException("No stroke width to change") : heavier;
+        if (heavier == svg)
+        {
+            throw new InvalidOperationException("No stroke width to change");
+        }
+
+        return heavier;
     }
 
     /// <summary>

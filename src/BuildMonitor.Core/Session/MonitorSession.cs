@@ -223,10 +223,15 @@ static class MonitorSession
     /// that still shows, and is scrolled into view: every letter moves the rows under it, and a
     /// selection left above or below the body reads as lost.
     /// </summary>
-    public static SessionState Search(SessionState state, string text) =>
-        state.Search == text
-            ? state
-            : EnsureVisible(Follow(state, state with { Search = text }));
+    public static SessionState Search(SessionState state, string text)
+    {
+        if (state.Search == text)
+        {
+            return state;
+        }
+
+        return EnsureVisible(Follow(state, state with { Search = text }));
+    }
 
     // Groups
 
@@ -382,8 +387,15 @@ static class MonitorSession
         return SelectRow(state, row) with { Menu = new(row, items, Overflow: true) };
     }
 
-    public static SessionState CloseMenu(SessionState state) =>
-        state.Menu is null ? state : state with { Menu = null };
+    public static SessionState CloseMenu(SessionState state)
+    {
+        if (state.Menu is null)
+        {
+            return state;
+        }
+
+        return state with { Menu = null };
+    }
 
     public static (SessionState State, CommandKind Command) ChooseMenuItem(SessionState state, int index)
     {
@@ -523,8 +535,15 @@ static class MonitorSession
         // Clears the message too, or a failed test leaves "Testing..." above its error.
         state.Form is null ? state : state with { Form = state.Form with { Error = error, Message = null } };
 
-    public static SessionState SetFormMessage(SessionState state, string message) =>
-        state.Form is null ? state : state with { Form = state.Form with { Message = message, Error = null } };
+    public static SessionState SetFormMessage(SessionState state, string message)
+    {
+        if (state.Form is null)
+        {
+            return state;
+        }
+
+        return state with { Form = state.Form with { Message = message, Error = null } };
+    }
 
     // Filters page
 
@@ -675,7 +694,12 @@ static class MonitorSession
             .Select(_ =>
             {
                 var current = state.Connection(_.Id);
-                return current is null ? ConnectionState.Start(_) : current with { Connection = _ };
+                if (current is null)
+                {
+                    return ConnectionState.Start(_);
+                }
+
+                return current with { Connection = _ };
             })
             .ToImmutableArray();
         var ids = settings.Connections.Select(_ => _.Id).ToHashSet();
@@ -749,10 +773,15 @@ static class MonitorSession
     /// Puts the code back on the clipboard, for the user whose clipboard was overwritten between
     /// the code arriving and the provider's page asking for it.
     /// </summary>
-    public static SessionState CopyUserCode(SessionState state) =>
-        state.SignIn?.UserCode is { } code
-            ? SetStatus(state with { Clipboard = code }, "Copied the code")
-            : state;
+    public static SessionState CopyUserCode(SessionState state)
+    {
+        if (state.SignIn?.UserCode is { } code)
+        {
+            return SetStatus(state with { Clipboard = code }, "Copied the code");
+        }
+
+        return state;
+    }
 
     public static SessionState SignInCompleted(SessionState state, Guid flowId, string? userName)
     {
@@ -787,10 +816,15 @@ static class MonitorSession
         };
     }
 
-    public static SessionState CancelSignIn(SessionState state) =>
-        state.SignIn is null
-            ? state
-            : state with { Page = Page.Connection, SignIn = null };
+    public static SessionState CancelSignIn(SessionState state)
+    {
+        if (state.SignIn is null)
+        {
+            return state;
+        }
+
+        return state with { Page = Page.Connection, SignIn = null };
+    }
 
     // Polling
 
@@ -933,8 +967,15 @@ static class MonitorSession
 
     // Window
 
-    public static SessionState SetStatus(SessionState state, string status) =>
-        state.Status == status ? state : state with { Status = status };
+    public static SessionState SetStatus(SessionState state, string status)
+    {
+        if (state.Status == status)
+        {
+            return state;
+        }
+
+        return state with { Status = status };
+    }
 
     /// <summary>
     /// Text fetched in the background, waiting for the loop to put it on the clipboard.
@@ -987,6 +1028,13 @@ static class MonitorSession
     public static SessionState Quit(SessionState state) =>
         state with { Exit = true };
 
-    static string Flag(bool value) =>
-        value ? "true" : "false";
+    static string Flag(bool value)
+    {
+        if (value)
+        {
+            return "true";
+        }
+
+        return "false";
+    }
 }

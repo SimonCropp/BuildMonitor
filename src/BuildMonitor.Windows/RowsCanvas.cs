@@ -401,7 +401,12 @@ sealed class RowsCanvas : Control
     {
         if (row.Kind == RowKind.Group)
         {
-            return row.Expanded ? "▼ " : "▶ ";
+            if (row.Expanded)
+            {
+                return "▼ ";
+            }
+
+            return "▶ ";
         }
 
         return "";

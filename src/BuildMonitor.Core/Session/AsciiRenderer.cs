@@ -59,10 +59,15 @@ static class AsciiRenderer
     /// What the title line says after the title: a form's title, or the builds page's counts then
     /// its filter box, at the right, where the pixel heads put the box in their header.
     /// </summary>
-    static string Subtitle(Screen screen) =>
-        screen.Builds is { } builds
-            ? $"{builds.Header}  Filter: [{Fit(builds.Search, searchWidth)}]"
-            : screen.Form?.Title ?? "";
+    static string Subtitle(Screen screen)
+    {
+        if (screen.Builds is { } builds)
+        {
+            return $"{builds.Header}  Filter: [{Fit(builds.Search, searchWidth)}]";
+        }
+
+        return screen.Form?.Title ?? "";
+    }
 
     // Builds page
 
@@ -84,10 +89,15 @@ static class AsciiRenderer
         return page.Rows.Select(_ => RowLine(_, layout)).ToList();
     }
 
-    static string DisplayName(BuildRow row) =>
-        row.Kind == RowKind.Group
-            ? $"{(row.Expanded ? "[-]" : "[+]")} {row.Name}"
-            : row.Name;
+    static string DisplayName(BuildRow row)
+    {
+        if (row.Kind == RowKind.Group)
+        {
+            return $"{(row.Expanded ? "[-]" : "[+]")} {row.Name}";
+        }
+
+        return row.Name;
+    }
 
     /// <summary>
     /// The widths every row shares, so the columns line up. The name column is as wide as the
@@ -265,9 +275,19 @@ static class AsciiRenderer
             case FieldKind.Select:
                 return $"{label}<{field.Value}>{(field.Enabled ? "" : " (disabled)")}";
             case FieldKind.Button:
-                return field.Enabled ? $"[ {field.Label} ]" : $"( {field.Label} )";
+                if (field.Enabled)
+                {
+                    return $"[ {field.Label} ]";
+                }
+
+                return $"( {field.Label} )";
             case FieldKind.Link:
-                return field.Label == field.Value ? field.Value : $"{field.Label} -> {field.Value}";
+                if (field.Label == field.Value)
+                {
+                    return field.Value;
+                }
+
+                return $"{field.Label} -> {field.Value}";
             case FieldKind.ListRow:
                 return $"- {label}{field.Value} [x]";
             case FieldKind.EditRow:

@@ -14,7 +14,18 @@ sealed class StatusNotifierItemHandler(SniTray owner) : IPathMethodHandler
     public TrayIconKind Icon { get; set; } = TrayIconKind.Idle;
     public string Tooltip { get; set; } = ScreenBuilder.Title;
 
-    public string StatusText => Icon == TrayIconKind.Attention ? "NeedsAttention" : "Active";
+    public string StatusText
+    {
+        get
+        {
+            if (Icon == TrayIconKind.Attention)
+            {
+                return "NeedsAttention";
+            }
+
+            return "Active";
+        }
+    }
 
     public string Path => ObjectPath;
 

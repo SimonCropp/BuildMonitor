@@ -71,7 +71,12 @@ static class GitRemote
             // A worktree's gitdir points at .git/worktrees/<name> in the main checkout, which holds
             // no config of its own: the remotes are the main one's, two directories up.
             var shared = Path.GetFullPath(Path.Combine(target, "..", "..", "config"));
-            return File.Exists(shared) ? shared : null;
+            if (File.Exists(shared))
+            {
+                return shared;
+            }
+
+            return null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -156,6 +161,11 @@ static class GitRemote
             text = text[..^4];
         }
 
-        return text.Length == 0 ? null : text;
+        if (text.Length == 0)
+        {
+            return null;
+        }
+
+        return text;
     }
 }
