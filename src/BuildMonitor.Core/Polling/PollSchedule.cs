@@ -13,7 +13,8 @@
 /// applies, and past it the interval grows with the overrun. A quiet pipeline slows with the time
 /// since its last build, a thirtieth of it, or a hundred and twentieth after a failure, until the
 /// idle cap. On top of that come failure backoff, pressure from a draining quota, and a request
-/// quota that defers the least urgent groups.
+/// quota that defers the least urgent groups. A cycle that fetches anyway takes the groups falling
+/// due soon along with it, so many quiet groups do not each wake the connection on their own.
 /// </para>
 /// </summary>
 static class PollSchedule
@@ -33,6 +34,12 @@ static class PollSchedule
     static TimeSpan nudgeWindow = TimeSpan.FromMinutes(3);
 
     static TimeSpan minimumGap = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// The furthest ahead of its time a group is fetched to share a cycle, so a group on a long idle
+    /// cap is never more than this early.
+    /// </summary>
+    static TimeSpan maximumEarly = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// How near the end of a provider's countdown a build counts as finishing, and how far past the
@@ -94,6 +101,24 @@ static class PollSchedule
         }
 
         var planned = due.ToHashSet();
+        // The early groups still count toward the wake. The poller wakes by a plan it makes after
+        // fetching, which fetches nothing itself, so when a group falls due right then, groups
+        // riding along with it would otherwise be passed over and wait out whatever came next.
+        if (fetch.Count > 0 &&
+            fetch.Count < allowance &&
+            Pressure(input.Rate, now) <= 1)
+        {
+            foreach (var index in Early(plans, planned, now))
+            {
+                if (fetch.Count >= allowance)
+                {
+                    break;
+                }
+
+                fetch.Add(input.Groups[index]);
+            }
+        }
+
         DateTimeOffset? wake = null;
         for (var index = 0; index < plans.Count; index++)
         {
@@ -121,6 +146,21 @@ static class PollSchedule
 
         return new(plans.ToImmutable(), fetch.ToImmutable(), deferred.ToImmutable(), wake, bucket);
     }
+
+    /// <summary>
+    /// The groups not yet due that ride along with a cycle that fetches anyway, soonest first: a
+    /// tenth of their interval early, and never more than <see cref="maximumEarly"/>. Without this,
+    /// a hundred and fifty quiet repositories spread across their idle cap fell due one or two at a
+    /// time, so the connection woke, applied a fetch and redrew every few seconds for the same
+    /// requests. Not a group backing off, whose interval was stretched on purpose.
+    /// </summary>
+    static IEnumerable<int> Early(IReadOnlyList<GroupPlan> plans, HashSet<int> planned, DateTimeOffset now) =>
+        Enumerable.Range(0, plans.Count)
+            .Where(_ => !planned.Contains(_) &&
+                        plans[_].Reason != ScheduleReason.Backoff &&
+                        plans[_].DueAt <= now + Min(plans[_].Interval / 10, maximumEarly))
+            .OrderBy(_ => plans[_].DueAt)
+            .ThenBy(_ => _);
 
     public static GroupPlan Group(ScheduleInput input, PollGroup group) =>
         Group(input, group, input.Builds.ToLookup(_ => _.PipelineId));
