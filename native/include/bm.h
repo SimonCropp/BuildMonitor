@@ -507,7 +507,8 @@ BM_API int32_t bm_tray_init(void);
 BM_API void bm_tray_set_icon(int32_t kind, const uint8_t* png, int32_t length);
 
 BM_API void bm_tray_set_menu_icon(const char* name, const uint8_t* png, int32_t length);
-/* A PNG a row can name in BmRow.provider. Call after bm_init; a second call for a name replaces it. */
+/* A PNG a row can name in BmRow.nameIcon or BmRow.detailIcon, or a chip in BmChip.icon. Call
+   after bm_init; a second call for a name replaces it. */
 BM_API void bm_set_row_icon(const char* name, const uint8_t* png, int32_t length);
 
 BM_API void bm_shutdown(void);

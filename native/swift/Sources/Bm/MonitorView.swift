@@ -13,6 +13,11 @@ final class MonitorView: NSView {
     /// last controls behind the footer where they cannot be reached.
     private let formScroll = NSScrollView()
 
+    /// The strings the registered tool tip rects read, held for as long as those rects stand
+    /// because AppKit does not retain a tool tip's owner. Replaced whole on every draw, with the
+    /// rects they belong to.
+    private var tooltipOwners: [NSString] = []
+
     /// The filter box: a real search field, for the platform's editing. It is pushed the session's
     /// text only while it is not being edited, so a frame never fights the typist.
     private let search = NSSearchField()
@@ -88,8 +93,11 @@ final class MonitorView: NSView {
     /// be there. AppKit owns the delay, which is the system's and not ours to set.
     private func applyTooltips() {
         removeAllToolTips()
-        for tip in renderer.tips {
-            addToolTipRect(tip.rect, owner: tip.text as NSString, userData: nil)
+        // The owners, before any of them is registered: AppKit holds an owner weakly, so a string
+        // bridged at the call is freed the moment it returns and the tool tip reads a dead object.
+        tooltipOwners = renderer.tips.map { $0.text as NSString }
+        for (tip, owner) in zip(renderer.tips, tooltipOwners) {
+            _ = addToolTip(tip.rect, owner: owner, userData: nil)
         }
     }
 

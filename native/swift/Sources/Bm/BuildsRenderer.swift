@@ -192,7 +192,7 @@ final class BuildsRenderer {
         let widestChips = [("pull-request", "9999"), ("retry", ""), ("log", ""), ("folder", ""), ("triage", "")]
             .map { chipWidth($0.0, $0.1) }
             .reduce(0, +) + 4 * chipGap
-        let overflowWidth = chipWidth(overflowLabel)
+        let overflowWidth = chipWidth("", overflowLabel)
         // Reserved on every row once any row has one, so a group's row, which has no provider
         // logo, keeps its name in line with the rows under it, and the names line up where a
         // provider gave no repository URL to read a host mark from.
@@ -407,15 +407,10 @@ final class BuildsRenderer {
         return width
     }
 
-    /// The picture stands where the label would, so the pill is padded the same.
-
-
     private func width(of chip: Frame.Chip) -> CGFloat {
         chipWidth(chip.icon, chip.text)
     }
 
-    /// Which chips are drawn as a picture. The label is kept for the drop down, where there is
-    /// room for words.
     /// The open or closed arrow a group's row is drawn behind, and nothing for any other row.
     private func groupArrow(_ row: Frame.Row) -> String {
         row.isGroup ? (row.isExpanded ? "▾ " : "▸ ") : ""
