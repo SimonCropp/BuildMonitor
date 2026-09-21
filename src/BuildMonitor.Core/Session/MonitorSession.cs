@@ -122,7 +122,9 @@ static class MonitorSession
     /// closes.
     /// </para>
     /// </summary>
-    static SessionState Follow(SessionState before, SessionState after)
+    /// <param name="polled">When the change is a poll's, which also records the positions it moved,
+    /// from the rows projected here rather than projecting them twice more.</param>
+    static SessionState Follow(SessionState before, SessionState after, DateTimeOffset? polled = null)
     {
         var previous = RowProjection.Rows(before);
         var rows = RowProjection.Rows(after);
@@ -139,7 +141,12 @@ static class MonitorSession
              !indexes.TryGetValue(Identity(previous[menu.Row]), out var row) ||
              row != menu.Row))
         {
-            return followed with { Menu = null };
+            followed = followed with { Menu = null };
+        }
+
+        if (polled is { } now)
+        {
+            return Moved(before, previous, followed, rows, now);
         }
 
         return followed;
@@ -1104,15 +1111,18 @@ static class MonitorSession
             notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, builds)) ?? notification;
         }
 
-        return Follow(state, next with
-        {
-            Builds =
-            [
-                ..next.Builds.Where(_ => _.ConnectionId != connectionId),
-                ..builds
-            ],
-            Notification = notification
-        });
+        return Follow(
+            state,
+            next with
+            {
+                Builds =
+                [
+                    ..next.Builds.Where(_ => _.ConnectionId != connectionId),
+                    ..builds
+                ],
+                Notification = notification
+            },
+            now);
     }
 
     /// <summary>
@@ -1162,19 +1172,90 @@ static class MonitorSession
             notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, news)) ?? notification;
         }
 
-        return Follow(state, next with
-        {
-            Builds =
-            [
-                ..next.Builds.Where(_ => _.ConnectionId != connectionId),
-                ..previous
-                    .Where(_ => discovered.Contains(_.PipelineId) && !outcome.Fetched.Contains(_.PipelineId) && HistoryCutoff.Keeps(_, cutoff))
-                    .Select(_ => Offered(_, outcome.Access)),
-                ..arrived
-            ],
-            Notification = notification
-        });
+        return Follow(
+            state,
+            next with
+            {
+                Builds =
+                [
+                    ..next.Builds.Where(_ => _.ConnectionId != connectionId),
+                    ..previous
+                        .Where(_ => discovered.Contains(_.PipelineId) && !outcome.Fetched.Contains(_.PipelineId) && HistoryCutoff.Keeps(_, cutoff))
+                        .Select(_ => Offered(_, outcome.Access)),
+                    ..arrived
+                ],
+                Notification = notification
+            },
+            now);
     }
+
+    /// <summary>
+    /// How long after a poll changes what a position shows a click on it is still taken as aimed
+    /// at what was there: longer than it takes to see a row move and aim again, short enough that a
+    /// second click after reading the status line acts.
+    /// </summary>
+    public static readonly TimeSpan MoveGrace = TimeSpan.FromSeconds(1.5);
+
+    /// <summary>
+    /// Records which visible positions a poll changed. Only a poll's changes count: a group the user
+    /// opened, or a filter they typed, moves rows under a pointer they know is moving them. A change
+    /// still inside its grace joins the new one, where the list has not scrolled since, so a second
+    /// connection's poll landing just after the first does not clear what the first moved.
+    /// </summary>
+    static SessionState Moved(SessionState before, ImmutableArray<Row> previous, SessionState after, ImmutableArray<Row> rows, DateTimeOffset now)
+    {
+        var positions = ImmutableHashSet.CreateBuilder<int>();
+        if (after.Moved is { } earlier &&
+            now - earlier.At < MoveGrace &&
+            earlier.ScrollTop == after.ScrollTop)
+        {
+            positions.UnionWith(earlier.Positions);
+        }
+
+        var body = BodyRows(after);
+        for (var position = 0; position < body; position++)
+        {
+            if (Occupant(previous, before.ScrollTop + position) != Occupant(rows, after.ScrollTop + position))
+            {
+                positions.Add(position);
+            }
+        }
+
+        if (positions.Count == 0)
+        {
+            return after;
+        }
+
+        return after with { Moved = new(now, after.ScrollTop, positions.ToImmutable()) };
+    }
+
+    /// <summary>
+    /// What a position shows, as far as a click on it goes: which row, and for a build its status,
+    /// since a build that finishes where it stood swaps Cancel for Retry under the pointer. Null
+    /// past the end of the rows.
+    /// </summary>
+    static (RowIdentity Row, BuildStatus? Status)? Occupant(ImmutableArray<Row> rows, int index)
+    {
+        if (index < 0 ||
+            index >= rows.Length)
+        {
+            return null;
+        }
+
+        return (Identity(rows[index]), rows[index].Build?.Status);
+    }
+
+    /// <summary>
+    /// Whether a click at <paramref name="at"/> on the visible <paramref name="position"/> came
+    /// within <see cref="MoveGrace"/> of a poll changing what it shows. A click from before the
+    /// poll, as an unstamped one in a test reads, is not.
+    /// </summary>
+    public static bool JustMoved(SessionState state, int position, DateTimeOffset at) =>
+        state.Moved is { } moved &&
+        at >= moved.At &&
+        at - moved.At < MoveGrace &&
+        moved.ScrollTop == state.ScrollTop &&
+        moved.Positions.Contains(position);
 
     static Build Offered(Build build, BuildAccess access)
     {

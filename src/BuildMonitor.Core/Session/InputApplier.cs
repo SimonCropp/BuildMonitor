@@ -65,7 +65,7 @@ static class InputApplier
 
         if (input.ClickedChipRow >= 0)
         {
-            state = ClickChip(state, state.ScrollTop + input.ClickedChipRow, input.ClickedChip, actions, window);
+            state = ClickChip(state, state.ScrollTop + input.ClickedChipRow, input.ClickedChip, input.At, actions, window);
         }
 
         if (input.ClickedOverflowRow >= 0)
@@ -145,7 +145,7 @@ static class InputApplier
     /// A chip acts on the selected build, so its row is selected first. A row that is gone, or is a
     /// group now, takes nothing: clamped, the selection would land on another build and act on it.
     /// </summary>
-    static SessionState ClickChip(SessionState state, int row, ChipKind chip, MonitorActions actions, IMonitorWindow? window)
+    static SessionState ClickChip(SessionState state, int row, ChipKind chip, DateTimeOffset at, MonitorActions actions, IMonitorWindow? window)
     {
         var rows = RowProjection.Rows(state);
         // The folder and the repository are what a group's row carries, since both resolve its
@@ -159,7 +159,45 @@ static class InputApplier
             return state;
         }
 
+        // A click that would change a service's builds, on a position a poll has only just given
+        // another build or another status, was aimed at what was there before. It is said rather
+        // than done, and a second click, after the status line has been read, acts.
+        if (rows[row].Build is { } build &&
+            Changes(state, chip, build) &&
+            MonitorSession.JustMoved(state, row - state.ScrollTop, at))
+        {
+            return MonitorSession.SetStatus(state, Held(chip, build));
+        }
+
         return Execute(MonitorSession.SelectRow(state, row), RowChips.Command(chip), null, actions, window);
+    }
+
+    /// <summary>
+    /// Whether the chip would change what runs on the build's service, as Retry, Cancel and Run next
+    /// do, by the same gates each applies, so the status line never holds back what would not have
+    /// happened anyway.
+    /// </summary>
+    static bool Changes(SessionState state, ChipKind chip, Build build) =>
+        chip switch
+        {
+            ChipKind.Retry => build.Retryable(),
+            ChipKind.Cancel => build.CanCancel,
+            ChipKind.RunNext => MonitorSession.Descriptor(state, build) is { } descriptor && build.CanRunNext(descriptor),
+            _ => false
+        };
+
+    /// <summary>
+    /// What the status line says for a click held back, naming what a second click will do.
+    /// </summary>
+    static string Held(ChipKind chip, Build build)
+    {
+        var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
+        return chip switch
+        {
+            ChipKind.Retry => $"The rows moved as you clicked, so nothing was retried: click again to retry {name}",
+            ChipKind.Cancel => $"The rows moved as you clicked, so nothing was cancelled: click again to cancel {name}",
+            _ => $"The rows moved as you clicked, so the queue was left alone: click again to run {name} next"
+        };
     }
 
     /// <summary>

@@ -35,7 +35,11 @@ readonly record struct MonitorInput(
     bool TrayIconClicked = false,
     // A click on the notification that last popped: the build it named, or "" where it named
     // several. Null where it was not clicked.
-    string? ClickedNotification = null)
+    string? ClickedNotification = null,
+    // When the input was read, stamped by the loop rather than a head, so a click can be weighed
+    // against how long ago a poll moved the row under it. A test that leaves it unset gets a time
+    // before any poll, which no move is recent to.
+    DateTimeOffset At = default)
 {
     /// <summary>
     /// Whether anything happened at all, which is what decides whether the status line's last

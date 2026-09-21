@@ -41,7 +41,10 @@ record SessionState(
     string Search = "",
     // The exclude the status line has just reported, which the Undo beside it takes back. Gone with
     // that message, on the next input that is not the Undo itself.
-    ExcludeUndo? Undo = null)
+    ExcludeUndo? Undo = null,
+    // The positions the last poll changed, and when, so a click on one of them that came too soon
+    // after is not taken as meant for the build now there.
+    MovedRows? Moved = null)
 {
     public static SessionState Start(Settings settings) =>
         new(

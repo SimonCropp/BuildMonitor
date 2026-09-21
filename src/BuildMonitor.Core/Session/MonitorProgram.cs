@@ -267,6 +267,7 @@ static class MonitorProgram
                 }
             }
 
+            input = input with { At = DateTimeOffset.UtcNow };
             host.Mutate(_ => InputApplier.Apply(_, input, actions, window));
             if (host.State.Hidden)
             {
