@@ -110,15 +110,21 @@ static class ScreenBuilder
                                    _.Health is ConnectionHealth.Unpolled or ConnectionHealth.Polling);
 
     /// <summary>
-    /// What the body says with no rows. A filter that matches nothing says so, or the list would look
-    /// emptied by something else; a first poll still out is said first, since the rows it brings may
-    /// match.
+    /// What the body says with no rows. With no connections nothing could fill it, so it says what
+    /// will, above the footer's Add connection. A filter that matches nothing says so, or the list
+    /// would look emptied by something else; a first poll still out is said first, since the rows it
+    /// brings may match.
     /// </summary>
     static string Empty(SessionState state, int rows, bool loading)
     {
         if (rows > 0)
         {
             return "";
+        }
+
+        if (state.Connections.Length == 0)
+        {
+            return "Add a connection to start watching builds.";
         }
 
         if (loading)
@@ -426,7 +432,7 @@ static class ScreenBuilder
     {
         if (state.Connections.Length == 0)
         {
-            return "No connections. Open Options to add one.";
+            return "No connections";
         }
 
         return $"{Plural(pipelines, "pipeline")}, {failing} failing, {running} running";
@@ -596,6 +602,13 @@ static class ScreenBuilder
                     new("Remove", true, CommandKind.ConfirmRemoveConnection, "Forget this connection and delete its stored credential"),
                     new("Cancel", true, CommandKind.CancelForm, "Back to the connection")
                 ],
+                // Back rather than Cancel: each editor saves its own connection, so leaving this
+                // list has nothing to throw away.
+                ConnectionsFormState =>
+                [
+                    new("Add connection", true, CommandKind.AddConnection, "Watch the builds of another CI service"),
+                    new("Back", true, CommandKind.CancelForm, "Back to the builds")
+                ],
                 OptionsFormState or FiltersFormState =>
                 [
                     new("Save", true, CommandKind.Save),
@@ -608,8 +621,13 @@ static class ScreenBuilder
     /// <summary>
     /// A way to act on the connection the footer names, where one needs the user: the footer is
     /// the one place always on screen that says a connection is failing, and reaching its editor
-    /// otherwise took the options page and a click on it there. None for a rate limit, which the
-    /// poller waits out by itself.
+    /// otherwise took the connections page and a click on it there. None for a rate limit, which
+    /// the poller waits out by itself.
+    /// <para>
+    /// With no connections, Add connection stands where Refresh and Connections would, which have
+    /// nothing to poll and nothing to list. The empty page used to send a new user to the options,
+    /// where the button to add one sat under a dozen settings.
+    /// </para>
     /// <para>
     /// Undo only while the status line reports the exclude it takes back, and last: a click is
     /// resolved against the buttons again once that message has gone, and a button leaving from
@@ -618,13 +636,19 @@ static class ScreenBuilder
     /// </summary>
     static List<Button> BuildsButtons(SessionState state)
     {
-        List<Button> buttons =
+        List<Button> buttons = state.Connections.Length == 0
+            ? [new("Add connection", true, CommandKind.AddConnection, "Watch the builds of a CI service")]
+            :
+            [
+                new("Refresh", true, CommandKind.Refresh, "Poll every connection now (F5)"),
+                new("Connections", true, CommandKind.OpenConnections, "The CI services being watched")
+            ];
+        buttons.AddRange(
         [
-            new("Refresh", state.Connections.Length > 0, CommandKind.Refresh, "Poll every connection now (F5)"),
-            new("Options", true, CommandKind.OpenOptions, "Connections, polling and what the window shows"),
+            new("Options", true, CommandKind.OpenOptions, "Polling, startup and what the window shows"),
             new("Filters", true, CommandKind.OpenFilters, "Hide pipelines for good"),
             new("Hide", true, CommandKind.Hide, "Hide the window; the tray keeps running")
-        ];
+        ]);
         if (MonitorSession.NeedingUser(state) is { } unhealthy)
         {
             var name = unhealthy.Connection.Name;
@@ -737,7 +761,8 @@ static class ScreenBuilder
             ? SignInForm(state)
             : state.Form switch
             {
-                OptionsFormState form => OptionsForm(state, form),
+                ConnectionsFormState => ConnectionsForm(state),
+                OptionsFormState form => OptionsForm(form),
                 FiltersFormState form => FiltersForm(form),
                 AddConnectionFormState form => AddConnectionForm(form),
                 EditConnectionFormState form => EditConnectionForm(form),
@@ -846,7 +871,7 @@ static class ScreenBuilder
         yield return "An AI client using one loses it mid-conversation, and starts a new one when it next connects:";
     }
 
-    static FormPage OptionsForm(SessionState state, OptionsFormState form)
+    static FormPage OptionsForm(OptionsFormState form)
     {
         var fields = new List<Field>
         {
@@ -862,8 +887,29 @@ static class ScreenBuilder
             new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Note: "Running and queued builds always show."),
             new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Note: "Used by the launcher and the MCP server. Takes effect after a restart."),
             new(FormFields.CodeDirectory, FieldKind.Directory, "Code directory", form.Value(FormFields.CodeDirectory), Hint: "Where your checkouts live"),
-            new("connectionsLabel", FieldKind.Label, "Connections", "")
+            new(FormFields.Version, FieldKind.Label, "Version", VersionReader.VersionString),
+            new(FormFields.Documentation, FieldKind.Link, "Documentation", "https://github.com/SimonCropp/BuildMonitor"),
+            new(FormFields.OpenLogs, FieldKind.Button, "Open logs", ""),
+            new(FormFields.RaiseIssue, FieldKind.Button, "Raise issue", ""),
+            new(FormFields.Update, FieldKind.Button, "Update", "")
         };
+        AddError(fields, form);
+        return new("Options", fields);
+    }
+
+    /// <summary>
+    /// Every connection, by name, each a row that opens its editor. Nothing here is saved by the
+    /// page: each editor saves its own connection, which is why the footer has Back where the
+    /// options have Cancel.
+    /// </summary>
+    static FormPage ConnectionsForm(SessionState state)
+    {
+        var fields = new List<Field>();
+        if (state.Connections.Length == 0)
+        {
+            fields.Add(new(FormFields.NoConnections, FieldKind.Label, "", "No connections yet. Add one for each CI service to watch."));
+        }
+
         foreach (var connection in state.Connections.OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase))
         {
             var descriptor = ProviderDescriptors.Get(connection.Connection.ProviderId);
@@ -874,19 +920,12 @@ static class ScreenBuilder
                 ConnectionSummary(descriptor, connection)));
         }
 
-        fields.Add(new(FormFields.AddConnection, FieldKind.Button, "Add connection", ""));
-        fields.Add(new(FormFields.Version, FieldKind.Label, "Version", VersionReader.VersionString));
-        fields.Add(new(FormFields.Documentation, FieldKind.Link, "Documentation", "https://github.com/SimonCropp/BuildMonitor"));
-        fields.Add(new(FormFields.OpenLogs, FieldKind.Button, "Open logs", ""));
-        fields.Add(new(FormFields.RaiseIssue, FieldKind.Button, "Raise issue", ""));
-        fields.Add(new(FormFields.Update, FieldKind.Button, "Update", ""));
-        AddError(fields, form);
-        return new("Options", fields);
+        return new("Connections", fields);
     }
 
     /// <summary>
-    /// A connection's line on the options page. One that can only watch says so, as its rows offer
-    /// no retry or cancel and nothing on the builds page says why.
+    /// A connection's line on the connections page. One that can only watch says so, as its rows
+    /// offer no retry or cancel and nothing on the builds page says why.
     /// </summary>
     static string ConnectionSummary(ProviderDescriptor descriptor, ConnectionState connection)
     {
@@ -1066,6 +1105,7 @@ static class ScreenBuilder
         [
             new(TrayMenu.Open, "Open", IconName: "open"),
             new(TrayMenu.Refresh, "Refresh", Enabled: state.Connections.Length > 0, IconName: "refresh"),
+            new(TrayMenu.Connections, "Connections", IconName: "connections"),
             new(TrayMenu.Options, "Options", IconName: "options"),
             new(TrayMenu.Filters, "Filters", IconName: "filters")
         ];

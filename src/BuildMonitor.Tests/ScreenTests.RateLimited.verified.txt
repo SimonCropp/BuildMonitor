@@ -26,11 +26,12 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| [Refresh] [Options] [Filters] [Hide]                                            GitHub: rate limited, retrying in 4m |
+| [Refresh] [Connections] [Options] [Filters] [Hide]                              GitHub: rate limited, retrying in 4m |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Failed "BuildMonitor: GitHub rate limited. Verify failing, 4 running"
   Open
   Refresh
+  Connections
   Options
   Filters
   Open logs

@@ -8,7 +8,7 @@ BuildMonitor runs in the system tray. The icon shows the overall state:
  * red: a latest build failed
  * amber: a connection needs attention, because its credential was refused or polling failed
 
-Left click the icon to open the window. Right click it for the menu: Open, Refresh, Options, Filters, Open logs, Raise issue, Update and Exit. On macOS either click opens the menu, and Open shows the window. Open code directory sits above Open logs once a [code directory](options.md#code-directory) is set, and opens that folder; it is left out entirely while the option is empty.
+Left click the icon to open the window. Right click it for the menu: Open, Refresh, Connections, Options, Filters, Open logs, Raise issue, Update and Exit. On macOS either click opens the menu, and Open shows the window. Open code directory sits above Open logs once a [code directory](options.md#code-directory) is set, and opens that folder; it is left out entirely while the option is empty.
 
 On Windows 11 the icon starts on the taskbar rather than behind the arrow with the hidden icons. Windows remembers where an icon goes for each program path, and every update runs BuildMonitor from a new one, so each version takes the placement of the version before it. Hide the icon under Settings, Personalization, Taskbar, Other system tray icons, and it stays hidden after updates too.
 
@@ -57,7 +57,9 @@ Right click a row for the same actions plus copying the build URL and excluding 
 
 The same menu offers to group by prefix, which is the inverse of excluding: the prefixes the row's project shares with another, longest first, each of which is added to the [group prefixes](options.md#group-passing-builds-by-prefix) and kept. `Utilities.Logging.Client` beside `Utilities.Logging.Server` and `Utilities.Storage` offers `Utilities.Logging` and then `Utilities`; a name with no separator is broken at its capitals, so `TheProjectApi` beside `TheProjectUi` offers `TheProject`. Only prefixes another project on screen shares are offered, and only where the shorter one reaches further than the last: neither a group of one nor the same group under a worse name is worth an item. A group's own row offers them as well, since a repository's group of green workflows is still a member of whatever family that repository belongs to, and the group a prefix made offers to stop grouping by it, which is where the grouping is seen rather than on the options page.
 
-A connection that needs signing in again, is rate limited or failing to poll says so at the bottom right of the window, and the tray icon turns amber.
+The buttons along the bottom are Refresh, [Connections](connections.md), [Options](options.md), [Filters](filters.md) and Hide. Until there is a connection, Add connection stands where Refresh and Connections would.
+
+A connection that needs signing in again, is rate limited or failing to poll says so at the bottom right of the window, and the tray icon turns amber. One that needs signing in, or is failing, also gets a Sign in or Check connection button beside the others, which opens its editor.
 
 Closing the window hides it; the tray keeps running. Exit is in the tray menu.
 

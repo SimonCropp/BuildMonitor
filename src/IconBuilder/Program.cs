@@ -37,6 +37,7 @@ static class Program
     [
         ("open", Lucide.AppWindow),
         ("refresh", Lucide.RefreshCw),
+        ("connections", Lucide.Plug),
         ("options", Lucide.Settings),
         ("filters", Lucide.ListFilter),
         ("logs", Lucide.FolderOpen),

@@ -60,6 +60,7 @@ MyGet is not supported: it exposes no build API, only a status badge, a trigger 
 ## Documentation
 
  * [Tray](/docs/tray.md)<!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+ * [Connections](/docs/connections.md)
  * [Options](/docs/options.md)
  * [Filters](/docs/filters.md)
  * [Authors](/docs/authors.md)

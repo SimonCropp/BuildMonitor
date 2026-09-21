@@ -5,6 +5,7 @@ static class TrayMenu
 {
     public const string Open = "open";
     public const string Refresh = "refresh";
+    public const string Connections = "connections";
     public const string Options = "options";
     public const string Filters = "filters";
     public const string CodeDirectory = "codeDirectory";
@@ -18,5 +19,5 @@ static class TrayMenu
     /// no other, so a list of its own left Open code directory without its folder there, and went
     /// on loading the glyphs of the per build items after those left the menu.
     /// </summary>
-    public static readonly IReadOnlyList<string> Glyphs = ["open", "refresh", "options", "filters", "folder", "logs", "issue", "update", "exit"];
+    public static readonly IReadOnlyList<string> Glyphs = ["open", "refresh", "connections", "options", "filters", "folder", "logs", "issue", "update", "exit"];
 }

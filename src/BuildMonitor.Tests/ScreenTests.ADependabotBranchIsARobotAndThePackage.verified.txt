@@ -26,11 +26,12 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
+| [Refresh] [Connections] [Options] [Filters] [Hide]                                                     Polled 5s ago |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Failed "BuildMonitor: Reports and Verify failing, 4 running"
   Open
   Refresh
+  Connections
   Options
   Filters
   Open logs

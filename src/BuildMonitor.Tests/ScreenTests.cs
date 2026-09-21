@@ -145,11 +145,12 @@ public class ScreenTests
                 |   + [+] Verify              2 passing                          2h ago                                                |
                 | > + DiffEngine     github   docs.yml main                      23h ago                                               |
                 +----------------------------------------------------------------------------------------------------------------------+
-                | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
+                | [Refresh] [Connections] [Options] [Filters] [Hide]                                                     Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+
                 tray: Failed "BuildMonitor: Verify failing, 4 running"
                   Open
                   Refresh
+                  Connections
                   Options
                   Filters
                   Open logs
@@ -375,12 +376,20 @@ public class ScreenTests
     public Task QueuePriority() =>
         Verify(Fixtures.Render(Fixtures.WithQueuePriority()));
 
+    [Test]
+    public Task Connections() =>
+        Verify(Fixtures.Render(Fixtures.Connections()));
+
+    [Test]
+    public Task ConnectionsEmpty() =>
+        Verify(Fixtures.Render(MonitorSession.OpenConnections(Fixtures.Empty())));
+
     /// <summary>
     /// The connection says why its rows offer no retry or cancel.
     /// </summary>
     [Test]
-    public Task OptionsWatchOnly() =>
-        Verify(Fixtures.Render(MonitorSession.OpenOptions(Fixtures.WatchOnly())));
+    public Task ConnectionsWatchOnly() =>
+        Verify(Fixtures.Render(MonitorSession.OpenConnections(Fixtures.WatchOnly())));
 
     [Test]
     public Task Filters() =>

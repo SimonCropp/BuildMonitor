@@ -8,6 +8,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 # Documentation
 
  * [Tray](/docs/tray.md)<!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+ * [Connections](/docs/connections.md)
  * [Options](/docs/options.md)
  * [Filters](/docs/filters.md)
  * [Authors](/docs/authors.md)

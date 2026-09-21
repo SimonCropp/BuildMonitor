@@ -89,17 +89,6 @@ The tray menu gains an Open code directory item while this is set, above Open lo
 The list is kept current while BuildMonitor runs: a repository cloned into the directory gets its button without a restart. Only the folders that could hold a checkout are watched, not everything below them, so a directory full of repositories and their build output costs a bounded number of watches. An empty field watches nothing.
 
 
-## Connections
-
-The CI services being watched. Click one to edit it, or Add connection for a new one. See [Authentication](auth.md) for what each provider needs.
-
-<img src="../src/BuildMonitor.Windows.Tests/MonitorFormTests.ConnectionNew.verified.png">
-
-Test checks the credential without saving. Sign in starts a browser or device sign in where the provider supports one. Save stores the credential in the platform's secret store and starts polling; nothing secret is written to settings.json.
-
-Where the provider reports what a credential may do, Test says so, and a connection whose credential can only watch shows as watch only in the list. Its rows offer no Retry, Cancel or Run next. Each provider's page says what it checks.
-
-
 ## Update
 
 Opens a page saying what the update is about to do, and updates only once that is confirmed. BuildMonitor closes, runs `dotnet tool update` and starts again, and nothing is on screen in between: on Windows the update has to run after the tray has exited, because a running executable cannot be replaced.

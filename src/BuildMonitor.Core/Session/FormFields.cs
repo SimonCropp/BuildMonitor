@@ -17,13 +17,15 @@ static class FormFields
     public const string HistoryDays = "historyDays";
     public const string Port = "port";
     public const string CodeDirectory = "codeDirectory";
-    public const string AddConnection = "addConnection";
     public const string Version = "version";
     public const string Documentation = "documentation";
     public const string OpenLogs = "openLogs";
     public const string RaiseIssue = "raiseIssue";
     public const string Update = "update";
+
+    // Connections
     public const string ConnectionPrefix = "connection:";
+    public const string NoConnections = "noConnections";
 
     // Update. Labels rather than widgets, so every server shares one id: nothing is keyed by it
     // because nothing on this page can be clicked or typed in.

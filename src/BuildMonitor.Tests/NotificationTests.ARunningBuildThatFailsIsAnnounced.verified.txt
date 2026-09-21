@@ -26,11 +26,12 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| [Refresh] [Options] [Filters] [Hide]                                                                   Polled 0s ago |
+| [Refresh] [Connections] [Options] [Filters] [Hide]                                                     Polled 0s ago |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Failed "BuildMonitor: DiffEngine and Verify failing, 3 running"
   Open
   Refresh
+  Connections
   Options
   Filters
   Open logs

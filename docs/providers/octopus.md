@@ -52,7 +52,7 @@ A release's notes are read once each, when a deployment of it first shows, and r
 
 There is no retry: Octopus refuses to re-run a deployment task.
 
-Cancel is offered only where the user has the TaskCancel permission for the deployment's project and environment. A user without it anywhere in the space shows as watch only in [Options](../options.md#connections).
+Cancel is offered only where the user has the TaskCancel permission for the deployment's project and environment. A user without it anywhere in the space shows as watch only in [Connections](../connections.md).
 
 
 ## Estimates

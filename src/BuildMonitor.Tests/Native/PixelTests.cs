@@ -66,6 +66,12 @@ public class PixelTests
     public Task LocalRepos() =>
         Capture(Fixtures.WithLocalRepos());
 
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 6)]
+    public Task Connections() =>
+        Capture(Fixtures.Connections());
+
     static async Task Capture(SessionState state)
     {
         // Pinned rather than System, so a capture does not depend on the theme of whoever ran it.

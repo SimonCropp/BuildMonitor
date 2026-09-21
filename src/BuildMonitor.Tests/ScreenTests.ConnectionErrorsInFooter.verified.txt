@@ -26,11 +26,12 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| [Refresh] [Options] [Filters] [Hide] [Check connection]          Jenkins: error: 500 Internal Server Error (+1 more) |
+| [Refresh] [Connections] [Options] [Filters] [Hide] [Check connection] Jenkins: error: 500 Internal Server Error (+1> |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Attention "BuildMonitor: error polling Jenkins (+1 more). Verify failing, 4 running"
   Open
   Refresh
+  Connections
   Options
   Filters
   Open logs

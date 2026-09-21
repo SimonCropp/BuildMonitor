@@ -26,11 +26,12 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| [Refresh] [Options] [Filters] [Hide] [Undo]                                           Excluded feature/inline branch |
+| [Refresh] [Connections] [Options] [Filters] [Hide] [Undo]                             Excluded feature/inline branch |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Running "BuildMonitor: 0 failing, 4 running"
   Open
   Refresh
+  Connections
   Options
   Filters
   Open logs

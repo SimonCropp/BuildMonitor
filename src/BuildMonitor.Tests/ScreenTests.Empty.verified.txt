@@ -1,7 +1,7 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
-| BuildMonitor                                    No connections. Open Options to add one.  Filter: [                ] |
+| BuildMonitor                                                              No connections  Filter: [                ] |
 +----------------------------------------------------------------------------------------------------------------------+
-| Nothing to show yet.                                                                                                 |
+| Add a connection to start watching builds.                                                                           |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
@@ -26,11 +26,12 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| (Refresh) [Options] [Filters] [Hide]                                                                                 |
+| [Add connection] [Options] [Filters] [Hide]                                                                          |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Idle "BuildMonitor: no connections"
   Open
   (Refresh)
+  Connections
   Options
   Filters
   Open logs

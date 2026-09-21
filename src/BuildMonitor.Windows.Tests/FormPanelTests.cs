@@ -38,11 +38,11 @@ public class FormPanelTests
     public async Task ButtonsReportTheirField()
     {
         using var panel = new FormPanel();
-        var screen = ScreenBuilder.Build(Fixtures.Options(), Fixtures.Now);
+        var screen = ScreenBuilder.Build(Fixtures.Filters(), Fixtures.Now);
         panel.Apply(screen.Form!);
-        var add = Descendants(panel).OfType<FormsButton>().First(_ => _.Text == "Add connection");
+        var add = Descendants(panel).OfType<FormsButton>().First(_ => _.Text == "Add filter");
         add.PerformClick();
-        await Assert.That(panel.DrainClickedField()).IsEqualTo(FormFields.AddConnection);
+        await Assert.That(panel.DrainClickedField()).IsEqualTo(FormFields.AddFilter);
         await Assert.That(panel.DrainClickedField()).IsNull();
     }
 
@@ -54,7 +54,7 @@ public class FormPanelTests
     public async Task ConnectionRowsReportTheirField()
     {
         using var panel = new FormPanel();
-        var screen = ScreenBuilder.Build(Fixtures.Options(), Fixtures.Now);
+        var screen = ScreenBuilder.Build(Fixtures.Connections(), Fixtures.Now);
         panel.Apply(screen.Form!);
         var rows = Descendants(panel).OfType<EditRowLink>().ToList();
         await Assert.That(rows.Select(_ => _.Text)).IsEquivalentTo(["GitHub: GitHub Actions, ok", "Jenkins: Jenkins, ok", "Octopus: Octopus Deploy, ok"]);

@@ -26,11 +26,12 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| [Refresh] [Options] [Filters] [Hide] [Sign in]                                           Sign in required for GitHub |
+| [Refresh] [Connections] [Options] [Filters] [Hide] [Sign in]                             Sign in required for GitHub |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Attention "BuildMonitor: sign in required for GitHub. Verify failing, 4 running"
   Open
   Refresh
+  Connections
   Options
   Filters
   Open logs

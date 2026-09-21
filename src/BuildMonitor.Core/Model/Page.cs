@@ -6,6 +6,7 @@
 enum Page
 {
     Builds,
+    Connections,
     Options,
     Filters,
     AddConnection,

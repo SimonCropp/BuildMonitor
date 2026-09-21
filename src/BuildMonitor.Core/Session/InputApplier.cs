@@ -227,8 +227,6 @@ static class InputApplier
             // clicks.
             case FormFields.CodeDirectory:
                 return Execute(state, CommandKind.BrowseCodeDirectory, null, actions, window);
-            case FormFields.AddConnection:
-                return Execute(state, CommandKind.AddConnection, null, actions, null);
             case FormFields.AddFilter:
                 return Execute(state, CommandKind.AddFilter, null, actions, null);
             case FormFields.OpenLogs:
@@ -259,6 +257,7 @@ static class InputApplier
         {
             TrayMenu.Open => Show(state, window),
             TrayMenu.Refresh => Execute(state, CommandKind.Refresh, null, actions, window),
+            TrayMenu.Connections => Show(Execute(state, CommandKind.OpenConnections, null, actions, window), window),
             TrayMenu.Options => Show(Execute(state, CommandKind.OpenOptions, null, actions, window), window),
             TrayMenu.Filters => Show(Execute(state, CommandKind.OpenFilters, null, actions, window), window),
             TrayMenu.CodeDirectory => Execute(state, CommandKind.OpenCodeDirectory, null, actions, window),
@@ -526,6 +525,8 @@ static class InputApplier
             }
             case CommandKind.OpenBuilds:
                 return MonitorSession.OpenBuilds(state);
+            case CommandKind.OpenConnections:
+                return MonitorSession.OpenConnections(state);
             case CommandKind.OpenOptions:
                 return MonitorSession.OpenOptions(state);
             case CommandKind.OpenFilters:

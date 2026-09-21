@@ -28,7 +28,7 @@ One per workflow, showing the latest run. A run on another branch that is queued
  * Cancel cancels a queued or running run
  * Log copies the logs of the jobs that failed or timed out in the latest attempt
 
-A classic token or a sign in lists its scopes, and without `repo` its rows offer neither Retry nor Cancel; the connection shows as watch only in [Options](../options.md#connections). With `repo`, a repository the user can only read offers neither. A fine grained token lists nothing, so its rows offer both, and a refusal says what the token needs.
+A classic token or a sign in lists its scopes, and without `repo` its rows offer neither Retry nor Cancel; the connection shows as watch only in [Connections](../connections.md). With `repo`, a repository the user can only read offers neither. A fine grained token lists nothing, so its rows offer both, and a refusal says what the token needs.
 
 
 ## Estimates

@@ -26,11 +26,12 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| [Refresh] [Options] [Filters] [Hide]                                                                  Not polled yet |
+| [Refresh] [Connections] [Options] [Filters] [Hide]                                                    Not polled yet |
 +----------------------------------------------------------------------------------------------------------------------+
 tray: Idle "BuildMonitor: 0 failing, 0 running"
   Open
   Refresh
+  Connections
   Options
   Filters
   Open logs

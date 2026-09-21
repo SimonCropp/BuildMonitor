@@ -500,6 +500,9 @@ static class MonitorSession
     public static SessionState OpenBuilds(SessionState state) =>
         state with { Page = Page.Builds, Form = null, SignIn = null, Menu = null };
 
+    public static SessionState OpenConnections(SessionState state) =>
+        OpenForm(state, new ConnectionsFormState { Values = [] });
+
     public static SessionState OpenOptions(SessionState state)
     {
         var settings = state.Settings;
@@ -574,7 +577,7 @@ static class MonitorSession
             {
                 Values = values,
                 ConnectionId = draftId,
-                Options = state.Form as OptionsFormState
+                Connections = state.Form as ConnectionsFormState
             });
     }
 
@@ -599,7 +602,7 @@ static class MonitorSession
                 ProviderId = existing.ProviderId,
                 // An existing connection already has its secret stored.
                 SignedIn = true,
-                Options = state.Form as OptionsFormState
+                Connections = state.Form as ConnectionsFormState
             });
     }
 
@@ -625,23 +628,23 @@ static class MonitorSession
 
     /// <summary>
     /// Leaves a form for where it was opened from: a connection editor, or the page asking about
-    /// removing its connection, for the options page it was opened from, as that was left; every
-    /// other form, and an editor opened from anywhere else, for the builds page.
+    /// removing its connection, for the connections page it was opened from; every other form, and
+    /// an editor opened from anywhere else, for the builds page.
     /// </summary>
     public static SessionState CloseForm(SessionState state)
     {
-        var options = state.Form switch
+        var connections = state.Form switch
         {
-            ConnectionFormState editor => editor.Options,
-            RemoveConnectionFormState removing => removing.Editor.Options,
+            ConnectionFormState editor => editor.Connections,
+            RemoveConnectionFormState removing => removing.Editor.Connections,
             _ => null
         };
-        if (options is null)
+        if (connections is null)
         {
             return OpenBuilds(state);
         }
 
-        return OpenForm(state with { SignIn = null }, options);
+        return OpenForm(state with { SignIn = null }, connections);
     }
 
     /// <summary>

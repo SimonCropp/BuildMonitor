@@ -1,4 +1,5 @@
  * [Tray](/docs/tray.md)
+ * [Connections](/docs/connections.md)
  * [Options](/docs/options.md)
  * [Filters](/docs/filters.md)
  * [Authors](/docs/authors.md)

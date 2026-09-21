@@ -29,6 +29,20 @@
   },
   {
     Id: 3,
+    ItemId: connections,
+    Label: Connections,
+    Enabled: true,
+    Separator: false,
+    Icon: connections,
+    Properties: [
+      label,
+      enabled,
+      visible,
+      icon-data
+    ]
+  },
+  {
+    Id: 4,
     ItemId: options,
     Label: Options,
     Enabled: true,
@@ -42,7 +56,7 @@
     ]
   },
   {
-    Id: 4,
+    Id: 5,
     ItemId: filters,
     Label: Filters,
     Enabled: true,
@@ -56,7 +70,7 @@
     ]
   },
   {
-    Id: 5,
+    Id: 6,
     ItemId: logs,
     Label: Open logs,
     Enabled: true,
@@ -70,7 +84,7 @@
     ]
   },
   {
-    Id: 6,
+    Id: 7,
     ItemId: issue,
     Label: Raise issue,
     Enabled: true,
@@ -84,7 +98,7 @@
     ]
   },
   {
-    Id: 7,
+    Id: 8,
     ItemId: update,
     Label: Update,
     Enabled: true,
@@ -98,7 +112,7 @@
     ]
   },
   {
-    Id: 8,
+    Id: 9,
     ItemId: exit,
     Label: Exit,
     Enabled: true,

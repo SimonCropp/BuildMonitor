@@ -46,6 +46,10 @@ public class MonitorFormTests
         Capture(Fixtures.NeedsAuth());
 
     [Test]
+    public Task Connections() =>
+        Capture(Fixtures.Connections());
+
+    [Test]
     public Task Options() =>
         Capture(Fixtures.Options());
 
