@@ -483,17 +483,26 @@ static class Fixtures
     }
 
     public static SessionState ConnectionNew() =>
-        MonitorSession.OpenConnectionEditor(WithBuilds(), null, "draft1");
+        MonitorSession.OpenAddConnection(WithBuilds(), "draft1");
 
     public static SessionState ConnectionEdit() =>
-        MonitorSession.OpenConnectionEditor(WithBuilds(), Jenkins.Id, "unused");
+        MonitorSession.OpenEditConnection(WithBuilds(), Jenkins.Id);
+
+    public static ConnectionFormState ConnectionForm(SessionState state) =>
+        (ConnectionFormState) state.Form!;
+
+    public static OptionsFormState OptionsForm(SessionState state) =>
+        (OptionsFormState) state.Form!;
+
+    public static FiltersFormState FiltersForm(SessionState state) =>
+        (FiltersFormState) state.Form!;
 
     public static SessionState SignInDevice()
     {
         var state = MonitorSession.FieldChanged(ConnectionNew(), FormFields.Provider, "GitHub Actions");
         state = MonitorSession.FieldChanged(state, FormFields.Auth, nameof(AuthMethod.Device));
         var flow = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        state = MonitorSession.BeginSignIn(state, ConnectionDraft.Build(state.Form!), AuthMethod.Device, flow);
+        state = MonitorSession.BeginSignIn(state, ConnectionDraft.Build(ConnectionForm(state)), AuthMethod.Device, flow);
         return MonitorSession.SignInProgress(state, flow, "ABCD-1234", "https://github.com/login/device");
     }
 

@@ -8,7 +8,7 @@ public class ConnectionDraftTests
         state = MonitorSession.FieldChanged(state, FormFields.Name, " Work ");
         state = MonitorSession.FieldChanged(state, FormFields.Scope("organization"), "contoso");
         state = MonitorSession.FieldChanged(state, FormFields.Server, "https://dev.azure.com/");
-        var connection = ConnectionDraft.Build(state.Form!);
+        var connection = ConnectionDraft.Build(Fixtures.ConnectionForm(state));
         await Verify(connection)
             .Snapshot(
                 """
@@ -29,7 +29,7 @@ public class ConnectionDraftTests
     public async Task EmptyNameFallsBackToProvider()
     {
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "GoCD");
-        await Assert.That(ConnectionDraft.Build(state.Form!).Name).IsEqualTo("GoCD");
+        await Assert.That(ConnectionDraft.Build(Fixtures.ConnectionForm(state)).Name).IsEqualTo("GoCD");
     }
 
     [Test]
@@ -41,7 +41,7 @@ public class ConnectionDraftTests
     public async Task ValidationMessages(string provider, string expected)
     {
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, provider);
-        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsEqualTo(expected);
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo(expected);
     }
 
     [Test]
@@ -49,7 +49,7 @@ public class ConnectionDraftTests
     {
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Jenkins");
         state = MonitorSession.FieldChanged(state, FormFields.Server, "ftp://jenkins.local");
-        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsEqualTo("The server must be an http or https URL.");
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo("The server must be an http or https URL.");
     }
 
     [Test]
@@ -61,8 +61,8 @@ public class ConnectionDraftTests
     {
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Octopus Deploy");
         state = MonitorSession.FieldChanged(state, FormFields.Server, server);
-        await Assert.That(ConnectionDraft.Build(state.Form!).Server).IsEqualTo(expected);
-        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsNotEqualTo("The server must be an http or https URL.");
+        await Assert.That(ConnectionDraft.Build(Fixtures.ConnectionForm(state)).Server).IsEqualTo(expected);
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsNotEqualTo("The server must be an http or https URL.");
     }
 
     [Test]
@@ -70,7 +70,7 @@ public class ConnectionDraftTests
     {
         var state = MonitorSession.SetFormMessage(Fixtures.ConnectionNew(), "Testing...");
         state = MonitorSession.SetFormError(state, "Unauthorized");
-        await Assert.That(state.Form!.Message).IsNull();
+        await Assert.That(Fixtures.ConnectionForm(state).Message).IsNull();
         await Assert.That(state.Form!.Error).IsEqualTo("Unauthorized");
     }
 
@@ -79,21 +79,21 @@ public class ConnectionDraftTests
     {
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "GitLab CI");
         state = MonitorSession.FieldChanged(state, FormFields.Auth, nameof(AuthMethod.Browser));
-        await Assert.That(ConnectionDraft.Build(state.Form!).CallbackPort).IsNull();
+        await Assert.That(ConnectionDraft.Build(Fixtures.ConnectionForm(state)).CallbackPort).IsNull();
 
         state = MonitorSession.FieldChanged(state, FormFields.CallbackPort, "80");
-        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsEqualTo("The callback port must be between 1024 and 65535.");
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo("The callback port must be between 1024 and 65535.");
 
         state = MonitorSession.FieldChanged(state, FormFields.CallbackPort, "8420");
-        await Assert.That(ConnectionDraft.Build(state.Form!).CallbackPort).IsEqualTo(8420);
-        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsEqualTo("Sign in first, or switch to a token.");
+        await Assert.That(ConnectionDraft.Build(Fixtures.ConnectionForm(state)).CallbackPort).IsEqualTo(8420);
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo("Sign in first, or switch to a token.");
     }
 
     [Test]
     public async Task EditingKeepsTheStoredToken()
     {
         var state = Fixtures.ConnectionEdit();
-        await Assert.That(ConnectionDraft.Validate(state.Form!)).IsNull();
-        await Assert.That(ConnectionDraft.Build(state.Form!).Id).IsEqualTo(Fixtures.Jenkins.Id);
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsNull();
+        await Assert.That(ConnectionDraft.Build(Fixtures.ConnectionForm(state)).Id).IsEqualTo(Fixtures.Jenkins.Id);
     }
 }

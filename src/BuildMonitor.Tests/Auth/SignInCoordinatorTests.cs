@@ -12,7 +12,7 @@ public class SignInCoordinatorTests
             Auth = AuthMethod.Device
         };
         var flowId = Guid.NewGuid();
-        var editing = MonitorSession.OpenConnectionEditor(Fixtures.Connected(), null, connection.Id);
+        var editing = MonitorSession.OpenAddConnection(Fixtures.Connected(), connection.Id);
         var host = new SessionHost(MonitorSession.BeginSignIn(editing, connection, AuthMethod.Device, flowId));
         var secrets = new MemorySecretStore();
         var handler = new FakeHttpHandler()
@@ -23,7 +23,7 @@ public class SignInCoordinatorTests
         new SignInCoordinator(host, secrets, handler).Start(connection, AuthMethod.Device, flowId);
         await WaitFor(() => host.State.SignIn is null);
 
-        await Assert.That(host.State.Form!.Message).IsEqualTo("Signed in as simon.");
+        await Assert.That(Fixtures.ConnectionForm(host.State).Message).IsEqualTo("Signed in as simon.");
         await Assert.That(secrets.Read(SecretKeys.Token(connection.Id))).IsEqualTo("signed-in");
         var asked = handler.RequestHeaders[handler.Requests.IndexOf("GET https://gitlab.com/api/v4/user")];
         await Assert.That(asked.Authorization?.ToString()).IsEqualTo("Bearer signed-in");

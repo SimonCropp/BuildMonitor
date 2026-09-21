@@ -5,10 +5,7 @@
 /// </summary>
 static class ConnectionDraft
 {
-    public static ProviderDescriptor Descriptor(FormState form) =>
-        ProviderDescriptors.ByName(form.Value(FormFields.Provider)) ?? ProviderDescriptors.All[0];
-
-    public static AuthMethod Method(FormState form)
+    public static AuthMethod Method(ConnectionFormState form)
     {
         if (Enum.TryParse<AuthMethod>(form.Value(FormFields.Auth), out var method))
         {
@@ -22,9 +19,9 @@ static class ConnectionDraft
     /// The connection as currently described, without checking it is complete. Enough to start a
     /// sign in or a test.
     /// </summary>
-    public static Connection Build(FormState form)
+    public static Connection Build(ConnectionFormState form)
     {
-        var descriptor = Descriptor(form);
+        var descriptor = form.Descriptor;
         var scope = ImmutableDictionary.CreateBuilder<string, string>();
         foreach (var field in descriptor.Scopes)
         {
@@ -41,7 +38,7 @@ static class ConnectionDraft
         var callbackPort = int.TryParse(form.Value(FormFields.CallbackPort).Trim(), out var parsedPort) ? parsedPort : (int?) null;
         return new()
         {
-            Id = form.EditingConnectionId ?? form.DraftConnectionId ?? Guid.NewGuid().ToString("N"),
+            Id = form.ConnectionId,
             ProviderId = descriptor.Id,
             Name = form.Value(FormFields.Name).Trim() is { Length: > 0 } name ? name : descriptor.Name,
             Server = server.Length == 0 ? null : server,
@@ -53,7 +50,7 @@ static class ConnectionDraft
         };
     }
 
-    public static string? Token(FormState form)
+    public static string? Token(ConnectionFormState form)
     {
         var token = form.Value(FormFields.Token).Trim();
         if (token.Length == 0)
@@ -67,9 +64,9 @@ static class ConnectionDraft
     /// <summary>
     /// The first thing wrong with the draft, or null when it can be saved.
     /// </summary>
-    public static string? Validate(FormState form)
+    public static string? Validate(ConnectionFormState form)
     {
-        var descriptor = Descriptor(form);
+        var descriptor = form.Descriptor;
         if (descriptor is {SelfHosted: true, DefaultServer: null} &&
             form.Value(FormFields.Server).Trim().Length == 0)
         {

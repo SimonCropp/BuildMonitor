@@ -429,7 +429,7 @@ public class SessionTests
     {
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "GitHub Actions");
         state = MonitorSession.FieldChanged(state, FormFields.Auth, nameof(AuthMethod.Device));
-        state = MonitorSession.BeginSignIn(state, ConnectionDraft.Build(state.Form!), AuthMethod.Device, Guid.NewGuid());
+        state = MonitorSession.BeginSignIn(state, ConnectionDraft.Build(Fixtures.ConnectionForm(state)), AuthMethod.Device, Guid.NewGuid());
         await Assert.That(ScreenBuilder.Buttons(state).Select(_ => _.Label)).IsEquivalentTo(["Cancel"]);
         await Assert.That(MonitorSession.CopyUserCode(state).Clipboard).IsNull();
     }
@@ -463,11 +463,11 @@ public class SessionTests
     }
 
     [Test]
-    public async Task UpsertKeepsHealthOfExisting()
+    public async Task ReplaceKeepsHealthOfExisting()
     {
         var state = Fixtures.WithBuilds();
         var renamed = Fixtures.GitHub with { Name = "Hub" };
-        var next = MonitorSession.UpsertConnection(state, renamed);
+        var next = MonitorSession.ReplaceConnection(state, renamed);
         var connection = next.Connection(Fixtures.GitHub.Id)!;
         await Assert.That(connection.Connection.Name).IsEqualTo("Hub");
         await Assert.That(connection.Health).IsEqualTo(ConnectionHealth.Ok);
@@ -499,9 +499,10 @@ public class SessionTests
     {
         var state = Fixtures.SignInDevice();
         var next = MonitorSession.SignInCompleted(state, state.SignIn!.FlowId, "simon");
-        await Assert.That(next.Page).IsEqualTo(Page.Connection);
-        await Assert.That(next.Form!.SignedIn).IsTrue();
-        await Assert.That(next.Form.Message).IsEqualTo("Signed in as simon.");
+        await Assert.That(next.Page).IsEqualTo(Page.AddConnection);
+        var form = Fixtures.ConnectionForm(next);
+        await Assert.That(form.SignedIn).IsTrue();
+        await Assert.That(form.Message).IsEqualTo("Signed in as simon.");
     }
 
     [Test]
@@ -510,11 +511,11 @@ public class SessionTests
         var state = MonitorSession.FieldChanged(Fixtures.Filters(), FormFields.FilterText, "Nightly");
         state = MonitorSession.FieldChanged(state, FormFields.FilterKind, nameof(FilterKind.Exact));
         state = MonitorSession.AddFilter(state);
-        await Assert.That(state.Form!.Filters.Length).IsEqualTo(2);
-        await Assert.That(state.Form.Value(FormFields.FilterText)).IsEqualTo("");
+        await Assert.That(Fixtures.FiltersForm(state).Filters.Length).IsEqualTo(2);
+        await Assert.That(state.Form!.Value(FormFields.FilterText)).IsEqualTo("");
 
         state = MonitorSession.RemoveFilter(state, 0);
-        await Assert.That(state.Form!.Filters.Single().Text).IsEqualTo("Nightly");
+        await Assert.That(Fixtures.FiltersForm(state).Filters.Single().Text).IsEqualTo("Nightly");
     }
 
     [Test]

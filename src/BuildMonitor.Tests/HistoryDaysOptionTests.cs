@@ -11,7 +11,7 @@ public class HistoryDaysOptionTests
     public async Task OutOfRangeIsRejected(string days)
     {
         var state = MonitorSession.FieldChanged(Fixtures.Options(), FormFields.HistoryDays, days);
-        var built = OptionsDraft.TryBuild(state.Form!, state.Settings, out _, out var error);
+        var built = OptionsDraft.TryBuild(Fixtures.OptionsForm(state), state.Settings, out _, out var error);
         await Assert.That(built).IsFalse();
         await Assert.That(error).IsEqualTo("The days of builds to show must be between 1 and 365.");
     }
@@ -20,7 +20,7 @@ public class HistoryDaysOptionTests
     public async Task SavedWithTheOtherOptions()
     {
         var state = MonitorSession.FieldChanged(Fixtures.Options(), FormFields.HistoryDays, "90");
-        var built = OptionsDraft.TryBuild(state.Form!, state.Settings, out var settings, out _);
+        var built = OptionsDraft.TryBuild(Fixtures.OptionsForm(state), state.Settings, out var settings, out _);
         await Assert.That(built).IsTrue();
         await Assert.That(settings!.HistoryDays).IsEqualTo(90);
     }

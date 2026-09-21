@@ -3,7 +3,7 @@
 /// </summary>
 static class OptionsDraft
 {
-    public static bool TryBuild(FormState form, Settings current, [NotNullWhen(true)] out Settings? settings, [NotNullWhen(false)] out string? error)
+    public static bool TryBuild(OptionsFormState form, Settings current, [NotNullWhen(true)] out Settings? settings, [NotNullWhen(false)] out string? error)
     {
         settings = null;
         if (!TryInterval(form.Value(FormFields.PollInterval), out var poll))

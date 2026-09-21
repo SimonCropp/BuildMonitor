@@ -185,11 +185,11 @@ static class InputApplier
             case FormFields.Documentation:
                 actions.OpenUrl("https://github.com/SimonCropp/BuildMonitor");
                 return state;
-            case FormFields.TokenHelp when state.Form is not null:
-                actions.OpenUrl(ConnectionDraft.Descriptor(state.Form).TokenHelpUrl);
+            case FormFields.TokenHelp when state.Form is ConnectionFormState form:
+                actions.OpenUrl(form.Descriptor.TokenHelpUrl);
                 return state;
-            case FormFields.ProviderDocs when state.Form is not null:
-                actions.OpenUrl(ConnectionDraft.Descriptor(state.Form).DocsUrl);
+            case FormFields.ProviderDocs when state.Form is ConnectionFormState form:
+                actions.OpenUrl(form.Descriptor.DocsUrl);
                 return state;
             case FormFields.VerificationUrl when state.SignIn?.VerificationUrl is { } url:
                 actions.OpenUrl(url);
@@ -370,7 +370,7 @@ static class InputApplier
             }
             case CommandKind.BrowseCodeDirectory:
             {
-                if (state.Form is not { } browsing ||
+                if (state.Form is not OptionsFormState browsing ||
                     window?.PickDirectory(Started(browsing)) is not { } picked)
                 {
                     return state;
@@ -433,7 +433,7 @@ static class InputApplier
             case CommandKind.OpenFilters:
                 return MonitorSession.OpenFilters(state);
             case CommandKind.AddConnection:
-                return MonitorSession.OpenConnectionEditor(state, null, Guid.NewGuid().ToString("N"));
+                return MonitorSession.OpenAddConnection(state, Guid.NewGuid().ToString("N"));
             case CommandKind.EditConnection:
             {
                 var id = target ?? MonitorSession.SelectedRow(state)?.Connection?.Connection.Id;
@@ -442,15 +442,16 @@ static class InputApplier
                     return state;
                 }
 
-                return MonitorSession.OpenConnectionEditor(state, id, Guid.NewGuid().ToString("N"));
+                return MonitorSession.OpenEditConnection(state, id);
             }
             case CommandKind.RemoveConnection:
             {
-                if (state.Form?.EditingConnectionId is not { } id)
+                if (state.Form is not EditConnectionFormState removing)
                 {
                     return state;
                 }
 
+                var id = removing.ConnectionId;
                 state = MonitorSession.OpenBuilds(MonitorSession.RemoveConnection(state, id));
                 actions.DeleteSecret(SecretKeys.Token(id));
                 actions.DeleteSecret(SecretKeys.Refresh(id));
@@ -468,7 +469,7 @@ static class InputApplier
                 return state;
             case CommandKind.SignIn:
             {
-                if (state.Form is not { Page: Page.Connection } form)
+                if (state.Form is not ConnectionFormState form)
                 {
                     return state;
                 }
@@ -494,7 +495,7 @@ static class InputApplier
                 return MonitorSession.CancelSignIn(state);
             case CommandKind.TestConnection:
             {
-                if (state.Form is not { Page: Page.Connection } form)
+                if (state.Form is not ConnectionFormState form)
                 {
                     return state;
                 }
@@ -506,11 +507,12 @@ static class InputApplier
                 return Save(state, actions);
             case CommandKind.CancelForm:
             {
-                // A new connection that signed in before being abandoned leaves a token behind.
-                if (state.Form is { Page: Page.Connection, EditingConnectionId: null, SignedIn: true, DraftConnectionId: { } draft })
+                // A new connection that signed in before being abandoned leaves a token behind. An
+                // edited one's token is the connection's own, and stays.
+                if (state.Form is AddConnectionFormState { SignedIn: true } abandoned)
                 {
-                    actions.DeleteSecret(SecretKeys.Token(draft));
-                    actions.DeleteSecret(SecretKeys.Refresh(draft));
+                    actions.DeleteSecret(SecretKeys.Token(abandoned.ConnectionId));
+                    actions.DeleteSecret(SecretKeys.Refresh(abandoned.ConnectionId));
                 }
 
                 return MonitorSession.OpenBuilds(state);
@@ -554,7 +556,7 @@ static class InputApplier
     /// Where the chooser opens: what is typed in the field, so a second Browse starts where the
     /// first one left off rather than at the desktop's idea of home.
     /// </summary>
-    static string? Started(FormState form)
+    static string? Started(OptionsFormState form)
     {
         if (form.Value(FormFields.CodeDirectory) is { Length: > 0 } typed)
         {
@@ -644,60 +646,63 @@ static class InputApplier
         return MonitorSession.SetStatus(state, $"Collecting {build.PipelineName} {build.RunNumberLabel()} for triage".TrimEnd());
     }
 
-    static SessionState Save(SessionState state, MonitorActions actions)
+    static SessionState Save(SessionState state, MonitorActions actions) =>
+        state.Form switch
+        {
+            OptionsFormState form => SaveOptions(state, form, actions),
+            FiltersFormState form => SaveFilters(state, form, actions),
+            AddConnectionFormState form => SaveConnection(state, form, actions, MonitorSession.AddConnection),
+            EditConnectionFormState form => SaveConnection(state, form, actions, MonitorSession.ReplaceConnection),
+            _ => state
+        };
+
+    static SessionState SaveOptions(SessionState state, OptionsFormState form, MonitorActions actions)
     {
-        if (state.Form is not { } form)
+        if (!OptionsDraft.TryBuild(form, state.Settings, out var settings, out var error))
         {
-            return state;
+            return MonitorSession.SetFormError(state, error);
         }
 
-        switch (form.Page)
+        string? runAtLoginError = null;
+        if (settings.RunAtStartup != state.Settings.RunAtStartup)
         {
-            case Page.Options:
-            {
-                if (!OptionsDraft.TryBuild(form, state.Settings, out var settings, out var error))
-                {
-                    return MonitorSession.SetFormError(state, error);
-                }
-
-                string? runAtLoginError = null;
-                if (settings.RunAtStartup != state.Settings.RunAtStartup)
-                {
-                    runAtLoginError = actions.SetRunAtLogin(settings.RunAtStartup);
-                }
-
-                state = MonitorSession.ApplySettings(state, settings);
-                actions.SaveSettings(settings);
-                // The rest of the options are saved either way: one of them not taking is worth
-                // saying, and is not worth throwing the others away over.
-                return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), runAtLoginError ?? "Options saved");
-            }
-            case Page.Filters:
-            {
-                state = MonitorSession.ApplySettings(state, state.Settings with { Filters = form.Filters });
-                actions.SaveSettings(state.Settings);
-                return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), "Filters saved");
-            }
-            case Page.Connection:
-            {
-                if (ConnectionDraft.Validate(form) is { } error)
-                {
-                    return MonitorSession.SetFormError(state, error);
-                }
-
-                var connection = ConnectionDraft.Build(form);
-                if (ConnectionDraft.Token(form) is { } token)
-                {
-                    actions.StoreSecret(SecretKeys.Token(connection.Id), token);
-                }
-
-                state = MonitorSession.UpsertConnection(state, connection);
-                actions.SaveSettings(state.Settings);
-                actions.Refresh(connection.Id);
-                return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), $"Saved {connection.Name}");
-            }
-            default:
-                return state;
+            runAtLoginError = actions.SetRunAtLogin(settings.RunAtStartup);
         }
+
+        state = MonitorSession.ApplySettings(state, settings);
+        actions.SaveSettings(settings);
+        // The rest of the options are saved either way: one of them not taking is worth
+        // saying, and is not worth throwing the others away over.
+        return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), runAtLoginError ?? "Options saved");
+    }
+
+    static SessionState SaveFilters(SessionState state, FiltersFormState form, MonitorActions actions)
+    {
+        state = MonitorSession.ApplySettings(state, state.Settings with { Filters = form.Filters });
+        actions.SaveSettings(state.Settings);
+        return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), "Filters saved");
+    }
+
+    /// <summary>
+    /// Each editor passes how its connection goes into the settings, rather than this looking up
+    /// whether one with the id exists: a lookup is a guess at which page the save came from.
+    /// </summary>
+    static SessionState SaveConnection(SessionState state, ConnectionFormState form, MonitorActions actions, Func<SessionState, Connection, SessionState> apply)
+    {
+        if (ConnectionDraft.Validate(form) is { } error)
+        {
+            return MonitorSession.SetFormError(state, error);
+        }
+
+        var connection = ConnectionDraft.Build(form);
+        if (ConnectionDraft.Token(form) is { } token)
+        {
+            actions.StoreSecret(SecretKeys.Token(connection.Id), token);
+        }
+
+        state = apply(state, connection);
+        actions.SaveSettings(state.Settings);
+        actions.Refresh(connection.Id);
+        return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), $"Saved {connection.Name}");
     }
 }

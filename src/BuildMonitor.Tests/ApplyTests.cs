@@ -349,6 +349,34 @@ public class ApplyTests
         await Assert.That(actions.Calls).IsEquivalentTo(["DeleteSecret connection:jenkins", "DeleteSecret connection:jenkins:refresh", "SaveSettings"]);
     }
 
+    /// <summary>
+    /// The command is only reachable from the edit page, but it used to work off whichever id the
+    /// form happened to hold, so a new connection's draft id would have been removed and its
+    /// secrets deleted.
+    /// </summary>
+    [Test]
+    public async Task RemovingFromTheAddPageDoesNothing()
+    {
+        var actions = new RecordingActions();
+        var state = Fixtures.ConnectionNew();
+        var next = Apply(state, new(Key: CommandKind.RemoveConnection), actions);
+        await Assert.That(next.Settings.Connections.Length).IsEqualTo(state.Settings.Connections.Length);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    /// <summary>
+    /// An edited connection's token is the connection's own, not a draft's, so leaving the editor
+    /// must not delete it.
+    /// </summary>
+    [Test]
+    public async Task CancellingAnEditDeletesNoSecret()
+    {
+        var actions = new RecordingActions();
+        var state = Apply(Fixtures.ConnectionEdit(), new(Key: CommandKind.CancelForm), actions);
+        await Assert.That(state.Page).IsEqualTo(Page.Builds);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
     [Test]
     public async Task CancellingANewSignedInConnectionDeletesItsToken()
     {
@@ -374,8 +402,8 @@ public class ApplyTests
     public async Task EditRowClickEditsTheConnection()
     {
         var state = Apply(Fixtures.Options(), new(ClickedField: FormFields.Connection(Fixtures.Octopus.Id)), new());
-        await Assert.That(state.Page).IsEqualTo(Page.Connection);
-        await Assert.That(state.Form!.EditingConnectionId).IsEqualTo(Fixtures.Octopus.Id);
+        await Assert.That(state.Page).IsEqualTo(Page.EditConnection);
+        await Assert.That(Fixtures.ConnectionForm(state).ConnectionId).IsEqualTo(Fixtures.Octopus.Id);
     }
 
     [Test]
@@ -588,7 +616,7 @@ public class ApplyTests
         var state = Apply(Fixtures.WithBuilds(), new(TrayItem: TrayMenu.Update), actions);
 
         await Assert.That(state.Page).IsEqualTo(Page.Update);
-        await Assert.That(state.Form!.Servers.Running.Single().ProcessId).IsEqualTo(21044);
+        await Assert.That(((UpdateFormState) state.Form!).Servers.Running.Single().ProcessId).IsEqualTo(21044);
         await Assert.That(actions.Calls).IsEquivalentTo(["RunningServers"]);
     }
 

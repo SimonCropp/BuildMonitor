@@ -47,7 +47,7 @@ public class HiddenStartTests
 
         await Assert.That(state.Hidden).IsTrue();
         await Assert.That(state.Settings.ShowWindowAtStart).IsTrue();
-        await Assert.That(OptionsDraft.TryBuild(MonitorSession.OpenOptions(state).Form!, state.Settings, out var saved, out _)).IsTrue();
+        await Assert.That(OptionsDraft.TryBuild(Fixtures.OptionsForm(MonitorSession.OpenOptions(state)), state.Settings, out var saved, out _)).IsTrue();
         await Assert.That(saved!.ShowWindowAtStart).IsTrue();
     }
 }

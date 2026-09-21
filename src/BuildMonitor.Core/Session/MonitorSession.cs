@@ -429,12 +429,7 @@ static class MonitorSession
         values[FormFields.HistoryDays] = settings.HistoryDays.ToString();
         values[FormFields.Port] = settings.Port.ToString();
         values[FormFields.CodeDirectory] = settings.CodeDirectory;
-        return state with
-        {
-            Page = Page.Options,
-            Menu = null,
-            Form = new(Page.Options, values.ToImmutable(), settings.Filters, null, null, null, null, false)
-        };
+        return OpenForm(state, new OptionsFormState { Values = values.ToImmutable() });
     }
 
     public static SessionState OpenFilters(SessionState state)
@@ -443,12 +438,13 @@ static class MonitorSession
         values[FormFields.FilterKind] = nameof(FilterKind.Prefix);
         values[FormFields.FilterTarget] = nameof(FilterTarget.Pipeline);
         values[FormFields.FilterText] = "";
-        return state with
-        {
-            Page = Page.Filters,
-            Menu = null,
-            Form = new(Page.Filters, values.ToImmutable(), state.Settings.Filters, null, null, null, null, false)
-        };
+        return OpenForm(
+            state,
+            new FiltersFormState
+            {
+                Values = values.ToImmutable(),
+                Filters = state.Settings.Filters
+            });
     }
 
     /// <summary>
@@ -458,22 +454,69 @@ static class MonitorSession
     /// update takes down with it.
     /// </summary>
     public static SessionState OpenUpdate(SessionState state, McpServers servers) =>
+        OpenForm(
+            state,
+            new UpdateFormState
+            {
+                Values = [],
+                Servers = servers
+            });
+
+    /// <summary>
+    /// The page and the form are set together, from the form: set apart they could disagree, and
+    /// the window would draw one page while a save acted on another.
+    /// </summary>
+    static SessionState OpenForm(SessionState state, FormState form) =>
         state with
         {
-            Page = Page.Update,
+            Page = form.Page,
             Menu = null,
-            Form = new(Page.Update, ImmutableDictionary<string, string>.Empty, state.Settings.Filters, null, null, null, null, false)
-            {
-                Servers = servers
-            }
+            Form = form
         };
 
-    public static SessionState OpenConnectionEditor(SessionState state, string? connectionId, string draftId)
+    /// <param name="draftId">The id the connection will have, assigned now so that a browser sign
+    /// in can store its token before the connection is saved.</param>
+    public static SessionState OpenAddConnection(SessionState state, string draftId)
     {
-        var existing = connectionId is null ? null : state.Connection(connectionId)?.Connection;
-        var descriptor = existing is null ? ProviderDescriptors.All[0] : ProviderDescriptors.Get(existing.ProviderId);
+        var descriptor = ProviderDescriptors.All[0];
+        var values = ConnectionValues(descriptor, null)
+            .SetItem(FormFields.Provider, descriptor.Name);
+        return OpenForm(
+            state,
+            new AddConnectionFormState
+            {
+                Values = values,
+                ConnectionId = draftId
+            });
+    }
+
+    /// <summary>
+    /// Nothing opens for a connection that has gone, which a poll can do between the frame being
+    /// drawn and the click on its row. Opening a blank editor instead, as this once did, read as
+    /// the click having opened the wrong page.
+    /// </summary>
+    public static SessionState OpenEditConnection(SessionState state, string connectionId)
+    {
+        if (state.Connection(connectionId)?.Connection is not { } existing)
+        {
+            return state;
+        }
+
+        return OpenForm(
+            state,
+            new EditConnectionFormState
+            {
+                Values = ConnectionValues(ProviderDescriptors.Get(existing.ProviderId), existing),
+                ConnectionId = existing.Id,
+                ProviderId = existing.ProviderId,
+                // An existing connection already has its secret stored.
+                SignedIn = true
+            });
+    }
+
+    static ImmutableDictionary<string, string> ConnectionValues(ProviderDescriptor descriptor, Connection? existing)
+    {
         var values = ImmutableDictionary.CreateBuilder<string, string>();
-        values[FormFields.Provider] = descriptor.Name;
         values[FormFields.Name] = existing?.Name ?? "";
         values[FormFields.Server] = existing?.Server ?? descriptor.DefaultServer ?? "";
         values[FormFields.Auth] = (existing?.Auth ?? descriptor.AuthMethods().First()).ToString();
@@ -486,21 +529,7 @@ static class MonitorSession
             values[FormFields.Scope(scope.Id)] = existing?.ScopeValue(scope.Id) ?? "";
         }
 
-        return state with
-        {
-            Page = Page.Connection,
-            Menu = null,
-            Form = new(
-                Page.Connection,
-                values.ToImmutable(),
-                state.Settings.Filters,
-                null,
-                existing?.Id,
-                existing is null ? draftId : null,
-                null,
-                // An existing connection already has its secret stored.
-                existing is not null)
-        };
+        return values.ToImmutable();
     }
 
     public static SessionState FieldChanged(SessionState state, string id, string value)
@@ -511,9 +540,10 @@ static class MonitorSession
         }
 
         var form = state.Form.With(id, value);
-        // Switching provider re-derives the dependent fields: server, auth method and scopes.
+        // Switching provider re-derives the dependent fields: server, auth method and scopes. Only
+        // a new connection has a provider to switch; an existing one's is not among its values.
         if (id == FormFields.Provider &&
-            state.Form.Page == Page.Connection &&
+            state.Form is AddConnectionFormState &&
             ProviderDescriptors.ByName(value) is { } descriptor)
         {
             form = form
@@ -532,24 +562,33 @@ static class MonitorSession
     }
 
     public static SessionState SetFormError(SessionState state, string error) =>
-        // Clears the message too, or a failed test leaves "Testing..." above its error.
-        state.Form is null ? state : state with { Form = state.Form with { Error = error, Message = null } };
+        state.Form switch
+        {
+            // Clears the message too, or a failed test leaves "Testing..." above its error.
+            ConnectionFormState form => state with { Form = form with { Error = error, Message = null } },
+            { } form => state with { Form = form with { Error = error } },
+            null => state
+        };
 
+    /// <summary>
+    /// Only a connection editor shows a message, so a test result that arrives once the user has
+    /// left the editor is dropped rather than written onto a form with nowhere to show it.
+    /// </summary>
     public static SessionState SetFormMessage(SessionState state, string message)
     {
-        if (state.Form is null)
+        if (state.Form is not ConnectionFormState form)
         {
             return state;
         }
 
-        return state with { Form = state.Form with { Message = message, Error = null } };
+        return state with { Form = form with { Message = message, Error = null } };
     }
 
     // Filters page
 
     public static SessionState AddFilter(SessionState state)
     {
-        if (state.Form is not { Page: Page.Filters } form)
+        if (state.Form is not FiltersFormState form)
         {
             return state;
         }
@@ -572,21 +611,13 @@ static class MonitorSession
             return SetFormError(state, "That filter already exists.");
         }
 
-        return state with
-        {
-            Form = form
-                .With(FormFields.FilterText, "")
-                with
-                {
-                    Filters = form.Filters.Add(filter),
-                    Error = null
-                }
-        };
+        var added = form with { Filters = form.Filters.Add(filter), Error = null };
+        return state with { Form = added.With(FormFields.FilterText, "") };
     }
 
     public static SessionState RemoveFilter(SessionState state, int index)
     {
-        if (state.Form is not { Page: Page.Filters } form ||
+        if (state.Form is not FiltersFormState form ||
             index < 0 ||
             index >= form.Filters.Length)
         {
@@ -711,14 +742,20 @@ static class MonitorSession
         });
     }
 
-    public static SessionState UpsertConnection(SessionState state, Connection connection)
-    {
-        var existing = state.Settings.Connections.FirstOrDefault(_ => _.Id == connection.Id);
-        var connections = existing is null
-            ? state.Settings.Connections.Add(connection)
-            : state.Settings.Connections.Replace(existing, connection);
-        return ApplySettings(state, state.Settings with { Connections = connections });
-    }
+    public static SessionState AddConnection(SessionState state, Connection connection) =>
+        ApplySettings(state, state.Settings with { Connections = state.Settings.Connections.Add(connection) });
+
+    /// <summary>
+    /// In place rather than removed and added, so the connection keeps its position in the list
+    /// and, through <see cref="ApplySettings"/>, its health and last poll.
+    /// </summary>
+    public static SessionState ReplaceConnection(SessionState state, Connection connection) =>
+        ApplySettings(
+            state,
+            state.Settings with
+            {
+                Connections = [..state.Settings.Connections.Select(_ => _.Id == connection.Id ? connection : _)]
+            });
 
     public static SessionState RemoveConnection(SessionState state, string connectionId) =>
         ApplySettings(
@@ -786,7 +823,7 @@ static class MonitorSession
     public static SessionState SignInCompleted(SessionState state, Guid flowId, string? userName)
     {
         if (state.SignIn?.FlowId != flowId ||
-            state.Form is null)
+            state.Form is not ConnectionFormState form)
         {
             return state;
         }
@@ -794,25 +831,25 @@ static class MonitorSession
         var message = userName is null ? "Signed in." : $"Signed in as {userName}.";
         return state with
         {
-            Page = Page.Connection,
+            Page = form.Page,
             SignIn = null,
-            Form = state.Form with { SignedIn = true, Message = message, Error = null }
+            Form = form with { SignedIn = true, Message = message, Error = null }
         };
     }
 
     public static SessionState SignInFailed(SessionState state, Guid flowId, string error)
     {
         if (state.SignIn?.FlowId != flowId ||
-            state.Form is null)
+            state.Form is not ConnectionFormState form)
         {
             return state;
         }
 
         return state with
         {
-            Page = Page.Connection,
+            Page = form.Page,
             SignIn = null,
-            Form = state.Form with { Error = error }
+            Form = form with { Error = error }
         };
     }
 
@@ -823,7 +860,7 @@ static class MonitorSession
             return state;
         }
 
-        return state with { Page = Page.Connection, SignIn = null };
+        return state with { Page = state.Form?.Page ?? Page.Builds, SignIn = null };
     }
 
     // Polling

@@ -8,7 +8,8 @@ enum Page
     Builds,
     Options,
     Filters,
-    Connection,
+    AddConnection,
+    EditConnection,
     SignIn,
     Update
 }

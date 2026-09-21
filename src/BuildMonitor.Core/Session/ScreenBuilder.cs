@@ -513,18 +513,25 @@ static class ScreenBuilder
                 new("Filters", true, CommandKind.OpenFilters, "Hide pipelines for good"),
                 new("Hide", true, CommandKind.Hide, "Hide the window; the tray keeps running")
             ],
-            Page.Connection => ConnectionButtons(state),
             Page.SignIn => SignInButtons(state),
-            Page.Update =>
-            [
-                new("Update", true, CommandKind.ConfirmUpdate, "Close BuildMonitor, update it and start it again"),
-                new("Cancel", true, CommandKind.CancelForm)
-            ],
-            _ =>
-            [
-                new("Save", true, CommandKind.Save),
-                new("Cancel", true, CommandKind.CancelForm)
-            ]
+            // By the form rather than the page, and with no fallback: a page left out of a
+            // fallback would silently get Save and Cancel, and lose its own buttons.
+            _ => state.Form switch
+            {
+                AddConnectionFormState form => ConnectionButtons(form),
+                EditConnectionFormState form => EditConnectionButtons(form),
+                UpdateFormState =>
+                [
+                    new("Update", true, CommandKind.ConfirmUpdate, "Close BuildMonitor, update it and start it again"),
+                    new("Cancel", true, CommandKind.CancelForm)
+                ],
+                OptionsFormState or FiltersFormState =>
+                [
+                    new("Save", true, CommandKind.Save),
+                    new("Cancel", true, CommandKind.CancelForm)
+                ],
+                _ => throw new($"No buttons for {state.Page}")
+            }
         };
 
     /// <summary>
@@ -543,24 +550,22 @@ static class ScreenBuilder
         return buttons;
     }
 
-    static List<Button> ConnectionButtons(SessionState state)
-    {
-        var form = state.Form!;
-        var method = ConnectionDraft.Method(form);
-        var buttons = new List<Button>(5)
-        {
-            new("Sign in", method != AuthMethod.Token, CommandKind.SignIn),
-            new("Test", true, CommandKind.TestConnection, "Check the server and credential without saving"),
-            new("Save", true, CommandKind.Save),
-            new("Cancel", true, CommandKind.CancelForm)
-        };
-        if (form.EditingConnectionId is not null)
-        {
-            buttons.Add(new("Remove", true, CommandKind.RemoveConnection, "Forget this connection and its stored credential"));
-        }
+    static List<Button> ConnectionButtons(ConnectionFormState form) =>
+    [
+        new("Sign in", ConnectionDraft.Method(form) != AuthMethod.Token, CommandKind.SignIn),
+        new("Test", true, CommandKind.TestConnection, "Check the server and credential without saving"),
+        new("Save", true, CommandKind.Save),
+        new("Cancel", true, CommandKind.CancelForm)
+    ];
 
-        return buttons;
-    }
+    /// <summary>
+    /// Remove last, after the buttons both editors share, so they sit in the same place on either.
+    /// </summary>
+    static List<Button> EditConnectionButtons(EditConnectionFormState form) =>
+    [
+        ..ConnectionButtons(form),
+        new("Remove", true, CommandKind.RemoveConnection, "Forget this connection and its stored credential")
+    ];
 
     public static string Status(SessionState state, DateTimeOffset now)
     {
@@ -609,20 +614,23 @@ static class ScreenBuilder
 
     static Screen FormScreen(SessionState state, DateTimeOffset now, TrayModel tray, string status)
     {
-        var form = state.Page switch
-        {
-            Page.Options => OptionsForm(state),
-            Page.Filters => FiltersForm(state),
-            Page.Connection => ConnectionForm(state),
-            Page.SignIn => SignInForm(state),
-            Page.Update => UpdateForm(state, now),
-            _ => throw new($"No form for {state.Page}")
-        };
+        // The sign in page is drawn over the connection editor, whose form is still in the state.
+        var formPage = state.Page == Page.SignIn
+            ? SignInForm(state)
+            : state.Form switch
+            {
+                OptionsFormState form => OptionsForm(state, form),
+                FiltersFormState form => FiltersForm(form),
+                AddConnectionFormState form => AddConnectionForm(form),
+                EditConnectionFormState form => EditConnectionForm(form),
+                UpdateFormState form => UpdateForm(form, now),
+                _ => throw new($"No form for {state.Page}")
+            };
         return new(
             Title,
             state.Page,
             null,
-            form,
+            formPage,
             Buttons(state),
             status,
             StatusTooltip(state, status, now),
@@ -638,9 +646,9 @@ static class ScreenBuilder
     /// replace its own files, and nothing is on screen until the new one starts, so this page and
     /// the notification the new one shows are the whole of what the user sees of an update.
     /// </summary>
-    static FormPage UpdateForm(SessionState state, DateTimeOffset now)
+    static FormPage UpdateForm(UpdateFormState form, DateTimeOffset now)
     {
-        var servers = state.Form!.Servers;
+        var servers = form.Servers;
         var fields = new List<Field>
         {
             new(FormFields.Version, FieldKind.Label, "Version", VersionReader.VersionString),
@@ -692,9 +700,8 @@ static class ScreenBuilder
         yield return "An AI client using one loses it mid-conversation, and starts a new one when it next connects:";
     }
 
-    static FormPage OptionsForm(SessionState state)
+    static FormPage OptionsForm(SessionState state, OptionsFormState form)
     {
-        var form = state.Form!;
         var fields = new List<Field>
         {
             new(FormFields.RunAtStartup, FieldKind.Checkbox, "Run at startup", form.Value(FormFields.RunAtStartup)),
@@ -756,9 +763,8 @@ static class ScreenBuilder
             _ => "not polled yet"
         };
 
-    static FormPage FiltersForm(SessionState state)
+    static FormPage FiltersForm(FiltersFormState form)
     {
-        var form = state.Form!;
         var fields = new List<Field>();
         if (form.Filters.Length == 0)
         {
@@ -778,14 +784,33 @@ static class ScreenBuilder
         return new("Filters", fields);
     }
 
-    static FormPage ConnectionForm(SessionState state)
+    static FormPage AddConnectionForm(AddConnectionFormState form)
     {
-        var form = state.Form!;
-        var descriptor = ConnectionDraft.Descriptor(form);
+        var provider = new Field(FormFields.Provider, FieldKind.Select, "Provider", form.Descriptor.Name, Options: ProviderDescriptors.All.Select(_ => _.Name).ToList());
+        return new("Add connection", ConnectionFields(form, provider));
+    }
+
+    /// <summary>
+    /// The provider as text rather than a disabled drop down. On an existing connection it is not
+    /// a choice being withheld but no choice at all, and a greyed out drop down invited a click
+    /// that did nothing.
+    /// </summary>
+    static FormPage EditConnectionForm(EditConnectionFormState form)
+    {
+        var provider = new Field(FormFields.Provider, FieldKind.Label, "Provider", form.Descriptor.Name);
+        return new("Edit connection", ConnectionFields(form, provider));
+    }
+
+    /// <summary>
+    /// Everything under the provider, which both editors show the same way.
+    /// </summary>
+    static List<Field> ConnectionFields(ConnectionFormState form, Field provider)
+    {
+        var descriptor = form.Descriptor;
         var method = ConnectionDraft.Method(form);
         var fields = new List<Field>
         {
-            new(FormFields.Provider, FieldKind.Select, "Provider", descriptor.Name, Options: ProviderDescriptors.All.Select(_ => _.Name).ToList(), Enabled: form.EditingConnectionId is null),
+            provider,
             new(FormFields.Name, FieldKind.Text, "Name", form.Value(FormFields.Name), Hint: descriptor.Name)
         };
         if (descriptor.SelfHosted)
@@ -849,7 +874,7 @@ static class ScreenBuilder
         }
 
         AddError(fields, form);
-        return new(form.EditingConnectionId is null ? "Add connection" : "Edit connection", fields);
+        return fields;
     }
 
     static FormPage SignInForm(SessionState state)
