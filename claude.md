@@ -26,6 +26,10 @@ dotnet test --project src/BuildMonitor.Tests/BuildMonitor.Tests.csproj --configu
 # Or run the test project directly, which is the fastest loop and takes the same filter
 src/BuildMonitor.Tests/bin/Debug/net10.0/BuildMonitor.Tests.exe --treenode-filter "/*/*/ClassName/*"
 
+# The WinForms screenshot tests, Debug only, so neither CI nor a Release run includes them.
+# Run after any change to what the Windows head draws; see Pixel snapshots below
+src/BuildMonitor.Windows.Tests/bin/Debug/net10.0-windows/BuildMonitor.Windows.Tests.exe
+
 # Benchmarks, on demand and Windows only. Not in the solution, so neither CI nor dotnet test runs them
 dotnet run --configuration Release --project src/BuildMonitor.Benchmarks -- --filter "*"
 
@@ -45,6 +49,8 @@ bash src/BuildMonitor.Tests/Providers/Live/Servers/jenkins/provision.sh down
 **SDK:** .NET 10 SDK (`global.json` at the repository root, which also selects the Microsoft.Testing.Platform runner).
 
 **Snapshots:** Verify writes `*.received.*` beside the test; accept by renaming to `*.verified.*`. Received files are gitignored.
+
+**Pixel snapshots:** `MonitorFormTests` captures the WinForms head as the machine running it draws it, in its Segoe UI, and compares at SSIM 0.9999. It is `#if DEBUG`, so the Release build CI runs never compiles it: a change to what the Windows head draws, including a form field or footer text composed in Core, passes CI, and nothing notices these baselines going stale until the Debug command above runs. The native heads' `PixelTests` are the other way round. CI runs them on Linux and macOS against pinned rasterisers, anywhere without `BUILDMONITOR_PIXEL_TESTS=true` skips them, and their baselines come from the `received-*` artifacts of a Test run.
 
 ## Architecture
 
