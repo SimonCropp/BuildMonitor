@@ -7,14 +7,14 @@
 |   ? nightly        jenkins                                     queued 30s               [Cancel]                     |
 |   x Verify         github   test.yml feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]          |
 | > + [+] Verify              2 passing                          2h ago                                                |
-|   +---------+e     github   docs.yml main                      23h ago                                               |
-|   | Expand  |                                                                                                        |
-|   | Refresh |                                                                                                        |
-|   +---------+                                                                                                        |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
+|   +----------------------------------+ain                      23h ago                                               |
+|   | Expand                           |                                                                               |
+|   | Refresh                          |                                                                               |
+|   |----------------------------------|                                                                               |
+|   | Exclude branch: main             |                                                                               |
+|   | Exclude repo: VerifyTests/Verify |                                                                               |
+|   | Exclude org: VerifyTests         |                                                                               |
+|   +----------------------------------+                                                                               |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

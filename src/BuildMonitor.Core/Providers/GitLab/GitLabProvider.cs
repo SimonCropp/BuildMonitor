@@ -104,7 +104,7 @@ sealed class GitLabProvider : ProviderBase
     /// How long a server whose GraphQL failed is fetched over REST before GraphQL is asked again.
     /// Asked every poll, a server without it paid a failed request before the REST ones each time.
     /// </summary>
-    static readonly TimeSpan graphRetry = TimeSpan.FromHours(1);
+    static TimeSpan graphRetry = TimeSpan.FromHours(1);
 
     const string graphFailed = "gitlab.graph-failed";
 

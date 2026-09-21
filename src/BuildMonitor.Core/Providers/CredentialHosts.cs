@@ -23,7 +23,7 @@ static class CredentialHosts
     /// <c>{organization}.visualstudio.com</c> addresses that still answer. Azure DevOps Server keeps
     /// all of it on one host, which the same host rule already covers.
     /// </summary>
-    static readonly string[] azureDevOps =
+    static string[] azureDevOps =
     [
         "dev.azure.com",
         "visualstudio.com",

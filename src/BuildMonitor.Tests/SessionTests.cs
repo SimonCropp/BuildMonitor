@@ -164,7 +164,7 @@ public class SessionTests
         // docs.yml is the last row, under Verify's failure.
         var builds = Fixtures.WithBuilds();
         var state = MonitorSession.SelectRow(builds, DocsRow(builds));
-        var next = MonitorSession.ExcludePipeline(state, MonitorSession.SelectedBuild(state)!);
+        var next = MonitorSession.ExcludePipeline(state, MonitorSession.SelectedRow(state)!.Builds);
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/test.yml/feature/inline");
     }
 
@@ -558,7 +558,7 @@ public class SessionTests
     {
         var state = Fixtures.WithBuilds();
         var build = state.Builds.First(_ => _.PipelineName == "Nightly");
-        var next = MonitorSession.ExcludePipeline(state, build);
+        var next = MonitorSession.ExcludePipeline(state, [build]);
         await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Pipeline, "Nightly"));
         await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.PipelineName == "Nightly")).IsFalse();
     }
@@ -568,7 +568,7 @@ public class SessionTests
     {
         var state = Fixtures.WithBuilds();
         var build = state.Builds.First(_ => _.Branch == "main");
-        var next = MonitorSession.ExcludeBranch(state, build);
+        var next = MonitorSession.ExcludeBranch(state, [build]);
         await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Branch, "main"));
         await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.Branch == "main")).IsFalse();
     }
@@ -578,7 +578,7 @@ public class SessionTests
     {
         var state = Fixtures.WithBuilds();
         var build = state.Builds.First();
-        var next = MonitorSession.ExcludeRepo(state, build);
+        var next = MonitorSession.ExcludeRepo(state, [build]);
         await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Repo, build.RepoName));
         await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.RepoName == build.RepoName)).IsFalse();
     }
@@ -588,7 +588,7 @@ public class SessionTests
     {
         var state = Fixtures.WithBuilds();
         var build = state.Builds.First(_ => _.RepoName == "VerifyTests/DiffEngine");
-        var next = MonitorSession.ExcludeOrg(state, build);
+        var next = MonitorSession.ExcludeOrg(state, [build]);
         await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Org, "VerifyTests"));
         await Assert.That(RowProjection.Rows(next).Any(_ => _.Build?.RepoName.StartsWith("VerifyTests/") == true)).IsFalse();
     }
@@ -598,6 +598,49 @@ public class SessionTests
     {
         var state = Fixtures.WithBuilds();
         var build = state.Builds.First(_ => _.ConnectionId == Fixtures.Octopus.Id);
-        await Assert.That(MonitorSession.ExcludeOrg(state, build).Settings.Filters).IsEmpty();
+        await Assert.That(MonitorSession.ExcludeOrg(state, [build]).Settings.Filters).IsEmpty();
+    }
+
+    static List<string> Excludes(SessionState state, int row) =>
+        MonitorSession.OpenMenu(state, row).Menu!.Items
+            .Where(_ => _.Command is CommandKind.ExcludePipeline or CommandKind.ExcludeBranch or CommandKind.ExcludeRepo or CommandKind.ExcludeOrg)
+            .Select(_ => _.Label)
+            .ToList();
+
+    /// <summary>
+    /// Verify's docs.yml and nuget.yml are two pipelines of one repository on one branch, so the
+    /// group offers the branch, the repository and its org, and no pipeline.
+    /// </summary>
+    [Test]
+    public async Task AGroupOffersTheExcludesItsMembersShare()
+    {
+        var state = Fixtures.WithGreenProject();
+        await Assert.That(Excludes(state, Fixtures.RowOf(state, _ => _.Kind == RowKind.Group)))
+            .IsEquivalentTo(["Exclude branch: main", "Exclude repo: VerifyTests/Verify", "Exclude org: VerifyTests"]);
+    }
+
+    /// <summary>
+    /// A prefix group spans Verify and VerifyXunit, and a filter on either repository would leave
+    /// the other's builds standing in the group.
+    /// </summary>
+    [Test]
+    public async Task APrefixGroupLeavesOutTheRepoItsMembersDifferOn()
+    {
+        var state = Fixtures.WithPrefixGroup();
+        await Assert.That(Excludes(state, Fixtures.RowOf(state, _ => _.Kind == RowKind.Group)))
+            .IsEquivalentTo(["Exclude branch: main", "Exclude org: VerifyTests"]);
+    }
+
+    [Test]
+    public async Task ExcludeRepoFromAGroupTakesTheGroupWithIt()
+    {
+        var green = Fixtures.WithGreenProject();
+        var state = MonitorSession.OpenMenu(green, Fixtures.RowOf(green, _ => _.Kind == RowKind.Group));
+        var actions = new RecordingActions();
+        var next = InputApplier.Execute(state, CommandKind.ExcludeRepo, null, actions.Actions, null);
+        await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Repo, "VerifyTests/Verify"));
+        await Assert.That(actions.SavedSettings!.Filters).IsEquivalentTo(next.Settings.Filters);
+        await Assert.That(RowProjection.Rows(next).Any(_ => _.Builds.Any(build => build.RepoName == "VerifyTests/Verify"))).IsFalse();
+        await Assert.That(next.Status).IsEqualTo("Excluded VerifyTests/Verify repo");
     }
 }

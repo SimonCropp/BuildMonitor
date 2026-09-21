@@ -478,39 +478,39 @@ static class InputApplier
             }
             case CommandKind.ExcludePipeline:
             {
-                if (MonitorSession.SelectedBuild(state) is not { } build)
+                if (MonitorSession.SelectedRow(state) is not { } row)
                 {
                     return state;
                 }
 
-                return Excluded(state, MonitorSession.ExcludePipeline(state, build), actions);
+                return Excluded(state, MonitorSession.ExcludePipeline(state, row.Builds), actions);
             }
             case CommandKind.ExcludeBranch:
             {
-                if (MonitorSession.SelectedBuild(state) is not { } build)
+                if (MonitorSession.SelectedRow(state) is not { } row)
                 {
                     return state;
                 }
 
-                return Excluded(state, MonitorSession.ExcludeBranch(state, build), actions);
+                return Excluded(state, MonitorSession.ExcludeBranch(state, row.Builds), actions);
             }
             case CommandKind.ExcludeRepo:
             {
-                if (MonitorSession.SelectedBuild(state) is not { } build)
+                if (MonitorSession.SelectedRow(state) is not { } row)
                 {
                     return state;
                 }
 
-                return Excluded(state, MonitorSession.ExcludeRepo(state, build), actions);
+                return Excluded(state, MonitorSession.ExcludeRepo(state, row.Builds), actions);
             }
             case CommandKind.ExcludeOrg:
             {
-                if (MonitorSession.SelectedBuild(state) is not { } build)
+                if (MonitorSession.SelectedRow(state) is not { } row)
                 {
                     return state;
                 }
 
-                return Excluded(state, MonitorSession.ExcludeOrg(state, build), actions);
+                return Excluded(state, MonitorSession.ExcludeOrg(state, row.Builds), actions);
             }
             case CommandKind.UndoExclude:
             {

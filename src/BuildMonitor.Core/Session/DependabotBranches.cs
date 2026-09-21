@@ -21,7 +21,7 @@ static class DependabotBranches
     /// case and reading a hyphen as an underscore, which covers dependabot.yml's github-actions and the
     /// branch-name-case and word-separator options.
     /// </summary>
-    static readonly HashSet<string> ecosystems =
+    static HashSet<string> ecosystems =
     [
         with(StringComparer.OrdinalIgnoreCase),
         "bazel",

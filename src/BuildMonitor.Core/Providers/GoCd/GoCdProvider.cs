@@ -10,7 +10,7 @@ sealed class GoCdProvider : ProviderBase
 {
     public override ProviderDescriptor Descriptor => ProviderDescriptors.GoCd;
 
-    static readonly KeyValuePair<string, string> confirm = new("X-GoCD-Confirm", "true");
+    static KeyValuePair<string, string> confirm = new("X-GoCD-Confirm", "true");
 
     /// <summary>
     /// GoCD rejects a history page_size outside 10 to 100 with a 400, so asking for just the five

@@ -371,30 +371,47 @@ static class MonitorSession
 
             items.Add(new("Refresh", CommandKind.Refresh));
             AddGrouping(items, state, build.ShortRepoName());
-            // What is excluded, then which one of them: a name that runs long, as a repository's
-            // does, pushes the word that says what it is off the end of a narrow menu.
-            items.Add(new($"Exclude {PipelineNoun(state, build)}: {build.PipelineName}", CommandKind.ExcludePipeline));
-            if (build.Branch is { } branch)
-            {
-                items.Add(new($"Exclude branch: {branch}", CommandKind.ExcludeBranch));
-            }
-
-            // Where the provider has nothing above the pipeline, such as Bitbucket and Travis, the
-            // repo is the pipeline, and a second item would exclude what the first one does.
-            if (build.RepoName != build.PipelineName)
-            {
-                items.Add(new($"Exclude repo: {build.RepoName}", CommandKind.ExcludeRepo));
-            }
-
-            // Offered even where the repo item is not: a service whose pipeline is the repository,
-            // such as Bitbucket, still has a workspace above it worth dropping whole.
-            if (Org(state, build) is { } org)
-            {
-                items.Add(new($"Exclude {org.Noun}: {org.Name}", CommandKind.ExcludeOrg));
-            }
         }
 
+        AddExcludes(items, state, target.Builds);
         return SelectRow(state, row) with { Menu = new(row, Divided(items.ToImmutable())) };
+    }
+
+    /// <summary>
+    /// An exclude for each thing every build of the row shares. A build shares all of its own; a
+    /// group offers what its members agree on, such as the one repository whose workflows it
+    /// folds together. What they differ on is left out rather than taken from the first member,
+    /// which would hide that one and leave the rest of the group standing.
+    /// </summary>
+    static void AddExcludes(ImmutableArray<MenuItem>.Builder items, SessionState state, ImmutableArray<Build> builds)
+    {
+        // What is excluded, then which one of them: a name that runs long, as a repository's does,
+        // pushes the word that says what it is off the end of a narrow menu.
+        var pipeline = SharedPipeline(state, builds);
+        if (pipeline is { } shown)
+        {
+            items.Add(new($"Exclude {shown.Noun}: {shown.Name}", CommandKind.ExcludePipeline));
+        }
+
+        if (SharedBranch(builds) is { } branch)
+        {
+            items.Add(new($"Exclude branch: {branch}", CommandKind.ExcludeBranch));
+        }
+
+        // Where the provider has nothing above the pipeline, such as Bitbucket and Travis, the
+        // repo is the pipeline, and a second item would exclude what the first one does.
+        if (SharedRepo(builds) is { } repo &&
+            repo != pipeline?.Name)
+        {
+            items.Add(new($"Exclude repo: {repo}", CommandKind.ExcludeRepo));
+        }
+
+        // Offered even where the repo item is not: a service whose pipeline is the repository,
+        // such as Bitbucket, still has a workspace above it worth dropping whole.
+        if (SharedOrg(state, builds) is { } org)
+        {
+            items.Add(new($"Exclude {org.Noun}: {org.Name}", CommandKind.ExcludeOrg));
+        }
     }
 
     /// <summary>
@@ -419,7 +436,7 @@ static class MonitorSession
     /// <summary>
     /// The kind of thing a menu item does, in the order the menu offers them: what to look at or
     /// copy, what changes a service's builds, what changes this machine or this window, and what
-    /// hides rows for good. A group's menu is all of the third kind, so it has no lines.
+    /// hides rows for good. A group's menu has only the last two, so one line.
     /// </summary>
     static int Section(CommandKind command) =>
         command switch
@@ -915,17 +932,24 @@ static class MonitorSession
     /// <summary>
     /// The context menu's "Exclude": an exact filter on the pipeline name, applied at once.
     /// </summary>
-    public static SessionState ExcludePipeline(SessionState state, Build build) =>
-        Exclude(state, FilterTarget.Pipeline, build.PipelineName, $"{build.PipelineName} {PipelineNoun(state, build)}");
+    public static SessionState ExcludePipeline(SessionState state, ImmutableArray<Build> builds)
+    {
+        if (SharedPipeline(state, builds) is not { } pipeline)
+        {
+            return state;
+        }
+
+        return Exclude(state, FilterTarget.Pipeline, pipeline.Name, $"{pipeline.Name} {pipeline.Noun}");
+    }
 
     /// <summary>
     /// The context menu's "Exclude branch", which drops that branch everywhere rather than only on
     /// the pipeline it was asked on: a branch worth hiding, such as a bot's, is worth hiding on all
     /// of them. A build with no branch, as GoCD and Octopus report, has no such item.
     /// </summary>
-    public static SessionState ExcludeBranch(SessionState state, Build build)
+    public static SessionState ExcludeBranch(SessionState state, ImmutableArray<Build> builds)
     {
-        if (build.Branch is not { } branch)
+        if (SharedBranch(builds) is not { } branch)
         {
             return state;
         }
@@ -937,15 +961,73 @@ static class MonitorSession
     /// The context menu's "Exclude repo", which takes every pipeline of the repository with it, and
     /// before they are fetched: a repo rule is checked at discovery.
     /// </summary>
-    public static SessionState ExcludeRepo(SessionState state, Build build) =>
-        Exclude(state, FilterTarget.Repo, build.RepoName, $"{build.RepoName} repo");
+    public static SessionState ExcludeRepo(SessionState state, ImmutableArray<Build> builds)
+    {
+        if (SharedRepo(builds) is not { } repo)
+        {
+            return state;
+        }
+
+        return Exclude(state, FilterTarget.Repo, repo, $"{repo} repo");
+    }
+
+    /// <summary>
+    /// The context menu's "Exclude org", which takes every repository of the account with it, and
+    /// before their pipelines are discovered: a provider that pays a request per repository to list
+    /// them skips an excluded one outright.
+    /// </summary>
+    public static SessionState ExcludeOrg(SessionState state, ImmutableArray<Build> builds)
+    {
+        if (SharedOrg(state, builds) is not { } org)
+        {
+            return state;
+        }
+
+        return Exclude(state, FilterTarget.Org, org.Name, $"{org.Name} {org.Noun}");
+    }
+
+    /// <summary>
+    /// The pipeline every one of the builds is a run of, in the word the first one's service uses.
+    /// The menu and the command both ask this, so an item is never offered for a row the command
+    /// would then do nothing on.
+    /// </summary>
+    static (string Noun, string Name)? SharedPipeline(SessionState state, ImmutableArray<Build> builds)
+    {
+        if (Shared(builds, _ => _.PipelineName) is not { } name)
+        {
+            return null;
+        }
+
+        return (PipelineNoun(state, builds[0]), name);
+    }
+
+    static string? SharedBranch(ImmutableArray<Build> builds) =>
+        Shared(builds, _ => _.Branch);
+
+    static string? SharedRepo(ImmutableArray<Build> builds) =>
+        Shared(builds, _ => _.RepoName);
+
+    /// <summary>
+    /// The org every one of the builds sits under, or null where any of their services has no
+    /// level above the repository.
+    /// </summary>
+    static (string Noun, string Name)? SharedOrg(SessionState state, ImmutableArray<Build> builds)
+    {
+        if (Shared(builds, _ => Org(state, _)?.Name) is not { } name ||
+            Org(state, builds[0]) is not { } first)
+        {
+            return null;
+        }
+
+        return (first.Noun, name);
+    }
 
     /// <summary>
     /// The org the build's repository sits under and what its service calls one, or null where the
     /// service has no level above the repository. Both parts or neither: a name with no noun would
     /// read as excluding the repository, and a noun with no name has nothing to exclude.
     /// </summary>
-    public static (string Noun, string Name)? Org(SessionState state, Build build)
+    static (string Noun, string Name)? Org(SessionState state, Build build)
     {
         if (ProviderDescriptors.OrgNoun(state.Connection(build.ConnectionId)?.Connection.ProviderId) is not { } noun ||
             OrgName.Of(build.RepoName) is not { } name)
@@ -957,18 +1039,32 @@ static class MonitorSession
     }
 
     /// <summary>
-    /// The context menu's "Exclude org", which takes every repository of the account with it, and
-    /// before their pipelines are discovered: a provider that pays a request per repository to list
-    /// them skips an excluded one outright.
+    /// The value all of the builds have, or null when any has none, any has another, or there are
+    /// no builds. Compared ignoring case, as an exact filter matches, so one filter drops them all.
     /// </summary>
-    public static SessionState ExcludeOrg(SessionState state, Build build)
+    static string? Shared(ImmutableArray<Build> builds, Func<Build, string?> value)
     {
-        if (Org(state, build) is not { } org)
+        string? shared = null;
+        foreach (var build in builds)
         {
-            return state;
+            if (value(build) is not { } each)
+            {
+                return null;
+            }
+
+            if (shared is null)
+            {
+                shared = each;
+                continue;
+            }
+
+            if (!string.Equals(shared, each, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
         }
 
-        return Exclude(state, FilterTarget.Org, org.Name, $"{org.Name} {org.Noun}");
+        return shared;
     }
 
     /// <param name="what">What the status line calls it, which is also what its Undo says.</param>
@@ -1178,7 +1274,8 @@ static class MonitorSession
         var notification = state.Notification;
         if (state.Settings.NotifyOnFailure)
         {
-            notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, builds)) ?? notification;
+            var failures = FailureDetector.NewFailures(previous, builds);
+            notification = FailureDetector.Describe(failures) ?? notification;
         }
 
         return Follow(
@@ -1250,7 +1347,9 @@ static class MonitorSession
                 [
                     ..next.Builds.Where(_ => _.ConnectionId != connectionId),
                     ..previous
-                        .Where(_ => discovered.Contains(_.PipelineId) && !outcome.Fetched.Contains(_.PipelineId) && HistoryCutoff.Keeps(_, cutoff))
+                        .Where(_ => discovered.Contains(_.PipelineId) &&
+                                    !outcome.Fetched.Contains(_.PipelineId) &&
+                                    HistoryCutoff.Keeps(_, cutoff))
                         .Select(_ => Offered(_, outcome.Access)),
                     ..arrived
                 ],
@@ -1352,9 +1451,10 @@ static class MonitorSession
     static SessionState UpdateConnection(SessionState state, string connectionId, Func<ConnectionState, ConnectionState> change)
     {
         var index = -1;
-        for (var candidate = 0; candidate < state.Connections.Length; candidate++)
+        var connections = state.Connections;
+        for (var candidate = 0; candidate < connections.Length; candidate++)
         {
-            if (state.Connections[candidate].Connection.Id == connectionId)
+            if (connections[candidate].Connection.Id == connectionId)
             {
                 index = candidate;
                 break;
@@ -1366,7 +1466,7 @@ static class MonitorSession
             return state;
         }
 
-        return state with { Connections = state.Connections.SetItem(index, change(state.Connections[index])) };
+        return state with { Connections = connections.SetItem(index, change(connections[index])) };
     }
 
     // Window

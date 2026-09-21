@@ -20,6 +20,7 @@ static class MonitorProgram
     /// the only thing to keep up with is the tray, which does not need sixty a second.
     /// </summary>
     public static readonly TimeSpan HiddenFrame = TimeSpan.FromMilliseconds(100);
+
     /// <summary>
     /// What the run starts from. <paramref name="hidden"/> wins over ShowWindowAtStart, and does it
     /// on the state rather than on the settings: the setting is the user's, and one written back
@@ -267,7 +268,7 @@ static class MonitorProgram
                 }
             }
 
-            input = input with { At = DateTimeOffset.UtcNow };
+            input = input with {At = DateTimeOffset.UtcNow};
             host.Mutate(_ => InputApplier.Apply(_, input, actions, window));
             if (host.State.Hidden)
             {

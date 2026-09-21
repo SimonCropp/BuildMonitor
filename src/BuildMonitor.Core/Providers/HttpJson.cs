@@ -23,7 +23,7 @@ sealed class HttpJson : IDisposable
     /// this mean "nothing arrived for 75 seconds" there rather than "it took 75 seconds".
     /// </para>
     /// </summary>
-    static readonly TimeSpan requestTimeout = TimeSpan.FromSeconds(75);
+    static TimeSpan requestTimeout = TimeSpan.FromSeconds(75);
 
     HttpClient client;
     ETagCache cache;

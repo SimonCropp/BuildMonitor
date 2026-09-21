@@ -31,11 +31,13 @@ public class MenuSeparatorTests
             .IsEquivalentTo(["Refresh", "Exclude action: docs.yml"]);
 
     /// <summary>
-    /// Everything a group's own menu offers changes this window, so it has no lines at all.
+    /// A group's own menu has nothing to look at and nothing that changes a service's builds, so
+    /// its one line parts what changes this window from the excludes.
     /// </summary>
     [Test]
-    public async Task AGroupsMenuHasNone() =>
-        await Assert.That(LinedAbove(Fixtures.WithTwoFailures(), _ => _.Kind == RowKind.Group)).IsEmpty();
+    public async Task AGroupsExcludesStandApart() =>
+        await Assert.That(LinedAbove(Fixtures.WithTwoFailures(), _ => _.Kind == RowKind.Group))
+            .IsEquivalentTo(["Exclude branch: main"]);
 
     /// <summary>
     /// The overflow drop down stands in for chips, not the menu, and offers no kinds to part.

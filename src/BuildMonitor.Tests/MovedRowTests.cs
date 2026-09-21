@@ -5,7 +5,7 @@
 /// </summary>
 public class MovedRowTests
 {
-    static readonly DateTimeOffset polled = Fixtures.Now;
+    static DateTimeOffset polled = Fixtures.Now;
     const string docs = "gh/DiffEngine/docs.yml/main";
     const string verify = "gh/Verify/test.yml/feature/inline";
 

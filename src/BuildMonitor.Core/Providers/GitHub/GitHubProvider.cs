@@ -41,7 +41,7 @@ sealed class GitHubProvider : ProviderBase
     /// How often every active repository's workflows are listed, however long since it was pushed
     /// to: enabling or disabling a workflow probably does not move pushed_at.
     /// </summary>
-    static readonly TimeSpan listEverything = TimeSpan.FromHours(1);
+    static TimeSpan listEverything = TimeSpan.FromHours(1);
 
     // Each repository's workflows as last listed, with its pushed_at then, and when every active
     // repository's were last listed.

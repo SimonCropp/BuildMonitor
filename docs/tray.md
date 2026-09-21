@@ -60,7 +60,7 @@ The buttons are marks rather than words, so a row carries all of them in the wid
 
 When the window is too narrow for a row's buttons, the repository, pipeline and branch keep their width and the buttons that do not fit go behind a … button at the end of the row, which lists them in a drop down. A pipeline and branch longer than about forty characters are cut short before that happens.
 
-Right click a row for the same actions plus copying the build URL and excluding the pipeline, which adds an exact match to the [filters](filters.md).
+Right click a row for the same actions plus copying the build URL and excluding the pipeline, which adds an exact match to the [filters](filters.md). A group's row offers the excludes that all of its builds share, such as their repository.
 
 The same menu offers to group by prefix, which is the inverse of excluding: the prefixes the row's project shares with another, longest first, each of which is added to the [group prefixes](options.md#group-passing-builds-by-prefix) and kept. `Utilities.Logging.Client` beside `Utilities.Logging.Server` and `Utilities.Storage` offers `Utilities.Logging` and then `Utilities`; a name with no separator is broken at its capitals, so `TheProjectApi` beside `TheProjectUi` offers `TheProject`. Only prefixes another project on screen shares are offered, and only where the shorter one reaches further than the last: neither a group of one nor the same group under a worse name is worth an item. A group's own row offers them as well, since a repository's group of green workflows is still a member of whatever family that repository belongs to, and the group a prefix made offers to stop grouping by it, which is where the grouping is seen rather than on the options page.
 

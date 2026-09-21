@@ -8,7 +8,7 @@ static class AsciiRenderer
     const int barWidth = 10;
     // As wide as the longest timing text, so a countdown that passes an hour or a wait that passes
     // a day is not cut short here while the pixel heads, sized from the same texts, draw it whole.
-    static readonly int timingWidth = Progress.Widest.Max(_ => _.Length);
+    static int timingWidth = Progress.Widest.Max(_ => _.Length);
     const int providerWidth = 8;
     const int minimumName = 8;
     const int minimumDetail = 12;
