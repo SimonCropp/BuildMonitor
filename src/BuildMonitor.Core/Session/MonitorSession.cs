@@ -797,7 +797,7 @@ static class MonitorSession
     /// The context menu's "Exclude": an exact filter on the pipeline name, applied at once.
     /// </summary>
     public static SessionState ExcludePipeline(SessionState state, Build build) =>
-        Exclude(state, FilterTarget.Pipeline, build.PipelineName);
+        Exclude(state, FilterTarget.Pipeline, build.PipelineName, $"{build.PipelineName} {PipelineNoun(state, build)}");
 
     /// <summary>
     /// The context menu's "Exclude branch", which drops that branch everywhere rather than only on
@@ -811,7 +811,7 @@ static class MonitorSession
             return state;
         }
 
-        return Exclude(state, FilterTarget.Branch, branch);
+        return Exclude(state, FilterTarget.Branch, branch, $"{branch} branch");
     }
 
     /// <summary>
@@ -819,7 +819,7 @@ static class MonitorSession
     /// before they are fetched: a repo rule is checked at discovery.
     /// </summary>
     public static SessionState ExcludeRepo(SessionState state, Build build) =>
-        Exclude(state, FilterTarget.Repo, build.RepoName);
+        Exclude(state, FilterTarget.Repo, build.RepoName, $"{build.RepoName} repo");
 
     /// <summary>
     /// The org the build's repository sits under and what its service calls one, or null where the
@@ -849,10 +849,11 @@ static class MonitorSession
             return state;
         }
 
-        return Exclude(state, FilterTarget.Org, org.Name);
+        return Exclude(state, FilterTarget.Org, org.Name, $"{org.Name} {org.Noun}");
     }
 
-    static SessionState Exclude(SessionState state, FilterTarget target, string text)
+    /// <param name="what">What the status line calls it, which is also what its Undo says.</param>
+    static SessionState Exclude(SessionState state, FilterTarget target, string text, string what)
     {
         var filter = new Filter(FilterKind.Exact, target, text);
         if (state.Settings.Filters.Contains(filter))
@@ -860,8 +861,30 @@ static class MonitorSession
             return state;
         }
 
-        return ApplySettings(state, state.Settings with { Filters = state.Settings.Filters.Add(filter) });
+        var excluded = ApplySettings(state, state.Settings with { Filters = state.Settings.Filters.Add(filter) });
+        return excluded with { Undo = new(filter, what) };
     }
+
+    /// <summary>
+    /// Takes back the exclude the status line reported. Only the filter it added comes out, so one
+    /// the user already had, of the same rows or others, stays.
+    /// </summary>
+    public static SessionState UndoExclude(SessionState state)
+    {
+        if (state.Undo is not { } undo)
+        {
+            return state;
+        }
+
+        var restored = ApplySettings(state, state.Settings with { Filters = state.Settings.Filters.Remove(undo.Filter) });
+        return restored with { Undo = null };
+    }
+
+    /// <summary>
+    /// The Undo beside the status line goes when its message does.
+    /// </summary>
+    public static SessionState ForgetUndo(SessionState state) =>
+        state.Undo is null ? state : state with { Undo = null };
 
     // Settings
 

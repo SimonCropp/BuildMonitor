@@ -585,13 +585,7 @@ static class ScreenBuilder
     public static IReadOnlyList<Button> Buttons(SessionState state) =>
         state.Page switch
         {
-            Page.Builds =>
-            [
-                new("Refresh", state.Connections.Length > 0, CommandKind.Refresh, "Poll every connection now (F5)"),
-                new("Options", true, CommandKind.OpenOptions, "Connections, polling and what the window shows"),
-                new("Filters", true, CommandKind.OpenFilters, "Hide pipelines for good"),
-                new("Hide", true, CommandKind.Hide, "Hide the window; the tray keeps running")
-            ],
+            Page.Builds => BuildsButtons(state),
             Page.SignIn => SignInButtons(state),
             // By the form rather than the page, and with no fallback: a page left out of a
             // fallback would silently get Save and Cancel, and lose its own buttons.
@@ -619,6 +613,28 @@ static class ScreenBuilder
                 _ => throw new($"No buttons for {state.Page}")
             }
         };
+
+    /// <summary>
+    /// Undo only while the status line reports the exclude it takes back, and last: a click is
+    /// resolved against the buttons again once that message has gone, and a button leaving from
+    /// the middle would put every one after it under a different index.
+    /// </summary>
+    static List<Button> BuildsButtons(SessionState state)
+    {
+        List<Button> buttons =
+        [
+            new("Refresh", state.Connections.Length > 0, CommandKind.Refresh, "Poll every connection now (F5)"),
+            new("Options", true, CommandKind.OpenOptions, "Connections, polling and what the window shows"),
+            new("Filters", true, CommandKind.OpenFilters, "Hide pipelines for good"),
+            new("Hide", true, CommandKind.Hide, "Hide the window; the tray keeps running")
+        ];
+        if (state.Undo is { } undo)
+        {
+            buttons.Add(new("Undo", true, CommandKind.UndoExclude, $"Show the {undo.What} again"));
+        }
+
+        return buttons;
+    }
 
     /// <summary>
     /// Copy code comes first, and only once there is a code: it is what the page is for, and a

@@ -40,6 +40,8 @@ enum CommandKind
     ExcludeBranch,
     ExcludeRepo,
     ExcludeOrg,
+    // Takes back the exclude the status line reports, and is only offered while it does.
+    UndoExclude,
     OpenBuilds,
     OpenOptions,
     OpenFilters,

@@ -14,11 +14,16 @@ static class InputApplier
         }
 
         // The last message has been seen, unless the input is the click that copies it: cleared
-        // first, the copy would take whatever the footer falls back to, "Polled 3s ago".
+        // first, the copy would take whatever the footer falls back to, "Polled 3s ago". The Undo
+        // beside an exclude's message goes with it, unless it is what was clicked.
         if (input.Any &&
             input.Key != CommandKind.CopyStatus)
         {
             state = MonitorSession.SetStatus(state, "");
+            if (!ClicksUndo(state, input))
+            {
+                state = MonitorSession.ForgetUndo(state);
+            }
         }
 
         if (input.ScrollDelta != 0)
@@ -432,17 +437,16 @@ static class InputApplier
                     return state;
                 }
 
-                var noun = MonitorSession.PipelineNoun(state, build);
-                return Excluded(MonitorSession.ExcludePipeline(state, build), $"{build.PipelineName} {noun}", actions);
+                return Excluded(state, MonitorSession.ExcludePipeline(state, build), actions);
             }
             case CommandKind.ExcludeBranch:
             {
-                if (MonitorSession.SelectedBuild(state) is not { Branch: { } branch } build)
+                if (MonitorSession.SelectedBuild(state) is not { } build)
                 {
                     return state;
                 }
 
-                return Excluded(MonitorSession.ExcludeBranch(state, build), $"{branch} branch", actions);
+                return Excluded(state, MonitorSession.ExcludeBranch(state, build), actions);
             }
             case CommandKind.ExcludeRepo:
             {
@@ -451,17 +455,27 @@ static class InputApplier
                     return state;
                 }
 
-                return Excluded(MonitorSession.ExcludeRepo(state, build), $"{build.RepoName} repo", actions);
+                return Excluded(state, MonitorSession.ExcludeRepo(state, build), actions);
             }
             case CommandKind.ExcludeOrg:
             {
-                if (MonitorSession.SelectedBuild(state) is not { } build ||
-                    MonitorSession.Org(state, build) is not { } org)
+                if (MonitorSession.SelectedBuild(state) is not { } build)
                 {
                     return state;
                 }
 
-                return Excluded(MonitorSession.ExcludeOrg(state, build), $"{org.Name} {org.Noun}", actions);
+                return Excluded(state, MonitorSession.ExcludeOrg(state, build), actions);
+            }
+            case CommandKind.UndoExclude:
+            {
+                if (state.Undo is not { } undo)
+                {
+                    return state;
+                }
+
+                state = MonitorSession.UndoExclude(state);
+                actions.SaveSettings(state.Settings);
+                return MonitorSession.SetStatus(state, $"Showing the {undo.What} again");
             }
             case CommandKind.OpenBuilds:
                 return MonitorSession.OpenBuilds(state);
@@ -620,13 +634,29 @@ static class InputApplier
     }
 
     /// <summary>
-    /// Saves the filters an exclusion added and names what it dropped: the rows it was asked on are
-    /// gone by the time the status is read, so nothing else on the screen says.
+    /// Against the buttons drawn, which still hold the Undo: the click is resolved against them
+    /// again once it is gone, which is why ScreenBuilder puts it last.
     /// </summary>
-    static SessionState Excluded(SessionState state, string what, MonitorActions actions)
+    static bool ClicksUndo(SessionState state, MonitorInput input) =>
+        input.ClickedButton >= 0 &&
+        ScreenBuilder.Buttons(state).ElementAtOrDefault(input.ClickedButton)?.Command == CommandKind.UndoExclude;
+
+    /// <summary>
+    /// Saves the filter an exclusion added and names what it dropped: the rows it was asked on are
+    /// gone by the time the status is read, so nothing else on the screen says. The footer offers
+    /// Undo for as long as that message stands. An exclusion that added nothing, its filter being
+    /// there already, has nothing to save, to report or to take back.
+    /// </summary>
+    static SessionState Excluded(SessionState before, SessionState after, MonitorActions actions)
     {
-        actions.SaveSettings(state.Settings);
-        return MonitorSession.SetStatus(state, $"Excluded {what}");
+        if (ReferenceEquals(after.Settings, before.Settings) ||
+            after.Undo is not { } undo)
+        {
+            return after;
+        }
+
+        actions.SaveSettings(after.Settings);
+        return MonitorSession.SetStatus(after, $"Excluded {undo.What}");
     }
 
     static SessionState Retry(SessionState state, Build build, MonitorActions actions)

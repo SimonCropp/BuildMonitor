@@ -38,7 +38,10 @@ record SessionState(
     string? Clipboard = null,
     // What is typed in the filter box: only builds whose project, pipeline or branch contain it are
     // rows. Never saved, unlike Settings.Filters, which exclude for good.
-    string Search = "")
+    string Search = "",
+    // The exclude the status line has just reported, which the Undo beside it takes back. Gone with
+    // that message, on the next input that is not the Undo itself.
+    ExcludeUndo? Undo = null)
 {
     public static SessionState Start(Settings settings) =>
         new(
