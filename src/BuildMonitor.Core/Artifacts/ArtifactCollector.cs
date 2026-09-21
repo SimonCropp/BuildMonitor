@@ -33,16 +33,18 @@ static class ArtifactCollector
 
         var files = new List<string>();
         var skipped = plan.Skip.ToList();
-        var directory = await store.Write(build, async staging =>
-        {
-            if (log.Length > 0)
+        var directory = await store.Write(
+            build,
+            async staging =>
             {
-                await File.WriteAllTextAsync(Path.Combine(staging, LogName), log, cancel);
-                files.Add(LogName);
-            }
+                if (log.Length > 0)
+                {
+                    await File.WriteAllTextAsync(Path.Combine(staging, LogName), log, cancel);
+                    files.Add(LogName);
+                }
 
-            await Download(poller, build, plan, staging, files, skipped, cancel);
-        });
+                await Download(poller, build, plan, staging, files, skipped, cancel);
+            });
 
         return new(directory, files, Skipped(skipped), Unsupported(descriptor));
     }
@@ -58,33 +60,35 @@ static class ArtifactCollector
         // name gets log-2.txt rather than quietly overwriting the build's own log.
         var taken = new HashSet<string>(files, StringComparer.OrdinalIgnoreCase);
         var left = ArtifactPlan.DefaultBudget;
-        return poller.WithProvider(build, async (provider, context) =>
-        {
-            foreach (var artifact in plan.Take)
+        return poller.WithProvider(
+            build,
+            async (provider, context) =>
             {
-                var name = Unique(ArtifactStore.Safe(artifact.Name), taken);
-                var path = Path.Combine(staging, name);
-                long written;
-                try
+                foreach (var artifact in plan.Take)
                 {
-                    await using var destination = File.Create(path);
-                    written = await provider.DownloadArtifact(context, build, artifact, destination, ArtifactPlan.Limit(left), cancel);
-                }
-                catch (Exception exception) when (exception is not OperationCanceledException)
-                {
-                    // The part file is removed and the artifact reported, rather than the whole
-                    // bundle failing: one artifact that will not come is worth saying, and the ones
-                    // that did come are still worth having.
-                    Delete(path);
-                    taken.Remove(name);
-                    skipped.Add(new(artifact.Name, artifact.Bytes, Reason(exception)));
-                    continue;
-                }
+                    var name = Unique(ArtifactStore.Safe(artifact.Name), taken);
+                    var path = Path.Combine(staging, name);
+                    long written;
+                    try
+                    {
+                        await using var destination = File.Create(path);
+                        written = await provider.DownloadArtifact(context, build, artifact, destination, ArtifactPlan.Limit(left), cancel);
+                    }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        // The part file is removed and the artifact reported, rather than the whole
+                        // bundle failing: one artifact that will not come is worth saying, and the ones
+                        // that did come are still worth having.
+                        Delete(path);
+                        taken.Remove(name);
+                        skipped.Add(new(artifact.Name, artifact.Bytes, Reason(exception)));
+                        continue;
+                    }
 
-                files.Add(name);
-                left -= written;
-            }
-        });
+                    files.Add(name);
+                    left -= written;
+                }
+            });
     }
 
     /// <summary>
@@ -142,7 +146,7 @@ static class ArtifactCollector
 
         var stem = Path.GetFileNameWithoutExtension(name);
         var extension = Path.GetExtension(name);
-        for (var index = 2; ; index++)
+        for (var index = 2;; index++)
         {
             var candidate = $"{stem}-{index}{extension}";
             if (taken.Add(candidate))

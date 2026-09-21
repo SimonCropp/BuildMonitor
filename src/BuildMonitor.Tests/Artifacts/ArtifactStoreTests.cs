@@ -38,12 +38,14 @@ public class ArtifactStoreTests :
         var store = new ArtifactStore(() => now);
         var started = new TaskCompletionSource();
         var release = new TaskCompletionSource();
-        var writing = store.Write(Build(), async staging =>
-        {
-            started.SetResult();
-            await release.Task;
-            await Write(staging);
-        });
+        var writing = store.Write(
+            Build(),
+            async staging =>
+            {
+                started.SetResult();
+                await release.Task;
+                await Write(staging);
+            });
         await started.Task;
         now = now.AddHours(25);
         store.Sweep();
@@ -147,8 +149,14 @@ public class ArtifactStoreTests :
     [Test]
     public async Task TwoRowsWithOneNameStillDiffer()
     {
-        var main = Build() with { Branch = "main" };
-        var feature = Build() with { Branch = "feature/very-long-branch-name-that-truncates" };
+        var main = Build() with
+        {
+            Branch = "main"
+        };
+        var feature = Build() with
+        {
+            Branch = "feature/very-long-branch-name-that-truncates"
+        };
         await Assert.That(ArtifactStore.DirectoryFor(main)).IsNotEqualTo(ArtifactStore.DirectoryFor(feature));
     }
 
