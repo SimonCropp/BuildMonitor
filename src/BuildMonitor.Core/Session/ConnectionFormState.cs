@@ -22,5 +22,13 @@ abstract record ConnectionFormState : FormState
     /// </summary>
     public string? Message { get; init; }
 
+    /// <summary>
+    /// The options page this editor was opened from, whole and as it was left, which closing the
+    /// editor goes back to. Null where it was opened from anywhere else. Every way out used to go
+    /// to the builds page, so adding a second connection meant opening the options again, and the
+    /// options opened again from the saved settings, losing anything typed on them first.
+    /// </summary>
+    public OptionsFormState? Options { get; init; }
+
     public abstract ProviderDescriptor Descriptor { get; }
 }

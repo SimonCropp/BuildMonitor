@@ -573,7 +573,8 @@ static class MonitorSession
             new AddConnectionFormState
             {
                 Values = values,
-                ConnectionId = draftId
+                ConnectionId = draftId,
+                Options = state.Form as OptionsFormState
             });
     }
 
@@ -597,8 +598,30 @@ static class MonitorSession
                 ConnectionId = existing.Id,
                 ProviderId = existing.ProviderId,
                 // An existing connection already has its secret stored.
-                SignedIn = true
+                SignedIn = true,
+                Options = state.Form as OptionsFormState
             });
+    }
+
+    /// <summary>
+    /// Leaves a form for where it was opened from: a connection editor, or the page asking about
+    /// removing its connection, for the options page it was opened from, as that was left; every
+    /// other form, and an editor opened from anywhere else, for the builds page.
+    /// </summary>
+    public static SessionState CloseForm(SessionState state)
+    {
+        var options = state.Form switch
+        {
+            ConnectionFormState editor => editor.Options,
+            RemoveConnectionFormState removing => removing.Editor.Options,
+            _ => null
+        };
+        if (options is null)
+        {
+            return OpenBuilds(state);
+        }
+
+        return OpenForm(state with { SignIn = null }, options);
     }
 
     /// <summary>

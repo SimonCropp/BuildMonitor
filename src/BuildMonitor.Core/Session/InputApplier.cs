@@ -544,13 +544,13 @@ static class InputApplier
                 }
 
                 // Gone since the page opened, which leaves nothing to remove and no editor to go
-                // back to.
+                // back to, only the page the editor was opened from.
                 if (state.Connection(removing.ConnectionId)?.Connection is not { } removed)
                 {
-                    return MonitorSession.OpenBuilds(state);
+                    return MonitorSession.CloseForm(state);
                 }
 
-                state = MonitorSession.OpenBuilds(MonitorSession.RemoveConnection(state, removed.Id));
+                state = MonitorSession.CloseForm(MonitorSession.RemoveConnection(state, removed.Id));
                 actions.DeleteSecret(SecretKeys.Token(removed.Id));
                 actions.DeleteSecret(SecretKeys.Refresh(removed.Id));
                 actions.SaveSettings(state.Settings);
@@ -620,7 +620,7 @@ static class InputApplier
                     actions.DeleteSecret(SecretKeys.Refresh(abandoned.ConnectionId));
                 }
 
-                return MonitorSession.OpenBuilds(state);
+                return MonitorSession.CloseForm(state);
             }
             case CommandKind.OpenLogs:
                 actions.OpenLogs();
@@ -824,6 +824,6 @@ static class InputApplier
         state = apply(state, connection);
         actions.SaveSettings(state.Settings);
         actions.Refresh(connection.Id);
-        return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), $"Saved {connection.Name}");
+        return MonitorSession.SetStatus(MonitorSession.CloseForm(state), $"Saved {connection.Name}");
     }
 }
