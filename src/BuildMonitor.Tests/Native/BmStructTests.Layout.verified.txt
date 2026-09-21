@@ -92,5 +92,5 @@
     Quit=16,
     CopyStatus=17
   ],
-  Version: 14
+  Version: 15
 }

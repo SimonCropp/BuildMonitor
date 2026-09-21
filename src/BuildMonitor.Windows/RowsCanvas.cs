@@ -214,10 +214,17 @@ sealed class RowsCanvas : Control
     {
         MenuTheme.Apply(contextMenu);
         contextMenu.Items.Clear();
-        for (var index = 0; index < overlay.Labels.Count; index++)
+        for (var index = 0; index < overlay.Items.Count; index++)
         {
+            var item = overlay.Items[index];
+            // Before the item and without a tag, so the index a click reports is still the item's.
+            if (item.SeparatorAbove)
+            {
+                contextMenu.Items.Add(new ToolStripSeparator());
+            }
+
             contextMenu.Items.Add(
-                new ToolStripMenuItem(overlay.Labels[index])
+                new ToolStripMenuItem(item.Label)
                 {
                     Tag = index,
                     ForeColor = Palette.Text

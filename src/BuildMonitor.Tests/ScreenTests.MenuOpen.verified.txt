@@ -8,16 +8,16 @@
 |   | Open build                           |nline            25m ago       SimonCropp PR 42 [Retry] [Log]              |
 |   | Open branch                          |                 23h ago                                                   |
 |   | Copy build URL                       |                                                                           |
+|   |--------------------------------------|                                                                           |
 |   | Cancel build                         |                                                                           |
+|   |--------------------------------------|                                                                           |
 |   | Refresh                              |                                                                           |
+|   |--------------------------------------|                                                                           |
 |   | Exclude action: test.yml             |                                                                           |
 |   | Exclude branch: main                 |                                                                           |
 |   | Exclude repo: VerifyTests/DiffEngine |                                                                           |
 |   | Exclude org: VerifyTests             |                                                                           |
 |   +--------------------------------------+                                                                           |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

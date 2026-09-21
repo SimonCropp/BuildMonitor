@@ -989,6 +989,10 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
         if (ImGui::BeginPopup("row_menu")) {
             for (int32_t i = 0; i < screen.menuCount; i++) {
+                if ((screen.menu[i].flags & BM_MENU_SEPARATOR_ABOVE) != 0) {
+                    ImGui::Separator();
+                }
+
                 ImGui::PushID(i);
                 if (ImGui::MenuItem(Str(screen, screen.menu[i].label).c_str())) {
                     g.input.clickedMenuItem = i;

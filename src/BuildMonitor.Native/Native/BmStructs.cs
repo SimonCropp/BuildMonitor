@@ -81,6 +81,7 @@ struct BmButton
 struct BmMenuItem
 {
     public BmString Label;
+    public int Flags;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -208,4 +209,5 @@ static class BmFlags
     public const int ButtonEnabled = 1 << 0;
     public const int TrayEnabled = 1 << 0;
     public const int TraySeparator = 1 << 1;
+    public const int MenuSeparatorAbove = 1 << 0;
 }

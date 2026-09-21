@@ -77,7 +77,7 @@ static class ScreenBuilder
             open.Row >= top &&
             open.Row < top + visible.Count)
         {
-            menu = new(open.Row - top, open.Items.Select(_ => _.Label).ToList(), open.Overflow);
+            menu = new(open.Row - top, open.Items.Select(_ => new MenuEntry(_.Label, _.SeparatorAbove)).ToList(), open.Overflow);
         }
 
         var sized = Sized(state, builds, rows);

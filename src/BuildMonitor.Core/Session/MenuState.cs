@@ -8,4 +8,6 @@ record MenuState(int Row, ImmutableArray<MenuItem> Items, bool Overflow = false)
 /// <param name="Target">What the command acts on where the row it was opened on does not say it:
 /// which of the offered prefixes a Group by prefix item stands for. Null for every item whose
 /// command reads the selected row, which is most of them.</param>
-record MenuItem(string Label, CommandKind Command, string? Target = null);
+/// <param name="SeparatorAbove">Whether a line goes above it, where the menu moves on to a
+/// different kind of item. See MonitorSession.Divided.</param>
+record MenuItem(string Label, CommandKind Command, string? Target = null, bool SeparatorAbove = false);

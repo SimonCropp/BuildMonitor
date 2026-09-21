@@ -82,6 +82,12 @@ struct Frame {
         let enabled: Bool
     }
 
+    /// An item of the open context menu, and whether a line goes above it.
+    struct MenuItem {
+        let label: String
+        let separatorAbove: Bool
+    }
+
     struct TrayItem {
         let id: String
         let label: String
@@ -110,7 +116,7 @@ struct Frame {
     let formTitle: String
     let fields: [Field]
     let buttons: [Button]
-    let menu: [String]
+    let menu: [MenuItem]
     let menuRow: Int32
     let menuOverflow: Bool
     let trayIcon: Int32
@@ -190,7 +196,9 @@ struct Frame {
             Button(label: text($0.label), tooltip: text($0.tooltip), enabled: $0.flags & Int32(BM_BUTTON_ENABLED.rawValue) != 0)
         }
 
-        let menu = UnsafeBufferPointer(start: screen.menu, count: Int(screen.menuCount)).map { text($0.label) }
+        let menu = UnsafeBufferPointer(start: screen.menu, count: Int(screen.menuCount)).map {
+            MenuItem(label: text($0.label), separatorAbove: $0.flags & Int32(BM_MENU_SEPARATOR_ABOVE.rawValue) != 0)
+        }
         let trayItems = UnsafeBufferPointer(start: screen.trayItems, count: Int(screen.trayItemCount)).map {
             TrayItem(
                 id: text($0.id),

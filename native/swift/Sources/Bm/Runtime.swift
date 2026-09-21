@@ -219,8 +219,13 @@ final class Runtime {
 
         menuShown = true
         let menu = NSMenu()
-        for (index, label) in frame.menu.enumerated() {
-            let item = NSMenuItem(title: label, action: #selector(ControlTarget.contextItem(_:)), keyEquivalent: "")
+        for (index, entry) in frame.menu.enumerated() {
+            // Before the item and with no tag of its own, so a click still reports the item's index.
+            if entry.separatorAbove {
+                menu.addItem(.separator())
+            }
+
+            let item = NSMenuItem(title: entry.label, action: #selector(ControlTarget.contextItem(_:)), keyEquivalent: "")
             item.target = target
             item.tag = index
             menu.addItem(item)

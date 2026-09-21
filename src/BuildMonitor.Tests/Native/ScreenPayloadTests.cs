@@ -50,6 +50,33 @@ public class ScreenPayloadTests
         await Assert.That(payload.TrayItemIds.First()).IsEqualTo(TrayMenu.Open);
     }
 
+    /// <summary>
+    /// One entry per item, lines or not: a line is a flag on the item below it, so the index a
+    /// head reports for a click is still the index of the command behind it.
+    /// </summary>
+    [Test]
+    public async Task AMenusLinesAreFlagsOnItsItems()
+    {
+        var payload = new ScreenPayload();
+        payload.Build(ScreenBuilder.Build(Fixtures.WithMenu(), Fixtures.Now));
+        var menu = payload.Describe()
+            .Split('\n')
+            .Select(_ => _.TrimEnd('\r'))
+            .Where(_ => _.StartsWith("menu flags="));
+        await Assert.That(string.Join('\n', menu)).IsEqualTo(
+            """
+            menu flags=0 'Open build'
+            menu flags=0 'Open branch'
+            menu flags=0 'Copy build URL'
+            menu flags=1 'Cancel build'
+            menu flags=1 'Refresh'
+            menu flags=1 'Exclude action: test.yml'
+            menu flags=0 'Exclude branch: main'
+            menu flags=0 'Exclude repo: VerifyTests/DiffEngine'
+            menu flags=0 'Exclude org: VerifyTests'
+            """);
+    }
+
     [Test]
     public async Task EachBuildIsANewGeneration()
     {

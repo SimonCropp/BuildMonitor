@@ -364,13 +364,13 @@ static class AsciiRenderer
     static string Overlay(string text, Screen screen)
     {
         if (screen.Menu is not { } menu ||
-            menu.Labels.Count == 0)
+            menu.Items.Count == 0)
         {
             return text;
         }
 
         var lines = text.Split('\n').Select(_ => _.ToCharArray()).ToList();
-        var width = menu.Labels.Max(_ => _.Length) + 2;
+        var width = menu.Items.Max(_ => _.Label.Length) + 2;
         // Border, title, separator: three lines sit above the first body row.
         var top = 3 + menu.Row + 1;
         var left = 4;
@@ -401,13 +401,19 @@ static class AsciiRenderer
         }
 
         var border = $"+{new string('-', width)}+";
-        Write(top, border);
-        for (var index = 0; index < menu.Labels.Count; index++)
+        var cursor = top;
+        Write(cursor++, border);
+        foreach (var item in menu.Items)
         {
-            Write(top + 1 + index, $"| {menu.Labels[index].PadRight(width - 2)} |");
+            if (item.SeparatorAbove)
+            {
+                Write(cursor++, $"|{new string('-', width)}|");
+            }
+
+            Write(cursor++, $"| {item.Label.PadRight(width - 2)} |");
         }
 
-        Write(top + 1 + menu.Labels.Count, border);
+        Write(cursor, border);
         return string.Join('\n', lines.Select(_ => new string(_)));
     }
 

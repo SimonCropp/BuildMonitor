@@ -387,8 +387,50 @@ static class MonitorSession
             }
         }
 
-        return SelectRow(state, row) with { Menu = new(row, items.ToImmutable()) };
+        return SelectRow(state, row) with { Menu = new(row, Divided(items.ToImmutable())) };
     }
+
+    /// <summary>
+    /// A line above each item that does a different kind of thing from the one before it, by
+    /// <see cref="Section"/>. Run together, Retry and Cancel build sat between Copy log and Refresh,
+    /// and the excludes followed Refresh straight on, one slip from either.
+    /// </summary>
+    static ImmutableArray<MenuItem> Divided(ImmutableArray<MenuItem> items)
+    {
+        var divided = items.ToBuilder();
+        for (var index = 1; index < divided.Count; index++)
+        {
+            if (Section(divided[index].Command) != Section(divided[index - 1].Command))
+            {
+                divided[index] = divided[index] with { SeparatorAbove = true };
+            }
+        }
+
+        return divided.ToImmutable();
+    }
+
+    /// <summary>
+    /// The kind of thing a menu item does, in the order the menu offers them: what to look at or
+    /// copy, what changes a service's builds, what changes this machine or this window, and what
+    /// hides rows for good. A group's menu is all of the third kind, so it has no lines.
+    /// </summary>
+    static int Section(CommandKind command) =>
+        command switch
+        {
+            CommandKind.Retry or
+                CommandKind.Cancel or
+                CommandKind.RunNext => 1,
+            CommandKind.OpenRepoDirectory or
+                CommandKind.ToggleGroup or
+                CommandKind.Refresh or
+                CommandKind.GroupByPrefix or
+                CommandKind.RemoveGroupPrefix => 2,
+            CommandKind.ExcludePipeline or
+                CommandKind.ExcludeBranch or
+                CommandKind.ExcludeRepo or
+                CommandKind.ExcludeOrg => 3,
+            _ => 0
+        };
 
     /// <summary>
     /// The drop down of the chips a narrow row had no room for: every chip of the build from

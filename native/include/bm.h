@@ -239,9 +239,16 @@ typedef struct BmButton {
     int32_t flags;
 } BmButton;
 
+enum BmMenuFlags {
+    /* A line above the item, where the menu moves on to a different kind of item. A flag on the
+       item rather than an item of its own, so BmInput.clickedMenuItem stays an index of items. */
+    BM_MENU_SEPARATOR_ABOVE = 1 << 0
+};
+
 /* One item of the open context menu. */
 typedef struct BmMenuItem {
     BmString label;
+    int32_t flags;
 } BmMenuItem;
 
 /* Keep in sync with TrayIconKind.cs */
@@ -436,7 +443,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 14
+#define BM_VERSION 15
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

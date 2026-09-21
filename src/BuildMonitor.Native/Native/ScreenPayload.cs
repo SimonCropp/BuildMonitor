@@ -211,12 +211,13 @@ sealed unsafe class ScreenPayload
         {
             screen.MenuRow = overlay.Row;
             screen.MenuOverflow = overlay.Overflow ? 1 : 0;
-            foreach (var label in overlay.Labels)
+            foreach (var item in overlay.Items)
             {
                 menu.Add(
                     new()
                     {
-                        Label = Add(label)
+                        Label = Add(item.Label),
+                        Flags = item.SeparatorAbove ? BmFlags.MenuSeparatorAbove : 0
                     });
             }
         }
@@ -339,6 +340,11 @@ sealed unsafe class ScreenPayload
         foreach (var button in buttons)
         {
             builder.AppendLine($"button flags={button.Flags} '{Text(button.Label)}' tip='{Text(button.Tooltip)}'");
+        }
+
+        foreach (var item in menu)
+        {
+            builder.AppendLine($"menu flags={item.Flags} '{Text(item.Label)}'");
         }
 
         foreach (var item in trayItems)

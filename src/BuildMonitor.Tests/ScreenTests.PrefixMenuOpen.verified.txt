@@ -12,15 +12,15 @@
 |   | Open build                            |                                                                          |
 |   | Open branch                           |                                                                          |
 |   | Copy build URL                        |                                                                          |
+|   |---------------------------------------|                                                                          |
 |   | Refresh                               |                                                                          |
 |   | Group by prefix: Verify               |                                                                          |
+|   |---------------------------------------|                                                                          |
 |   | Exclude action: test.yml              |                                                                          |
 |   | Exclude branch: main                  |                                                                          |
 |   | Exclude repo: VerifyTests/VerifyXunit |                                                                          |
 |   | Exclude org: VerifyTests              |                                                                          |
 |   +---------------------------------------+                                                                          |
-|                                                                                                                      |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
