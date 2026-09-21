@@ -47,6 +47,8 @@ enum CommandKind
     OpenFilters,
     AddConnection,
     EditConnection,
+    // Opens the editor of the first connection that needs the user, from the footer's button.
+    EditUnhealthyConnection,
     // Opens the page that says what removing the edited connection takes with it.
     RemoveConnection,
     // That page's own button: the one that actually forgets the connection and its credential.

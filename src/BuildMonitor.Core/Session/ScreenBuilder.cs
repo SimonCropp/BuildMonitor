@@ -538,18 +538,9 @@ static class ScreenBuilder
         return Tooltips.Wrap(string.Join("\n", lines));
     }
 
-    /// <summary>
-    /// Every connection that is not working, by name rather than by how bad it is, so the footer
-    /// and its tooltip name the same one first. The tray reorders them by what raised its icon.
-    /// </summary>
-    static IEnumerable<ConnectionState> Unhealthy(SessionState state) =>
-        state.Connections
-            .Where(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error or ConnectionHealth.RateLimited)
-            .OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase);
-
     static List<string> Problems(SessionState state, DateTimeOffset now) =>
     [
-        ..Unhealthy(state)
+        ..MonitorSession.Unhealthy(state)
             .Select(_ => _.Health == ConnectionHealth.NeedsAuth
                 ? $"Sign in required for {_.Connection.Name}"
                 : $"{_.Connection.Name}: {_.Describe(now)}")
@@ -615,9 +606,15 @@ static class ScreenBuilder
         };
 
     /// <summary>
+    /// A way to act on the connection the footer names, where one needs the user: the footer is
+    /// the one place always on screen that says a connection is failing, and reaching its editor
+    /// otherwise took the options page and a click on it there. None for a rate limit, which the
+    /// poller waits out by itself.
+    /// <para>
     /// Undo only while the status line reports the exclude it takes back, and last: a click is
     /// resolved against the buttons again once that message has gone, and a button leaving from
     /// the middle would put every one after it under a different index.
+    /// </para>
     /// </summary>
     static List<Button> BuildsButtons(SessionState state)
     {
@@ -628,6 +625,15 @@ static class ScreenBuilder
             new("Filters", true, CommandKind.OpenFilters, "Hide pipelines for good"),
             new("Hide", true, CommandKind.Hide, "Hide the window; the tray keeps running")
         ];
+        if (MonitorSession.NeedingUser(state) is { } unhealthy)
+        {
+            var name = unhealthy.Connection.Name;
+            buttons.Add(
+                unhealthy.Health == ConnectionHealth.NeedsAuth
+                    ? new("Sign in", true, CommandKind.EditUnhealthyConnection, $"Open {name} to sign in again")
+                    : new("Check connection", true, CommandKind.EditUnhealthyConnection, $"Open {name} to check its server and credential"));
+        }
+
         if (state.Undo is { } undo)
         {
             buttons.Add(new("Undo", true, CommandKind.UndoExclude, $"Show the {undo.What} again"));
@@ -1108,12 +1114,8 @@ static class ScreenBuilder
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var running = builds.Count(_ => _.IsActive);
-        // What raised the icon leads, in name order otherwise: a rate limit raises no Attention,
-        // and named first it hid the sign in or error that did behind "(+1 more)".
-        var problems = Unhealthy(state)
-            .OrderBy(_ => _.Health == ConnectionHealth.RateLimited)
-            .Select(TrayProblem)
-            .ToList();
+        // What raised the icon leads, as Unhealthy orders them: a rate limit raises no Attention.
+        var problems = MonitorSession.Unhealthy(state).Select(TrayProblem).ToList();
         var lead = problems.Count == 0 ? "" : $"{FirstOf(problems)}. ";
         var tooltip = "";
         for (var shown = names.Count; shown >= 0; shown--)

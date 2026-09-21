@@ -533,6 +533,14 @@ static class InputApplier
 
                 return MonitorSession.OpenEditConnection(state, id);
             }
+            case CommandKind.EditUnhealthyConnection:
+                // Resolved from the state as the button was, so it opens the connection it named.
+                if (MonitorSession.NeedingUser(state) is not { } unhealthy)
+                {
+                    return state;
+                }
+
+                return MonitorSession.OpenEditConnection(state, unhealthy.Connection.Id);
             case CommandKind.RemoveConnection:
                 return MonitorSession.OpenRemoveConnection(state);
             case CommandKind.ConfirmRemoveConnection:

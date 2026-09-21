@@ -277,8 +277,9 @@ public class ScreenTests
     public async Task TheFooterSaysEveryFailingConnectionOnHover()
     {
         var screen = ScreenBuilder.Build(Fixtures.ConnectionErrors(), Fixtures.Now);
-        await Assert.That(screen.Status).IsEqualTo("GitHub: rate limited, retrying in 4m (+1 more)");
-        await Assert.That(screen.StatusTooltip).IsEqualTo("GitHub: rate limited, retrying in 4m\nJenkins: error: 500 Internal Server Error");
+        // The error first, though GitHub sorts ahead by name: a rate limit needs nothing done.
+        await Assert.That(screen.Status).IsEqualTo("Jenkins: error: 500 Internal Server Error (+1 more)");
+        await Assert.That(screen.StatusTooltip).IsEqualTo("Jenkins: error: 500 Internal Server Error\nGitHub: rate limited, retrying in 4m");
     }
 
     static string Link(string text, ChipKind link)

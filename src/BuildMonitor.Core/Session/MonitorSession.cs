@@ -604,6 +604,26 @@ static class MonitorSession
     }
 
     /// <summary>
+    /// Every connection that is not working: those that need the user first, a sign in or an error,
+    /// then those rate limited, which the poller waits out by itself, and by name within each. One
+    /// order for the footer, its tooltip, its button and the tray, so all of them name the same one
+    /// first. By name alone, a rate limit sorting first hid the sign in behind "(+1 more)", beside a
+    /// button that could only be about the other.
+    /// </summary>
+    public static IEnumerable<ConnectionState> Unhealthy(SessionState state) =>
+        state.Connections
+            .Where(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error or ConnectionHealth.RateLimited)
+            .OrderBy(_ => _.Health == ConnectionHealth.RateLimited)
+            .ThenBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The connection the footer's button opens: the first that needs the user, or null where
+    /// none does.
+    /// </summary>
+    public static ConnectionState? NeedingUser(SessionState state) =>
+        Unhealthy(state).FirstOrDefault(_ => _.Health != ConnectionHealth.RateLimited);
+
+    /// <summary>
     /// Leaves a form for where it was opened from: a connection editor, or the page asking about
     /// removing its connection, for the options page it was opened from, as that was left; every
     /// other form, and an editor opened from anywhere else, for the builds page.
