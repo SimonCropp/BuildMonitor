@@ -32,7 +32,10 @@ readonly record struct MonitorInput(
     int Rows = 0,
     // A tray menu item that was clicked, by id.
     string? TrayItem = null,
-    bool TrayIconClicked = false)
+    bool TrayIconClicked = false,
+    // A click on the notification that last popped: the build it named, or "" where it named
+    // several. Null where it was not clicked.
+    string? ClickedNotification = null)
 {
     /// <summary>
     /// Whether anything happened at all, which is what decides whether the status line's last
@@ -54,5 +57,6 @@ readonly record struct MonitorInput(
         ScrollTo >= 0 ||
         CloseRequested ||
         TrayItem is not null ||
-        TrayIconClicked;
+        TrayIconClicked ||
+        ClickedNotification is not null;
 }

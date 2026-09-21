@@ -33,7 +33,7 @@ static class FailureDetector
         {
             var build = failures[0];
             var branch = build.Branch is null ? "" : $" {build.ShortBranchName()}";
-            return new($"{build.PipelineName} failed", $"{build.RepoName}{branch} {build.RunNumberLabel()}".Trim());
+            return new($"{build.PipelineName} failed", $"{build.RepoName}{branch} {build.RunNumberLabel()}".Trim(), build.Key);
         }
 
         return new(

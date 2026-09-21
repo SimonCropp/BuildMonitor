@@ -111,6 +111,18 @@ static class InputApplier
             state = Show(state, window);
         }
 
+        // A failure that pops and then does nothing when clicked is the one moment the user is
+        // already looking for that build: the window comes up on the builds page with its row
+        // selected, ready for the log and the retry the row carries.
+        if (input.ClickedNotification is { } announced)
+        {
+            state = Show(MonitorSession.OpenBuilds(state), window);
+            if (announced.Length > 0)
+            {
+                state = MonitorSession.SelectBuild(state, announced);
+            }
+        }
+
         if (input.TrayItem is { } item)
         {
             state = TrayItem(state, item, actions, window);
@@ -379,8 +391,11 @@ static class InputApplier
                 return MonitorSession.FieldChanged(state, FormFields.CodeDirectory, picked);
             }
             case CommandKind.Refresh:
+                // No status of its own: the poller marks each connection polling on the next
+                // frame, and the footer counts that poll down. A "Refreshing" here outranked it
+                // and stayed until the next click, so the counting never showed.
                 actions.Refresh(null);
-                return MonitorSession.SetStatus(state, "Refreshing");
+                return state;
             case CommandKind.ToggleGroup:
                 if (MonitorSession.SelectedRow(state)?.Group is { } toggled)
                 {

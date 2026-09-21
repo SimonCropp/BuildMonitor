@@ -254,9 +254,16 @@ static class MonitorProgram
             if (tray is not null)
             {
                 var trayInput = tray.Poll();
-                if (trayInput.ClickedItem is not null || trayInput.IconClicked)
+                if (trayInput.ClickedItem is not null ||
+                    trayInput.IconClicked ||
+                    trayInput.ClickedNotification is not null)
                 {
-                    input = input with { TrayItem = trayInput.ClickedItem, TrayIconClicked = trayInput.IconClicked };
+                    input = input with
+                    {
+                        TrayItem = trayInput.ClickedItem,
+                        TrayIconClicked = trayInput.IconClicked,
+                        ClickedNotification = trayInput.ClickedNotification
+                    };
                 }
             }
 

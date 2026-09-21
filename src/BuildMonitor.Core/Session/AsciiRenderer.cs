@@ -264,6 +264,27 @@ static class AsciiRenderer
     static List<string> FormLines(FormPage form, int inner) =>
         form.Fields.Select(_ => FieldLine(_, inner)).ToList();
 
+    /// <summary>
+    /// What sits after a field's box: its note always, and its placeholder only while the box is
+    /// empty, which is the whole of the difference between the two.
+    /// </summary>
+    static string Aside(Field field)
+    {
+        var builder = new StringBuilder();
+        if (field.Value.Length == 0 &&
+            field.Hint is not null)
+        {
+            builder.Append($" ({field.Hint})");
+        }
+
+        if (field.Note is not null)
+        {
+            builder.Append($" ({field.Note})");
+        }
+
+        return builder.ToString();
+    }
+
     static string FieldLine(Field field, int inner)
     {
         var label = field.Label.Length == 0 ? "" : $"{field.Label}: ";
@@ -280,16 +301,14 @@ static class AsciiRenderer
                 var width = field.Kind == FieldKind.Number ? 6 : Math.Min(40, Math.Max(10, inner - label.Length - 4));
                 var value = field.Kind == FieldKind.Password ? new('*', field.Value.Length) : field.Value;
                 var box = $"[{Fit(value, width)}]";
-                var hint = field.Value.Length == 0 && field.Hint is not null ? $" ({field.Hint})" : "";
-                return $"{label}{box}{hint}{(field.Enabled ? "" : " (disabled)")}";
+                return $"{label}{box}{Aside(field)}{(field.Enabled ? "" : " (disabled)")}";
             }
             case FieldKind.Directory:
             {
                 // The button sits beside the box, as every head draws it, so the width it takes is
                 // out of the box's rather than off the end of the line.
                 var width = Math.Min(40, Math.Max(10, inner - label.Length - 4 - browse.Length));
-                var hint = field.Value.Length == 0 && field.Hint is not null ? $" ({field.Hint})" : "";
-                return $"{label}[{Fit(field.Value, width)}]{browse}{hint}";
+                return $"{label}[{Fit(field.Value, width)}]{browse}{Aside(field)}";
             }
             case FieldKind.Select:
                 return $"{label}<{field.Value}>{(field.Enabled ? "" : " (disabled)")}";

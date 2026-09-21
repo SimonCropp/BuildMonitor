@@ -223,7 +223,10 @@ sealed class SniTray : ITray
         var result = first;
         while (events.TryDequeue(out var next))
         {
-            result = new(next.ClickedItem ?? result.ClickedItem, result.IconClicked || next.IconClicked);
+            result = new(
+                next.ClickedItem ?? result.ClickedItem,
+                result.IconClicked || next.IconClicked,
+                next.ClickedNotification ?? result.ClickedNotification);
         }
 
         return result;

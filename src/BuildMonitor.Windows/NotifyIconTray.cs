@@ -10,6 +10,8 @@ sealed class NotifyIconTray : ITray
     TrayIconKind? shown;
     string? clicked;
     bool iconClicked;
+    string? announced;
+    string? clickedNotification;
 
     NotifyIconTray()
     {
@@ -36,6 +38,7 @@ sealed class NotifyIconTray : ITray
             }
         };
         icon.DoubleClick += (_, _) => iconClicked = true;
+        icon.BalloonTipClicked += (_, _) => clickedNotification = announced ?? "";
         // After the icon is added, since that is what makes Windows record it.
         if (Environment.ProcessPath is { } processPath)
         {
@@ -74,8 +77,16 @@ sealed class NotifyIconTray : ITray
         }
     }
 
-    public void Notify(Notification notification) =>
+    /// <summary>
+    /// The key is kept rather than passed through the click, because Windows raises
+    /// BalloonTipClicked with nothing about which balloon was clicked, and a second failure can
+    /// pop over the first before either is.
+    /// </summary>
+    public void Notify(Notification notification)
+    {
+        announced = notification.Key ?? "";
         icon.ShowBalloonTip(5000, notification.Title, notification.Message, ToolTipIcon.Error);
+    }
 
     void Rebuild()
     {
@@ -118,9 +129,10 @@ sealed class NotifyIconTray : ITray
 
     public TrayInput Poll()
     {
-        var input = new TrayInput(clicked, iconClicked);
+        var input = new TrayInput(clicked, iconClicked, clickedNotification);
         clicked = null;
         iconClicked = false;
+        clickedNotification = null;
         return input;
     }
 

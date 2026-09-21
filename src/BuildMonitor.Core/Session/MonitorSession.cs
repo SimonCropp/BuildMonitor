@@ -44,6 +44,26 @@ static class MonitorSession
         SelectRow(state, state.SelectedRow - 1);
 
     /// <summary>
+    /// Selects the row of the build with that key, and scrolls it into view. Unchanged where the
+    /// build has no row: it can have finished, been filtered out, or been retried into a run of
+    /// its own between the notification popping and the click on it, and moving the selection
+    /// somewhere arbitrary reads worse than leaving it where the user left it.
+    /// </summary>
+    public static SessionState SelectBuild(SessionState state, string key)
+    {
+        var rows = RowProjection.Rows(state);
+        for (var index = 0; index < rows.Length; index++)
+        {
+            if (rows[index].Build?.HasKey(key) == true)
+            {
+                return SelectRow(state, index);
+            }
+        }
+
+        return state;
+    }
+
+    /// <summary>
     /// Scrolls the least amount that brings the selection into the body.
     /// </summary>
     static SessionState EnsureVisible(SessionState state)

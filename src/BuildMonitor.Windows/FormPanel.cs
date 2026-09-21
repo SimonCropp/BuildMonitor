@@ -134,7 +134,14 @@ sealed class FormPanel : Panel
                     Margin = DpiScale.Spacing(this, 3, 4, 3, 4)
                 };
                 text.TextChanged += (_, _) => Changed(field.Id, text.Text);
-                return (Label(field.Label), text);
+                if (field.Note is null)
+                {
+                    return (Label(field.Label), text);
+                }
+
+                // The box first, so Update reaches it through the same case the directory's panel
+                // goes through.
+                return (Label(field.Label), Beside(text, field.Note));
             }
             case FieldKind.Select:
             {
@@ -273,6 +280,33 @@ sealed class FormPanel : Panel
             Margin = DpiScale.Spacing(this, 3, 8, 12, 3),
             Anchor = AnchorStyles.Left
         };
+
+    /// <summary>
+    /// A box with its note to the right of it. Beside rather than under, so the sentence reads as
+    /// belonging to that field rather than to the one below it.
+    /// </summary>
+    FlowLayoutPanel Beside(Control box, string note)
+    {
+        var panel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            Margin = DpiScale.Spacing(this, 3, 2, 3, 2),
+            BackColor = Palette.Background
+        };
+        box.Margin = DpiScale.Spacing(this, 0, 2, 8, 2);
+        panel.Controls.Add(box);
+        panel.Controls.Add(
+            new FormsLabel
+            {
+                Text = note,
+                AutoSize = true,
+                MaximumSize = new(LogicalToDeviceUnits(420), 0),
+                ForeColor = Palette.Dim,
+                Margin = DpiScale.Spacing(this, 0, 6, 0, 2)
+            });
+        return panel;
+    }
 
     static void Update(Control control, Field field)
     {

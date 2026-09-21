@@ -43,7 +43,7 @@ static class ScreenBuilder
             null,
             Buttons(state),
             status,
-            StatusTooltip(state, status, now),
+            StatusTooltip(state, now),
             tray,
             state.Columns,
             state.Rows,
@@ -89,7 +89,7 @@ static class ScreenBuilder
             null,
             Buttons(state),
             status,
-            StatusTooltip(state, status, now),
+            StatusTooltip(state, now),
             tray,
             state.Columns,
             state.Rows,
@@ -511,27 +511,72 @@ static class ScreenBuilder
     public const string SearchTooltip = "Filter by repository, pipeline or branch";
 
     /// <summary>
-    /// Every failing connection, for a hover on the footer. The footer is one line beside the
-    /// buttons and names only the first problem, and the error it carries is usually longer than
-    /// the line, so what a connection is actually complaining about is the part that is cut off.
-    /// Empty where nothing is wrong: a tooltip repeating "Polled 5s ago" would pop over every
-    /// hover of the footer without adding anything.
+    /// Whatever the footer had to shorten, for a hover on it. The footer is one line beside the
+    /// buttons and names only the first of what it found, and the error a connection carries is
+    /// usually longer than the line, so what it is actually complaining about is the part that is
+    /// cut off. Every line the footer counted with "(+2 more)" is here, or the count would point
+    /// at nothing.
+    /// <para>
+    /// Empty where nothing is wrong and no poll is out: a tooltip repeating "Polled 5s ago" would
+    /// pop over every hover of the footer without adding anything.
+    /// </para>
     /// </summary>
-    static string StatusTooltip(SessionState state, string status, DateTimeOffset now)
+    static string StatusTooltip(SessionState state, DateTimeOffset now)
     {
-        if (status.Length == 0)
+        var lines = Problems(state, now);
+        if (lines.Count == 0)
+        {
+            lines = Polls(state, now);
+        }
+
+        if (lines.Count == 0)
         {
             return "";
         }
 
-        var problems = state.Connections
+        // A line each, and each wrapped: a provider's error can be a paragraph of its own.
+        return Tooltips.Wrap(string.Join("\n", lines));
+    }
+
+    /// <summary>
+    /// Every connection that is not working, by name rather than by how bad it is, so the footer
+    /// and its tooltip name the same one first.
+    /// </summary>
+    static List<string> Problems(SessionState state, DateTimeOffset now) =>
+    [
+        ..state.Connections
             .Where(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error or ConnectionHealth.RateLimited)
             .OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase)
             .Select(_ => _.Health == ConnectionHealth.NeedsAuth
                 ? $"Sign in required for {_.Connection.Name}"
-                : $"{_.Connection.Name}: {_.Describe(now)}");
-        // A line each, and each wrapped: a provider's error can be a paragraph of its own.
-        return Tooltips.Wrap(string.Join("\n", problems));
+                : $"{_.Connection.Name}: {_.Describe(now)}")
+    ];
+
+    /// <summary>
+    /// Every connection part way through a poll someone is waiting on. Only a refresh and a first
+    /// poll set <see cref="ConnectionHealth.Polling"/>, so this is empty through the scheduled
+    /// cycles that run all day, and the footer does not flicker between them.
+    /// </summary>
+    static List<string> Polls(SessionState state, DateTimeOffset now) =>
+    [
+        ..state.Connections
+            .Where(_ => _.Health == ConnectionHealth.Polling)
+            .OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(_ => $"{_.Connection.Name}: {_.Describe(now)}")
+    ];
+
+    /// <summary>
+    /// One line out of several: the first, and a count of the rest, which the tooltip lists in
+    /// full.
+    /// </summary>
+    static string FirstOf(List<string> lines)
+    {
+        if (lines.Count == 1)
+        {
+            return lines[0];
+        }
+
+        return $"{lines[0]} (+{lines.Count - 1} more)";
     }
 
     public static IReadOnlyList<Button> Buttons(SessionState state) =>
@@ -598,31 +643,41 @@ static class ScreenBuilder
         new("Remove", true, CommandKind.RemoveConnection, "Forget this connection and its stored credential")
     ];
 
+    /// <summary>
+    /// The footer's one line. With no heading per connection, this is the one place always on
+    /// screen that can say a connection is failing, and otherwise its builds would just quietly
+    /// stop changing.
+    /// <para>
+    /// The message from whatever the user last did comes first, being the only feedback some
+    /// actions have. It carries a count of the standing problems rather than replacing them: the
+    /// message stays until the next click, so a "Retrying" from this morning used to sit over
+    /// "Sign in required for GitHub" all day, which is the reason that retry did nothing.
+    /// </para>
+    /// </summary>
     public static string Status(SessionState state, DateTimeOffset now)
     {
+        var problems = Problems(state, now);
         if (state.Status.Length > 0)
         {
-            return state.Status;
-        }
-
-        // With no heading per connection, the footer is the one place always on screen that can
-        // say a connection is failing, and otherwise its builds would just quietly stop changing.
-        var problems = state.Connections
-            .Where(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error or ConnectionHealth.RateLimited)
-            .OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (problems.Count > 0)
-        {
-            var first = problems[0];
-            var problem = first.Health == ConnectionHealth.NeedsAuth
-                ? $"Sign in required for {first.Connection.Name}"
-                : $"{first.Connection.Name}: {first.Describe(now)}";
-            if (problems.Count == 1)
+            if (problems.Count == 0)
             {
-                return problem;
+                return state.Status;
             }
 
-            return $"{problem} (+{problems.Count - 1} more)";
+            return $"{state.Status} ({Plural(problems.Count, "problem")})";
+        }
+
+        if (problems.Count > 0)
+        {
+            return FirstOf(problems);
+        }
+
+        // Ahead of the last poll's age, which a poll in flight is about to replace anyway, and
+        // which says nothing about the wait the user is watching.
+        var polls = Polls(state, now);
+        if (polls.Count > 0)
+        {
+            return FirstOf(polls);
         }
 
         var polled = state.Connections
@@ -664,7 +719,7 @@ static class ScreenBuilder
             formPage,
             Buttons(state),
             status,
-            StatusTooltip(state, status, now),
+            StatusTooltip(state, now),
             tray,
             state.Columns,
             state.Rows,
@@ -744,8 +799,8 @@ static class ScreenBuilder
             new(FormFields.Theme, FieldKind.Select, "Theme", form.Value(FormFields.Theme), Options: Enum.GetNames<Theme>()),
             new(FormFields.PollInterval, FieldKind.Number, "Poll interval (seconds)", form.Value(FormFields.PollInterval)),
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),
-            new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Hint: "Running and queued builds always show."),
-            new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Hint: "Used by the launcher and the MCP server. Takes effect after a restart."),
+            new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Note: "Running and queued builds always show."),
+            new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Note: "Used by the launcher and the MCP server. Takes effect after a restart."),
             new(FormFields.CodeDirectory, FieldKind.Directory, "Code directory", form.Value(FormFields.CodeDirectory), Hint: "Where your checkouts live"),
             new("connectionsLabel", FieldKind.Label, "Connections", "")
         };

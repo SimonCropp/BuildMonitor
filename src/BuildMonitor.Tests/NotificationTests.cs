@@ -1,4 +1,4 @@
-public class NotificationTests
+﻿public class NotificationTests
 {
     [Test]
     public async Task ARunningBuildThatFailsIsAnnounced()
@@ -7,14 +7,17 @@ public class NotificationTests
         var builds = Fixtures.GitHubBuilds();
         var failed = builds.Select(_ => _.RunNumber == "1234" ? _ with { Status = BuildStatus.Failed, Finished = Fixtures.Now } : _).ToImmutableArray();
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, state.Connection(Fixtures.GitHub.Id)!.Pipelines, failed, Fixtures.Now);
-        await Assert.That(next.Notification).IsEqualTo(new("test.yml failed", "VerifyTests/DiffEngine main #1234"));
+        await Assert.That(next.Notification).IsEqualTo(new("test.yml failed", "VerifyTests/DiffEngine main #1234", failed.Single(_ => _.RunNumber == "1234").Key));
         await Verify(Fixtures.Render(next));
     }
 
     [Test]
     public async Task ADependabotBranchLeavesOutTheEcosystem() =>
         await Assert.That(Fixtures.WithDependabotFailure().Notification)
-            .IsEqualTo(new("build.yml failed", "VerifyTests/Reports 🤖 Polyfill-9.1.0 #9"));
+            .IsEqualTo(new(
+                "build.yml failed",
+                "VerifyTests/Reports 🤖 Polyfill-9.1.0 #9",
+                "gh/Reports/build.yml/dependabot/nuget/src/Polyfill-9.1.0"));
 
     [Test]
     public async Task AnAlreadyFailedBuildIsNotAnnouncedAgain()
