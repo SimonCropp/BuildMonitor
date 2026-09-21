@@ -28,7 +28,7 @@
 +----------------------------------------------------------------------------------------------------------------------+
 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 0s ago |
 +----------------------------------------------------------------------------------------------------------------------+
-tray: Failed "BuildMonitor: 2 failing, 3 running"
+tray: Failed "BuildMonitor: DiffEngine and Verify failing, 3 running"
   Open
   Refresh
   Options

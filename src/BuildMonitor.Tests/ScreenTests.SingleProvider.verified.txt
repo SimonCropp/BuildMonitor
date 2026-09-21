@@ -28,7 +28,7 @@
 +----------------------------------------------------------------------------------------------------------------------+
 | [Refresh] [Options] [Filters] [Hide]                                                                  Polled 12s ago |
 +----------------------------------------------------------------------------------------------------------------------+
-tray: Failed "BuildMonitor: 1 failing, 1 running"
+tray: Failed "BuildMonitor: Verify failing, 1 running"
   Open
   Refresh
   Options

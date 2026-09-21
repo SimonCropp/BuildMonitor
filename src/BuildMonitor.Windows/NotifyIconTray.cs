@@ -69,8 +69,10 @@ sealed class NotifyIconTray : ITray
             icon.Icon = Icons.Tray(next.Icon);
         }
 
-        // NotifyIcon.Text is limited to 127 characters.
-        var tooltip = next.Tooltip.Length > 127 ? next.Tooltip[..127] : next.Tooltip;
+        // NotifyIcon.Text throws past its limit. ScreenBuilder fits the tooltip to it already, so
+        // this only guards against that ever changing.
+        var limit = ScreenBuilder.TrayTooltipLimit;
+        var tooltip = next.Tooltip.Length > limit ? next.Tooltip[..limit] : next.Tooltip;
         if (icon.Text != tooltip)
         {
             icon.Text = tooltip;

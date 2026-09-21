@@ -28,7 +28,7 @@
 +----------------------------------------------------------------------------------------------------------------------+
 | [Refresh] [Options] [Filters] [Hide]                                                           Retrying test.yml #77 |
 +----------------------------------------------------------------------------------------------------------------------+
-tray: Failed "BuildMonitor: 1 failing, 4 running"
+tray: Failed "BuildMonitor: Verify failing, 4 running"
   Open
   Refresh
   Options

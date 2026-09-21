@@ -28,7 +28,7 @@
 +----------------------------------------------------------------------------------------------------------------------+
 | [Refresh] [Options] [Filters] [Hide]                                                           GitHub: polling 15/20 |
 +----------------------------------------------------------------------------------------------------------------------+
-tray: Failed "BuildMonitor: 1 failing, 4 running"
+tray: Failed "BuildMonitor: Verify failing, 4 running"
   Open
   Refresh
   Options

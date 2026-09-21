@@ -147,7 +147,7 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+
-                tray: Failed "BuildMonitor: 2 failing, 4 running"
+                tray: Failed "BuildMonitor: Verify failing, 4 running"
                   Open
                   Refresh
                   Options

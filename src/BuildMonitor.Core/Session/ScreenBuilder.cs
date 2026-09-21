@@ -540,13 +540,16 @@ static class ScreenBuilder
 
     /// <summary>
     /// Every connection that is not working, by name rather than by how bad it is, so the footer
-    /// and its tooltip name the same one first.
+    /// and its tooltip name the same one first. The tray reorders them by what raised its icon.
     /// </summary>
+    static IEnumerable<ConnectionState> Unhealthy(SessionState state) =>
+        state.Connections
+            .Where(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error or ConnectionHealth.RateLimited)
+            .OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase);
+
     static List<string> Problems(SessionState state, DateTimeOffset now) =>
     [
-        ..state.Connections
-            .Where(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error or ConnectionHealth.RateLimited)
-            .OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase)
+        ..Unhealthy(state)
             .Select(_ => _.Health == ConnectionHealth.NeedsAuth
                 ? $"Sign in required for {_.Connection.Name}"
                 : $"{_.Connection.Name}: {_.Describe(now)}")
@@ -999,12 +1002,8 @@ static class ScreenBuilder
 
     static TrayModel Tray(SessionState state, ImmutableArray<Build> builds)
     {
-        var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
-        var running = builds.Count(_ => _.IsActive);
         var icon = Icon(state, builds);
-        var tooltip = state.Connections.Length == 0
-            ? "BuildMonitor: no connections"
-            : $"BuildMonitor: {failing} failing, {running} running";
+        var tooltip = TrayTooltip(state, builds);
 
         List<TrayMenuItem> items =
         [
@@ -1031,6 +1030,96 @@ static class ScreenBuilder
         return new(icon, tooltip, items);
     }
 
+    /// <summary>
+    /// The most a tray tooltip can hold on the tightest of the heads: NotifyIcon refuses more, so
+    /// the Windows head cuts it there, which would halve a name rather than drop it.
+    /// </summary>
+    public const int TrayTooltipLimit = 127;
+
+    /// <summary>
+    /// What a hover on the tray icon says, which while the window is hidden is the whole of the app.
+    /// A connection that is not working comes first, being what the Attention icon shows: counts
+    /// alone put "0 failing, 0 running" beside it, which reads as all clear. Failures are named, as
+    /// their rows name them, rather than counted, since which one is the next thing a hover wants.
+    /// Names come off the end as "and 2 more" until the line fits in <see cref="TrayTooltipLimit"/>.
+    /// </summary>
+    static string TrayTooltip(SessionState state, ImmutableArray<Build> builds)
+    {
+        if (state.Connections.Length == 0)
+        {
+            return $"{Title}: no connections";
+        }
+
+        var failed = builds.Count(_ => _.Status == BuildStatus.Failed);
+        var names = builds
+            .Where(_ => _.Status == BuildStatus.Failed)
+            .Select(_ => _.ShortRepoName())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var running = builds.Count(_ => _.IsActive);
+        // What raised the icon leads, in name order otherwise: a rate limit raises no Attention,
+        // and named first it hid the sign in or error that did behind "(+1 more)".
+        var problems = Unhealthy(state)
+            .OrderBy(_ => _.Health == ConnectionHealth.RateLimited)
+            .Select(TrayProblem)
+            .ToList();
+        var lead = problems.Count == 0 ? "" : $"{FirstOf(problems)}. ";
+        var tooltip = "";
+        for (var shown = names.Count; shown >= 0; shown--)
+        {
+            tooltip = $"{Title}: {lead}{Failing(names, shown, failed)}, {running} running";
+            if (tooltip.Length <= TrayTooltipLimit)
+            {
+                return tooltip;
+            }
+        }
+
+        // Only a connection named past any sense gets here: cut, but visibly.
+        return $"{tooltip[..(TrayTooltipLimit - 1)]}…";
+    }
+
+    /// <summary>
+    /// A connection that is not working, said short. The error itself is left out: it is usually
+    /// a paragraph, and the window has it, so the hover only has to say which connection to look at.
+    /// </summary>
+    static string TrayProblem(ConnectionState connection) =>
+        connection.Health switch
+        {
+            ConnectionHealth.NeedsAuth => $"sign in required for {connection.Connection.Name}",
+            ConnectionHealth.RateLimited => $"{connection.Connection.Name} rate limited",
+            _ => $"error polling {connection.Connection.Name}"
+        };
+
+    /// <summary>
+    /// The first <paramref name="shown"/> of the failing projects and how many more there are, or
+    /// with none shown, the count of failed builds the header gives.
+    /// </summary>
+    static string Failing(List<string> names, int shown, int failed)
+    {
+        if (shown == 0)
+        {
+            return $"{failed} failing";
+        }
+
+        var listed = names.Take(shown).ToList();
+        if (names.Count > shown)
+        {
+            listed.Add($"{names.Count - shown} more");
+        }
+
+        if (listed.Count == 1)
+        {
+            return $"{listed[0]} failing";
+        }
+
+        return $"{string.Join(", ", listed.Take(listed.Count - 1))} and {listed[^1]} failing";
+    }
+
+    /// <summary>
+    /// Attention is for a connection that may need the user: a sign in, or an error. A rate limit
+    /// never does, since the poller waits it out by itself, so it leaves the icon to the builds and
+    /// is said only in the tooltip, where a hover asking why the rows have stopped changing finds it.
+    /// </summary>
     static TrayIconKind Icon(SessionState state, ImmutableArray<Build> builds)
     {
         if (state.Connections.Any(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error))

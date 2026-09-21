@@ -28,7 +28,7 @@
 +----------------------------------------------------------------------------------------------------------------------+
 | [Refresh] [Options] [Filters] [Hide]                                                     Sign in required for GitHub |
 +----------------------------------------------------------------------------------------------------------------------+
-tray: Attention "BuildMonitor: 1 failing, 4 running"
+tray: Attention "BuildMonitor: sign in required for GitHub. Verify failing, 4 running"
   Open
   Refresh
   Options

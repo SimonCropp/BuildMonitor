@@ -16,7 +16,7 @@ public class ScreenPayloadTests
         return Verify(payload.Describe())
             .Snapshot(
                 """
-                page: 1 rows: 0 details: 0 chips: 0 spans: 0 fields: 6 options: 10 buttons: 4 menu: 0 tray: 8 strings: 688 bytes
+                page: 1 rows: 0 details: 0 chips: 0 spans: 0 fields: 6 options: 10 buttons: 4 menu: 0 tray: 8 strings: 693 bytes
                 search='' tip='' empty=''
                 status='Polled 5s ago' tip=''
                 field kind=5 flags=1 'provider' 'Provider' 'AppVeyor' options=0+10
