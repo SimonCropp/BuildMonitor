@@ -45,7 +45,10 @@ enum CommandKind
     OpenFilters,
     AddConnection,
     EditConnection,
+    // Opens the page that says what removing the edited connection takes with it.
     RemoveConnection,
+    // That page's own button: the one that actually forgets the connection and its credential.
+    ConfirmRemoveConnection,
     AddFilter,
     RemoveFilter,
     SignIn,

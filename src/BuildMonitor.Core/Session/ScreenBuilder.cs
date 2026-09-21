@@ -604,6 +604,13 @@ static class ScreenBuilder
                     new("Update", true, CommandKind.ConfirmUpdate, "Close BuildMonitor, update it and start it again"),
                     new("Cancel", true, CommandKind.CancelForm)
                 ],
+                // The one Cancel that stays in the editor rather than leaving for the builds, so it
+                // says where it goes.
+                RemoveConnectionFormState =>
+                [
+                    new("Remove", true, CommandKind.ConfirmRemoveConnection, "Forget this connection and delete its stored credential"),
+                    new("Cancel", true, CommandKind.CancelForm, "Back to the connection")
+                ],
                 OptionsFormState or FiltersFormState =>
                 [
                     new("Save", true, CommandKind.Save),
@@ -713,6 +720,7 @@ static class ScreenBuilder
                 AddConnectionFormState form => AddConnectionForm(form),
                 EditConnectionFormState form => EditConnectionForm(form),
                 UpdateFormState form => UpdateForm(form, now),
+                RemoveConnectionFormState form => RemoveConnectionForm(state, form),
                 _ => throw new($"No form for {state.Page}")
             };
         return new(
@@ -735,6 +743,33 @@ static class ScreenBuilder
     /// replace its own files, and nothing is on screen until the new one starts, so this page and
     /// the notification the new one shows are the whole of what the user sees of an update.
     /// </summary>
+    /// <summary>
+    /// What a yes takes away, said before it is given: which connection, its credential and its
+    /// builds, and what getting it back costs, the one part nothing here can undo. Named as saved
+    /// rather than as the editor may have renamed it, since the saved one is what goes, and a line
+    /// each, as on the update page, because a label is drawn on one line and cut at the edge.
+    /// </summary>
+    static FormPage RemoveConnectionForm(SessionState state, RemoveConnectionFormState form)
+    {
+        var saved = state.Connection(form.ConnectionId)?.Connection;
+        var descriptor = ProviderDescriptors.Get(form.Editor.ProviderId);
+        var server = saved?.Server is { Length: > 0 } url ? $"{descriptor.Name}, {url}" : descriptor.Name;
+        var method = saved?.Auth ?? ConnectionDraft.Method(form.Editor);
+        return new(
+            "Remove connection",
+            [
+                new(FormFields.RemovedConnection, FieldKind.Label, saved?.Name ?? form.Editor.Value(FormFields.Name), server),
+                new(FormFields.RemoveSummary, FieldKind.Label, "", "Removing it deletes the credential stored for it, and its builds leave the list."),
+                new(
+                    FormFields.RemoveReturn,
+                    FieldKind.Label,
+                    "",
+                    method == AuthMethod.Token
+                        ? "Adding it back means entering a token again."
+                        : "Adding it back means signing in again.")
+            ]);
+    }
+
     static FormPage UpdateForm(UpdateFormState form, DateTimeOffset now)
     {
         var servers = form.Servers;

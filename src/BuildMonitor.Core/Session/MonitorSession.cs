@@ -552,6 +552,41 @@ static class MonitorSession
             });
     }
 
+    /// <summary>
+    /// Asks before the editor's connection goes. Only from the edit page, and only while the
+    /// connection is still there: a new connection's draft id is not one to remove, and a page
+    /// asking about a connection already gone would take a yes for nothing.
+    /// </summary>
+    public static SessionState OpenRemoveConnection(SessionState state)
+    {
+        if (state.Form is not EditConnectionFormState editor ||
+            state.Connection(editor.ConnectionId) is null)
+        {
+            return state;
+        }
+
+        return OpenForm(
+            state,
+            new RemoveConnectionFormState
+            {
+                Values = [],
+                Editor = editor
+            });
+    }
+
+    /// <summary>
+    /// A no to removing: back to the editor it was asked from, as it was left.
+    /// </summary>
+    public static SessionState CancelRemoveConnection(SessionState state)
+    {
+        if (state.Form is not RemoveConnectionFormState removing)
+        {
+            return state;
+        }
+
+        return OpenForm(state, removing.Editor);
+    }
+
     static ImmutableDictionary<string, string> ConnectionValues(ProviderDescriptor descriptor, Connection? existing)
     {
         var values = ImmutableDictionary.CreateBuilder<string, string>();

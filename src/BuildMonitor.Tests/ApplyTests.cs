@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// The applier is the one place a click becomes a consequence, so these pin what each kind of
 /// input asks of the world.
 /// </summary>
@@ -381,15 +381,94 @@ public class ApplyTests
         await Assert.That(actions.SavedSettings!.Connections.Last().Name).IsEqualTo("Work");
     }
 
+    /// <summary>
+    /// Remove sits beside Cancel, and used to take the connection and its credential on one click.
+    /// </summary>
+    [Test]
+    public async Task RemoveAsksFirst()
+    {
+        var actions = new RecordingActions();
+        var state = Apply(Fixtures.ConnectionEdit(), new(ClickedButton: ButtonIndex(Fixtures.ConnectionEdit(), CommandKind.RemoveConnection)), actions);
+        await Assert.That(state.Page).IsEqualTo(Page.RemoveConnection);
+        await Assert.That(state.Settings.Connections.Any(_ => _.Id == Fixtures.Jenkins.Id)).IsTrue();
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
     [Test]
     public async Task RemovingAConnectionDeletesItsSecrets()
     {
         var actions = new RecordingActions();
-        var state = Fixtures.ConnectionEdit();
-        var remove = ScreenBuilder.Buttons(state).ToList().FindIndex(_ => _.Command == CommandKind.RemoveConnection);
-        state = Apply(state, new(ClickedButton: remove), actions);
+        var state = MonitorSession.OpenRemoveConnection(Fixtures.ConnectionEdit());
+        state = Apply(state, new(ClickedButton: ButtonIndex(state, CommandKind.ConfirmRemoveConnection)), actions);
+        await Assert.That(state.Page).IsEqualTo(Page.Builds);
+        await Assert.That(state.Status).IsEqualTo("Removed Jenkins");
         await Assert.That(state.Settings.Connections.Any(_ => _.Id == Fixtures.Jenkins.Id)).IsFalse();
         await Assert.That(actions.Calls).IsEquivalentTo(["DeleteSecret connection:jenkins", "DeleteSecret connection:jenkins:refresh", "SaveSettings"]);
+    }
+
+    /// <summary>
+    /// A no to "are you sure" goes back to the editor, not to the builds page, and keeps whatever
+    /// was typed in it before Remove was clicked.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task CancellingARemoveGoesBackToTheEditor(bool escape)
+    {
+        var actions = new RecordingActions();
+        var state = Apply(Fixtures.ConnectionEdit(), new(FieldChanges: [new(FormFields.Name, "Build server")]), actions);
+        state = MonitorSession.OpenRemoveConnection(state);
+        MonitorInput cancel = escape
+            ? new(Key: CommandKind.CancelForm)
+            : new(ClickedButton: ButtonIndex(state, CommandKind.CancelForm));
+        state = Apply(state, cancel, actions);
+        await Assert.That(state.Page).IsEqualTo(Page.EditConnection);
+        await Assert.That(Fixtures.ConnectionForm(state).Value(FormFields.Name)).IsEqualTo("Build server");
+        await Assert.That(state.Settings.Connections.Any(_ => _.Id == Fixtures.Jenkins.Id)).IsTrue();
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    /// <summary>
+    /// The delete is reachable only from the page that asked about it.
+    /// </summary>
+    [Test]
+    public async Task ConfirmingFromTheEditorDoesNothing()
+    {
+        var actions = new RecordingActions();
+        var state = Fixtures.ConnectionEdit();
+        var next = Apply(state, new(Key: CommandKind.ConfirmRemoveConnection), actions);
+        await Assert.That(next.Page).IsEqualTo(Page.EditConnection);
+        await Assert.That(next.Settings.Connections.Length).IsEqualTo(state.Settings.Connections.Length);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    /// <summary>
+    /// A yes to a connection that went while the page was open removes nothing and deletes no
+    /// credential, and leaves a page asking about nothing.
+    /// </summary>
+    [Test]
+    public async Task ConfirmingAConnectionAlreadyGoneDeletesNothing()
+    {
+        var actions = new RecordingActions();
+        var state = MonitorSession.OpenRemoveConnection(Fixtures.ConnectionEdit());
+        state = MonitorSession.RemoveConnection(state, Fixtures.Jenkins.Id);
+        state = Apply(state, new(Key: CommandKind.ConfirmRemoveConnection), actions);
+        await Assert.That(state.Page).IsEqualTo(Page.Builds);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    /// <summary>
+    /// What adding it back costs depends on how it signed in.
+    /// </summary>
+    [Test]
+    [Arguments(AuthMethod.Token, "Adding it back means entering a token again.")]
+    [Arguments(AuthMethod.Device, "Adding it back means signing in again.")]
+    public async Task TheRemovePageSaysWhatComingBackCosts(AuthMethod method, string expected)
+    {
+        var state = MonitorSession.ReplaceConnection(Fixtures.WithBuilds(), Fixtures.GitHub with { Auth = method });
+        state = MonitorSession.OpenRemoveConnection(MonitorSession.OpenEditConnection(state, Fixtures.GitHub.Id));
+        var fields = ScreenBuilder.Build(state, Fixtures.Now).Form!.Fields;
+        await Assert.That(fields.Single(_ => _.Id == FormFields.RemoveReturn).Value).IsEqualTo(expected);
     }
 
     /// <summary>

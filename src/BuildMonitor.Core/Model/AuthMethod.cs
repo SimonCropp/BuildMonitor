@@ -1,4 +1,4 @@
-enum AuthMethod
+public enum AuthMethod
 {
     Token,
     // OAuth authorization code in the system browser, redirected back to a loopback listener.

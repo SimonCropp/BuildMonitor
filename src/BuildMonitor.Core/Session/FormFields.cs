@@ -31,6 +31,11 @@ static class FormFields
     public const string UpdateServers = "updateServers";
     public const string McpServer = "mcpServer";
 
+    // Remove connection. Labels too: its only choices are the footer's.
+    public const string RemovedConnection = "removedConnection";
+    public const string RemoveSummary = "removeSummary";
+    public const string RemoveReturn = "removeReturn";
+
     // Filters
     public const string FilterKind = "filterKind";
     public const string FilterTarget = "filterTarget";

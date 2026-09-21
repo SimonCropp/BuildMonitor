@@ -424,6 +424,14 @@ public class ScreenTests
     public Task ConnectionEdit() =>
         Verify(Fixtures.Render(Fixtures.ConnectionEdit()));
 
+    /// <summary>
+    /// What the editor's Remove asks before anything goes. Its Remove sits where Sign in did, so a
+    /// second click on the editor's Remove, the fifth button, lands on nothing.
+    /// </summary>
+    [Test]
+    public Task RemoveConnection() =>
+        Verify(Fixtures.Render(MonitorSession.OpenRemoveConnection(Fixtures.ConnectionEdit())));
+
     [Test]
     public Task ConnectionValidationError() =>
         Verify(Fixtures.Render(InputApplier.Execute(Fixtures.ConnectionNew(), CommandKind.Save, null, MonitorActions.None, null)));

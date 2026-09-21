@@ -1,0 +1,39 @@
+﻿+----------------------------------------------------------------------------------------------------------------------+
+| BuildMonitor                                                                                       Remove connection |
++----------------------------------------------------------------------------------------------------------------------+
+| Jenkins: Jenkins, https://jenkins.example.com                                                                        |
+| Removing it deletes the credential stored for it, and its builds leave the list.                                     |
+| Adding it back means entering a token again.                                                                         |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+
+| [Remove] [Cancel]                                                                                      Polled 5s ago |
++----------------------------------------------------------------------------------------------------------------------+
+tray: Failed "BuildMonitor: Verify failing, 4 running"
+  Open
+  Refresh
+  Options
+  Filters
+  Open logs
+  Raise issue
+  Update
+  Exit

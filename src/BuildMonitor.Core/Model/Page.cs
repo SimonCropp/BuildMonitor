@@ -11,5 +11,6 @@ enum Page
     AddConnection,
     EditConnection,
     SignIn,
-    Update
+    Update,
+    RemoveConnection
 }

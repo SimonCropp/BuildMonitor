@@ -482,18 +482,27 @@ static class InputApplier
                 return MonitorSession.OpenEditConnection(state, id);
             }
             case CommandKind.RemoveConnection:
+                return MonitorSession.OpenRemoveConnection(state);
+            case CommandKind.ConfirmRemoveConnection:
             {
-                if (state.Form is not EditConnectionFormState removing)
+                // Only from the page that asked, so no other page's button can reach the delete.
+                if (state.Form is not RemoveConnectionFormState removing)
                 {
                     return state;
                 }
 
-                var id = removing.ConnectionId;
-                state = MonitorSession.OpenBuilds(MonitorSession.RemoveConnection(state, id));
-                actions.DeleteSecret(SecretKeys.Token(id));
-                actions.DeleteSecret(SecretKeys.Refresh(id));
+                // Gone since the page opened, which leaves nothing to remove and no editor to go
+                // back to.
+                if (state.Connection(removing.ConnectionId)?.Connection is not { } removed)
+                {
+                    return MonitorSession.OpenBuilds(state);
+                }
+
+                state = MonitorSession.OpenBuilds(MonitorSession.RemoveConnection(state, removed.Id));
+                actions.DeleteSecret(SecretKeys.Token(removed.Id));
+                actions.DeleteSecret(SecretKeys.Refresh(removed.Id));
                 actions.SaveSettings(state.Settings);
-                return MonitorSession.SetStatus(state, "Connection removed");
+                return MonitorSession.SetStatus(state, $"Removed {removed.Name}");
             }
             case CommandKind.AddFilter:
                 return MonitorSession.AddFilter(state);
@@ -544,6 +553,13 @@ static class InputApplier
                 return Save(state, actions);
             case CommandKind.CancelForm:
             {
+                // A no to removing goes back to the editor it was asked from, edits and all. Escape
+                // on that page arrives here too.
+                if (state.Form is RemoveConnectionFormState)
+                {
+                    return MonitorSession.CancelRemoveConnection(state);
+                }
+
                 // A new connection that signed in before being abandoned leaves a token behind. An
                 // edited one's token is the connection's own, and stays.
                 if (state.Form is AddConnectionFormState { SignedIn: true } abandoned)
