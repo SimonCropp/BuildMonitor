@@ -14,6 +14,10 @@ public func bmVersion() -> Int32 {
     Int32(BM_VERSION)
 }
 
+/// The emoji font is for a renderer with a glyph atlas of its own, and Core Text finds the mark by
+/// itself, so it goes unused here. It is declared all the same: @_cdecl matches bm.h by position
+/// alone, and without it hidden was read from the register the emoji pointer arrived in, which is
+/// never zero, so a start that asked for the window never made one.
 @_cdecl("bm_init")
 public func bmInit(
     _ width: Int32,
@@ -21,6 +25,8 @@ public func bmInit(
     _ title: UnsafePointer<CChar>?,
     _ fontTtf: UnsafePointer<UInt8>?,
     _ fontLength: Int32,
+    _ emojiTtf: UnsafePointer<UInt8>?,
+    _ emojiLength: Int32,
     _ fontSize: Float,
     _ hidden: Int32) -> Int32 {
     var font: Data?
