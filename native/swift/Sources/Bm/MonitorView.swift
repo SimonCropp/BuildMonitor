@@ -176,6 +176,7 @@ final class MonitorView: NSView {
         }
 
         let command = event.modifierFlags.contains(.command)
+        let shift = event.modifierFlags.contains(.shift)
         let key: BmKey
         switch event.keyCode {
         case 126: key = BM_KEY_PREVIOUS_ROW
@@ -187,7 +188,10 @@ final class MonitorView: NSView {
         case 53: key = model.isForm ? BM_KEY_BACK : BM_KEY_HIDE
         case 36, 76: key = model.isForm ? BM_KEY_NONE : BM_KEY_OPEN_BUILD
         case 96: key = BM_KEY_REFRESH
+        // Shift+F10, the keyboard's way to a context menu, as on the other heads.
+        case 109 where shift: key = model.isForm ? BM_KEY_NONE : BM_KEY_OPEN_MENU
         default:
+            // The characters keep what Shift does, so Shift+Cmd+R reads as "R".
             let characters = event.charactersIgnoringModifiers ?? ""
             if command && characters == "f" && !model.isForm {
                 window?.makeFirstResponder(search)
@@ -196,8 +200,13 @@ final class MonitorView: NSView {
 
             if command && characters == "q" { key = BM_KEY_QUIT }
             else if command && characters == "c" && !model.isForm { key = BM_KEY_COPY }
+            // Shift+Cmd+R, since Cmd+R refreshes. Never R alone: typed into the rows by someone who
+            // took the filter box to have the keyboard, it reran the build.
+            else if command && shift && characters.lowercased() == "r" && !model.isForm { key = BM_KEY_RETRY }
             else if command && characters == "r" { key = BM_KEY_REFRESH }
-            else if !command && characters == "r" && !model.isForm { key = BM_KEY_RETRY }
+            else if command && characters == "." && !model.isForm { key = BM_KEY_CANCEL_BUILD }
+            else if command && characters == "l" && !model.isForm { key = BM_KEY_COPY_LOG }
+            else if command && characters == "t" && !model.isForm { key = BM_KEY_TRIAGE }
             else {
                 super.keyDown(with: event)
                 return

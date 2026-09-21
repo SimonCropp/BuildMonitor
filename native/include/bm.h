@@ -381,7 +381,10 @@ enum BmKey {
     BM_KEY_PREVIOUS_ROW = 8,
     /* Enter on the builds page. */
     BM_KEY_OPEN_BUILD = 9,
+    /* Ctrl+R, and Shift+Cmd+R on macOS, where Cmd+R refreshes. Never a key alone: R typed into
+       the rows by someone who took the filter box to have the keyboard reran the build. */
     BM_KEY_RETRY = 10,
+    /* Ctrl+., and Cmd+. on macOS. */
     BM_KEY_CANCEL_BUILD = 11,
     BM_KEY_REFRESH = 12,
     /* Ctrl+C, and Cmd+C on macOS. */
@@ -392,7 +395,13 @@ enum BmKey {
     BM_KEY_HIDE = 15,
     BM_KEY_QUIT = 16,
     /* A click on the footer status, which copies it. */
-    BM_KEY_COPY_STATUS = 17
+    BM_KEY_COPY_STATUS = 17,
+    /* Ctrl+L, and Cmd+L on macOS. */
+    BM_KEY_COPY_LOG = 18,
+    /* Ctrl+T, and Cmd+T on macOS. */
+    BM_KEY_TRIAGE = 19,
+    /* The selected row's context menu: Shift+F10, or the Menu key where there is one. */
+    BM_KEY_OPEN_MENU = 20
 };
 
 /* BmInput.changedField for an edit of the filter box, which is not one of BmScreen.fields. */

@@ -2,7 +2,7 @@
 /// Everything the user can ask for, whichever surface asked: a key, a footer button, a context
 /// menu item or a tray menu item. Keys reported by a head are the subset in BmKey in bm.h.
 /// </summary>
-enum CommandKind
+public enum CommandKind
 {
     None,
     ScrollUp,
@@ -33,6 +33,8 @@ enum CommandKind
     BrowseCodeDirectory,
     Refresh,
     ToggleGroup,
+    // The selected row's context menu, from the keyboard: Shift+F10 or the Menu key.
+    OpenMenu,
     // Adds the menu item's prefix to the ones passing builds are grouped by, or takes it back off.
     GroupByPrefix,
     RemoveGroupPrefix,

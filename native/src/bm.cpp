@@ -257,6 +257,7 @@ void ReadShortcuts(const ImGuiIO& io, bool formPage) {
     }
 
     bool control = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+    bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
     if (!formPage && control && IsKeyPressed(KEY_F)) g.focusSearch = true;
     else if (IsKeyPressed(KEY_UP)) g.input.key = BM_KEY_PREVIOUS_ROW;
     else if (IsKeyPressed(KEY_DOWN)) g.input.key = BM_KEY_NEXT_ROW;
@@ -269,7 +270,13 @@ void ReadShortcuts(const ImGuiIO& io, bool formPage) {
     else if (control && IsKeyPressed(KEY_Q)) g.input.key = BM_KEY_QUIT;
     else if (!formPage && control && IsKeyPressed(KEY_C)) g.input.key = BM_KEY_COPY;
     else if (!formPage && IsKeyPressed(KEY_ENTER)) g.input.key = BM_KEY_OPEN_BUILD;
-    else if (!formPage && !control && IsKeyPressed(KEY_R)) g.input.key = BM_KEY_RETRY;
+    // With Control, as every key that changes a service's builds is: R alone, typed into the rows
+    // by someone who took the filter box to have the keyboard, reran the build.
+    else if (!formPage && control && IsKeyPressed(KEY_R)) g.input.key = BM_KEY_RETRY;
+    else if (!formPage && control && IsKeyPressed(KEY_PERIOD)) g.input.key = BM_KEY_CANCEL_BUILD;
+    else if (!formPage && control && IsKeyPressed(KEY_L)) g.input.key = BM_KEY_COPY_LOG;
+    else if (!formPage && control && IsKeyPressed(KEY_T)) g.input.key = BM_KEY_TRIAGE;
+    else if (!formPage && ((shift && IsKeyPressed(KEY_F10)) || IsKeyPressed(KEY_KB_MENU))) g.input.key = BM_KEY_OPEN_MENU;
 }
 
 // Rendering ImGui's draw lists through rlgl.

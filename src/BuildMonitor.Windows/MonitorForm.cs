@@ -119,23 +119,7 @@ sealed class MonitorForm : Form
             }
         }
 
-        var command = e.KeyCode switch
-        {
-            Keys.Up => CommandKind.PreviousRow,
-            Keys.Down => CommandKind.NextRow,
-            Keys.PageUp => CommandKind.PageUp,
-            Keys.PageDown => CommandKind.PageDown,
-            Keys.Home => CommandKind.ScrollHome,
-            Keys.End => CommandKind.ScrollEnd,
-            Keys.Enter when !formPanel.Visible => CommandKind.OpenBuild,
-            Keys.R when !formPanel.Visible => CommandKind.Retry,
-            Keys.C when e.Control && !formPanel.Visible => CommandKind.CopyBuildUrl,
-            Keys.F5 => CommandKind.Refresh,
-            Keys.Escape when formPanel.Visible => CommandKind.CancelForm,
-            Keys.Escape => CommandKind.Hide,
-            Keys.Q when e.Control => CommandKind.Quit,
-            _ => CommandKind.None
-        };
+        var command = Command(e.KeyCode, e.Control, e.Shift, formPanel.Visible);
         if (command == CommandKind.None)
         {
             return;
@@ -144,6 +128,36 @@ sealed class MonitorForm : Form
         canvas.Key = command;
         Handled(e);
     }
+
+    /// <summary>
+    /// The command a key asks for, on a form page or the builds page, or None. Apart from the
+    /// handler, which also has the focus to weigh, so the keymap can be tested without a window.
+    /// </summary>
+    public static CommandKind Command(Keys key, bool control, bool shift, bool form) =>
+        key switch
+        {
+            Keys.Up => CommandKind.PreviousRow,
+            Keys.Down => CommandKind.NextRow,
+            Keys.PageUp => CommandKind.PageUp,
+            Keys.PageDown => CommandKind.PageDown,
+            Keys.Home => CommandKind.ScrollHome,
+            Keys.End => CommandKind.ScrollEnd,
+            Keys.Enter when !form => CommandKind.OpenBuild,
+            // With Control, as every key that changes a service's builds is: R alone, typed into
+            // the rows by someone who took the filter box to have the keyboard, reran the build.
+            Keys.R when control && !form => CommandKind.Retry,
+            Keys.OemPeriod when control && !form => CommandKind.Cancel,
+            Keys.L when control && !form => CommandKind.CopyLog,
+            Keys.T when control && !form => CommandKind.Triage,
+            Keys.F10 when shift && !form => CommandKind.OpenMenu,
+            Keys.Apps when !form => CommandKind.OpenMenu,
+            Keys.C when control && !form => CommandKind.CopyBuildUrl,
+            Keys.F5 => CommandKind.Refresh,
+            Keys.Escape when form => CommandKind.CancelForm,
+            Keys.Escape => CommandKind.Hide,
+            Keys.Q when control => CommandKind.Quit,
+            _ => CommandKind.None
+        };
 
     static void Handled(KeyEventArgs e)
     {

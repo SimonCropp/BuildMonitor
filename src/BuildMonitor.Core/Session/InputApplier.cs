@@ -446,6 +446,15 @@ static class InputApplier
                 }
 
                 return state;
+            // The menu a right click would open on the selected row, so everything it offers,
+            // Exclude and Group by prefix among it, has a way in from the keyboard.
+            case CommandKind.OpenMenu:
+                if (state.Page != Page.Builds)
+                {
+                    return state;
+                }
+
+                return MonitorSession.OpenMenu(state, state.SelectedRow);
             case CommandKind.GroupByPrefix:
             {
                 if (target is not { Length: > 0 } prefix)

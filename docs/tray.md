@@ -71,12 +71,25 @@ Closing the window hides it; the tray keeps running. Exit is in the tray menu.
 
 ## Keyboard
 
- * Up and Down move the selection, PageUp, PageDown, Home and End scroll
- * Enter opens the selected build, or opens or closes the selected group, R retries the selected build, Ctrl+C copies its URL
- * Ctrl+F (Cmd+F on macOS) moves to the Filter box. Up, Down, PageUp, PageDown and Enter still work from there, and Escape empties the box before it hides the window
- * F5 refreshes
- * Escape hides the window, or cancels a form
- * Ctrl+Q exits
+On macOS, Cmd stands in for Ctrl, except for Retry.
+
+| Key | Does |
+|---|---|
+| Up, Down | Move the selection |
+| PageUp, PageDown, Home, End | Scroll |
+| Enter | Open the selected build, or open or close the selected group |
+| Ctrl+R (Shift+Cmd+R on macOS) | Retry the selected build |
+| Ctrl+. | Cancel the selected build |
+| Ctrl+L | Copy the selected failed build's log |
+| Ctrl+T | Triage the selected failed build |
+| Ctrl+C | Copy the selected build's URL |
+| Shift+F10, or the Menu key | Open the selected row's menu |
+| Ctrl+F | Move to the Filter box. Up, Down, PageUp, PageDown and Enter still work from there, and Escape empties the box before it hides the window |
+| F5 (or Cmd+R on macOS) | Refresh |
+| Escape | Hide the window, or cancel a form |
+| Ctrl+Q | Exit |
+
+Retry and Cancel change what runs on a CI service, so both take a modifier: a key alone, typed into the rows by someone who took the Filter box to have the keyboard, would act on the selected build.
 
 
 ## Command line

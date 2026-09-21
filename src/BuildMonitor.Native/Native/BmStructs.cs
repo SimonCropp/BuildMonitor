@@ -196,7 +196,10 @@ enum BmKey
     Back = 14,
     Hide = 15,
     Quit = 16,
-    CopyStatus = 17
+    CopyStatus = 17,
+    CopyLog = 18,
+    Triage = 19,
+    OpenMenu = 20
 }
 
 static class BmFlags

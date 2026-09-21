@@ -189,6 +189,9 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             BmKey.Hide => CommandKind.Hide,
             BmKey.Quit => CommandKind.Quit,
             BmKey.CopyStatus => CommandKind.CopyStatus,
+            BmKey.CopyLog => CommandKind.CopyLog,
+            BmKey.Triage => CommandKind.Triage,
+            BmKey.OpenMenu => CommandKind.OpenMenu,
             _ => CommandKind.None
         };
 
