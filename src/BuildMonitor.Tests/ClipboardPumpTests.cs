@@ -6,8 +6,8 @@ public class ClipboardPumpTests
     public async Task TextTheWindowTakesIsCleared()
     {
         var window = new FakeWindow();
-        var host = Pending(out var text);
-        new ClipboardPump().Push(host, window, text);
+        var host = Pending(out var copy);
+        new ClipboardPump().Push(host, window, copy);
 
         await Assert.That(window.Calls).IsEquivalentTo(["SetClipboard The triage prompt"]);
         await Assert.That(host.State.Clipboard).IsNull();
@@ -20,10 +20,10 @@ public class ClipboardPumpTests
     public async Task ABusyClipboardKeepsTheTextForTheNextFrame()
     {
         var window = new FakeWindow { ClipboardBusy = true };
-        var host = Pending(out var text);
-        new ClipboardPump().Push(host, window, text);
+        var host = Pending(out var copy);
+        new ClipboardPump().Push(host, window, copy);
 
-        await Assert.That(host.State.Clipboard).IsEqualTo(prompt);
+        await Assert.That(host.State.Clipboard?.Text).IsEqualTo(prompt);
         await Assert.That(host.State.Status).IsEqualTo("Copied a triage prompt");
     }
 
@@ -31,11 +31,11 @@ public class ClipboardPumpTests
     public async Task AClipboardThatFreesUpInTimeStillCopies()
     {
         var window = new FakeWindow { ClipboardBusy = true };
-        var host = Pending(out var text);
+        var host = Pending(out var copy);
         var pump = new ClipboardPump();
-        pump.Push(host, window, text);
+        pump.Push(host, window, copy);
         window.ClipboardBusy = false;
-        pump.Push(host, window, text);
+        pump.Push(host, window, copy);
 
         await Assert.That(window.Calls.Count).IsEqualTo(2);
         await Assert.That(host.State.Clipboard).IsNull();
@@ -48,11 +48,11 @@ public class ClipboardPumpTests
     public async Task AClipboardThatStaysBusyIsGivenUpOnAndSaidSo()
     {
         var window = new FakeWindow { ClipboardBusy = true };
-        var host = Pending(out var text);
+        var host = Pending(out var copy);
         var pump = new ClipboardPump();
         for (var attempt = 0; attempt < ClipboardPump.Attempts; attempt++)
         {
-            pump.Push(host, window, text);
+            pump.Push(host, window, copy);
         }
 
         await Assert.That(window.Calls.Count).IsEqualTo(ClipboardPump.Attempts);
@@ -60,35 +60,70 @@ public class ClipboardPumpTests
         await Assert.That(host.State.Status).IsEqualTo(MonitorSession.ClipboardBusy);
     }
 
-    // A second copy while the first is still being tried is a new text, so it gets its own attempts
+    // A second copy while the first is still being tried is a new copy, so it gets its own attempts
     // rather than inheriting a count that would give up on it immediately.
     [Test]
     public async Task ASecondTextStartsItsOwnAttempts()
     {
         var window = new FakeWindow { ClipboardBusy = true };
-        var host = Pending(out var text);
+        var host = Pending(out var copy);
         var pump = new ClipboardPump();
         for (var attempt = 0; attempt < ClipboardPump.Attempts - 1; attempt++)
         {
-            pump.Push(host, window, text);
+            pump.Push(host, window, copy);
         }
 
-        var second = new string("The log".ToCharArray());
-        host.Mutate(_ => MonitorSession.Copy(_, second, "Copied the log"));
+        var second = host.Mutate(_ => MonitorSession.Copy(_, "The log", "Copied the log")).Clipboard!;
         pump.Push(host, window, second);
 
-        await Assert.That(host.State.Clipboard).IsEqualTo("The log");
+        await Assert.That(host.State.Clipboard?.Text).IsEqualTo("The log");
         await Assert.That(host.State.Status).IsEqualTo("Copied the log");
     }
 
-    static SessionHost Pending(out string text)
+    // The notification a triage's copy carries is the whole of what the user in another window
+    // hears, so it pops only once the window has taken the text, and says so when it would not.
+    [Test]
+    public async Task ACopyIsAnnouncedOnlyOnceTheWindowHasTakenIt()
     {
-        // A new instance rather than the literal, because everything here turns on reference
-        // equality: the loop clears only the text it was handed.
-        text = new(prompt.ToCharArray());
+        var window = new FakeWindow { ClipboardBusy = true };
+        var host = Triaged(out var copy);
+        var pump = new ClipboardPump();
+        pump.Push(host, window, copy);
+        await Assert.That(host.State.Notification).IsNull();
+
+        window.ClipboardBusy = false;
+        pump.Push(host, window, copy);
+        await Assert.That(host.State.Notification?.Title).IsEqualTo("Ready to paste");
+    }
+
+    [Test]
+    public async Task ACopyGivenUpOnIsAnnouncedAsNotCopied()
+    {
+        var window = new FakeWindow { ClipboardBusy = true };
+        var host = Triaged(out var copy);
+        var pump = new ClipboardPump();
+        for (var attempt = 0; attempt < ClipboardPump.Attempts; attempt++)
+        {
+            pump.Push(host, window, copy);
+        }
+
+        await Assert.That(host.State.Notification?.Title).IsEqualTo("Triage prompt not copied");
+        await Assert.That(host.State.Status).IsEqualTo(MonitorSession.ClipboardBusy);
+    }
+
+    static SessionHost Pending(out PendingCopy copy)
+    {
         var host = new SessionHost(Fixtures.WithBuilds());
-        var copied = text;
-        host.Mutate(_ => MonitorSession.Copy(_, copied, "Copied a triage prompt"));
+        copy = host.Mutate(_ => MonitorSession.Copy(_, prompt, "Copied a triage prompt")).Clipboard!;
+        return host;
+    }
+
+    static SessionHost Triaged(out PendingCopy copy)
+    {
+        var state = Fixtures.Triaging();
+        var build = state.Triaging.Single();
+        var host = new SessionHost(state);
+        copy = host.Mutate(_ => MonitorSession.Triaged(_, build, prompt, "Copied a triage prompt")).Clipboard!;
         return host;
     }
 }

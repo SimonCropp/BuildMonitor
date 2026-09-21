@@ -446,7 +446,7 @@ public class SessionTests
     public async Task TheDeviceCodeGoesOnTheClipboard()
     {
         var state = Fixtures.SignInDevice();
-        await Assert.That(state.Clipboard).IsEqualTo("ABCD-1234");
+        await Assert.That(state.Clipboard?.Text).IsEqualTo("ABCD-1234");
     }
 
     [Test]
@@ -456,7 +456,7 @@ public class SessionTests
         var flushed = MonitorSession.Copied(state, state.Clipboard!);
         await Assert.That(flushed.Clipboard).IsNull();
         var again = MonitorSession.CopyUserCode(flushed);
-        await Assert.That(again.Clipboard).IsEqualTo("ABCD-1234");
+        await Assert.That(again.Clipboard?.Text).IsEqualTo("ABCD-1234");
         await Assert.That(again.Status).IsEqualTo("Copied the code");
     }
 
@@ -477,8 +477,20 @@ public class SessionTests
     {
         var first = MonitorSession.Copy(Fixtures.WithBuilds(), "first log", "Copied the log");
         var second = MonitorSession.Copy(first, "second log", "Copied the log");
-        await Assert.That(MonitorSession.Copied(second, first.Clipboard!).Clipboard).IsEqualTo("second log");
+        await Assert.That(MonitorSession.Copied(second, first.Clipboard!).Clipboard?.Text).IsEqualTo("second log");
         await Assert.That(MonitorSession.Copied(second, second.Clipboard!).Clipboard).IsNull();
+    }
+
+    /// <summary>
+    /// Two fetches of the same log are two copies. Compared by value, the first being taken would
+    /// clear the second before the window was ever handed it.
+    /// </summary>
+    [Test]
+    public async Task CopiedTellsTwoCopiesOfTheSameTextApart()
+    {
+        var first = MonitorSession.Copy(Fixtures.WithBuilds(), "the log", "Copied the log");
+        var second = MonitorSession.Copy(first, "the log", "Copied the log");
+        await Assert.That(MonitorSession.Copied(second, first.Clipboard!).Clipboard).IsSameReferenceAs(second.Clipboard);
     }
 
     [Test]

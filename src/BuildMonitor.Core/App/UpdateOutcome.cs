@@ -53,7 +53,7 @@ static class UpdateOutcome
     /// is the installed one, whether the update moved it or found it already current.
     /// </summary>
     public static Notification Describe() =>
-        new("BuildMonitor updated", $"Now running {VersionReader.VersionString}.");
+        new("BuildMonitor updated", $"Now running {VersionReader.VersionString}.", Kind: NotificationKind.Info);
 
     public static Notification Describe(string output) =>
         new("Update failed", Reason(output));

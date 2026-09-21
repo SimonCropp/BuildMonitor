@@ -54,9 +54,11 @@ static class AsciiRenderer
         builder.Append(Full(Justify(Buttons(screen), screen.Status, inner), columns)).Append('\n');
         builder.Append(border);
         var text = Overlay(builder.ToString(), screen);
+        // The kind before the words, as the tray line puts its icon before its tooltip: which icon a
+        // balloon pops with is as much of what the user sees as what it says.
         var notification = screen.Notification is null
             ? ""
-            : $"\nnotify: \"{screen.Notification.Title}\" \"{screen.Notification.Message}\"";
+            : $"\nnotify: {screen.Notification.Kind} \"{screen.Notification.Title}\" \"{screen.Notification.Message}\"";
         return $"{text}\n{Tray(screen.Tray)}{notification}";
     }
 

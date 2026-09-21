@@ -49,6 +49,28 @@ public class ScreenTests
     public Task Triage() =>
         Verify(Fixtures.Render(Fixtures.WithTriageableFailure()));
 
+    /// <summary>
+    /// The triage started and still collecting: the chip is the hourglass, which the drop down and
+    /// this text call Triaging, and the footer says what is being collected. Wider than the fixture
+    /// it is built on, so the chip is drawn in the row rather than in the drop down.
+    /// </summary>
+    [Test]
+    public Task Triaging() =>
+        Verify(Fixtures.Render(Fixtures.Triaging()));
+
+    /// <summary>
+    /// The prompt taken by the window: the chip back as it was, the footer saying what was copied
+    /// and where the files went, and the tray popping the one thing someone who left the window to
+    /// paste is waiting to hear.
+    /// </summary>
+    [Test]
+    public Task TriagePromptCopied()
+    {
+        var state = Fixtures.Triaging();
+        state = MonitorSession.Triaged(state, state.Triaging.Single(), "the prompt", "Copied a triage prompt for test.yml #77: 3 files in /artifacts/Verify-77-1a2b3c4d");
+        return Verify(Fixtures.Render(MonitorSession.Copied(state, state.Clipboard!)));
+    }
+
     [Test]
     public async Task ProgressIsDroppedWhenThePollEnds()
     {
@@ -157,7 +179,7 @@ public class ScreenTests
                   Raise issue
                   Update
                   Exit
-                notify: "release.yml failed" "VerifyTests/Verify main #9"
+                notify: Error "release.yml failed" "VerifyTests/Verify main #9"
                 """);
 
     [Test]

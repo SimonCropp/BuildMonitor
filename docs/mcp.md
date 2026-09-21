@@ -225,6 +225,8 @@ The prompt does not download anything itself. It covers every failing build, so 
 
 The tray offers the same thing for one row: a **Triage** button on a failed build whose repository is checked out. It downloads that build's artifacts and log, then copies a prompt naming the checkout and each downloaded file, to paste into any assistant. Nothing needs to be connected to BuildMonitor for that prompt to be useful, since everything it refers to is already on disk.
 
+The download can take a while, and the prompt only reaches the clipboard once it is done, so pasting straight after the click pastes whatever was copied before. Until then the button shows an hourglass and the footer names the build being collected. Once the prompt is on the clipboard a notification says it is ready to paste, or says it could not be copied. That notification is shown whether or not [failures are announced](options.md#notify-when-a-build-fails).
+
 
 ### Where the files go
 

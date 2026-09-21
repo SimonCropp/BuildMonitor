@@ -50,6 +50,8 @@ static class RealActions
                     host.Mutate(_ => MonitorSession.SetStatus(_, $"Copying the log of {name} failed: {exception.Message}"));
                 }
             }),
+            // Every way out of here ends the triage, through Triaged or TriageFailed, or the row's
+            // chip would stay busy and refuse the click that could start it again.
             Triage: build => _ = Task.Run(async () =>
             {
                 var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
@@ -62,19 +64,20 @@ static class RealActions
                     // and the one an assistant composes describe a build identically.
                     if (Snapshot.Find(host.State, build.Key, DateTimeOffset.UtcNow) is not { } dto)
                     {
-                        host.Mutate(_ => MonitorSession.SetStatus(_, $"{name} is no longer in the build list"));
+                        host.Mutate(_ => MonitorSession.TriageFailed(_, build, $"{name} is no longer in the build list"));
                         return;
                     }
 
                     var files = await ArtifactCollector.Collect(artifacts, poller, build, Cancel.None);
                     // fix is false: this text lands in whatever session the user pastes it into, and
                     // authorising edits there is not this action's call to make.
-                    host.Mutate(_ => MonitorSession.Copy(_, TriagePrompt.One(dto, files, fix: false), Collected(name, files)));
+                    var prompt = TriagePrompt.One(dto, files, fix: false);
+                    host.Mutate(_ => MonitorSession.Triaged(_, build, prompt, Collected(name, files)));
                 }
                 catch (Exception exception)
                 {
                     Log.Error(exception, "Collecting {Build} for triage failed", name);
-                    host.Mutate(_ => MonitorSession.SetStatus(_, ActionFailure.Describe(_, build.ConnectionId, $"Triaging {name}", exception)));
+                    host.Mutate(_ => MonitorSession.TriageFailed(_, build, ActionFailure.Describe(_, build.ConnectionId, $"Triaging {name}", exception)));
                 }
             }),
             SignIn: signIn.Start,

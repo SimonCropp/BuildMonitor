@@ -38,4 +38,4 @@ tray: Failed "BuildMonitor: Reports and Verify failing, 4 running"
   Raise issue
   Update
   Exit
-notify: "build.yml failed" "VerifyTests/Reports 🤖 Polyfill-9.1.0 #9"
+notify: Error "build.yml failed" "VerifyTests/Reports 🤖 Polyfill-9.1.0 #9"

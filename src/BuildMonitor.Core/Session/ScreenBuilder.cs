@@ -469,7 +469,7 @@ static class ScreenBuilder
             timing,
             selected,
             false,
-            RowChips.Of(build, descriptor, state.LocalRepos),
+            RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build)),
             RowTooltips.Of(state, build, descriptor.Name, now),
             author);
     }
@@ -721,18 +721,24 @@ static class ScreenBuilder
     /// message stays until the next click, so a "Retrying" from this morning used to sit over
     /// "Sign in required for GitHub" all day, which is the reason that retry did nothing.
     /// </para>
+    /// <para>
+    /// A triage still collecting stands in for that message once the next click has cleared it.
+    /// The click's own message was all that said the download was going, so the footer fell back
+    /// to "Polled 3s ago" part way through, which read as a prompt already on the clipboard.
+    /// </para>
     /// </summary>
     public static string Status(SessionState state, DateTimeOffset now)
     {
         var problems = Problems(state, now);
-        if (state.Status.Length > 0)
+        var message = state.Status.Length > 0 ? state.Status : Collecting(state);
+        if (message.Length > 0)
         {
             if (problems.Count == 0)
             {
-                return state.Status;
+                return message;
             }
 
-            return $"{state.Status} ({Plural(problems.Count, "problem")})";
+            return $"{message} ({Plural(problems.Count, "problem")})";
         }
 
         if (problems.Count > 0)
@@ -764,6 +770,28 @@ static class ScreenBuilder
         }
 
         return $"Polled {Progress.Age(now - polled)} ago";
+    }
+
+    /// <summary>
+    /// What the footer says while triages are collecting: the build where there is one, and a
+    /// count where there are more, since the line beside the buttons has no room to name each.
+    /// </summary>
+    static string Collecting(SessionState state)
+    {
+        switch (state.Triaging)
+        {
+            case []:
+                return "";
+            case [var build]:
+            {
+                // Composed first: a run with no number would leave a gap that trimming the end of
+                // the whole sentence cannot reach.
+                var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
+                return $"Collecting {name} for triage";
+            }
+            default:
+                return $"Collecting {Plural(state.Triaging.Length, "build")} for triage";
+        }
     }
 
     static Screen FormScreen(SessionState state, DateTimeOffset now, TrayModel tray, string status)

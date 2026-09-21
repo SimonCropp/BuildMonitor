@@ -1,4 +1,6 @@
 ﻿[
+  glyph-busy-16.png,
+  glyph-busy-32.png,
   glyph-cancel-16.png,
   glyph-cancel-32.png,
   glyph-connections-16.png,

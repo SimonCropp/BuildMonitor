@@ -39,6 +39,9 @@ public class UpdateOutcomeTests
         var notification = UpdateOutcome.Take(path);
 
         await Assert.That(notification?.Title).IsEqualTo("BuildMonitor updated");
+        // Not the error icon every notification used to carry, which made an update that worked
+        // look like one that had not.
+        await Assert.That(notification?.Kind).IsEqualTo(NotificationKind.Info);
         await Assert.That(File.Exists(path)).IsFalse();
     }
 

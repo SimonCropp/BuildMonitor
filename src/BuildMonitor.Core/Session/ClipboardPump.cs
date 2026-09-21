@@ -19,27 +19,27 @@ class ClipboardPump
     /// </summary>
     public const int Attempts = 3;
 
-    string? pending;
+    PendingCopy? pending;
     int tries;
 
     /// <summary>
-    /// Offers this frame's text to the window. <paramref name="text"/> is compared by reference,
-    /// as <see cref="MonitorSession.Copied"/> compares it: a second text arriving while the first
-    /// is still being tried is a new text, and starts its own attempts.
+    /// Offers this frame's copy to the window. <paramref name="copy"/> is compared by reference,
+    /// as <see cref="MonitorSession.Copied"/> compares it: a second copy arriving while the first
+    /// is still being tried is a new copy, and starts its own attempts.
     /// </summary>
-    public void Push(SessionHost host, IMonitorWindow window, string text)
+    public void Push(SessionHost host, IMonitorWindow window, PendingCopy copy)
     {
-        if (!ReferenceEquals(pending, text))
+        if (!ReferenceEquals(pending, copy))
         {
-            pending = text;
+            pending = copy;
             tries = 0;
         }
 
         tries++;
-        if (window.SetClipboard(text))
+        if (window.SetClipboard(copy.Text))
         {
             pending = null;
-            host.Mutate(_ => MonitorSession.Copied(_, text));
+            host.Mutate(_ => MonitorSession.Copied(_, copy));
             return;
         }
 
@@ -55,8 +55,8 @@ class ClipboardPump
         Log.Warning(
             "Gave up on the clipboard after {Attempts} attempts and {Length} characters. The status was {Status}",
             tries,
-            text.Length,
+            copy.Text.Length,
             host.State.Status);
-        host.Mutate(_ => MonitorSession.CopyFailed(_, text));
+        host.Mutate(_ => MonitorSession.CopyFailed(_, copy));
     }
 }

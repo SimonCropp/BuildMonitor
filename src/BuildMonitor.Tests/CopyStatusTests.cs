@@ -8,7 +8,7 @@ public class CopyStatusTests
         var failure = "Retrying Invitation Event Publisher failed: 400 Bad Request";
         var state = MonitorSession.SetStatus(Fixtures.WithBuilds(), failure);
         state = InputApplier.Apply(state, new(Key: CommandKind.CopyStatus), new RecordingActions().Actions, new FakeWindow());
-        await Assert.That(state.Clipboard).IsEqualTo(failure);
+        await Assert.That(state.Clipboard?.Text).IsEqualTo(failure);
         await Assert.That(state.Status).IsEqualTo(failure);
     }
 }

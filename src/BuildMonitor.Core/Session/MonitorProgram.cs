@@ -239,11 +239,11 @@ static class MonitorProgram
                 }
             }
 
-            if (state.Clipboard is { } text)
+            if (state.Clipboard is { } copy)
             {
                 // Not cleared before the window is asked, unlike the notification: see
                 // ClipboardPump, which owns the clearing and the few frames of retry.
-                clipboard.Push(host, window, text);
+                clipboard.Push(host, window, copy);
             }
 
             if (!window.Present(screen))

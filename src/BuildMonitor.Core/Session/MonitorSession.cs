@@ -349,10 +349,12 @@ static class MonitorSession
                 items.Add(new("Copy log", CommandKind.CopyLog));
             }
 
+            // Named as the chip is while it collects, so the menu does not offer a second download
+            // of what the row already shows is on its way.
             if (build.LogCopyable() &&
                 LocalRepos.Find(state.LocalRepos, build) is not null)
             {
-                items.Add(new("Triage", CommandKind.Triage));
+                items.Add(new(IsTriaging(state, build) ? "Triaging" : "Triage", CommandKind.Triage));
             }
 
             if (build.Retryable())
@@ -483,7 +485,7 @@ static class MonitorSession
             return state;
         }
 
-        var items = RowChips.Of(build, ProviderDescriptors.Get(rows[row].Connection!.Connection.ProviderId), state.LocalRepos)
+        var items = RowChips.Of(build, ProviderDescriptors.Get(rows[row].Connection!.Connection.ProviderId), state.LocalRepos, IsTriaging(state, build))
             .Where(_ => _.Kind >= from)
             .Select(_ => new MenuItem(_.Label, RowChips.Command(_.Kind)))
             .ToImmutableArray();
@@ -1196,7 +1198,7 @@ static class MonitorSession
 
         return state with
         {
-            Clipboard = userCode,
+            Clipboard = new(userCode),
             SignIn = state.SignIn with
             {
                 Message = "Open the link and enter the code, which is on the clipboard.",
@@ -1214,7 +1216,7 @@ static class MonitorSession
     {
         if (state.SignIn?.UserCode is { } code)
         {
-            return SetStatus(state with { Clipboard = code }, "Copied the code");
+            return SetStatus(state with { Clipboard = new(code) }, "Copied the code");
         }
 
         return state;
@@ -1480,6 +1482,67 @@ static class MonitorSession
         return state with { Connections = connections.SetItem(index, change(connections[index])) };
     }
 
+    // Triage
+
+    /// <summary>
+    /// Whether a triage of this run is still collecting. By run rather than by row: a retry that
+    /// puts a new failure on the row gets a chip of its own to click, rather than the busy one of
+    /// the run before it, whose download may still be going.
+    /// </summary>
+    public static bool IsTriaging(SessionState state, Build build) =>
+        state.Triaging.Any(_ => SameRun(_, build));
+
+    /// <summary>
+    /// The row's chip turns busy and the footer says what is being collected, until
+    /// <see cref="Triaged"/> or <see cref="TriageFailed"/> ends it.
+    /// </summary>
+    public static SessionState StartTriage(SessionState state, Build build)
+    {
+        if (IsTriaging(state, build))
+        {
+            return state;
+        }
+
+        return state with { Triaging = state.Triaging.Add(build) };
+    }
+
+    /// <summary>
+    /// The prompt is composed and waits for the window like any other copy. What the tray says
+    /// about it travels with it rather than being said now: only the window taking the text puts
+    /// it on the clipboard, and the user this is for has usually left the window to paste it
+    /// somewhere else.
+    /// </summary>
+    public static SessionState Triaged(SessionState state, Build build, string prompt, string status)
+    {
+        var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
+        return EndTriage(state, build) with
+        {
+            Clipboard = new(
+                prompt,
+                new("Ready to paste", $"The triage prompt for {name} is on the clipboard.", build.Key, NotificationKind.Info),
+                new("Triage prompt not copied", "Another app is holding the clipboard. Try again.", build.Key)),
+            Status = status
+        };
+    }
+
+    /// <summary>
+    /// Told to the tray as well as the footer: whoever clicked is likely waiting in another window
+    /// for a prompt that is not coming, with the clipboard still holding what they copied before.
+    /// </summary>
+    public static SessionState TriageFailed(SessionState state, Build build, string status) =>
+        EndTriage(state, build) with
+        {
+            Status = status,
+            Notification = new("Triage failed", status, build.Key)
+        };
+
+    static SessionState EndTriage(SessionState state, Build build) =>
+        state with { Triaging = state.Triaging.RemoveAll(_ => SameRun(_, build)) };
+
+    static bool SameRun(Build first, Build second) =>
+        first.SameKey(second) &&
+        first.RunNumber == second.RunNumber;
+
     // Window
 
     public static SessionState SetStatus(SessionState state, string status)
@@ -1496,16 +1559,21 @@ static class MonitorSession
     /// Text fetched in the background, waiting for the loop to put it on the clipboard.
     /// </summary>
     public static SessionState Copy(SessionState state, string text, string status) =>
-        state with { Clipboard = text, Status = status };
+        state with { Clipboard = new(text), Status = status };
 
     /// <summary>
-    /// Clears only the text the loop copied, so a second log that arrived meanwhile keeps its turn.
+    /// Clears only the copy the loop made, so a second log that arrived meanwhile keeps its turn,
+    /// and hands the tray whatever the copy carries, now that it really is on the clipboard.
     /// </summary>
-    public static SessionState Copied(SessionState state, string text)
+    public static SessionState Copied(SessionState state, PendingCopy copy)
     {
-        if (ReferenceEquals(state.Clipboard, text))
+        if (ReferenceEquals(state.Clipboard, copy))
         {
-            return state with { Clipboard = null };
+            return state with
+            {
+                Clipboard = null,
+                Notification = copy.Copied ?? state.Notification
+            };
         }
 
         return state;
@@ -1522,13 +1590,19 @@ static class MonitorSession
     /// Gives up on text the window would not take, after <see cref="ClipboardPump"/> has tried.
     /// Clears it for the same reason <see cref="Copied"/> does, and replaces the status that said
     /// it had been copied: a stale clipboard under a status line claiming otherwise is how this was
-    /// invisible in the first place.
+    /// invisible in the first place. A copy that would have been announced has its failure
+    /// announced instead, or someone waiting on the first would go on waiting.
     /// </summary>
-    public static SessionState CopyFailed(SessionState state, string text)
+    public static SessionState CopyFailed(SessionState state, PendingCopy copy)
     {
-        if (ReferenceEquals(state.Clipboard, text))
+        if (ReferenceEquals(state.Clipboard, copy))
         {
-            return state with { Clipboard = null, Status = ClipboardBusy };
+            return state with
+            {
+                Clipboard = null,
+                Status = ClipboardBusy,
+                Notification = copy.Failed ?? state.Notification
+            };
         }
 
         return state;

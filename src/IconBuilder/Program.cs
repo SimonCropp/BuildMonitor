@@ -57,6 +57,10 @@ static class Program
         ("cancel", Lucide.X),
         ("log", Lucide.ScrollText),
         ("triage", Lucide.Stethoscope),
+        // What the triage chip carries while its download is still going. The prompt only reaches
+        // the clipboard at the end, so a chip that looked the same throughout had people pasting
+        // whatever they copied before the click.
+        ("busy", Lucide.Hourglass),
         // An arrow into a bar: the queue's front is a place a build is moved to, which a plain up
         // arrow reads as one step up rather than all the way.
         ("run-next", Lucide.ArrowUpToLine)

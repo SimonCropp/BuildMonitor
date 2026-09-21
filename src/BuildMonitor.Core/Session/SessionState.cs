@@ -29,11 +29,15 @@ record SessionState(
     string Status,
     bool Hidden,
     bool Exit,
+    // The runs a triage is still collecting, as they were when it started, so the row's chip and
+    // the footer can say so for as long as the download takes. Only the end of it puts anything on
+    // the clipboard, and without this the next click cleared the one line saying it had not yet.
+    ImmutableArray<Build> Triaging,
     // Waiting for the loop to hand it to the tray. Null once shown.
     Notification? Notification = null,
     // Text waiting for the loop to put on the clipboard, which belongs to the window and so to the
     // loop's thread rather than the thread pool a log is fetched on. Null once copied.
-    string? Clipboard = null,
+    PendingCopy? Clipboard = null,
     // What is typed in the filter box: only builds whose project, pipeline or branch contain it are
     // rows. Never saved, unlike Settings.Filters, which exclude for good.
     string Search = "",
@@ -61,7 +65,8 @@ record SessionState(
             Rows: 30,
             Status: "",
             Hidden: !settings.ShowWindowAtStart,
-            Exit: false);
+            Exit: false,
+            Triaging: []);
 
     public ConnectionState? Connection(string id) =>
         Connections.FirstOrDefault(_ => _.Connection.Id == id);

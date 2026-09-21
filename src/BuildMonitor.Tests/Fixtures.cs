@@ -465,6 +465,18 @@ static class Fixtures
                 new("/code/Verify", "Verify", "VerifyTests/Verify")
             ]));
 
+    /// <summary>
+    /// <see cref="WithTriageableFailure"/> with its triage started and still collecting, the only
+    /// shape that carries the busy chip. Wide enough that the chip is drawn in the row rather than
+    /// left in the drop down, which is where the hundred and twenty columns of the fixture it is
+    /// built on put it.
+    /// </summary>
+    public static SessionState Triaging()
+    {
+        var state = MonitorSession.Resize(WithTriageableFailure(), 160, 30);
+        return MonitorSession.StartTriage(state, state.Builds.Single(_ => _.Status == BuildStatus.Failed));
+    }
+
     public static readonly Connection TeamCity = new()
     {
         Id = "tc",

@@ -87,7 +87,8 @@ sealed class NotifyIconTray : ITray
     public void Notify(Notification notification)
     {
         announced = notification.Key ?? "";
-        icon.ShowBalloonTip(5000, notification.Title, notification.Message, ToolTipIcon.Error);
+        var balloonIcon = notification.Kind == NotificationKind.Info ? ToolTipIcon.Info : ToolTipIcon.Error;
+        icon.ShowBalloonTip(5000, notification.Title, notification.Message, balloonIcon);
     }
 
     void Rebuild()

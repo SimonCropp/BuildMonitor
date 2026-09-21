@@ -13,12 +13,14 @@ static class RowChips
     /// below and not here draws an empty button, which is what happened when Cancel stopped being
     /// a word.
     /// </summary>
-    public static readonly string[] Icons = ["pull-request", "retry", "cancel", "log", "folder", "triage", "run-next"];
+    public static readonly string[] Icons = ["pull-request", "retry", "cancel", "log", "folder", "triage", "busy", "run-next"];
 
     /// <summary>
     /// In <see cref="ChipKind"/> order, which is the order a head draws them in.
     /// </summary>
-    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos)
+    /// <param name="triaging">Whether a triage of this run is still collecting, as
+    /// <see cref="MonitorSession.IsTriaging"/> says.</param>
+    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging)
     {
         List<RowChip> chips = [];
         // The number is the one thing about a pull request worth a row's width: which one it is.
@@ -66,7 +68,13 @@ static class RowChips
         if (build.LogCopyable() &&
             directory is not null)
         {
-            chips.Add(new(ChipKind.Triage, "Triage", $"Download artifacts and log, and copy a prompt\n{directory}", "triage"));
+            // The same kind while it collects, so it stays in its place on the row, but a
+            // different picture: the prompt is only copied at the end, and a chip that looked the
+            // same throughout had people pasting whatever they had copied before clicking it. A
+            // click on it does nothing, which the applier decides, not this.
+            chips.Add(triaging
+                ? new(ChipKind.Triage, "Triaging", "Collecting artifacts and log. A notification says when the prompt is on the clipboard.", "busy")
+                : new(ChipKind.Triage, "Triage", $"Download artifacts and log, and copy a prompt\n{directory}", "triage"));
         }
 
         // Last, because its kind is: see ChipKind.RunNext. It names the service for the reason

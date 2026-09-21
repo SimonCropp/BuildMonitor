@@ -228,7 +228,7 @@ public class ApplyTests
         var copyIndex = buttons.ToList().FindIndex(_ => _.Command == CommandKind.CopyUserCode);
         await Assert.That(copyIndex).IsEqualTo(0);
         state = InputApplier.Apply(state, new(ClickedButton: copyIndex), new RecordingActions().Actions, new FakeWindow());
-        await Assert.That(state.Clipboard).IsEqualTo("ABCD-1234");
+        await Assert.That(state.Clipboard?.Text).IsEqualTo("ABCD-1234");
         await Assert.That(state.Status).IsEqualTo("Copied the code");
         // Still on the page: copying a code is not leaving the sign in.
         await Assert.That(state.Page).IsEqualTo(Page.SignIn);
@@ -621,7 +621,7 @@ public class ApplyTests
         var builds = Fixtures.WithLocalRepos();
         var row = FailedRow(builds);
         var chips = MonitorSession.SelectedBuild(MonitorSession.SelectRow(builds, row))!;
-        await Assert.That(RowChips.Of(chips, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), builds.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.OpenDirectory);
+        await Assert.That(RowChips.Of(chips, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), builds.LocalRepos, false).Select(_ => _.Kind)).DoesNotContain(ChipKind.OpenDirectory);
 
         var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.OpenDirectory), actions);
         await Assert.That(actions.Calls).IsEmpty();
@@ -650,7 +650,54 @@ public class ApplyTests
         var row = FailedRow(builds);
         var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.Triage), actions);
         await Assert.That(actions.Calls).IsEquivalentTo(["Triage gh/Verify/test.yml/feature/inline"]);
-        await Assert.That(state.Status).IsEqualTo("Collecting test.yml #77 for triage");
+        await Assert.That(MonitorSession.IsTriaging(state, MonitorSession.SelectedBuild(state)!)).IsTrue();
+        await Assert.That(ScreenBuilder.Status(state, Fixtures.Now)).IsEqualTo("Collecting test.yml #77 for triage");
+    }
+
+    /// <summary>
+    /// A download slow enough to be clicked again is the one this state exists for, and the second
+    /// click would fetch the whole bundle again only to copy the same prompt twice.
+    /// </summary>
+    [Test]
+    public async Task ASecondTriageClickWhileCollectingDoesNothing()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithTriageableFailure();
+        var click = new MonitorInput(ClickedChipRow: FailedRow(builds), ClickedChip: ChipKind.Triage);
+        var state = Apply(Apply(builds, click, actions), click, actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["Triage gh/Verify/test.yml/feature/inline"]);
+        await Assert.That(state.Triaging.Length).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// The bug this state was added for: any input clears the status line, and the click's own
+    /// "Collecting" was the only thing saying the prompt was not on the clipboard yet.
+    /// </summary>
+    [Test]
+    public async Task TheFooterStillSaysCollectingAfterTheNextClick()
+    {
+        var builds = Fixtures.WithTriageableFailure();
+        var state = Apply(builds, new(ClickedChipRow: FailedRow(builds), ClickedChip: ChipKind.Triage), new());
+        state = Apply(state, new(ClickedRow: RunningRow(state)), new());
+        await Assert.That(state.Status).IsEqualTo("");
+        await Assert.That(ScreenBuilder.Status(state, Fixtures.Now)).IsEqualTo("Collecting test.yml #77 for triage");
+    }
+
+    /// <summary>
+    /// The menu is another way to the same click, so it must not offer the download the chip
+    /// beside it already shows is on its way.
+    /// </summary>
+    [Test]
+    public async Task TheMenuNamesATriageThatIsCollecting()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.Triaging();
+        var menu = Apply(builds, new(RightClickedRow: FailedRow(builds)), actions);
+        var index = menu.Menu!.Items.ToList().FindIndex(_ => _.Command == CommandKind.Triage);
+        await Assert.That(menu.Menu.Items[index].Label).IsEqualTo("Triaging");
+
+        Apply(menu, new(ClickedMenuItem: index), actions);
+        await Assert.That(actions.Calls).IsEmpty();
     }
 
     /// <summary>
@@ -662,11 +709,11 @@ public class ApplyTests
     {
         var withCheckout = Fixtures.WithTriageableFailure();
         var green = MonitorSession.SelectedBuild(MonitorSession.SelectRow(withCheckout, RunningRow(withCheckout)))!;
-        await Assert.That(RowChips.Of(green, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), withCheckout.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
+        await Assert.That(RowChips.Of(green, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), withCheckout.LocalRepos, false).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
 
         var noCheckout = Fixtures.WithLocalRepos();
         var failed = MonitorSession.SelectedBuild(MonitorSession.SelectRow(noCheckout, FailedRow(noCheckout)))!;
-        await Assert.That(RowChips.Of(failed, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), noCheckout.LocalRepos).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
+        await Assert.That(RowChips.Of(failed, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), noCheckout.LocalRepos, false).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
     }
 
     /// <summary>
