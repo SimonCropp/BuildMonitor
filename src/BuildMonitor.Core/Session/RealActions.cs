@@ -87,11 +87,11 @@ static class RealActions
                     var message = result.Describe(ProviderDescriptors.Get(connection.ProviderId));
                     host.Mutate(_ => result.Ok
                         ? MonitorSession.SetFormMessage(_, message)
-                        : MonitorSession.SetFormError(_, message));
+                        : MonitorSession.SetFormError(_, new(message)));
                 }
                 catch (Exception exception)
                 {
-                    host.Mutate(_ => MonitorSession.SetFormError(_, exception.Message));
+                    host.Mutate(_ => MonitorSession.SetFormError(_, new(exception.Message)));
                 }
             }),
             StoreSecret: secrets.Write,

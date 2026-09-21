@@ -1122,12 +1122,27 @@ static class ScreenBuilder
         return new($"Sign in to {signIn.Connection.Name}", fields);
     }
 
+    /// <summary>
+    /// The error under the field it is about, or at the foot of the page when it is about the whole
+    /// form or a field the page is not showing. At the foot whatever it was about, a missing token
+    /// was reported below the documentation links, and a bad poll interval below the port.
+    /// </summary>
     static void AddError(List<Field> fields, FormState form)
     {
-        if (form.Error is not null)
+        if (form.Error is not { } error)
         {
-            fields.Add(new("error", FieldKind.Label, "Error", form.Error));
+            return;
         }
+
+        var field = new Field("error", FieldKind.Label, "Error", error.Text);
+        var index = fields.FindIndex(_ => _.Id == error.Field);
+        if (index < 0)
+        {
+            fields.Add(field);
+            return;
+        }
+
+        fields.Insert(index + 1, field);
     }
 
     // Tray

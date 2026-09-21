@@ -13,7 +13,7 @@ public class HistoryDaysOptionTests
         var state = MonitorSession.FieldChanged(Fixtures.Options(), FormFields.HistoryDays, days);
         var built = OptionsDraft.TryBuild(Fixtures.OptionsForm(state), state.Settings, out _, out var error);
         await Assert.That(built).IsFalse();
-        await Assert.That(error).IsEqualTo("The days of builds to show must be between 1 and 365.");
+        await Assert.That(error).IsEqualTo(new FormError("The days of builds to show must be between 1 and 365.", FormFields.HistoryDays));
     }
 
     [Test]

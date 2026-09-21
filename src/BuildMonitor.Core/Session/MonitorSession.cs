@@ -753,7 +753,7 @@ static class MonitorSession
         return state with { Form = form with { Error = null } };
     }
 
-    public static SessionState SetFormError(SessionState state, string error) =>
+    public static SessionState SetFormError(SessionState state, FormError error) =>
         state.Form switch
         {
             // Clears the message too, or a failed test leaves "Testing..." above its error.
@@ -788,19 +788,19 @@ static class MonitorSession
         var text = form.Value(FormFields.FilterText).Trim();
         if (text.Length == 0)
         {
-            return SetFormError(state, "Enter the text to match.");
+            return SetFormError(state, new("Enter the text to match.", FormFields.FilterText));
         }
 
         if (!Enum.TryParse<FilterKind>(form.Value(FormFields.FilterKind), out var kind) ||
             !Enum.TryParse<FilterTarget>(form.Value(FormFields.FilterTarget), out var target))
         {
-            return SetFormError(state, "Choose a kind and a target.");
+            return SetFormError(state, new("Choose a kind and a target.", FormFields.FilterKind));
         }
 
         var filter = new Filter(kind, target, text);
         if (form.Filters.Contains(filter))
         {
-            return SetFormError(state, "That filter already exists.");
+            return SetFormError(state, new("That filter already exists.", FormFields.FilterText));
         }
 
         var added = form with { Filters = form.Filters.Add(filter), Error = null };
@@ -1142,7 +1142,7 @@ static class MonitorSession
         {
             Page = form.Page,
             SignIn = null,
-            Form = form with { Error = error }
+            Form = form with { Error = new(error, FormFields.Auth) }
         };
     }
 

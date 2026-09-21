@@ -33,15 +33,27 @@ public class ConnectionDraftTests
     }
 
     [Test]
-    [Arguments("Jenkins", "Enter the server URL.")]
-    [Arguments("Azure DevOps", "Enter the organization.")]
-    [Arguments("Bitbucket Pipelines", "Enter the workspace.")]
-    [Arguments("AppVeyor", "Enter the api token.")]
-    [Arguments("GitHub Actions", "Sign in first, or switch to a token.")]
-    public async Task ValidationMessages(string provider, string expected)
+    [Arguments("Jenkins", "Enter the server URL.", FormFields.Server)]
+    [Arguments("Azure DevOps", "Organization is required.", "scope:organization")]
+    [Arguments("Bitbucket Pipelines", "Workspace is required.", "scope:workspace")]
+    [Arguments("AppVeyor", "API token is required.", FormFields.Token)]
+    [Arguments("GitHub Actions", "Sign in first, or switch to a token.", FormFields.Auth)]
+    public async Task ValidationMessages(string provider, string expected, string field)
     {
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, provider);
-        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo(expected);
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo(new FormError(expected, field));
+    }
+
+    /// <summary>
+    /// A label keeps the case it is drawn with: lowercasing it made "API token" read as "api token",
+    /// and lowering only a first letter would do the same to "Atlassian".
+    /// </summary>
+    [Test]
+    public async Task MissingUserKeepsTheLabelsCase()
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Bitbucket Pipelines");
+        state = MonitorSession.FieldChanged(state, FormFields.Scope("workspace"), "contoso");
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo(new FormError("Atlassian account email is required.", FormFields.User));
     }
 
     [Test]
@@ -49,7 +61,7 @@ public class ConnectionDraftTests
     {
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Jenkins");
         state = MonitorSession.FieldChanged(state, FormFields.Server, "ftp://jenkins.local");
-        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo("The server must be an http or https URL.");
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo(new FormError("The server must be an http or https URL.", FormFields.Server));
     }
 
     [Test]
@@ -62,16 +74,16 @@ public class ConnectionDraftTests
         var state = MonitorSession.FieldChanged(Fixtures.ConnectionNew(), FormFields.Provider, "Octopus Deploy");
         state = MonitorSession.FieldChanged(state, FormFields.Server, server);
         await Assert.That(ConnectionDraft.Build(Fixtures.ConnectionForm(state)).Server).IsEqualTo(expected);
-        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsNotEqualTo("The server must be an http or https URL.");
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))?.Text).IsNotEqualTo("The server must be an http or https URL.");
     }
 
     [Test]
     public async Task FailedTestClearsTestingMessage()
     {
         var state = MonitorSession.SetFormMessage(Fixtures.ConnectionNew(), "Testing...");
-        state = MonitorSession.SetFormError(state, "Unauthorized");
+        state = MonitorSession.SetFormError(state, new("Unauthorized"));
         await Assert.That(Fixtures.ConnectionForm(state).Message).IsNull();
-        await Assert.That(state.Form!.Error).IsEqualTo("Unauthorized");
+        await Assert.That(state.Form!.Error).IsEqualTo(new FormError("Unauthorized"));
     }
 
     [Test]
@@ -82,11 +94,11 @@ public class ConnectionDraftTests
         await Assert.That(ConnectionDraft.Build(Fixtures.ConnectionForm(state)).CallbackPort).IsNull();
 
         state = MonitorSession.FieldChanged(state, FormFields.CallbackPort, "80");
-        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo("The callback port must be between 1024 and 65535.");
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo(new FormError("The callback port must be between 1024 and 65535.", FormFields.CallbackPort));
 
         state = MonitorSession.FieldChanged(state, FormFields.CallbackPort, "8420");
         await Assert.That(ConnectionDraft.Build(Fixtures.ConnectionForm(state)).CallbackPort).IsEqualTo(8420);
-        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo("Sign in first, or switch to a token.");
+        await Assert.That(ConnectionDraft.Validate(Fixtures.ConnectionForm(state))).IsEqualTo(new FormError("Sign in first, or switch to a token.", FormFields.Auth));
     }
 
     [Test]

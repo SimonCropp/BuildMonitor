@@ -3,32 +3,32 @@
 /// </summary>
 static class OptionsDraft
 {
-    public static bool TryBuild(OptionsFormState form, Settings current, [NotNullWhen(true)] out Settings? settings, [NotNullWhen(false)] out string? error)
+    public static bool TryBuild(OptionsFormState form, Settings current, [NotNullWhen(true)] out Settings? settings, [NotNullWhen(false)] out FormError? error)
     {
         settings = null;
         if (!TryInterval(form.Value(FormFields.PollInterval), out var poll))
         {
-            error = "The poll interval must be between 5 and 3600 seconds.";
+            error = new("The poll interval must be between 5 and 3600 seconds.", FormFields.PollInterval);
             return false;
         }
 
         if (!TryInterval(form.Value(FormFields.RunningPollInterval), out var running))
         {
-            error = "The poll interval while running must be between 5 and 3600 seconds.";
+            error = new("The poll interval while running must be between 5 and 3600 seconds.", FormFields.RunningPollInterval);
             return false;
         }
 
         if (!int.TryParse(form.Value(FormFields.HistoryDays), out var days) ||
             days is < 1 or > 365)
         {
-            error = "The days of builds to show must be between 1 and 365.";
+            error = new("The days of builds to show must be between 1 and 365.", FormFields.HistoryDays);
             return false;
         }
 
         if (!int.TryParse(form.Value(FormFields.Port), out var port) ||
             port is < 1024 or > 65535)
         {
-            error = "The port must be between 1024 and 65535.";
+            error = new("The port must be between 1024 and 65535.", FormFields.Port);
             return false;
         }
 

@@ -62,15 +62,18 @@ static class ConnectionDraft
     }
 
     /// <summary>
-    /// The first thing wrong with the draft, or null when it can be saved.
+    /// The first thing wrong with the draft, at the field it is about, or null when it can be saved.
+    /// A missing value is named by the field's label as written, at the start of the sentence: put
+    /// lowercased into "Enter the ...", "API token" read as "api token", and no rule for which first
+    /// letters can be lowered keeps "Atlassian account email" and drops "Organization".
     /// </summary>
-    public static string? Validate(ConnectionFormState form)
+    public static FormError? Validate(ConnectionFormState form)
     {
         var descriptor = form.Descriptor;
         if (descriptor is {SelfHosted: true, DefaultServer: null} &&
             form.Value(FormFields.Server).Trim().Length == 0)
         {
-            return "Enter the server URL.";
+            return new("Enter the server URL.", FormFields.Server);
         }
 
         var server = ServerAddress.Normalize(form.Value(FormFields.Server));
@@ -78,21 +81,22 @@ static class ConnectionDraft
             !Uri.TryCreate(server, UriKind.Absolute, out var uri) |
             (uri is not null && uri.Scheme != "http" && uri.Scheme != "https"))
         {
-            return "The server must be an http or https URL.";
+            return new("The server must be an http or https URL.", FormFields.Server);
         }
 
         foreach (var scope in descriptor.Scopes.Where(_ => _.Required))
         {
-            if (form.Value(FormFields.Scope(scope.Id)).Trim().Length == 0)
+            var id = FormFields.Scope(scope.Id);
+            if (form.Value(id).Trim().Length == 0)
             {
-                return $"Enter the {scope.Label.ToLowerInvariant()}.";
+                return Required(scope.Label, id);
             }
         }
 
         if (descriptor.UserLabel is not null &&
             form.Value(FormFields.User).Trim().Length == 0)
         {
-            return $"Enter the {descriptor.UserLabel.ToLowerInvariant()}.";
+            return Required(descriptor.UserLabel, FormFields.User);
         }
 
         var method = Method(form);
@@ -101,7 +105,7 @@ static class ConnectionDraft
             callbackPort.Length > 0 &&
             (!int.TryParse(callbackPort, out var port) || port is < 1024 or > 65535))
         {
-            return "The callback port must be between 1024 and 65535.";
+            return new("The callback port must be between 1024 and 65535.", FormFields.CallbackPort);
         }
 
         if (method == AuthMethod.Token)
@@ -109,14 +113,17 @@ static class ConnectionDraft
             if (Token(form) is null &&
                 !form.SignedIn)
             {
-                return $"Enter the {descriptor.TokenLabel.ToLowerInvariant()}.";
+                return Required(descriptor.TokenLabel, FormFields.Token);
             }
         }
         else if (!form.SignedIn)
         {
-            return "Sign in first, or switch to a token.";
+            return new("Sign in first, or switch to a token.", FormFields.Auth);
         }
 
         return null;
     }
+
+    static FormError Required(string label, string field) =>
+        new($"{label} is required.", field);
 }

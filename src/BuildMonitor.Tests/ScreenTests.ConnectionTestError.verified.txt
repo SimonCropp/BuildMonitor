@@ -5,9 +5,9 @@
 | Name: [                                        ] (AppVeyor)                                                          |
 | Account (optional): [                                        ] (Only needed for a v2 (user level) token)             |
 | API token: [                                        ]                                                                |
-| Error: API token is required.                                                                                        |
 | How to get an API token -> https://ci.appveyor.com/api-keys                                                          |
 | AppVeyor documentation -> https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/appveyor.md            |
+| Error: Unauthorized                                                                                                  |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

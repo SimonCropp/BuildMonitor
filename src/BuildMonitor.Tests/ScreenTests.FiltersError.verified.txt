@@ -5,8 +5,8 @@
 | Target: <Pipeline>                                                                                                   |
 | Match: <Prefix>                                                                                                      |
 | Text: [                                        ]                                                                     |
-| [ Add filter ]                                                                                                       |
 | Error: Enter the text to match.                                                                                      |
+| [ Add filter ]                                                                                                       |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

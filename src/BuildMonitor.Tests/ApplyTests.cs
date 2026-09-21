@@ -358,7 +358,7 @@ public class ApplyTests
         var state = Apply(Fixtures.Options(), new(FieldChanges: [new(FormFields.PollInterval, "1")]), actions);
         state = Apply(state, new(ClickedButton: 0), actions);
         await Assert.That(state.Page).IsEqualTo(Page.Options);
-        await Assert.That(state.Form!.Error).IsEqualTo("The poll interval must be between 5 and 3600 seconds.");
+        await Assert.That(state.Form!.Error).IsEqualTo(new FormError("The poll interval must be between 5 and 3600 seconds.", FormFields.PollInterval));
         await Assert.That(actions.Calls).IsEmpty();
     }
 

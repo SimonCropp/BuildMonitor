@@ -12,7 +12,7 @@
 abstract record FormState
 {
     public required ImmutableDictionary<string, string> Values { get; init; }
-    public string? Error { get; init; }
+    public FormError? Error { get; init; }
 
     /// <summary>
     /// The page this form is, known from its type, so the page returned to after a sign in is the

@@ -450,9 +450,29 @@ public class ScreenTests
     public Task RemoveConnection() =>
         Verify(Fixtures.Render(MonitorSession.OpenRemoveConnection(Fixtures.ConnectionEdit())));
 
+    /// <summary>
+    /// The error under the box it is about rather than below the documentation links.
+    /// </summary>
     [Test]
     public Task ConnectionValidationError() =>
         Verify(Fixtures.Render(InputApplier.Execute(Fixtures.ConnectionNew(), CommandKind.Save, null, MonitorActions.None, null)));
+
+    /// <summary>
+    /// An error the service gave rather than a field, which has nowhere to go but the foot.
+    /// </summary>
+    [Test]
+    public Task ConnectionTestError() =>
+        Verify(Fixtures.Render(MonitorSession.SetFormError(Fixtures.ConnectionNew(), new("Unauthorized"))));
+
+    /// <summary>
+    /// Under Polling with the interval it is about, rather than under Local below the port.
+    /// </summary>
+    [Test]
+    public Task OptionsError()
+    {
+        var state = MonitorSession.FieldChanged(Fixtures.Options(), FormFields.PollInterval, "1");
+        return Verify(Fixtures.Render(InputApplier.Execute(state, CommandKind.Save, null, MonitorActions.None, null)));
+    }
 
     [Test]
     public Task SignInDevice() =>

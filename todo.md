@@ -60,9 +60,12 @@ notification that opens its build. Worst first within each section.
 - [x] **Options mixes saved settings with immediate actions.** Version, Documentation, Open logs,
   Raise issue and Update are an About page, opened from the options' footer. Its Back, and an
   update called off from it, return to the options with their edits.
-- [ ] **Validation errors show at the bottom of the form.** `AddError` puts the message after the
-  documentation links rather than at the field it is about. `ConnectionDraft.Validate` also
-  lowercases whole labels, which turns "API token" into "Enter the api token."
+- [x] **Validation errors show at the bottom of the form.** A form's error now carries the field it
+  is about and is drawn under it: a missing token under the token box, a bad poll interval under
+  Polling, a failed sign in under Sign in with. Only an error about the whole form, such as a test
+  the service refused, stays at the foot. A missing value is named by its label at the start of the
+  sentence, as "API token is required.", since lowering only a first letter would still turn
+  "Atlassian account email" into "atlassian".
 - [ ] **Window size, position and open groups reset on every start.** The window opens at
   `CenterScreen` at a fixed size ([MonitorForm.cs](src/BuildMonitor.Windows/MonitorForm.cs)), and
   `OpenGroups` lives in `SessionState` rather than `Settings`. For an app that runs at login and is
