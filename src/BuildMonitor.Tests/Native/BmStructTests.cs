@@ -11,7 +11,7 @@ public class BmStructTests
     [Arguments(typeof(BmChip), 4 * 8 + 4)]
     [Arguments(typeof(BmSpan), 8 + 4)]
     [Arguments(typeof(BmTooltip), 8 + 4)]
-    [Arguments(typeof(BmField), 8 + 4 * 8 + 8)]
+    [Arguments(typeof(BmField), 8 + 5 * 8 + 8)]
     [Arguments(typeof(BmButton), 2 * 8 + 4)]
     [Arguments(typeof(BmMenuItem), 8)]
     [Arguments(typeof(BmTrayItem), 3 * 8 + 4)]

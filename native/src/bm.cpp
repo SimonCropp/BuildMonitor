@@ -1100,6 +1100,17 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
                     }
                 }
 
+                // Beside the box, wrapped where the widest box ends rather than cut short: a note
+                // is read whatever the box holds. Past a box that already reaches that edge it
+                // still gets a readable width, rather than a word to a line.
+                std::string note = Str(screen, field.note);
+                if (!note.empty()) {
+                    ImGui::SameLine();
+                    ImGui::PushTextWrapPos(std::max(ImGui::GetCursorPosX() + 160.0f, boxX + 420.0f));
+                    ImGui::TextColored(dim, "%s", note.c_str());
+                    ImGui::PopTextWrapPos();
+                }
+
                 break;
             }
             case BM_FIELD_SELECT: {

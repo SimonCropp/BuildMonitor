@@ -12,6 +12,10 @@ final class FormView: NSView {
     private let boxWidth: CGFloat = 420
     private let browseWidth: CGFloat = 82
     private let browseGap: CGFloat = 8
+    private let noteGap: CGFloat = 8
+    /// Where a note would otherwise get less than this, past the end of a box as wide as they
+    /// come, it takes this much and runs past that edge rather than a word to a line.
+    private let minimumNoteWidth: CGFloat = 160
     private var controls: [NSView] = []
     private var editing: String?
 
@@ -57,7 +61,7 @@ final class FormView: NSView {
         var y: CGFloat = 12
         for (index, field) in fields.enumerated() {
             let control = make(field, index: index)
-            let height: CGFloat = field.kind == Int32(BM_FIELD_LABEL.rawValue) ? 22 : 28
+            var height: CGFloat = field.kind == Int32(BM_FIELD_LABEL.rawValue) ? 22 : 28
             if [BM_FIELD_TEXT, BM_FIELD_PASSWORD, BM_FIELD_NUMBER, BM_FIELD_SELECT, BM_FIELD_DIRECTORY].map({ Int32($0.rawValue) }).contains(field.kind) {
                 let label = NSTextField(labelWithString: field.label)
                 label.textColor = Palette.dim
@@ -85,6 +89,21 @@ final class FormView: NSView {
                     browse.bezelStyle = .rounded
                     browse.frame = NSRect(x: 260 + boxWidth - browseWidth, y: y, width: browseWidth, height: 24)
                     addSubview(browse)
+                }
+
+                // Beside the box, on as many lines as it takes to end where the widest box does:
+                // a note is read whatever the box holds, so it is never the part cut short. The
+                // row grows to fit it rather than letting it run into the next field.
+                if !field.note.isEmpty && field.kind != Int32(BM_FIELD_SELECT.rawValue) {
+                    let noteX = 260 + (isDirectory ? boxWidth : width) + noteGap
+                    let noteWidth = max(minimumNoteWidth, 260 + boxWidth - noteX)
+                    let note = NSTextField(wrappingLabelWithString: field.note)
+                    note.textColor = Palette.dim
+                    let bounds = NSRect(x: 0, y: 0, width: noteWidth, height: .greatestFiniteMagnitude)
+                    let noteHeight = (note.cell?.cellSize(forBounds: bounds).height ?? 20).rounded(.up)
+                    note.frame = NSRect(x: noteX, y: y + 4, width: noteWidth, height: noteHeight)
+                    addSubview(note)
+                    height = max(height, noteHeight + 8)
                 }
             } else {
                 control.frame = NSRect(x: 12, y: y, width: 620, height: 24)

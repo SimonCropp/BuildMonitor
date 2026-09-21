@@ -224,6 +224,12 @@ sealed class FormPanel : Panel
                 browse.Click += (_, _) => clickedField = field.Id;
                 panel.Controls.Add(path);
                 panel.Controls.Add(browse);
+                if (field.Note is not null)
+                {
+                    browse.Margin = DpiScale.Spacing(this, 0, 2, 8, 2);
+                    panel.Controls.Add(Note(field.Note));
+                }
+
                 return (Label(field.Label), panel);
             }
             case FieldKind.ListRow:
@@ -296,17 +302,22 @@ sealed class FormPanel : Panel
         };
         box.Margin = DpiScale.Spacing(this, 0, 2, 8, 2);
         panel.Controls.Add(box);
-        panel.Controls.Add(
-            new FormsLabel
-            {
-                Text = note,
-                AutoSize = true,
-                MaximumSize = new(LogicalToDeviceUnits(420), 0),
-                ForeColor = Palette.Dim,
-                Margin = DpiScale.Spacing(this, 0, 6, 0, 2)
-            });
+        panel.Controls.Add(Note(note));
         return panel;
     }
+
+    /// <summary>
+    /// The note itself, wrapped rather than cut short: it is read whatever the box holds.
+    /// </summary>
+    FormsLabel Note(string note) =>
+        new()
+        {
+            Text = note,
+            AutoSize = true,
+            MaximumSize = new(LogicalToDeviceUnits(420), 0),
+            ForeColor = Palette.Dim,
+            Margin = DpiScale.Spacing(this, 0, 6, 0, 2)
+        };
 
     static void Update(Control control, Field field)
     {

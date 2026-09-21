@@ -64,6 +64,7 @@ struct BmField
     public BmString Label;
     public BmString Value;
     public BmString Hint;
+    public BmString Note;
     public int OptionOffset;
     public int OptionCount;
 }

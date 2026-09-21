@@ -217,7 +217,12 @@ typedef struct BmField {
     BmString label;
     /* A checkbox carries "true"/"false", a select the chosen option. */
     BmString value;
+    /* What a box shows while it is empty, as the toolkit's placeholder. */
     BmString hint;
+    /* A standing fact about a text, password, number or directory field, drawn beside its box
+       whatever the box holds. Not a hint: a number box is never empty, so a sentence carried as
+       its placeholder is never seen. */
+    BmString note;
     /* The options of a select: a range into BmScreen.options. */
     int32_t optionOffset;
     int32_t optionCount;
@@ -431,7 +436,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 13
+#define BM_VERSION 14
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

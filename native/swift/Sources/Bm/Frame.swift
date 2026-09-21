@@ -72,6 +72,7 @@ struct Frame {
         let label: String
         let value: String
         let hint: String
+        let note: String
         let options: [String]
     }
 
@@ -181,6 +182,7 @@ struct Frame {
                 label: text(field.label),
                 value: text(field.value),
                 hint: text(field.hint),
+                note: text(field.note),
                 options: slice)
         }
 

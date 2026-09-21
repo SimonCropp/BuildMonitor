@@ -189,6 +189,7 @@ sealed unsafe class ScreenPayload
                         Label = Add(field.Label),
                         Value = Add(field.Value),
                         Hint = Add(field.Hint ?? ""),
+                        Note = Add(field.Note ?? ""),
                         OptionOffset = optionOffset,
                         OptionCount = field.Options?.Count ?? 0
                     });

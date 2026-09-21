@@ -32,6 +32,9 @@ final class BuildsRenderer {
     let browseLabel = "Browse"
     let browseWidth: CGFloat = 82
     let browseGap: CGFloat = 8
+    /// A field's note, beside its box. Matches FormView, like the button above.
+    let noteGap: CGFloat = 8
+    let minimumNoteWidth: CGFloat = 160
     /// The icon inside a chip, which is a pill the height of a line of text.
     let iconSize: CGFloat = 16
     /// The filter box at the right of the header.
@@ -477,7 +480,18 @@ final class BuildsRenderer {
                     drawText(browseLabel, at: CGPoint(x: browse.minX + 12, y: y + 4), font: font, colour: Palette.text)
                 }
 
-                y += fieldHeight + 10
+                // Beside the box, on as many lines as it takes to end where the widest box does,
+                // as FormView lays it out. The row grows to fit it.
+                var rowHeight = fieldHeight
+                if !field.note.isEmpty && kind != BM_FIELD_SELECT.rawValue {
+                    let end = kind == BM_FIELD_DIRECTORY.rawValue ? box.maxX + browseGap + browseWidth : box.maxX
+                    let noteX = end + noteGap
+                    let noteWidth = max(minimumNoteWidth, 260 + 420 - noteX)
+                    let noteHeight = drawWrapped(field.note, at: CGPoint(x: noteX, y: y + 4), font: font, colour: Palette.dim, width: noteWidth)
+                    rowHeight = max(fieldHeight, noteHeight + 8)
+                }
+
+                y += rowHeight + 10
             case BM_FIELD_CHECKBOX.rawValue:
                 let box = CGRect(x: padding, y: y + (fieldHeight - 14) / 2, width: 14, height: 14)
                 Palette.surface.setFill()
@@ -592,6 +606,19 @@ final class BuildsRenderer {
 
     private func measure(_ text: String) -> CGFloat {
         (text as NSString).size(withAttributes: [.font: font]).width
+    }
+
+    /// Text that wraps within a width rather than being cut short, for a sentence that is only any
+    /// use read whole. Returns the height it took.
+    private func drawWrapped(_ text: String, at point: CGPoint, font: NSFont, colour: NSColor, width: CGFloat) -> CGFloat {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byWordWrapping
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: colour, .paragraphStyle: paragraph]
+        let options: NSString.DrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
+        let size = CGSize(width: width, height: .greatestFiniteMagnitude)
+        let height = (text as NSString).boundingRect(with: size, options: options, attributes: attributes).height.rounded(.up)
+        (text as NSString).draw(with: CGRect(x: point.x, y: point.y, width: width, height: height), options: options, attributes: attributes)
+        return height
     }
 
     private func drawText(_ text: String, at point: CGPoint, font: NSFont, colour: NSColor, width: CGFloat = .greatestFiniteMagnitude) {
