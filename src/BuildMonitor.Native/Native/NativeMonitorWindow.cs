@@ -22,6 +22,8 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     const int pathBytes = 4096;
 
     ScreenPayload payload = new();
+    PlacementSettler settler = new();
+    long opened = Stopwatch.GetTimestamp();
     // The screen the payload was last built from.
     Screen? built;
     bool disposed;
@@ -30,9 +32,6 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     {
     }
 
-    /// <param name="placement">Ignored: the C ABI reports nothing of where the window is, so no
-    /// placement is ever saved from here, and one saved by the Windows head is in pixels of a
-    /// desktop this is not.</param>
     public static IMonitorWindow? Open(string title, int width, int height, WindowPlacement? placement, bool hidden, out string? error)
     {
         error = null;
@@ -58,7 +57,7 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             return null;
         }
 
-        if (!Init(title, width, height, hidden, EmbeddedFont.Bytes(), EmbeddedFont.Emoji()))
+        if (!Init(title, width, height, placement, hidden, EmbeddedFont.Bytes(), EmbeddedFont.Emoji()))
         {
             error = "The native renderer could not open a window.";
             return null;
@@ -100,13 +99,45 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
         }
     }
 
-    static bool Init(string title, int width, int height, bool hidden, byte[] font, byte[] emoji)
+    static bool Init(string title, int width, int height, WindowPlacement? placement, bool hidden, byte[] font, byte[] emoji)
     {
+        var placed = Placement(placement);
         fixed (byte* bytes = font)
         fixed (byte* emojiBytes = emoji)
         {
-            return Bm.Init(width, height, title, bytes, font.Length, emojiBytes, emoji.Length, 17f, hidden ? 1 : 0) == 1;
+            return Bm.Init(width, height, title, bytes, font.Length, emojiBytes, emoji.Length, 17f, &placed, hidden ? 1 : 0) == 1;
         }
+    }
+
+    /// <summary>
+    /// Known is 0 for none, which bm_init takes as a first start.
+    /// </summary>
+    public static BmPlacement Placement(WindowPlacement? placement)
+    {
+        if (placement is null)
+        {
+            return default;
+        }
+
+        return new()
+        {
+            X = placement.X,
+            Y = placement.Y,
+            Width = placement.Width,
+            Height = placement.Height,
+            Maximized = placement.Maximized ? 1 : 0,
+            Known = 1
+        };
+    }
+
+    public static WindowPlacement? Placement(BmPlacement placement)
+    {
+        if (placement.Known == 0)
+        {
+            return null;
+        }
+
+        return new(placement.X, placement.Y, placement.Width, placement.Height, placement.Maximized != 0);
     }
 
     public bool Present(Screen screen)
@@ -165,7 +196,8 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             Rows: Math.Max(1, input.Rows) + ScreenBuilder.Chrome,
             TrayItem: input.ClickedTrayItem >= 0 &&
                       input.ClickedTrayItem < payload.TrayItemIds.Count ? payload.TrayItemIds[input.ClickedTrayItem] : null,
-            TrayIconClicked: input.TrayIconClicked != 0);
+            TrayIconClicked: input.TrayIconClicked != 0,
+            Placement: settler.Poll(Placement(input.Placement), Stopwatch.GetElapsedTime(opened)));
     }
 
     /// <summary>
@@ -198,8 +230,15 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             _ => CommandKind.None
         };
 
-    public void SetHidden(bool hidden) =>
+    public void SetHidden(bool hidden)
+    {
+        if (hidden)
+        {
+            settler.Hidden();
+        }
+
         Bm.SetHidden(hidden ? 1 : 0);
+    }
 
     public void Focus() =>
         Bm.Focus();

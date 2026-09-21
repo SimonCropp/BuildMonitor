@@ -22,7 +22,8 @@ let package = Package(
                 .linkedFramework("ImageIO")
             ]),
         // The only head with tests of its own. Everything above a renderer is managed code and is
-        // tested there; the folder panel is the one thing this head decides by itself, because it
-        // is AppKit rather than a program the managed side could run and watch.
+        // tested there; the folder panel is one of the few things this head decides by itself,
+        // because it is AppKit rather than a program the managed side could run and watch, and
+        // turning AppKit's frames into the ABI's placements is another.
         .testTarget(name: "BmTests", dependencies: ["Bm"])
     ])

@@ -70,7 +70,9 @@ notification that opens its build. Worst first within each section.
   `Settings` now, saved as a group is opened or closed. The Windows head reports where its window
   settles after a drag, a maximize or a hide, which is saved as `Settings.Window`, and opens there
   again unless no screen reaches its title bar any more.
-- [ ] **The macOS and Linux windows still open centred at a fixed size.** The C ABI reports nothing
-  of where the window is. macOS could keep it with `NSWindow.setFrameAutosaveName` in
-  [Runtime.swift](native/swift/Sources/Bm/Runtime.swift) and no ABI change; raylib on Linux would
-  need the position and size reported through bm.h, and a BM_VERSION.
+- [x] **The macOS and Linux windows still open centred at a fixed size.** bm.h has a BmPlacement
+  (BM_VERSION 16): bm_init takes where the window was left, and BmInput reports where it is on every
+  poll, since raylib has no event for the end of a drag. The managed side passes one on once it has
+  held for half a second, or at a hide, so it lands in `Settings.Window` as the Windows head's does
+  rather than in AppKit's defaults. A show from the tray no longer un-maximizes the Linux window.
+  Needs build-native to rebuild the binaries before the native heads run again.

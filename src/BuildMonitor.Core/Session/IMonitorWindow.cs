@@ -58,6 +58,6 @@ interface IMonitorWindow : IDisposable
 /// are both ordinary, and both want the same message rather than a stack trace.
 /// </summary>
 /// <param name="width">The size of a first start, in logical units.</param>
-/// <param name="placement">Where the window was left, which a head that reports
-/// <see cref="MonitorInput.Placement"/> opens it at instead, and one that does not ignores.</param>
+/// <param name="placement">Where the window was left, as the head reported it in
+/// <see cref="MonitorInput.Placement"/>, which it opens at in place of centred.</param>
 delegate IMonitorWindow? OpenWindow(string title, int width, int height, WindowPlacement? placement, bool hidden, out string? error);

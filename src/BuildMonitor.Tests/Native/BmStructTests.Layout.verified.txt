@@ -1,7 +1,7 @@
 ﻿{
   PointerSize: 8,
   Screen: 312,
-  Input: 88,
+  Input: 112,
   ScreenOffsets: [
     Strings@0,
     StringsLength@8,
@@ -70,7 +70,8 @@
     ScrollDelta@72,
     ScrollTo@76,
     CloseRequested@80,
-    Rows@84
+    Rows@84,
+    Placement@88
   ],
   Keys: [
     None=0,
@@ -95,5 +96,5 @@
     Triage=19,
     OpenMenu=20
   ],
-  Version: 15
+  Version: 16
 }

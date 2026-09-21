@@ -12,6 +12,8 @@ final class Runtime {
 
     private var delegate: WindowDelegate?
     private var size = CGSize(width: 1000, height: 640)
+    /// Where the window was left, which the window is made at in place of centred.
+    private var placement: BmPlacement?
     private var title = "BuildMonitor"
     private var scroller: NSScroller?
     private var scrollerWidth: CGFloat = 0
@@ -36,7 +38,7 @@ final class Runtime {
         resetInput()
     }
 
-    func open(width: Int32, height: Int32, title: String, font: Data?, fontSize: CGFloat, hidden: Bool) -> Bool {
+    func open(width: Int32, height: Int32, title: String, font: Data?, fontSize: CGFloat, placement: BmPlacement?, hidden: Bool) -> Bool {
         if initialised {
             return true
         }
@@ -44,6 +46,10 @@ final class Runtime {
         renderer = BuildsRenderer(fontData: font, size: fontSize)
         size = CGSize(width: CGFloat(width), height: CGFloat(height))
         self.title = title
+        if let placement, placement.known != 0 {
+            self.placement = placement
+        }
+
         initialised = true
 
         // A hidden start builds no window: NSWindow may only be made on the main thread, and a
@@ -83,6 +89,12 @@ final class Runtime {
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 700, height: 400)
         window.center()
+        if let placement, let primary = NSScreen.screens.first {
+            let frame = WindowPlacement.frame(of: placement, primaryHeight: primary.frame.height)
+            if WindowPlacement.reachable(frame, screens: NSScreen.screens.map(\.visibleFrame)) {
+                window.setFrame(frame, display: false)
+            }
+        }
 
         self.view = view
         self.window = window
@@ -257,6 +269,18 @@ final class Runtime {
 
         renderer.layout(size: view?.bounds.size ?? size)
         input.rows = Int32(renderer.bodyRows)
+    }
+
+    /// Where the window is, into the input every poll. Left as it was while the window is hidden,
+    /// minimized or full screen, none of which is a place to open at.
+    func samplePlacement() {
+        guard let window, window.isVisible, !window.isMiniaturized,
+              !window.styleMask.contains(.fullScreen),
+              let primary = NSScreen.screens.first else {
+            return
+        }
+
+        input.placement = WindowPlacement.placement(of: window.frame, primaryHeight: primary.frame.height)
     }
 
     func show() {

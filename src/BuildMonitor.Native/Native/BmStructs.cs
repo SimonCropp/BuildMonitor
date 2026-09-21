@@ -153,6 +153,17 @@ struct BmScreen
 }
 
 [StructLayout(LayoutKind.Sequential)]
+struct BmPlacement
+{
+    public int X;
+    public int Y;
+    public int Width;
+    public int Height;
+    public int Maximized;
+    public int Known;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 struct BmInput
 {
     public int Key;
@@ -175,6 +186,7 @@ struct BmInput
     public int ScrollTo;
     public int CloseRequested;
     public int Rows;
+    public BmPlacement Placement;
 }
 
 enum BmKey

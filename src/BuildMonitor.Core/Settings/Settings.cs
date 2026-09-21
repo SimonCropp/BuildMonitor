@@ -47,8 +47,7 @@ record Settings
     public ImmutableHashSet<string> OpenGroups { get; init; } = [];
 
     /// <summary>
-    /// Where the window was left. Null until a head that can say where its window is has moved,
-    /// sized or hidden it, which today is Windows alone.
+    /// Where the window was left. Null until it has first been moved, sized or hidden.
     /// </summary>
     public WindowPlacement? Window { get; init; }
     public ImmutableArray<Connection> Connections { get; init; } = [];

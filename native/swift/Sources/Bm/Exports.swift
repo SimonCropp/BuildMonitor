@@ -28,6 +28,7 @@ public func bmInit(
     _ emojiTtf: UnsafePointer<UInt8>?,
     _ emojiLength: Int32,
     _ fontSize: Float,
+    _ placement: UnsafePointer<BmPlacement>?,
     _ hidden: Int32) -> Int32 {
     var font: Data?
     if let fontTtf, fontLength > 0 {
@@ -40,6 +41,7 @@ public func bmInit(
         title: title.map { String(cString: $0) } ?? "BuildMonitor",
         font: font,
         fontSize: CGFloat(fontSize),
+        placement: placement?.pointee,
         hidden: hidden != 0)
     return opened ? 1 : 0
 }
@@ -75,6 +77,7 @@ public func bmPollInput(_ input: UnsafeMutablePointer<BmInput>?) {
     if runtime.initialised {
         runtime.measure()
         runtime.drainEdit()
+        runtime.samplePlacement()
     }
 
     input.pointee = runtime.input

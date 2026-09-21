@@ -15,6 +15,7 @@ public class BmStructTests
     [Arguments(typeof(BmButton), 2 * 8 + 4)]
     [Arguments(typeof(BmMenuItem), 8 + 4)]
     [Arguments(typeof(BmTrayItem), 3 * 8 + 4)]
+    [Arguments(typeof(BmPlacement), 6 * 4)]
     public async Task Sizes(Type type, int expected) =>
         await Assert.That(Marshal.SizeOf(type)).IsEqualTo(expected);
 

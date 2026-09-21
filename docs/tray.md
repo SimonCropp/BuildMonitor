@@ -28,7 +28,7 @@ One list of pipelines across every connection, showing the latest run on any bra
 
 Rows sort what is happening now to the top: running, then queued, then failed, then everything else by age.
 
-On Windows the window opens where it was last left, at the size it had and maximized if it was, unless no screen reaches that any more, such as after a monitor is unplugged, when it opens centred. On macOS and Linux it opens centred.
+The window opens where it was last left, at the size it had, and on Windows and Linux maximized if it was. If no screen reaches that any more, such as after a monitor is unplugged, it opens centred. On a Wayland desktop the compositor may place the window itself and keep only its size.
 
 Type in the Filter box at the top right to show only the builds whose repository, pipeline or branch, as the row names them, contain the text, ignoring case. A cross at the right of the box empties it, and shows only while there is something to empty; Escape does the same from anywhere in the window. A group keeps only the builds that match, so a filter reaches a build inside a closed group. The counts in the header and the tray icon still describe every build. The filter is not saved; to hide a pipeline for good, use [Filters](filters.md).
 

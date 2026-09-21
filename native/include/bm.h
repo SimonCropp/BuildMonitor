@@ -411,6 +411,22 @@ enum BmSearchField {
     BM_SEARCH_FIELD = -2
 };
 
+/*
+ * Where the window is, measured from the top left of the primary screen with y down, in the units
+ * the platform places windows in: pixels on X11, points on macOS. Each head reads back only what it
+ * wrote, so the two never have to agree with each other, only with themselves.
+ */
+typedef struct BmPlacement {
+    int32_t x;
+    int32_t y;
+    int32_t width;
+    int32_t height;
+    /* The window fills its screen, and x, y, width and height are where a restore goes back to. */
+    int32_t maximized;
+    /* 0 when there is no placement: before the window was first shown, or for no placement at all. */
+    int32_t known;
+} BmPlacement;
+
 typedef struct BmInput {
     int32_t key;
     /* Index into BmScreen.buttons, or -1. */
@@ -448,13 +464,19 @@ typedef struct BmInput {
     int32_t closeRequested;
     /* How many build rows fit in the body, measured from the font that was actually loaded. */
     int32_t rows;
+    /*
+     * Where the window is now, every poll, rather than when it stopped moving: raylib has no event
+     * for the end of a drag. The managed side decides when it has settled. Left as it was while the
+     * window is hidden, minimized or full screen, none of which is a place to open at.
+     */
+    BmPlacement placement;
 } BmInput;
 
 /*
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 15
+#define BM_VERSION 16
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -466,6 +488,11 @@ typedef struct BmInput {
  * Returns 1 on success. fontTtf may be NULL for a built in font. emojiTtf is merged over it for the
  * marks the text font has no glyph for, and may be NULL; a renderer that draws through the platform
  * rather than its own atlas has no use for it. hidden starts without a visible window.
+ *
+ * placement is where the window was left, as BmInput.placement reported it, and may be NULL. The
+ * window opens there instead of centred at width and height, unless no screen reaches its top edge
+ * any more, as after a monitor is unplugged. The Linux head is an X11 client, through XWayland on a
+ * Wayland desktop, and a compositor that places X11 windows itself may keep only the size.
  */
 BM_API int32_t bm_init(
     int32_t width,
@@ -476,6 +503,7 @@ BM_API int32_t bm_init(
     const uint8_t* emojiTtf,
     int32_t emojiLength,
     float fontSize,
+    const BmPlacement* placement,
     int32_t hidden);
 
 /*

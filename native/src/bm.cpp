@@ -148,6 +148,57 @@ std::string Str(const BmScreen& screen, const BmString& value) {
     return std::string(Begin(screen, value), static_cast<size_t>(value.length));
 }
 
+/* Whether enough of the window's top edge is on a monitor to drag it by. A monitor unplugged since
+   it was left there, or a laptop taken off its dock, would otherwise open it where it could be
+   neither seen nor dragged back. */
+bool Reachable(const BmPlacement& placement) {
+    const int edge = 30;
+    for (int monitor = 0; monitor < GetMonitorCount(); monitor++) {
+        Vector2 origin = GetMonitorPosition(monitor);
+        int left = std::max(placement.x, static_cast<int>(origin.x));
+        int right = std::min(placement.x + placement.width, static_cast<int>(origin.x) + GetMonitorWidth(monitor));
+        int top = std::max(placement.y, static_cast<int>(origin.y));
+        int bottom = std::min(placement.y + edge, static_cast<int>(origin.y) + GetMonitorHeight(monitor));
+        if (right - left >= 100 && bottom > top) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/* Where the window is now, into BmInput.placement. GLFW gives no bounds back for a maximized
+   window other than the ones it fills, so those are kept from the last poll it was not maximized,
+   which is what a restore goes back to. Hidden and minimized leave it as it was: neither is a
+   place to open at. */
+void Sample() {
+    if (g.hidden || IsWindowMinimized()) {
+        return;
+    }
+
+    if (IsWindowMaximized()) {
+        g.input.placement.maximized = 1;
+        return;
+    }
+
+    Vector2 position = GetWindowPosition();
+    g.input.placement.x = static_cast<int32_t>(position.x);
+    g.input.placement.y = static_cast<int32_t>(position.y);
+    g.input.placement.width = GetScreenWidth();
+    g.input.placement.height = GetScreenHeight();
+    g.input.placement.maximized = 0;
+    g.input.placement.known = 1;
+}
+
+/* Brings a minimized window back. Only a minimized one: RestoreWindow also takes a maximized window
+   back to its bounds, which every show from the tray did, so a window left maximized never
+   stayed that way. */
+void UnMinimize() {
+    if (IsWindowMinimized()) {
+        RestoreWindow();
+    }
+}
+
 void ResetInput() {
     g.input.key = BM_KEY_NONE;
     g.input.clickedButton = -1;
@@ -1394,7 +1445,7 @@ bool LoadFont() {
 
 extern "C" {
 
-BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const uint8_t* fontTtf, int32_t fontLength, const uint8_t* emojiTtf, int32_t emojiLength, float fontSize, int32_t hidden) {
+BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const uint8_t* fontTtf, int32_t fontLength, const uint8_t* emojiTtf, int32_t emojiLength, float fontSize, const BmPlacement* placement, int32_t hidden) {
     if (g.initialised) {
         return 1;
     }
@@ -1414,15 +1465,26 @@ BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const u
     }
 
     SetTraceLogLevel(LOG_WARNING);
-    unsigned int flags = FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT;
-    if (g.hidden) {
-        flags |= FLAG_WINDOW_HIDDEN;
-    }
-
-    SetConfigFlags(flags);
+    // Always made hidden, and shown once it is where it was left: made visible, it would first
+    // appear centred and then jump.
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT | FLAG_WINDOW_HIDDEN);
     InitWindow(width, height, title != nullptr ? title : "BuildMonitor");
     if (!IsWindowReady()) {
         return 0;
+    }
+
+    // Monitors are only known once GLFW is, which is after the window is made.
+    if (placement != nullptr && placement->known != 0 && Reachable(*placement)) {
+        SetWindowSize(placement->width, placement->height);
+        SetWindowPosition(placement->x, placement->y);
+        g.input.placement = *placement;
+        if (placement->maximized != 0) {
+            MaximizeWindow();
+        }
+    }
+
+    if (!g.hidden) {
+        ClearWindowState(FLAG_WINDOW_HIDDEN);
     }
 
     SetExitKey(0);
@@ -1496,6 +1558,7 @@ BM_API void bm_poll_input(BmInput* input) {
     }
 
     g.input.rows = g.bodyRows;
+    Sample();
     *input = g.input;
     ResetInput();
 }
@@ -1538,7 +1601,7 @@ BM_API void bm_set_hidden(int32_t hidden) {
         SetWindowState(FLAG_WINDOW_HIDDEN);
     } else {
         ClearWindowState(FLAG_WINDOW_HIDDEN);
-        RestoreWindow();
+        UnMinimize();
         // Nothing is drawn while hidden, so what was drawn last may be long out of date.
         g.drawnGeneration = INT64_MIN;
     }
@@ -1553,7 +1616,7 @@ BM_API void bm_focus(void) {
     g.hidden = false;
     g.drawnGeneration = INT64_MIN;
     ClearWindowState(FLAG_WINDOW_HIDDEN);
-    RestoreWindow();
+    UnMinimize();
     SetWindowFocused();
 }
 
