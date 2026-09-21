@@ -15,7 +15,7 @@ static class DirectoryPicker
     /// A chooser is waited on for as long as the user takes to find a folder, not the thirty
     /// seconds a captured command is allowed.
     /// </summary>
-    static readonly TimeSpan patience = TimeSpan.FromMinutes(10);
+    static TimeSpan patience = TimeSpan.FromMinutes(10);
 
     public static string? Pick(string? start)
     {

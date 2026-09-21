@@ -9,7 +9,8 @@ static class IssueLauncher
 
     public static string BuildUrl(string title, string extraBody = "")
     {
-        var body = $"""
+        var body =
+            $"""
              * BuildMonitor version: {VersionReader.VersionString}
              * OS: {Environment.OSVersion.VersionString}
              * Logs: {Logging.LogsDirectory}
@@ -32,7 +33,8 @@ static class IssueLauncher
             return;
         }
 
-        var extra = $"""
+        var extra =
+            $"""
 
              * Action: {message}
              * Exception:

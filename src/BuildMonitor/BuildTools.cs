@@ -10,7 +10,8 @@ sealed class BuildTools(MonitorTools tools)
     [McpServerTool(Name = "list_builds", ReadOnly = true, UseStructuredContent = true)]
     [Description("Lists the latest build of every monitored pipeline across every CI connection, with status, timing, progress and links. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it.")]
     public Task<List<BuildDto>> ListBuilds(
-        [Description("Optional substring to filter on pipeline, repository, branch or connection name.")] string? filter = null,
+        [Description("Optional substring to filter on pipeline, repository, branch or connection name.")]
+        string? filter = null,
         Cancel cancel = default) =>
         tools.ListBuilds(filter, cancel);
 
@@ -22,14 +23,16 @@ sealed class BuildTools(MonitorTools tools)
     [McpServerTool(Name = "get_build", ReadOnly = true, UseStructuredContent = true)]
     [Description("One build by its key, as returned by list_builds: status text, commit, author, links, whether it can be retried or cancelled.")]
     public Task<BuildDto> GetBuild(
-        [Description("The build key from list_builds.")] string key,
+        [Description("The build key from list_builds.")]
+        string key,
         Cancel cancel = default) =>
         tools.GetBuild(key, cancel);
 
     [McpServerTool(Name = "list_runs", ReadOnly = true, UseStructuredContent = true)]
     [Description("The recent runs of one pipeline, newest first, where list_builds shows only the latest: this is what says whether a failure is the first or the fourth in a row. Covers every branch the pipeline ran on, as far back as the tray has polled. Runs on one branch share the build key and are told apart by their run number.")]
     public Task<List<BuildDto>> ListRuns(
-        [Description("A build key from list_builds, or a pipeline key from list_pipelines.")] string key,
+        [Description("A build key from list_builds, or a pipeline key from list_pipelines.")]
+        string key,
         Cancel cancel = default) =>
         tools.ListRuns(key, cancel);
 
@@ -41,15 +44,18 @@ sealed class BuildTools(MonitorTools tools)
     [McpServerTool(Name = "get_build_log", ReadOnly = true)]
     [Description("The log of a build, fetched from the CI service: the logs of the jobs, steps or tasks that failed, each under a line naming it, or the whole build's log where the service keeps one log a build. Only the end of each is returned, under a count of the lines dropped before it. Fails when the build has no log, as a run that failed before starting a job has none.")]
     public Task<string> GetBuildLog(
-        [Description("The build key from list_builds.")] string key,
-        [Description("How many lines to keep from the end of each section. Defaults to 200.")] int maxLines = LogTail.DefaultLines,
+        [Description("The build key from list_builds.")]
+        string key,
+        [Description("How many lines to keep from the end of each section. Defaults to 200.")]
+        int maxLines = LogTail.DefaultLines,
         Cancel cancel = default) =>
         tools.GetLog(key, maxLines, cancel);
 
     [McpServerTool(Name = "download_build_artifacts", Idempotent = true, UseStructuredContent = true)]
     [Description("Downloads a failed build's artifacts to a local directory and writes its whole log beside them as log.txt, then returns that directory and what is in it. Read the files from disk with your own file tools: no content comes back through this call, and log.txt is the entire log where get_build_log returns only the end of each section. Artifacts too large to copy are named but not downloaded, and a service whose artifacts BuildMonitor cannot list says so rather than reporting that the build published none. The files are deleted after 24 hours. Can take a while on a large artifact.")]
     public Task<TriageFilesDto> DownloadBuildArtifacts(
-        [Description("The build key from list_builds. The build must have failed.")] string key,
+        [Description("The build key from list_builds. The build must have failed.")]
+        string key,
         Cancel cancel = default) =>
         tools.DownloadArtifacts(key, cancel);
 
@@ -66,36 +72,42 @@ sealed class BuildTools(MonitorTools tools)
     [McpServerTool(Name = "refresh", Idempotent = true)]
     [Description("Polls the CI services now rather than at the next interval. Returns as soon as the poll is asked for, before it has run, so list the builds again after a few seconds to see what it found. A running build is already polled often near when it should finish, so this is not needed to wait for one.")]
     public Task<string> Refresh(
-        [Description("A connection id from list_connections, or empty for every connection.")] string? connectionId = null,
+        [Description("A connection id from list_connections, or empty for every connection.")]
+        string? connectionId = null,
         Cancel cancel = default) =>
         tools.Refresh(string.IsNullOrWhiteSpace(connectionId) ? null : connectionId, cancel);
 
     [McpServerTool(Name = "retry_build")]
     [Description("Re-runs a finished build. Where the provider supports it only the failed jobs are re-run.")]
     public Task<string> RetryBuild(
-        [Description("The build key from list_builds.")] string key,
+        [Description("The build key from list_builds.")]
+        string key,
         Cancel cancel = default) =>
         tools.RetryBuild(key, cancel);
 
     [McpServerTool(Name = "cancel_build")]
     [Description("Cancels a queued or running build.")]
     public Task<string> CancelBuild(
-        [Description("The build key from list_builds.")] string key,
+        [Description("The build key from list_builds.")]
+        string key,
         Cancel cancel = default) =>
         tools.CancelBuild(key, cancel);
 
     [McpServerTool(Name = "run_build_next")]
     [Description("Moves a build that is still queued to the front of its service's queue, so it is the next one to start. Only some services can reorder a queue; a build that says canRunNext is one of them.")]
     public Task<string> RunBuildNext(
-        [Description("The build key from list_builds.")] string key,
+        [Description("The build key from list_builds.")]
+        string key,
         Cancel cancel = default) =>
         tools.RunBuildNext(key, cancel);
 
     [McpServerTool(Name = "open_build_in_browser")]
     [Description("Opens a build's page, its branch, or its pull request in the user's browser.")]
     public Task<string> OpenBuild(
-        [Description("The build key from list_builds.")] string key,
-        [Description("Which link to open: build, branch or pr.")] string which = "build",
+        [Description("The build key from list_builds.")]
+        string key,
+        [Description("Which link to open: build, branch or pr.")]
+        string which = "build",
         Cancel cancel = default) =>
         tools.OpenBuild(key, which, cancel);
 }

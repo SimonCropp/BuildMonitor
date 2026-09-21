@@ -41,7 +41,11 @@ sealed class ProtocolClient(int port) : IProtocolClient
 
             return Response.Error("Unreadable response");
         }
-        catch (Exception exception) when (exception is SocketException or IOException or OperationCanceledException)
+        catch (Exception exception) when
+            (exception is
+                 SocketException or
+                 IOException or
+                 OperationCanceledException)
         {
             throw new TrayUnreachableException(Port, exception);
         }
@@ -70,4 +74,5 @@ interface IProtocolClient
     Task<Response> Send(Message message, Cancel cancel);
 }
 
-sealed class TrayUnreachableException(int port, Exception inner) : Exception($"No BuildMonitor tray is listening on port {port}", inner);
+sealed class TrayUnreachableException(int port, Exception inner) :
+    Exception($"No BuildMonitor tray is listening on port {port}", inner);

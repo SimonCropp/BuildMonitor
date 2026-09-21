@@ -74,12 +74,14 @@ static class Snapshot
             pipeline.RepoName,
             pipeline.Group,
             pipeline.Url,
-            builds.Count(_ => _.ConnectionId == connection.Id && _.PipelineId == pipeline.Id),
+            builds.Count(_ => _.ConnectionId == connection.Id &&
+                              _.PipelineId == pipeline.Id),
             LocalRepos.Find(localRepos, pipeline.RepoName));
 
     static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now)
     {
-        var (fraction, timing) = Progress.Compute(build, Estimator.Estimate(build, state.Medians), now);
+        var estimate = Estimator.Estimate(build, state.Medians);
+        var (fraction, timing) = Progress.Compute(build, estimate, now);
         return new(
             build.Key,
             connection.Name,
