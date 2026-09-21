@@ -8,7 +8,7 @@ sealed record ProjectedRows(ImmutableArray<Build> Sorted, ImmutableArray<Connect
     public bool IsFor(SessionState state, ImmutableArray<Build> sorted) =>
         Sorted == sorted &&
         Connections == state.Connections &&
-        ReferenceEquals(OpenGroups, state.OpenGroups) &&
+        ReferenceEquals(OpenGroups, state.Settings.OpenGroups) &&
         Search == state.Search &&
         // Saved prefixes change which builds share a group, and nothing else a projection reads
         // moves when they do: the same builds would have been handed back under the old groups.

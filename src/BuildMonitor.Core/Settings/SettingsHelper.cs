@@ -46,6 +46,15 @@ static class SettingsHelper
             settings = settings with { GroupPrefixes = [] };
         }
 
+        // And for a set, whose type default is null: a file written before OpenGroups existed
+        // would throw at the first group drawn. The annotation says it cannot be null, and the
+        // reader does not keep that promise, so this is not the dead check it reads as.
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (settings.OpenGroups is null)
+        {
+            settings = settings with { OpenGroups = [] };
+        }
+
         return settings;
     }
 

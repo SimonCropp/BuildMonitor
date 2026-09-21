@@ -38,6 +38,19 @@ record Settings
     /// <see cref="GroupKey"/>.
     /// </summary>
     public ImmutableArray<string> GroupPrefixes { get; init; } = [];
+
+    /// <summary>
+    /// The <see cref="GroupKey.Id"/> of each group the user opened. A group is closed until they
+    /// do. Saved rather than held for the session, which closed every group on each start of an
+    /// app that starts at every login.
+    /// </summary>
+    public ImmutableHashSet<string> OpenGroups { get; init; } = [];
+
+    /// <summary>
+    /// Where the window was left. Null until a head that can say where its window is has moved,
+    /// sized or hidden it, which today is Windows alone.
+    /// </summary>
+    public WindowPlacement? Window { get; init; }
     public ImmutableArray<Connection> Connections { get; init; } = [];
     public ImmutableArray<Filter> Filters { get; init; } = [];
 }

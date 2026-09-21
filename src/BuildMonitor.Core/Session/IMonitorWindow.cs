@@ -57,4 +57,7 @@ interface IMonitorWindow : IDisposable
 /// exception, because a machine with no renderer for its RID and no desktop session to draw into
 /// are both ordinary, and both want the same message rather than a stack trace.
 /// </summary>
-delegate IMonitorWindow? OpenWindow(string title, int width, int height, bool hidden, out string? error);
+/// <param name="width">The size of a first start, in logical units.</param>
+/// <param name="placement">Where the window was left, which a head that reports
+/// <see cref="MonitorInput.Placement"/> opens it at instead, and one that does not ignores.</param>
+delegate IMonitorWindow? OpenWindow(string title, int width, int height, WindowPlacement? placement, bool hidden, out string? error);

@@ -16,7 +16,9 @@ public class SettingsHelperTests :
             RunAtStartup = true,
             PollIntervalSeconds = 45,
             CodeDirectory = "/code",
-            Filters = [new(FilterKind.Suffix, FilterTarget.Branch, "-wip")]
+            Filters = [new(FilterKind.Suffix, FilterTarget.Branch, "-wip")],
+            OpenGroups = ["verify"],
+            Window = new(100, 80, 1200, 800, Maximized: true)
         };
         await SettingsHelper.Write(settings);
         var read = SettingsHelper.Read();
@@ -88,6 +90,20 @@ public class SettingsHelperTests :
         await File.WriteAllTextAsync(AppPaths.Settings, """{"PollIntervalSeconds": 12}""");
         var read = SettingsHelper.Read();
         await Assert.That(read.GroupPrefixes.IsDefault).IsFalse();
+    }
+
+    /// <summary>
+    /// A set the file does not name reads as null, which throws at the first group drawn rather
+    /// than reading as none open.
+    /// </summary>
+    [Test]
+    public async Task AFileWrittenBeforeOpenGroupsReadsAsEmpty()
+    {
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(AppPaths.Settings, """{"PollIntervalSeconds": 12}""");
+        var read = SettingsHelper.Read();
+        await Assert.That(read.OpenGroups).IsEmpty();
+        await Assert.That(read.Window).IsNull();
     }
 
     public void Dispose()

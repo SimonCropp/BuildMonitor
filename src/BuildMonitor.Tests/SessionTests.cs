@@ -65,7 +65,7 @@ public class SessionTests
         var once = MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing);
         var twice = MonitorSession.ToggleGroup(once, Fixtures.VerifyPassing);
         await Assert.That(RowProjection.Rows(once).Count(_ => _.Kind == RowKind.Member)).IsEqualTo(2);
-        await Assert.That(twice.OpenGroups).IsEmpty();
+        await Assert.That(twice.Settings.OpenGroups).IsEmpty();
         await Assert.That(RowProjection.Rows(twice).Length).IsEqualTo(RowProjection.Rows(state).Length);
     }
 
@@ -105,8 +105,11 @@ public class SessionTests
     {
         var green = Fixtures.WithGreenProject();
         var state = MonitorSession.SelectRow(green, Fixtures.RowOf(green, _ => _.Kind == RowKind.Group));
-        var next = InputApplier.Execute(state, CommandKind.OpenBuild, null, MonitorActions.None, null);
-        await Assert.That(next.OpenGroups).Contains(Fixtures.VerifyPassing.Id);
+        var actions = new RecordingActions();
+        var next = InputApplier.Execute(state, CommandKind.OpenBuild, null, actions.Actions, null);
+        await Assert.That(next.Settings.OpenGroups).Contains(Fixtures.VerifyPassing.Id);
+        // Saved at once, so the group is still open after the next login.
+        await Assert.That(actions.SavedSettings!.OpenGroups).Contains(Fixtures.VerifyPassing.Id);
     }
 
     [Test]

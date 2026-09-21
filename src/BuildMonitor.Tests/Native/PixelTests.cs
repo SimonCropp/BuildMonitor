@@ -20,7 +20,7 @@ public class PixelTests
         }
 
         NativeResolver.Register();
-        window = NativeMonitorWindow.Open("BuildMonitor", width, height, hidden: true, out var error);
+        window = NativeMonitorWindow.Open("BuildMonitor", width, height, null, hidden: true, out var error);
         if (window is null)
         {
             throw new(error!);

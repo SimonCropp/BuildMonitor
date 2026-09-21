@@ -13,6 +13,13 @@ static class InputApplier
             state = MonitorSession.Resize(state, input.Columns, input.Rows);
         }
 
+        if (input.Placement is { } placement &&
+            placement != state.Settings.Window)
+        {
+            state = MonitorSession.PlaceWindow(state, placement);
+            actions.SaveSettings(state.Settings);
+        }
+
         // The last message has been seen, unless the input is the click that copies it: cleared
         // first, the copy would take whatever the footer falls back to, "Polled 3s ago". The Undo
         // beside an exclude's message goes with it, unless it is what was clicked.
@@ -59,7 +66,7 @@ static class InputApplier
             if (state.SelectedRow == clicked &&
                 MonitorSession.SelectedRow(state) is { Kind: RowKind.Group, Group: { } group })
             {
-                state = MonitorSession.ToggleGroup(state, group);
+                state = ToggleGroup(state, group, actions);
             }
         }
 
@@ -313,7 +320,7 @@ static class InputApplier
                 if (command == CommandKind.OpenBuild &&
                     MonitorSession.SelectedRow(state) is { Kind: RowKind.Group, Group: { } group })
                 {
-                    return MonitorSession.ToggleGroup(state, group);
+                    return ToggleGroup(state, group, actions);
                 }
 
                 // A group's name is its members' repository, which every member of a group agrees
@@ -441,7 +448,7 @@ static class InputApplier
             case CommandKind.ToggleGroup:
                 if (MonitorSession.SelectedRow(state)?.Group is { } toggled)
                 {
-                    return MonitorSession.ToggleGroup(state, toggled);
+                    return ToggleGroup(state, toggled, actions);
                 }
 
                 return state;
@@ -697,7 +704,20 @@ static class InputApplier
     /// </summary>
     static bool ClicksUndo(SessionState state, MonitorInput input) =>
         input.ClickedButton >= 0 &&
-        ScreenBuilder.Buttons(state).ElementAtOrDefault(input.ClickedButton)?.Command == CommandKind.UndoExclude;
+        ScreenBuilder.Buttons(state)
+            .ElementAtOrDefault(input.ClickedButton)?
+            .Command == CommandKind.UndoExclude;
+
+    /// <summary>
+    /// Saved at once, as an exclude is: which groups are open is kept for the next start, and a
+    /// save held back for the exit would be lost to a shutdown that never lets the tray exit.
+    /// </summary>
+    static SessionState ToggleGroup(SessionState state, GroupKey group, MonitorActions actions)
+    {
+        state = MonitorSession.ToggleGroup(state, group);
+        actions.SaveSettings(state.Settings);
+        return state;
+    }
 
     /// <summary>
     /// Saves the filter an exclusion added and names what it dropped: the rows it was asked on are

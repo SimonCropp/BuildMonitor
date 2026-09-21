@@ -36,6 +36,10 @@ readonly record struct MonitorInput(
     // A click on the notification that last popped: the build it named, or "" where it named
     // several. Null where it was not clicked.
     string? ClickedNotification = null,
+    // Where the window settled after a move, a resize, a maximize or a hide, or null. Reported once
+    // it has settled rather than every frame of a drag, as each one is saved. Not counted in Any:
+    // moving the window has not read the status line.
+    WindowPlacement? Placement = null,
     // When the input was read, stamped by the loop rather than a head, so a click can be weighed
     // against how long ago a poll moved the row under it. A test that leaves it unset gets a time
     // before any poll, which no move is recent to.

@@ -40,7 +40,7 @@ static class RowProjection
         }
 
         var rows = Project(state, sorted);
-        lastRows = new(sorted, state.Connections, state.OpenGroups, state.Search, state.Settings.GroupPrefixes, rows);
+        lastRows = new(sorted, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, rows);
         return rows;
     }
 
@@ -96,11 +96,11 @@ static class RowProjection
     }
 
     /// <summary>
-    /// A group is closed until someone opens it, and <see cref="SessionState.OpenGroups"/> holds
-    /// the ones they did.
+    /// A group is closed until someone opens it, and <see cref="Settings.OpenGroups"/> holds the
+    /// ones they did.
     /// </summary>
     public static bool IsExpanded(SessionState state, GroupKey key) =>
-        state.OpenGroups.Contains(key.Id);
+        state.Settings.OpenGroups.Contains(key.Id);
 
     /// <summary>
     /// Whether the build's project, pipeline or branch contains the text, ignoring case. The project

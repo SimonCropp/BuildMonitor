@@ -30,7 +30,10 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     {
     }
 
-    public static IMonitorWindow? Open(string title, int width, int height, bool hidden, out string? error)
+    /// <param name="placement">Ignored: the C ABI reports nothing of where the window is, so no
+    /// placement is ever saved from here, and one saved by the Windows head is in pixels of a
+    /// desktop this is not.</param>
+    public static IMonitorWindow? Open(string title, int width, int height, WindowPlacement? placement, bool hidden, out string? error)
     {
         error = null;
         int version;

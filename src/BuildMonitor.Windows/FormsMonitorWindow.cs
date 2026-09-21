@@ -14,12 +14,12 @@ sealed class FormsMonitorWindow : IMonitorWindow
     FormsMonitorWindow(MonitorForm form) =>
         this.form = form;
 
-    public static IMonitorWindow? Open(string title, int width, int height, bool hidden, out string? error)
+    public static IMonitorWindow? Open(string title, int width, int height, WindowPlacement? placement, bool hidden, out string? error)
     {
         error = null;
         try
         {
-            var form = new MonitorForm(title, width, height);
+            var form = new MonitorForm(title, width, height, placement);
             if (!hidden)
             {
                 form.Show();

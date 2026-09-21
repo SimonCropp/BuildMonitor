@@ -10,6 +10,16 @@
   Port: 3796,
   CodeDirectory: /code,
   GroupPrefixes: null,
+  OpenGroups: [
+    verify
+  ],
+  Window: {
+    X: 100,
+    Y: 80,
+    Width: 1200,
+    Height: 800,
+    Maximized: true
+  },
   Connections: [
     {
       Id: gh,

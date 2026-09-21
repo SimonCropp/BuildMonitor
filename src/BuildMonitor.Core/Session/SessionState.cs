@@ -4,7 +4,7 @@
 /// projects it into a frame. Nothing in here touches IO.
 /// <para>
 /// Rows are not stored: <see cref="RowProjection.Rows"/> derives them from the builds, the
-/// filters and the toggled groups, so there is exactly one rule about what is shown and every reader of
+/// filters and the open groups, so there is exactly one rule about what is shown and every reader of
 /// <see cref="SelectedRow"/> agrees on what it indexes.
 /// </para>
 /// </summary>
@@ -25,8 +25,6 @@ record SessionState(
     int ScrollTop,
     int Columns,
     int Rows,
-    // The ids of the groups the user opened. A group is closed until they do.
-    ImmutableHashSet<string> OpenGroups,
     // The last thing worth telling the user, shown on the status line until the next input.
     string Status,
     bool Hidden,
@@ -61,7 +59,6 @@ record SessionState(
             ScrollTop: 0,
             Columns: 120,
             Rows: 30,
-            OpenGroups: [],
             Status: "",
             Hidden: !settings.ShowWindowAtStart,
             Exit: false);

@@ -11,6 +11,7 @@
   "Port": 3796,
   "CodeDirectory": "",
   "GroupPrefixes": [],
+  "OpenGroups": [],
   "Connections": [
     {
       "Id": "gh",

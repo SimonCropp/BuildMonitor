@@ -123,7 +123,7 @@ static class MonitorProgram
             host.Mutate(MonitorSession.Show);
         }
 
-        var window = openWindow(ScreenBuilder.Title, WindowWidth, WindowHeight, host.State.Hidden, out var windowError);
+        var window = openWindow(ScreenBuilder.Title, WindowWidth, WindowHeight, host.State.Settings.Window, host.State.Hidden, out var windowError);
         if (window is null)
         {
             Log.Fatal("Could not open a window: {Error}", windowError);

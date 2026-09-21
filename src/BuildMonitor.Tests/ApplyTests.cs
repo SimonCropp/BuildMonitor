@@ -773,6 +773,34 @@ public class ApplyTests
     static int ButtonIndex(SessionState state, CommandKind command) =>
         ScreenBuilder.Buttons(state).ToList().FindIndex(_ => _.Command == command);
 
+    /// <summary>
+    /// Where the window settled is saved for the next start, and only when it moved: the head
+    /// reports every hide, and a hide from where it already was is not worth a write.
+    /// </summary>
+    [Test]
+    public async Task AWindowPlacementIsSavedWhenItChanges()
+    {
+        var actions = new RecordingActions();
+        var placement = new WindowPlacement(100, 80, 1200, 800);
+        var state = Apply(Fixtures.WithBuilds(), new(Placement: placement), actions);
+        await Assert.That(actions.SavedSettings!.Window).IsEqualTo(placement);
+
+        actions.Calls.Clear();
+        Apply(state, new(Placement: new(100, 80, 1200, 800)), actions);
+        await Assert.That(actions.Calls).IsEmpty();
+    }
+
+    /// <summary>
+    /// Moving the window is not reading the status line, so the message stays.
+    /// </summary>
+    [Test]
+    public async Task AWindowPlacementLeavesTheStatus()
+    {
+        var state = MonitorSession.SetStatus(Fixtures.WithBuilds(), "Saved GitHub");
+        state = Apply(state, new(Placement: new(100, 80, 1200, 800, Maximized: true)), new());
+        await Assert.That(state.Status).IsEqualTo("Saved GitHub");
+    }
+
     static SessionState Apply(SessionState state, MonitorInput input, RecordingActions actions) =>
         InputApplier.Apply(state, input, actions.Actions, new FakeWindow());
 }

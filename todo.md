@@ -66,7 +66,11 @@ notification that opens its build. Worst first within each section.
   the service refused, stays at the foot. A missing value is named by its label at the start of the
   sentence, as "API token is required.", since lowering only a first letter would still turn
   "Atlassian account email" into "atlassian".
-- [ ] **Window size, position and open groups reset on every start.** The window opens at
-  `CenterScreen` at a fixed size ([MonitorForm.cs](src/BuildMonitor.Windows/MonitorForm.cs)), and
-  `OpenGroups` lives in `SessionState` rather than `Settings`. For an app that runs at login and is
-  shown and hidden all day, both reset every morning.
+- [x] **Window size, position and open groups reset on every start.** `OpenGroups` is in
+  `Settings` now, saved as a group is opened or closed. The Windows head reports where its window
+  settles after a drag, a maximize or a hide, which is saved as `Settings.Window`, and opens there
+  again unless no screen reaches its title bar any more.
+- [ ] **The macOS and Linux windows still open centred at a fixed size.** The C ABI reports nothing
+  of where the window is. macOS could keep it with `NSWindow.setFrameAutosaveName` in
+  [Runtime.swift](native/swift/Sources/Bm/Runtime.swift) and no ABI change; raylib on Linux would
+  need the position and size reported through bm.h, and a BM_VERSION.

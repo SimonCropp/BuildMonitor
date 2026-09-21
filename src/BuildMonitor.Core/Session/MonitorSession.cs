@@ -268,11 +268,12 @@ static class MonitorSession
     /// </summary>
     public static SessionState ToggleGroup(SessionState state, GroupKey key)
     {
-        var removed = state.OpenGroups.Remove(key.Id);
-        var toggled = ReferenceEquals(removed, state.OpenGroups)
-            ? state.OpenGroups.Add(key.Id)
+        var open = state.Settings.OpenGroups;
+        var removed = open.Remove(key.Id);
+        var toggled = ReferenceEquals(removed, open)
+            ? open.Add(key.Id)
             : removed;
-        var next = state with { OpenGroups = toggled };
+        var next = state with { Settings = state.Settings with { OpenGroups = toggled } };
         var rows = RowProjection.Rows(next);
         for (var index = 0; index < rows.Length; index++)
         {
@@ -285,6 +286,16 @@ static class MonitorSession
 
         return Clamp(next);
     }
+
+    // Window
+
+    /// <summary>
+    /// Where the head says its window settled, kept in the settings for the next start. Nothing
+    /// here moves the window: the head read the placement once, to open it there, and the desktop
+    /// has had it since.
+    /// </summary>
+    public static SessionState PlaceWindow(SessionState state, WindowPlacement placement) =>
+        state with { Settings = state.Settings with { Window = placement } };
 
     // Context menu
 
