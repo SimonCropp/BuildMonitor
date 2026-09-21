@@ -4,7 +4,11 @@
 /// </summary>
 static class FormFields
 {
-    // Options
+    // Options, under a heading each
+    public const string GeneralHeading = "generalHeading";
+    public const string BuildsHeading = "buildsHeading";
+    public const string PollingHeading = "pollingHeading";
+    public const string LocalHeading = "localHeading";
     public const string RunAtStartup = "runAtStartup";
     public const string ShowWindowAtStart = "showWindowAtStart";
     public const string ShowOtherBranches = "showOtherBranches";
@@ -17,6 +21,8 @@ static class FormFields
     public const string HistoryDays = "historyDays";
     public const string Port = "port";
     public const string CodeDirectory = "codeDirectory";
+
+    // About
     public const string Version = "version";
     public const string Documentation = "documentation";
     public const string OpenLogs = "openLogs";

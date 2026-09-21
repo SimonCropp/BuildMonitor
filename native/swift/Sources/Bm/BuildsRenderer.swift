@@ -522,6 +522,11 @@ final class BuildsRenderer {
                 drawText(line, at: CGPoint(x: padding, y: y + 4), font: font, colour: Palette.chipText)
                 y += lineHeight + 8
             default:
+                // A heading, a label alone, is set apart from the field above as FormView sets it.
+                if !field.label.isEmpty && field.value.isEmpty && y > bodyRect.minY + 12 {
+                    y += 10
+                }
+
                 let line = field.label.isEmpty ? field.value : (field.value.isEmpty ? field.label : "\(field.label): \(field.value)")
                 drawText(line, at: CGPoint(x: padding, y: y + 4), font: font, colour: field.id == "error" ? Palette.error : Palette.text, width: bodyRect.width - padding * 2)
                 y += lineHeight + 8

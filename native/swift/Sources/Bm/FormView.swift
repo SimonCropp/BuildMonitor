@@ -60,6 +60,12 @@ final class FormView: NSView {
         controls.removeAll()
         var y: CGFloat = 12
         for (index, field) in fields.enumerated() {
+            // A label alone is a heading over the fields below it, set apart from the field above
+            // so it does not read as one more of them.
+            if index > 0 && field.kind == Int32(BM_FIELD_LABEL.rawValue) && !field.label.isEmpty && field.value.isEmpty {
+                y += 10
+            }
+
             let control = make(field, index: index)
             var height: CGFloat = field.kind == Int32(BM_FIELD_LABEL.rawValue) ? 22 : 28
             if [BM_FIELD_TEXT, BM_FIELD_PASSWORD, BM_FIELD_NUMBER, BM_FIELD_SELECT, BM_FIELD_DIRECTORY].map({ Int32($0.rawValue) }).contains(field.kind) {

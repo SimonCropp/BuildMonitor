@@ -5,6 +5,8 @@
 /// </summary>
 enum FieldKind
 {
+    // Text to read, drawn as "label: value". A value alone is a line of its own, such as a note,
+    // and a label alone is a heading over the fields below it, drawn without the colon.
     Label = 0,
     Checkbox = 1,
     Text = 2,

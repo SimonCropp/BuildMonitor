@@ -377,6 +377,10 @@ public class ScreenTests
         Verify(Fixtures.Render(Fixtures.WithQueuePriority()));
 
     [Test]
+    public Task About() =>
+        Verify(Fixtures.Render(Fixtures.About()));
+
+    [Test]
     public Task Connections() =>
         Verify(Fixtures.Render(Fixtures.Connections()));
 
@@ -394,6 +398,10 @@ public class ScreenTests
     [Test]
     public Task Filters() =>
         Verify(Fixtures.Render(Fixtures.Filters()));
+
+    [Test]
+    public Task FiltersEmpty() =>
+        Verify(Fixtures.Render(MonitorSession.OpenFilters(Fixtures.WithBuilds())));
 
     [Test]
     public Task FiltersError() =>

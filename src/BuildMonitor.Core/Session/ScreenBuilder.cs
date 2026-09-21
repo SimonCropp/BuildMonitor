@@ -609,10 +609,22 @@ static class ScreenBuilder
                     new("Add connection", true, CommandKind.AddConnection, "Watch the builds of another CI service"),
                     new("Back", true, CommandKind.CancelForm, "Back to the builds")
                 ],
-                OptionsFormState or FiltersFormState =>
+                // About last, beside rather than between the two that decide the edits, and it
+                // keeps them: its Back comes to this page as it was left.
+                OptionsFormState =>
+                [
+                    new("Save", true, CommandKind.Save),
+                    new("Cancel", true, CommandKind.CancelForm),
+                    new("About", true, CommandKind.OpenAbout, "Version, documentation, logs and updates")
+                ],
+                FiltersFormState =>
                 [
                     new("Save", true, CommandKind.Save),
                     new("Cancel", true, CommandKind.CancelForm)
+                ],
+                AboutFormState =>
+                [
+                    new("Back", true, CommandKind.CancelForm, "Back to the options")
                 ],
                 _ => throw new($"No buttons for {state.Page}")
             }
@@ -763,6 +775,7 @@ static class ScreenBuilder
             {
                 ConnectionsFormState => ConnectionsForm(state),
                 OptionsFormState form => OptionsForm(form),
+                AboutFormState => AboutForm(),
                 FiltersFormState form => FiltersForm(form),
                 AddConnectionFormState form => AddConnectionForm(form),
                 EditConnectionFormState form => EditConnectionForm(form),
@@ -871,31 +884,57 @@ static class ScreenBuilder
         yield return "An AI client using one loses it mid-conversation, and starts a new one when it next connects:";
     }
 
+    /// <summary>
+    /// The settings, under a heading for each part of the app they change, and nothing else, so
+    /// everything on the page waits for its Save. Twelve of them in one column read as a list to
+    /// search rather than one to scan.
+    /// </summary>
     static FormPage OptionsForm(OptionsFormState form)
     {
         var fields = new List<Field>
         {
+            Heading(FormFields.GeneralHeading, "General"),
             new(FormFields.RunAtStartup, FieldKind.Checkbox, "Run at startup", form.Value(FormFields.RunAtStartup)),
             new(FormFields.ShowWindowAtStart, FieldKind.Checkbox, "Show the window at startup", form.Value(FormFields.ShowWindowAtStart)),
+            new(FormFields.NotifyOnFailure, FieldKind.Checkbox, "Notify when a build fails", form.Value(FormFields.NotifyOnFailure)),
+            new(FormFields.Theme, FieldKind.Select, "Theme", form.Value(FormFields.Theme), Options: Enum.GetNames<Theme>()),
+            Heading(FormFields.BuildsHeading, "Builds"),
             new(FormFields.ShowOtherBranches, FieldKind.Checkbox, "Show running builds on other branches", form.Value(FormFields.ShowOtherBranches)),
             new(FormFields.ShowForks, FieldKind.Checkbox, "Show forks and collaborator repositories", form.Value(FormFields.ShowForks)),
-            new(FormFields.NotifyOnFailure, FieldKind.Checkbox, "Notify when a build fails", form.Value(FormFields.NotifyOnFailure)),
+            new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Note: "Running and queued builds always show."),
             new(FormFields.GroupPrefixes, FieldKind.Text, "Group passing builds by prefix", form.Value(FormFields.GroupPrefixes), Hint: "Comma separated, eg TheProject"),
-            new(FormFields.Theme, FieldKind.Select, "Theme", form.Value(FormFields.Theme), Options: Enum.GetNames<Theme>()),
+            Heading(FormFields.PollingHeading, "Polling"),
             new(FormFields.PollInterval, FieldKind.Number, "Poll interval (seconds)", form.Value(FormFields.PollInterval)),
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),
-            new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Note: "Running and queued builds always show."),
-            new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Note: "Used by the launcher and the MCP server. Takes effect after a restart."),
+            Heading(FormFields.LocalHeading, "Local"),
             new(FormFields.CodeDirectory, FieldKind.Directory, "Code directory", form.Value(FormFields.CodeDirectory), Hint: "Where your checkouts live"),
-            new(FormFields.Version, FieldKind.Label, "Version", VersionReader.VersionString),
-            new(FormFields.Documentation, FieldKind.Link, "Documentation", "https://github.com/SimonCropp/BuildMonitor"),
-            new(FormFields.OpenLogs, FieldKind.Button, "Open logs", ""),
-            new(FormFields.RaiseIssue, FieldKind.Button, "Raise issue", ""),
-            new(FormFields.Update, FieldKind.Button, "Update", "")
+            new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Note: "Used by the launcher and the MCP server. Takes effect after a restart.")
         };
         AddError(fields, form);
         return new("Options", fields);
     }
+
+    /// <summary>
+    /// A heading over the fields below it: a label with no value, which every head draws alone.
+    /// </summary>
+    static Field Heading(string id, string text) =>
+        new(id, FieldKind.Label, text, "");
+
+    /// <summary>
+    /// What acts the moment it is clicked. Among the options, under a footer saying Save and
+    /// Cancel, it read as waiting for the Save, and Update left for its own page and dropped
+    /// whatever had been typed.
+    /// </summary>
+    static FormPage AboutForm() =>
+        new(
+            "About",
+            [
+                new(FormFields.Version, FieldKind.Label, "Version", VersionReader.VersionString),
+                new(FormFields.Documentation, FieldKind.Link, "Documentation", "https://github.com/SimonCropp/BuildMonitor"),
+                new(FormFields.OpenLogs, FieldKind.Button, "Open logs", ""),
+                new(FormFields.RaiseIssue, FieldKind.Button, "Raise issue", ""),
+                new(FormFields.Update, FieldKind.Button, "Update", "")
+            ]);
 
     /// <summary>
     /// Every connection, by name, each a row that opens its editor. Nothing here is saved by the
@@ -954,7 +993,7 @@ static class ScreenBuilder
         var fields = new List<Field>();
         if (form.Filters.Length == 0)
         {
-            fields.Add(new(FormFields.NoFilters, FieldKind.Label, "No filters. Everything is shown.", ""));
+            fields.Add(new(FormFields.NoFilters, FieldKind.Label, "", "No filters. Everything is shown."));
         }
 
         for (var index = 0; index < form.Filters.Length; index++)

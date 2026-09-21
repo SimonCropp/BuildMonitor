@@ -529,6 +529,8 @@ static class InputApplier
                 return MonitorSession.OpenConnections(state);
             case CommandKind.OpenOptions:
                 return MonitorSession.OpenOptions(state);
+            case CommandKind.OpenAbout:
+                return MonitorSession.OpenAbout(state);
             case CommandKind.OpenFilters:
                 return MonitorSession.OpenFilters(state);
             case CommandKind.AddConnection:

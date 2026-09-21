@@ -291,6 +291,12 @@ static class AsciiRenderer
         switch (field.Kind)
         {
             case FieldKind.Label:
+                // A label alone is a heading, as every head draws it: no colon pointing at nothing.
+                if (field.Value.Length == 0)
+                {
+                    return field.Label;
+                }
+
                 return $"{label}{field.Value}";
             case FieldKind.Checkbox:
                 return $"[{(field.Value == "true" ? 'x' : ' ')}] {field.Label}";

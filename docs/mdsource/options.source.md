@@ -12,33 +12,55 @@ Linux:
 
 <img src="../src/BuildMonitor.Tests/Native/PixelTests.Options.Linux.verified.png">
 
+Nothing here takes effect until Save; Cancel, or Escape, leaves everything as it was. The CI services being watched are on their own page, [Connections](connections.md).
 
-## Run at startup
+
+## General
+
+
+### Run at startup
 
 Starts BuildMonitor at login. On Windows this is a value under the current user's Run registry key; on macOS a launch agent in `~/Library/LaunchAgents`; on Linux a desktop entry in `~/.config/autostart`. Each points at the `buildmonitor` command in `~/.dotnet/tools`, which stays put across updates.
 
 
-## Show the window at startup
+### Show the window at startup
 
 Whether the window opens when the tray starts, or only the icon appears.
 
 
-## Show running builds on other branches
-
-A pipeline's row is its latest run on any branch. With this on, every other branch that is queued or running right now gets a row too.
-
-
-## Show forks and collaborator repositories
-
-Off by default. GitHub then watches the repositories owned by the signed in account and by the organizations it belongs to, and leaves out forks and repositories where the account is only a collaborator. They are left out of discovery itself, so they cost no API calls. Turning it on discovers them on the next poll.
-
-
-## Notify when a build fails
+### Notify when a build fails
 
 Pops a desktop notification when a poll finds a build that has failed since the previous poll. The first poll after starting is silent, so a red pipeline that has been red for a week is not announced every login. On Windows this is a balloon from the tray icon, on macOS a Notification Center banner, on Linux whatever `notify-send` reaches.
 
 
-## Group passing builds by prefix
+### Theme
+
+System takes the desktop's own light or dark setting. Dark and Light keep to one whatever the desktop uses.
+
+
+## Builds
+
+
+### Show running builds on other branches
+
+A pipeline's row is its latest run on any branch. With this on, every other branch that is queued or running right now gets a row too.
+
+
+### Show forks and collaborator repositories
+
+Off by default. GitHub then watches the repositories owned by the signed in account and by the organizations it belongs to, and leaves out forks and repositories where the account is only a collaborator. They are left out of discovery itself, so they cost no API calls. Turning it on discovers them on the next poll.
+
+
+### Show builds from the last (days)
+
+How far back a finished build is shown, 30 days unless changed, from 1 to 365. A pipeline whose last run is older has no row. Running and queued builds always show, however long ago they were queued, and a build that started before the limit shows once it finishes inside it.
+
+GitLab CI takes the limit as part of the request (`updatedAfter`, or `updated_after` over REST), so a poll of a busy account returns less. The date sent is the start of a UTC day, so the request's URL stays the same all day and a cheap "not modified" answer keeps working.
+
+Every other service's older builds are dropped as they arrive. GitHub Actions, Azure DevOps and TeamCity can filter by date, but only on when a build was created or queued, which would also leave out a build from before the limit that is still running or was re-run.
+
+
+### Group passing builds by prefix
 
 Project name prefixes, comma separated, that group passing builds ahead of the repository name. A family of repositories named alike — `TheProjectApi`, `TheProjectUI`, `TheProjectManager`, `TheProjectDataModel` — otherwise takes a group each, and a dozen green rows bury the ones that need reading as surely as one repository's workflows do. Typing `TheProject` makes them one group named `TheProject`.
 
@@ -49,16 +71,10 @@ A member of such a group names its own repository, since the group's row no long
 Prefixes are added from here or from the [row's own menu](tray.md#the-window), which offers the ones its project shares with another and takes one back off from the group it made.
 
 
-## Show builds from the last (days)
-
-How far back a finished build is shown, 30 days unless changed, from 1 to 365. A pipeline whose last run is older has no row. Running and queued builds always show, however long ago they were queued, and a build that started before the limit shows once it finishes inside it.
-
-GitLab CI takes the limit as part of the request (`updatedAfter`, or `updated_after` over REST), so a poll of a busy account returns less. The date sent is the start of a UTC day, so the request's URL stays the same all day and a cheap "not modified" answer keeps working.
-
-Every other service's older builds are dropped as they arrive. GitHub Actions, Azure DevOps and TeamCity can filter by date, but only on when a build was created or queued, which would also leave out a build from before the limit that is still running or was re-run.
+## Polling
 
 
-## Poll intervals
+### Poll intervals
 
 How often a repository, project or pipeline that built recently is polled, in seconds, and the shorter interval used while a running build is expected to finish.
 
@@ -69,12 +85,10 @@ A running build gets the shorter interval from the fastest of its pipeline's las
 A repository that keeps failing backs off on its own without holding up the rest. When a provider's rate limit runs low, every interval stretches until the limit recovers. Every provider but GitHub Actions, GitLab CI and Octopus Deploy lets a quiet repository, project or pipeline wait up to thirty minutes, because a cheaper request in between notices a new build sooner.
 
 
-## Local port
-
-The loopback port the tray listens on. The `buildmonitor` command and the [MCP server](mcp.md) use it to reach the running tray, and it is what stops a second tray starting. Change it when something else already uses 3796. Takes effect after a restart, and can be overridden for one run with the `BuildMonitor_Port` environment variable.
+## Local
 
 
-## Code directory
+### Code directory
 
 Where the checkouts live. Browse picks it, or a path can be typed. Every git repository up to two folders below it, so both `code/DiffEngine` and `code/VerifyTests/DiffEngine`, gets a folder button on the rows of the pipelines it builds, which opens it in the file manager.
 
@@ -89,7 +103,17 @@ The tray menu gains an Open code directory item while this is set, above Open lo
 The list is kept current while BuildMonitor runs: a repository cloned into the directory gets its button without a restart. Only the folders that could hold a checkout are watched, not everything below them, so a directory full of repositories and their build output costs a bounded number of watches. An empty field watches nothing.
 
 
-## Update
+### Local port
+
+The loopback port the tray listens on. The `buildmonitor` command and the [MCP server](mcp.md) use it to reach the running tray, and it is what stops a second tray starting. Change it when something else already uses 3796. Takes effect after a restart, and can be overridden for one run with the `BuildMonitor_Port` environment variable.
+
+
+## About
+
+About, beside Save and Cancel, opens a page with the version, a link to this documentation, and the three below, each of which acts the moment it is clicked rather than waiting for a Save. Back returns to the options as they were left, unsaved edits and all, and calling off an update started there comes back to About. Open logs, Raise issue and Update are in the tray menu too.
+
+
+### Update
 
 Opens a page saying what the update is about to do, and updates only once that is confirmed. BuildMonitor closes, runs `dotnet tool update` and starts again, and nothing is on screen in between: on Windows the update has to run after the tray has exited, because a running executable cannot be replaced.
 
@@ -98,11 +122,11 @@ For the same reason it first stops any [MCP server](mcp.md) BuildMonitor is runn
 BuildMonitor reports how the update went when it starts again. One that worked names the version now installed; one that failed gives the reason, and BuildMonitor is on the version it had. The whole output of `dotnet tool update` is in the [log](troubleshooting.md#logs). See [An update fails](troubleshooting.md#an-update-fails).
 
 
-## Open logs
+### Open logs
 
 Opens the log directory, which sits beside the installed tool. See [Troubleshooting](troubleshooting.md).
 
 
-## Raise issue
+### Raise issue
 
 Opens a new GitHub issue with the version, operating system and log location filled in.

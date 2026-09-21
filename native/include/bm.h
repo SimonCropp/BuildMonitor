@@ -191,6 +191,8 @@ typedef struct BmRow {
 
 /* Keep in sync with FieldKind.cs */
 enum BmFieldKind {
+    /* Drawn as "label: value". A value alone is a line of its own, and a label alone is a heading
+       over the fields below it, drawn without the colon. */
     BM_FIELD_LABEL = 0,
     BM_FIELD_CHECKBOX = 1,
     BM_FIELD_TEXT = 2,

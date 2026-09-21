@@ -16,7 +16,7 @@ The log directory sits beside the installed tool, so it moves with the version:
 ~/.dotnet/tools/.store/buildmonitor/{VERSION}/buildmonitor/{VERSION}/tools/net10.0/any/heads/{RID}/logs
 ```
 
-The tray menu's "Open logs" and the Options page open it without any of that. Ten files of a megabyte each are kept.
+The tray menu's "Open logs" and the [About](options.md#about) page open it without any of that. Ten files of a megabyte each are kept.
 
 The log holds information, warnings and errors. Set the `BuildMonitor_LogLevel` environment variable to `Debug` to also log each connection's schedule every poll, a line per repository or pipeline. On a large account that fills the ten files in about an hour, so set it only while chasing a problem.
 
@@ -67,4 +67,4 @@ A repository, project or pipeline that has not built for a while is checked less
 
 ## Reporting a problem
 
-"Raise issue" in the tray menu or the Options page opens a new issue with the version, the operating system and the log location filled in. Attach the latest log file.
+"Raise issue" in the tray menu or on the [About](options.md#about) page opens a new issue with the version, the operating system and the log location filled in. Attach the latest log file.

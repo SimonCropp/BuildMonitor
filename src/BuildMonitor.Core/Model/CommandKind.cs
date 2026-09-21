@@ -47,6 +47,8 @@ public enum CommandKind
     OpenBuilds,
     OpenConnections,
     OpenOptions,
+    // The about page, from the options' footer, which it goes back to.
+    OpenAbout,
     OpenFilters,
     AddConnection,
     EditConnection,

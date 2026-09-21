@@ -272,10 +272,26 @@ sealed class FormPanel : Panel
                     ForeColor = field.Id == "error" ? Palette.Error : Palette.Text,
                     Margin = DpiScale.Spacing(this, 3, 6, 3, 6)
                 };
+                if (IsHeading(field))
+                {
+                    // Bold, and apart from the field above: in the colour of a checkbox's text, a
+                    // heading read as one more checkbox that had lost its box.
+                    var bold = new Font(Font, FontStyle.Bold);
+                    label.Font = bold;
+                    label.Disposed += (_, _) => bold.Dispose();
+                    label.Margin = DpiScale.Spacing(this, 3, 14, 3, 4);
+                }
+
                 return (null, label);
             }
         }
     }
+
+    /// <summary>
+    /// A label alone, over the fields below it.
+    /// </summary>
+    static bool IsHeading(Field field) =>
+        field is { Kind: FieldKind.Label, Label.Length: > 0, Value.Length: 0 };
 
     FormsLabel Label(string text) =>
         new()
@@ -360,7 +376,13 @@ sealed class FormPanel : Panel
                 link.Text = field.Label;
                 break;
             case FormsLabel label:
-                label.Text = field.Label.Length == 0 ? field.Value : $"{field.Label}: {field.Value}";
+                // A heading without the colon, which made it read as a field missing its value.
+                label.Text = field switch
+                {
+                    { Label.Length: 0 } => field.Value,
+                    _ when IsHeading(field) => field.Label,
+                    _ => $"{field.Label}: {field.Value}"
+                };
                 break;
         }
     }

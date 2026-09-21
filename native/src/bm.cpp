@@ -1184,7 +1184,14 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
                 break;
             }
             default: {
-                std::string line = label.empty() ? value : label + ": " + value;
+                // A label alone is a heading over the fields below it: set apart from the field
+                // above, or it read as one more of them, and without a colon pointing at nothing.
+                bool heading = !label.empty() && value.empty();
+                if (heading && i > 0) {
+                    ImGui::Dummy(ImVec2(0.0f, ImGui::GetTextLineHeight() * 0.5f));
+                }
+
+                std::string line = heading ? label : label.empty() ? value : label + ": " + value;
                 ImGui::PushStyleColor(ImGuiCol_Text, id == "error" ? errorText : text);
                 ImGui::TextWrapped("%s", line.c_str());
                 ImGui::PopStyleColor();

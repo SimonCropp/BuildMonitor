@@ -549,8 +549,29 @@ static class MonitorSession
             new UpdateFormState
             {
                 Values = [],
-                Servers = servers
+                Servers = servers,
+                About = state.Form as AboutFormState
             });
+
+    /// <summary>
+    /// Only from the options, which it holds and goes back to: from anywhere else there would be
+    /// no options for its Back to return to.
+    /// </summary>
+    public static SessionState OpenAbout(SessionState state)
+    {
+        if (state.Form is not OptionsFormState options)
+        {
+            return state;
+        }
+
+        return OpenForm(
+            state,
+            new AboutFormState
+            {
+                Values = [],
+                Options = options
+            });
+    }
 
     /// <summary>
     /// The page and the form are set together, from the form: set apart they could disagree, and
@@ -628,23 +649,26 @@ static class MonitorSession
 
     /// <summary>
     /// Leaves a form for where it was opened from: a connection editor, or the page asking about
-    /// removing its connection, for the connections page it was opened from; every other form, and
-    /// an editor opened from anywhere else, for the builds page.
+    /// removing its connection, for the connections page it was opened from; the about page for
+    /// the options, as they were left; the update page for the about page it was opened from; every
+    /// other form, and any of those opened from anywhere else, for the builds page.
     /// </summary>
     public static SessionState CloseForm(SessionState state)
     {
-        var connections = state.Form switch
+        FormState? back = state.Form switch
         {
             ConnectionFormState editor => editor.Connections,
             RemoveConnectionFormState removing => removing.Editor.Connections,
+            AboutFormState about => about.Options,
+            UpdateFormState update => update.About,
             _ => null
         };
-        if (connections is null)
+        if (back is null)
         {
             return OpenBuilds(state);
         }
 
-        return OpenForm(state with { SignIn = null }, connections);
+        return OpenForm(state with { SignIn = null }, back);
     }
 
     /// <summary>
