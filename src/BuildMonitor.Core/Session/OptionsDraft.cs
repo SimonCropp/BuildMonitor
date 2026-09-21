@@ -40,6 +40,7 @@ static class OptionsDraft
             ShowOtherBranches = form.Flag(FormFields.ShowOtherBranches),
             ShowForksAndCollaborations = form.Flag(FormFields.ShowForks),
             NotifyOnFailure = form.Flag(FormFields.NotifyOnFailure),
+            GroupPrefixes = Prefixes(form.Value(FormFields.GroupPrefixes)),
             Theme = Enum.TryParse<Theme>(form.Value(FormFields.Theme), out var theme) ? theme : current.Theme,
             PollIntervalSeconds = poll,
             RunningPollIntervalSeconds = running,
@@ -51,6 +52,18 @@ static class OptionsDraft
         };
         return true;
     }
+
+    /// <summary>
+    /// The prefixes typed as one comma separated box. Duplicates ignoring case are dropped, since
+    /// two spellings of one prefix are one group and the second would only ever be the loser of a
+    /// longest match.
+    /// </summary>
+    static ImmutableArray<string> Prefixes(string text) =>
+    [
+        ..text
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+    ];
 
     static bool TryInterval(string text, out int seconds) =>
         int.TryParse(text, out seconds) && seconds is >= 5 and <= 3600;

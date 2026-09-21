@@ -45,6 +45,15 @@ Off by default. GitHub then watches the repositories owned by the signed in acco
 Pops a desktop notification when a poll finds a build that has failed since the previous poll. The first poll after starting is silent, so a red pipeline that has been red for a week is not announced every login. On Windows this is a balloon from the tray icon, on macOS a Notification Center banner, on Linux whatever `notify-send` reaches.
 
 
+## Group passing builds by prefix
+
+Project name prefixes, comma separated, that group passing builds ahead of the repository name. A family of repositories named alike — `TheProjectApi`, `TheProjectUI`, `TheProjectManager`, `TheProjectDataModel` — otherwise takes a group each, and a dozen green rows bury the ones that need reading as surely as one repository's workflows do. Typing `TheProject` makes them one group named `TheProject`.
+
+Matched against the name the row's first column shows, ignoring case, so the owner is no part of it. Where two prefixes both match, the longer one wins, which is how `TheProject` and `TheProjectManager` can both be listed. A build matching none is grouped by whatever the service files it under — an [Octopus project group](providers/octopus.md#rows) — and otherwise by its repository as before. Nothing but a passing build is grouped, whichever of the three named it.
+
+A member of such a group names its own repository, since the group's row no longer does.
+
+
 ## Show builds from the last (days)
 
 How far back a finished build is shown, 30 days unless changed, from 1 to 365. A pipeline whose last run is older has no row. Running and queued builds always show, however long ago they were queued, and a build that started before the limit shows once it finishes inside it.

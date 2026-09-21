@@ -1,6 +1,7 @@
 [JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(OctopusPage<OctopusSpace>))]
 [JsonSerializable(typeof(OctopusPage<OctopusProject>))]
+[JsonSerializable(typeof(OctopusPage<OctopusProjectGroup>))]
 [JsonSerializable(typeof(OctopusPage<OctopusDeployment>))]
 [JsonSerializable(typeof(OctopusPage<OctopusTask>))]
 [JsonSerializable(typeof(OctopusPage<OctopusArtifact>))]

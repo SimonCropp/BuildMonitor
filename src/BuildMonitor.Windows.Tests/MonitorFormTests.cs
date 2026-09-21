@@ -23,6 +23,18 @@ public class MonitorFormTests
     public Task Groups() =>
         Capture(Fixtures.WithTwoFailures());
 
+    // A prefix group, open: it names no one repository, so its row has no mark to lead with and
+    // its members name the repositories they came from.
+    [Test]
+    public Task PrefixGroup() =>
+        Capture(MonitorSession.ToggleGroup(Fixtures.WithPrefixGroup(), Fixtures.VerifyPassing));
+
+    // An Octopus project group, open. Octopus reports no repository, so neither the group's row nor
+    // its members carry a mark before the name; the project each deployed is the name itself.
+    [Test]
+    public Task ProjectGroup() =>
+        Capture(MonitorSession.ToggleGroup(Fixtures.WithProjectGroup(), Fixtures.StorefrontPassing));
+
     // The rows of the repositories found under the code directory, whose chip is a folder rather
     // than a word. The only baseline that shows it drawn.
     [Test]

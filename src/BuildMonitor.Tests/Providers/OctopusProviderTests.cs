@@ -5,7 +5,8 @@ public class OctopusProviderTests
     static FakeHttpHandler Discovery() =>
         new FakeHttpHandler()
             .Get($"{server}/api/spaces?take=100", """{"Items":[{"Id":"Spaces-1","Name":"Default","IsDefault":true},{"Id":"Spaces-2","Name":"Other","IsDefault":false}]}""")
-            .Get($"{server}/api/Spaces-1/projects?take=100", """{"Items":[{"Id":"Projects-1","Name":"Web","Links":{"Web":"/app#/Spaces-1/projects/web"}}]}""")
+            .Get($"{server}/api/Spaces-1/projects?take=100", """{"Items":[{"Id":"Projects-1","Name":"Web","ProjectGroupId":"ProjectGroups-1","Links":{"Web":"/app#/Spaces-1/projects/web"}}]}""")
+            .Get($"{server}/api/Spaces-1/projectgroups?take=100", """{"Items":[{"Id":"ProjectGroups-1","Name":"Storefront"}]}""")
             .Get($"{server}/api/Spaces-1/tasks/ServerTasks-100/details?verbose=false&tail=1", """{"Task":{"Id":"ServerTasks-100"},"Progress":{"ProgressPercentage":40,"EstimatedTimeRemaining":"00:02:15"}}""");
 
     static FakeHttpHandler Handler() =>
@@ -26,6 +27,40 @@ public class OctopusProviderTests
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("octopus", ProviderTestHelpers.Context("octopus", handler, server));
         await Verify(new { builds, handler.Requests });
+    }
+
+    /// <summary>
+    /// A key that may not list the project groups still discovers every project: the names only
+    /// decide which passing rows share a group, and losing the pipelines over that would cost the
+    /// rows themselves.
+    /// </summary>
+    [Test]
+    public async Task ProjectGroupsThatCannotBeListedLeaveThePipelines()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{server}/api/spaces?take=100", """{"Items":[{"Id":"Spaces-1","Name":"Default","IsDefault":true}]}""")
+            .Get($"{server}/api/Spaces-1/projects?take=100", """{"Items":[{"Id":"Projects-1","Name":"Web","ProjectGroupId":"ProjectGroups-1"}]}""");
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        var pipelines = await ProviderTestHelpers.Provider("octopus").DiscoverPipelines(context, Cancel.None);
+        await Assert.That(pipelines.Single().ProjectGroup).IsNull();
+    }
+
+    /// <summary>
+    /// A project in no group, or in one the listing did not name, groups by its own name: an id on
+    /// a row would group by something nobody recognises.
+    /// </summary>
+    [Test]
+    [Arguments("""{"Id":"Projects-1","Name":"Web"}""")]
+    [Arguments("""{"Id":"Projects-1","Name":"Web","ProjectGroupId":"ProjectGroups-9"}""")]
+    public async Task AProjectWithNoNamedGroupCarriesNone(string project)
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{server}/api/spaces?take=100", """{"Items":[{"Id":"Spaces-1","Name":"Default","IsDefault":true}]}""")
+            .Get($"{server}/api/Spaces-1/projects?take=100", $$"""{"Items":[{{project}}]}""")
+            .Get($"{server}/api/Spaces-1/projectgroups?take=100", """{"Items":[{"Id":"ProjectGroups-1","Name":"Storefront"}]}""");
+        var context = ProviderTestHelpers.Context("octopus", handler, server);
+        var pipelines = await ProviderTestHelpers.Provider("octopus").DiscoverPipelines(context, Cancel.None);
+        await Assert.That(pipelines.Single().ProjectGroup).IsNull();
     }
 
     [Test]
@@ -260,7 +295,8 @@ public class OctopusProviderTests
                 """
                 [
                   GET https://octopus.example.com/api/spaces?take=100,
-                  GET https://octopus.example.com/api/Spaces-2/projects?take=100
+                  GET https://octopus.example.com/api/Spaces-2/projects?take=100,
+                  GET https://octopus.example.com/api/Spaces-2/projectgroups?take=100
                 ]
                 """);
     }

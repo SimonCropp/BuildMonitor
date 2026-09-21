@@ -24,6 +24,11 @@
 /// project, the Jenkins job, the Actions workflow. Always known, since it is the page every
 /// provider already builds its build URLs under.
 /// </param>
+/// <param name="ProjectGroup">
+/// What the service files the pipeline under, carried from <see cref="Pipeline.ProjectGroup"/>:
+/// passing builds sharing one are grouped under it ahead of the repository name. Null for every
+/// provider that has no such thing, and then the repository name groups them as before.
+/// </param>
 record Build(
     string ConnectionId,
     string PipelineId,
@@ -48,7 +53,8 @@ record Build(
     bool CanCancel,
     string ProviderRef,
     string PipelineUrl,
-    string? RepoUrl = null)
+    string? RepoUrl = null,
+    string? ProjectGroup = null)
 {
     /// <summary>
     /// What a row is: a pipeline on a branch. Stable across polls so the selection survives a

@@ -39,11 +39,57 @@ sealed class OctopusProvider : ProviderBase
         var space = await Space(context, cancel);
         var server = context.Http.BaseAddress.GetLeftPart(UriPartial.Authority);
         var projects = await context.Http.Get($"{space.Id}/projects?take=100", OctopusContext.Default.OctopusPageOctopusProject, cancel);
+        var groups = await ProjectGroups(context, space.Id, cancel);
         // The project stands in for the repository. The space did before, and grouped every finished
         // deployment in it under the space's name.
         return projects.Items
-            .Select(_ => new Pipeline(_.Id, _.Name, _.Name, space.Id, $"{server}{_.Links?.Web ?? ""}"))
+            .Select(_ => new Pipeline(
+                _.Id,
+                _.Name,
+                _.Name,
+                space.Id,
+                $"{server}{_.Links?.Web ?? ""}",
+                ProjectGroup: Named(groups, _.ProjectGroupId)))
             .ToList();
+    }
+
+    /// <summary>
+    /// The space's project group names by id, which the rows group passing deployments by. Read
+    /// with the projects rather than every poll: a project moves between groups about as often as
+    /// it is created.
+    /// <para>
+    /// A server that will not list them is not a discovery failure. The names are what the rows
+    /// would have read better as, and a key without ProjectGroupView would otherwise lose every
+    /// pipeline over a grouping.
+    /// </para>
+    /// </summary>
+    static async Task<IReadOnlyDictionary<string, string>> ProjectGroups(ProviderContext context, string spaceId, Cancel cancel)
+    {
+        try
+        {
+            var groups = await context.Http.Get($"{spaceId}/projectgroups?take=100", OctopusContext.Default.OctopusPageOctopusProjectGroup, cancel);
+            return groups.Items.ToDictionary(_ => _.Id, _ => _.Name);
+        }
+        catch (HttpRequestException exception)
+        {
+            Log.Warning(exception, "Listing the Octopus project groups of {Connection} failed; its deployments group by project", context.Connection.Name);
+            return new Dictionary<string, string>();
+        }
+    }
+
+    /// <summary>
+    /// The group's name, or null for a project in none and for one whose group the listing did not
+    /// name: an id on a row would group by something nobody recognises.
+    /// </summary>
+    static string? Named(IReadOnlyDictionary<string, string> groups, string? groupId)
+    {
+        if (groupId is null ||
+            !groups.TryGetValue(groupId, out var name))
+        {
+            return null;
+        }
+
+        return name;
     }
 
     static async Task<OctopusSpace> Space(ProviderContext context, Cancel cancel)
@@ -145,7 +191,8 @@ sealed class OctopusProvider : ProviderBase
                 CanCancel: status is BuildStatus.Running or BuildStatus.Queued &&
                            MayCancel(grants, item.ProjectId, item.EnvironmentId),
                 Join(item.TaskId, $"{spaceId}/tasks/rerun/{item.TaskId}", $"{spaceId}/tasks/{item.TaskId}/cancel", $"{spaceId}/tasks/{item.TaskId}/raw", spaceId),
-                pipeline.Url));
+                pipeline.Url,
+                ProjectGroup: pipeline.ProjectGroup));
         }
 
         return builds;
@@ -314,7 +361,8 @@ sealed class OctopusProvider : ProviderBase
             CanRetry: false,
             CanCancel: mayCancel && cancel is not null && status is BuildStatus.Running or BuildStatus.Queued,
             Join(task.Id, rerun, cancel, task.Links?.Raw is { } raw ? Link(raw) : $"{spaceId}/tasks/{task.Id}/raw", spaceId),
-            pipeline.Url);
+            pipeline.Url,
+            ProjectGroup: pipeline.ProjectGroup);
     }
 
     /// <summary>

@@ -77,6 +77,19 @@ public class SettingsHelperTests :
         await Assert.That(read.CodeDirectory).IsEqualTo("");
     }
 
+    /// <summary>
+    /// An array the file does not name reads as a default ImmutableArray, which throws when the
+    /// grouping enumerates it rather than reading as the empty the initializer says.
+    /// </summary>
+    [Test]
+    public async Task AFileWrittenBeforeGroupPrefixesReadsAsEmpty()
+    {
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(AppPaths.Settings, """{"PollIntervalSeconds": 12}""");
+        var read = SettingsHelper.Read();
+        await Assert.That(read.GroupPrefixes.IsDefault).IsFalse();
+    }
+
     public void Dispose()
     {
         AppPaths.Directory = original;

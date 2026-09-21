@@ -37,6 +37,15 @@ static class SettingsHelper
             settings = settings with { CodeDirectory = "" };
         }
 
+        // Same reason once more, and worse for an array: the type default of an ImmutableArray is
+        // not the empty one its initializer gives, and it throws when enumerated rather than
+        // yielding nothing. A file written before this property existed would break the grouping of
+        // every passing build.
+        if (settings.GroupPrefixes.IsDefault)
+        {
+            settings = settings with { GroupPrefixes = [] };
+        }
+
         return settings;
     }
 

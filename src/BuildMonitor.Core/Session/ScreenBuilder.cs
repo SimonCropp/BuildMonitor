@@ -151,13 +151,19 @@ static class ScreenBuilder
         return [..RowProjection.Rows(state with { Search = "" }, builds), ..rows];
     }
 
+    /// <summary>
+    /// The distinct first cells a column of that kind is sized from. A member is measured with the
+    /// builds rather than the groups: its cell is drawn like a build's, and under a prefix group it
+    /// holds a repository name the column has to have room for.
+    /// </summary>
     static List<string> Names(ImmutableArray<Row> rows, RowKind kind)
     {
         var names = new List<string>();
         var seen = new HashSet<string>().GetAlternateLookup<CharSpan>();
         foreach (var row in rows)
         {
-            if (row.Kind != kind)
+            if (row.Kind != kind &&
+                !(kind == RowKind.Build && row.Kind == RowKind.Member))
             {
                 continue;
             }
@@ -197,9 +203,25 @@ static class ScreenBuilder
         row.Kind switch
         {
             RowKind.Group => row.Group!.Project,
-            RowKind.Member => "",
+            RowKind.Member => MemberName(row),
             _ => row.Build!.ShortRepoName()
         };
+
+    /// <summary>
+    /// A member's first cell is blank under a group named for its repository, since the row above
+    /// already says it. Under a prefix group the members are repositories of their own, so each
+    /// names itself: a column of pipeline names said nothing about which repository ran which.
+    /// </summary>
+    static string MemberName(Row row)
+    {
+        var project = row.Build!.ShortRepoName();
+        if (string.Equals(project, row.Group!.Project, StringComparison.OrdinalIgnoreCase))
+        {
+            return "";
+        }
+
+        return project;
+    }
 
     /// <summary>
     /// What a click on a row's first cell opens. A broken or running build's row leads with the
@@ -212,7 +234,12 @@ static class ScreenBuilder
     /// </summary>
     static ChipKind NameLinkOf(Row row)
     {
-        if (row is not { Kind: RowKind.Build, Build: { } build })
+        // A member that names its own repository opens it like any other row: under a prefix group
+        // the name is the only thing saying which repository ran the pipeline beside it, and plain
+        // text there made the same build read as less than it does outside the group. A member
+        // whose cell is blank has nothing to open, and the group's row above carries the link.
+        if (row.Build is not { } build ||
+            NameOf(row).Length == 0)
         {
             return ChipKind.None;
         }
@@ -232,12 +259,14 @@ static class ScreenBuilder
 
     /// <summary>
     /// The mark before a row's first cell: the service that ran the build where the cell opens the
-    /// run, and the host of the source where it opens the repository. A member's first cell is
-    /// blank, and a mark before nothing would only say what the row above already does.
+    /// run, and the host of the source where it opens the repository. Nothing before a blank cell,
+    /// which is a member under a group named for its repository: a mark there would only say what
+    /// the row above already does.
     /// </summary>
     static string NameIconOf(Row row, ProviderDescriptor descriptor)
     {
-        if (row is not { Kind: RowKind.Build, Build: { } build })
+        if (row.Build is not { } build ||
+            NameOf(row).Length == 0)
         {
             return "";
         }
@@ -313,13 +342,15 @@ static class ScreenBuilder
     /// <summary>
     /// The pipeline and branch a build's second cell names, either empty when left out. The pipeline
     /// is left out only where the first cell is already showing that name, as it is on an AppVeyor
-    /// row whose project is named after its repository. A member of a group has no first cell to
-    /// repeat, so its pipeline stays: without it the row named its run nowhere a click could reach.
+    /// row whose project is named after its repository, or on a member naming its own project under
+    /// a group the server or a prefix made. A member with a blank first cell has nothing to repeat,
+    /// so its pipeline stays: without it the row named its run nowhere a click could reach.
     /// </summary>
     static (string Pipeline, string Branch) DetailParts(Row row)
     {
         var build = row.Build!;
-        if (row.Kind == RowKind.Build && NamedAfterProject(build))
+        if (NameOf(row).Length > 0 &&
+            NamedAfterProject(build))
         {
             return ("", build.ShortBranchName());
         }
@@ -709,6 +740,7 @@ static class ScreenBuilder
             new(FormFields.ShowOtherBranches, FieldKind.Checkbox, "Show running builds on other branches", form.Value(FormFields.ShowOtherBranches)),
             new(FormFields.ShowForks, FieldKind.Checkbox, "Show forks and collaborator repositories", form.Value(FormFields.ShowForks)),
             new(FormFields.NotifyOnFailure, FieldKind.Checkbox, "Notify when a build fails", form.Value(FormFields.NotifyOnFailure)),
+            new(FormFields.GroupPrefixes, FieldKind.Text, "Group passing builds by prefix", form.Value(FormFields.GroupPrefixes), Hint: "Comma separated, eg TheProject"),
             new(FormFields.Theme, FieldKind.Select, "Theme", form.Value(FormFields.Theme), Options: Enum.GetNames<Theme>()),
             new(FormFields.PollInterval, FieldKind.Number, "Poll interval (seconds)", form.Value(FormFields.PollInterval)),
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),

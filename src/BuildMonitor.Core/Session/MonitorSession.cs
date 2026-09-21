@@ -423,6 +423,7 @@ static class MonitorSession
         values[FormFields.ShowOtherBranches] = Flag(settings.ShowOtherBranches);
         values[FormFields.ShowForks] = Flag(settings.ShowForksAndCollaborations);
         values[FormFields.NotifyOnFailure] = Flag(settings.NotifyOnFailure);
+        values[FormFields.GroupPrefixes] = string.Join(", ", settings.GroupPrefixes);
         values[FormFields.Theme] = settings.Theme.ToString();
         values[FormFields.PollInterval] = settings.PollIntervalSeconds.ToString();
         values[FormFields.RunningPollInterval] = settings.RunningPollIntervalSeconds.ToString();

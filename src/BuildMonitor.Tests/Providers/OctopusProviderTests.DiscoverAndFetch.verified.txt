@@ -21,6 +21,7 @@
       CanCancel: true,
       ProviderRef: ServerTasks-100|Spaces-1/tasks/rerun/ServerTasks-100|Spaces-1/tasks/ServerTasks-100/cancel|Spaces-1/tasks/ServerTasks-100/raw|Spaces-1,
       PipelineUrl: https://octopus.example.com/app#/Spaces-1/projects/web,
+      ProjectGroup: Storefront,
       Key: octopus/Projects-1/Production,
       PipelineKey: octopus/Projects-1,
       IsActive: true,
@@ -44,6 +45,7 @@
       CanCancel: false,
       ProviderRef: ServerTasks-99|Spaces-1/tasks/rerun/ServerTasks-99|Spaces-1/tasks/ServerTasks-99/cancel|Spaces-1/tasks/ServerTasks-99/raw|Spaces-1,
       PipelineUrl: https://octopus.example.com/app#/Spaces-1/projects/web,
+      ProjectGroup: Storefront,
       Key: octopus/Projects-1/Staging,
       PipelineKey: octopus/Projects-1,
       IsActive: false,
@@ -53,6 +55,7 @@
   Requests: [
     GET https://octopus.example.com/api/spaces?take=100,
     GET https://octopus.example.com/api/Spaces-1/projects?take=100,
+    GET https://octopus.example.com/api/Spaces-1/projectgroups?take=100,
     GET https://octopus.example.com/api/Spaces-1/dashboard/dynamic?projects=Projects-1&includePrevious=true,
     GET https://octopus.example.com/api/Spaces-1/tasks/ServerTasks-100/details?verbose=false&tail=1
   ]

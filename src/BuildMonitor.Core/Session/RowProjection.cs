@@ -3,7 +3,8 @@
 /// goes through here, so the selection, the menu, the tray and the screen agree.
 /// <para>
 /// One list across every connection: grouping by connection split what needs attention into as
-/// many lists as there were services. Passing builds of one project share a closed group instead,
+/// many lists as there were services. Passing builds of one project, or of one prefix named in
+/// <see cref="Settings.GroupPrefixes"/>, share a closed group instead,
 /// where its most recent member would have been, because a repository with a handful of passing
 /// workflows otherwise buries the red and running rows under ones that need nothing. A failure is
 /// never grouped: each one wants reading, and a group is a line that hides its members.
@@ -39,7 +40,7 @@ static class RowProjection
         }
 
         var rows = Project(state, sorted);
-        lastRows = new(sorted, state.Connections, state.OpenGroups, state.Search, rows);
+        lastRows = new(sorted, state.Connections, state.OpenGroups, state.Search, state.Settings.GroupPrefixes, rows);
         return rows;
     }
 
@@ -52,7 +53,8 @@ static class RowProjection
         var connections = state.Connections.ToDictionary(_ => _.Connection.Id);
         // Each build's group id once, and a key only for a group's row. Making a key for every
         // passing build at every step cost each of them a handful of strings a projection.
-        var ids = builds.Select(GroupKey.IdOf).ToArray();
+        var prefixes = state.Settings.GroupPrefixes;
+        var ids = builds.Select(_ => GroupKey.IdOf(_, prefixes)).ToArray();
         var groups = Enumerable.Range(0, builds.Length)
             .Where(_ => ids[_] is not null)
             .GroupBy(_ => ids[_]!, _ => builds[_])
@@ -76,7 +78,7 @@ static class RowProjection
                 continue;
             }
 
-            var key = GroupKey.Of(build)!;
+            var key = GroupKey.Of(build, prefixes)!;
             var expanded = IsExpanded(state, key);
             rows.Add(new(RowKind.Group, null, null, key, expanded, members));
             if (!expanded)

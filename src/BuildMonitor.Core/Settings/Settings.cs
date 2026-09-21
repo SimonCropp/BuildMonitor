@@ -31,6 +31,13 @@ record Settings
     /// nothing.
     /// </summary>
     public string CodeDirectory { get; init; } = "";
+    /// <summary>
+    /// Project name prefixes that group passing builds, ahead of the repository name. A family of
+    /// repositories buries the rows that need reading as surely as one repository's workflows do,
+    /// and nothing in the names themselves says which repositories are a family. See
+    /// <see cref="GroupKey"/>.
+    /// </summary>
+    public ImmutableArray<string> GroupPrefixes { get; init; } = [];
     public ImmutableArray<Connection> Connections { get; init; } = [];
     public ImmutableArray<Filter> Filters { get; init; } = [];
 }

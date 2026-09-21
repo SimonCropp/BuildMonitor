@@ -174,7 +174,8 @@ static class Fixtures
         string? author = null,
         string? sha = null,
         bool canRetry = true,
-        bool canCancel = true) =>
+        bool canCancel = true,
+        string? projectGroup = null) =>
         new(
             connectionId,
             pipelineId,
@@ -202,7 +203,8 @@ static class Fixtures
             // A repository named "owner/name" is one the provider knows the address of, as GitHub,
             // GitLab and Bitbucket do; one named after a job or a project, as Jenkins and Octopus
             // name theirs, has none, so those rows draw their name as plain text.
-            repo.Contains('/') ? $"https://github.com/{repo}" : null);
+            repo.Contains('/') ? $"https://github.com/{repo}" : null,
+            projectGroup);
 
     public static readonly GroupKey VerifyPassing = new("Verify");
 
@@ -282,6 +284,76 @@ static class Fixtures
                     finished: Now - TimeSpan.FromMinutes(8),
                     branchUrl: $"https://github.com/VerifyTests/Reports/tree/{branch}",
                     author: "dependabot[bot]")
+            ],
+            Now - TimeSpan.FromSeconds(12));
+    }
+
+    /// <summary>
+    /// Two passing Octopus deployments the server itself files under one project group, which
+    /// groups them although their projects are named apart and nobody typed a prefix.
+    /// </summary>
+    public static SessionState WithProjectGroup() =>
+        MonitorSession.ApplyPoll(
+            WithBuilds(),
+            Octopus.Id,
+            [],
+            [
+                ..OctopusBuilds(),
+                Build(
+                    Octopus.Id,
+                    "Projects-2",
+                    "Deploy Api",
+                    "Deploy Api",
+                    "Production",
+                    "8",
+                    BuildStatus.Succeeded,
+                    started: Now - TimeSpan.FromHours(6),
+                    finished: Now - TimeSpan.FromHours(6) + TimeSpan.FromMinutes(2),
+                    canRetry: false,
+                    projectGroup: "Storefront"),
+                Build(
+                    Octopus.Id,
+                    "Projects-3",
+                    "Deploy Database",
+                    "Deploy Database",
+                    "Production",
+                    "4",
+                    BuildStatus.Succeeded,
+                    started: Now - TimeSpan.FromHours(7),
+                    finished: Now - TimeSpan.FromHours(7) + TimeSpan.FromMinutes(1),
+                    canRetry: false,
+                    projectGroup: "Storefront")
+            ],
+            Now - TimeSpan.FromSeconds(5));
+
+    public static readonly GroupKey StorefrontPassing = new("Storefront");
+
+    /// <summary>
+    /// <see cref="WithGreenProject"/> plus a second repository of the same family and "Verify"
+    /// named as a group prefix: the two repositories share one group although neither name is the
+    /// other's, while DiffEngine's passing workflow keeps the row of its own.
+    /// </summary>
+    public static SessionState WithPrefixGroup()
+    {
+        var state = WithGreenProject();
+        state = MonitorSession.ApplySettings(state, state.Settings with { GroupPrefixes = ["Verify"] });
+        return MonitorSession.ApplyPoll(
+            state,
+            GitHub.Id,
+            [],
+            [
+                ..state.Builds.Where(_ => _.ConnectionId == GitHub.Id),
+                Build(
+                    GitHub.Id,
+                    "VerifyXunit/test.yml",
+                    "test.yml",
+                    "VerifyTests/VerifyXunit",
+                    "main",
+                    "21",
+                    BuildStatus.Succeeded,
+                    started: Now - TimeSpan.FromHours(4),
+                    finished: Now - TimeSpan.FromHours(4) + TimeSpan.FromMinutes(3),
+                    branchUrl: "https://github.com/VerifyTests/VerifyXunit/tree/main")
             ],
             Now - TimeSpan.FromSeconds(12));
     }

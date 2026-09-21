@@ -30,7 +30,7 @@ Rows sort what is happening now to the top: running, then queued, then failed, t
 
 Type in the Filter box at the top right to show only the builds whose repository, pipeline or branch, as the row names them, contain the text, ignoring case. A group keeps only the builds that match, so a filter reaches a build inside a closed group. The counts in the header and the tray icon still describe every build. The filter is not saved; to hide a pipeline for good, use [Filters](filters.md).
 
-Two or more passing builds of one project share a group, closed, where the latest of them would have been: a repository with a handful of green workflows otherwise buries the rows that need reading. The group's row names the project and says how many builds it holds and how long since the latest. Click a group, press Enter on it or right click it to open or close it; open, each build is on a row beneath with its project column left blank and its pipeline named, and right clicking one closes the group again. Projects are matched by repository name, so the same repository on two CI services is one group. Nothing else is grouped: a failed build keeps a row of its own that says which pipeline broke, and so does one running or queued.
+Two or more passing builds of one project share a group, closed, where the latest of them would have been: a repository with a handful of green workflows otherwise buries the rows that need reading. The group's row names the project and says how many builds it holds and how long since the latest. Click a group, press Enter on it or right click it to open or close it; open, each build is on a row beneath with its project column left blank and its pipeline named, and right clicking one closes the group again. Projects are matched by repository name, so the same repository on two CI services is one group. Two things group ahead of that name: a prefix named in [Options](options.md), which groups a whole family of repositories, and the group the service itself files the pipeline under, which today is an Octopus project group. A member of either names its own repository rather than leaving the column blank, and opens it where the service reports one. Nothing else is grouped: a failed build keeps a row of its own that says which pipeline broke, and so does one running or queued.
 
 Each row carries:
 
@@ -52,7 +52,7 @@ Either way the row shows both marks, and each part of it opens one thing, and on
  * the mark leading the second cell opens whichever of the two the first cell did not
  * the pipeline opens the run on a settled row and its own page on the service — the AppVeyor project, the Jenkins job, the Actions workflow — on a row that leads with its run
  * the branch opens the branch
- * a group's row names the repository its builds share and opens it. Its members name their pipeline, since their own repository column is blank
+ * a group's row names the repository its builds share and opens it. Its members name their pipeline, since their own repository column is blank. A group its members do not share a repository with names none, so it opens nothing and each member names and opens its own instead
 
 Hover any of them and it says where it goes, after about a second, written as what it opens and then which one: `Open branch: main`. Hover the rest of a row and it says what the row could not fit: the whole repository name and branch, the commit and who wrote it, and how long ago it started. The timing says where its estimate came from, and each button says what it does.
 

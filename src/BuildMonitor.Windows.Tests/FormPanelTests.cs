@@ -9,10 +9,13 @@ public class FormPanelTests
         var screen = ScreenBuilder.Build(Fixtures.Options(), Fixtures.Now);
         panel.Apply(screen.Form!);
         var text = Descendants(panel).OfType<TextBox>().First();
+        // Whichever box the page puts first, rather than a field id that has to be kept in step
+        // with the order of the options page.
+        var first = screen.Form!.Fields.First(_ => _.Kind is FieldKind.Text or FieldKind.Password or FieldKind.Number);
         text.Text = "45";
         var changes = panel.DrainChanges()!;
         await Assert.That(changes.Count).IsEqualTo(1);
-        await Assert.That(changes[0].Id).IsEqualTo(FormFields.PollInterval);
+        await Assert.That(changes[0].Id).IsEqualTo(first.Id);
         await Assert.That(changes[0].Value).IsEqualTo("45");
 
         // A re-apply of the same values does not report a change.

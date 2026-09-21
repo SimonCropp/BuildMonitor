@@ -266,9 +266,12 @@ final class BuildsRenderer {
             }
 
             // The host's mark leads the name, in a width reserved on every row once any row has
-            // one, so the names still line up where a provider gave no repository URL.
+            // one, so the names still line up where a provider gave no repository URL. Not on a
+            // group with no mark of its own: its arrow already stands where the mark would, and a
+            // prefix group, which names no one repository, read as an indented heading.
             let markX = nameX
-            if markWidth > 0 {
+            if markWidth > 0,
+               arrow.isEmpty || !row.nameIcon.isEmpty {
                 if let mark = RowIcons.images[row.nameIcon] {
                     let markRect = CGRect(x: markX, y: rect.midY - logoSize / 2, width: logoSize, height: logoSize)
                     mark.draw(in: markRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)

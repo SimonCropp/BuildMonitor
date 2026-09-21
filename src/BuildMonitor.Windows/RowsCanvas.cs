@@ -527,8 +527,11 @@ sealed class RowsCanvas : Control
 
         // The host's mark leads the name, in a width reserved on every row once any row has one,
         // so the names still line up where a provider gave no repository URL to read a host from.
+        // Not on a group with no mark of its own: its arrow already stands where the mark would,
+        // and a prefix group, which names no one repository, read as an indented heading.
         var markLeft = x;
-        if (markWidth > 0)
+        if (markWidth > 0 &&
+            (arrow.Length == 0 || row.NameIcon.Length > 0))
         {
             if (row.NameIcon.Length > 0)
             {

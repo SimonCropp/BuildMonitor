@@ -6,6 +6,7 @@
 | [x] Show running builds on other branches                                                                            |
 | [ ] Show forks and collaborator repositories                                                                         |
 | [x] Notify when a build fails                                                                                        |
+| Group passing builds by prefix: [                                        ] (Comma separated, eg TheProject)          |
 | Theme: <System>                                                                                                      |
 | Poll interval (seconds): [30    ]                                                                                    |
 | Poll interval while a build is running (seconds): [10    ]                                                           |
@@ -22,7 +23,6 @@
 | [ Open logs ]                                                                                                        |
 | [ Raise issue ]                                                                                                      |
 | [ Update ]                                                                                                           |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+

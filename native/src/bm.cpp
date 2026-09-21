@@ -749,7 +749,12 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             ImVec2 nameAt = ImGui::GetCursorScreenPos();
             // The label carries the name only where nothing before it is drawn by hand. A mark
             // before the name is, and a label cannot be told to start after it.
-            bool nameDrawn = nameLink || markWidth > 0.0f;
+            // The mark's width is reserved on every row once any row has one, so the names line up
+            // where a provider gave no repository URL. Not on a group with no mark of its own: its
+            // arrow already stands where the mark would, and a prefix group, which names no one
+            // repository, read as an indented heading.
+            const float rowMarkWidth = (!arrow.empty() && row.nameIcon.length == 0) ? 0.0f : markWidth;
+            bool nameDrawn = nameLink || rowMarkWidth > 0.0f;
             std::string selectableLabel = (nameDrawn ? arrow : arrow + name) + "##row";
             // As tall as the cell, so a click anywhere on the row selects it. A click on a group
             // toggles it, so the second press of a double click is dropped, or it would close what
@@ -793,7 +798,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                     }
                 }
 
-                ImVec2 textAt(markLeft + markWidth, nameAt.y + textOffset);
+                ImVec2 textAt(markLeft + rowMarkWidth, nameAt.y + textOffset);
                 if (nameLink) {
                     ImGui::SetCursorScreenPos(textAt);
                     ImGui::PushID("name");

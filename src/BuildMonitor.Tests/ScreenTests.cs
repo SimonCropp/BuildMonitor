@@ -84,6 +84,26 @@ public class ScreenTests
     }
 
     /// <summary>
+    /// A configured prefix groups the passing builds of two repositories, which the repository name
+    /// alone left on a row each.
+    /// </summary>
+    [Test]
+    public Task PrefixGroup() =>
+        Verify(Fixtures.Render(Fixtures.WithPrefixGroup()));
+
+    [Test]
+    public Task PrefixGroupExpanded() =>
+        Verify(Fixtures.Render(MonitorSession.ToggleGroup(Fixtures.WithPrefixGroup(), Fixtures.VerifyPassing)));
+
+    /// <summary>
+    /// Deployments of one Octopus project group, which the server names: they share a group with
+    /// nothing typed, and each member names its own project.
+    /// </summary>
+    [Test]
+    public Task ProjectGroupExpanded() =>
+        Verify(Fixtures.Render(MonitorSession.ToggleGroup(Fixtures.WithProjectGroup(), Fixtures.StorefrontPassing)));
+
+    /// <summary>
     /// Two failing workflows of one project, each on a row of its own rather than folded into a
     /// group that named neither.
     /// </summary>
