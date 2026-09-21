@@ -236,9 +236,9 @@ public class PollScheduleTests
     {
         string[] keys = ["due", "soon", "later", "backingOff"];
         var groups = keys.Select(_ => Group(_, $"{_}-ci")).ToList();
-        var builds = keys.Select(_ => Finished($"{_}-ci", BuildStatus.Succeeded, TimeSpan.FromDays(1)));
+        var builds = keys.Select(_ => Finished($"{_}-ci", BuildStatus.Succeeded, TimeSpan.FromDays(1))).ToList();
         // On the five minute idle cap, so up to thirty seconds early.
-        GroupMemory DueIn(string key, int seconds, int minutes = 5) =>
+        static GroupMemory DueIn(string key, int seconds, int minutes = 5) =>
             Fetched(TimeSpan.FromMinutes(minutes) * (1 + PollSchedule.Spread("gh", key)) - TimeSpan.FromSeconds(seconds), $"{key}-ci");
         var memory = ImmutableDictionary<string, GroupMemory>.Empty
             .Add("due", DueIn("due", 0))
