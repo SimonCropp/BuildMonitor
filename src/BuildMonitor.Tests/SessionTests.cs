@@ -301,8 +301,9 @@ public class SessionTests
     public async Task MenuChoiceReturnsCommandAndCloses()
     {
         var state = Fixtures.WithMenu();
-        var (next, command) = MonitorSession.ChooseMenuItem(state, 0);
+        var (next, command, target) = MonitorSession.ChooseMenuItem(state, 0);
         await Assert.That(command).IsEqualTo(CommandKind.OpenBuild);
+        await Assert.That(target).IsNull();
         await Assert.That(next.Menu).IsNull();
     }
 
@@ -312,6 +313,40 @@ public class SessionTests
         var state = MonitorSession.OpenMenu(Fixtures.WithBuilds(), 3);
         await Assert.That(state.SelectedRow).IsEqualTo(3);
         await Assert.That(state.Menu!.Row).IsEqualTo(3);
+    }
+
+    /// <summary>
+    /// A repository's own group is still a member of whatever family that repository belongs to,
+    /// so its row offers the prefixes too: the group that folded one project's workflows is where
+    /// someone reads the name they want folded further.
+    /// </summary>
+    [Test]
+    public async Task AGroupsMenuOffersThePrefixesItsProjectShares()
+    {
+        // The fixture's prefix cleared, and a second passing workflow, so VerifyXunit is a
+        // repository group of its own rather than one row inside the prefix group.
+        var state = MonitorSession.ApplySettings(Fixtures.WithPrefixGroup(), Fixtures.Settings());
+        state = MonitorSession.ApplyPoll(
+            state,
+            Fixtures.GitHub.Id,
+            [],
+            [
+                ..state.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id),
+                Fixtures.Build(
+                    Fixtures.GitHub.Id,
+                    "VerifyXunit/docs.yml",
+                    "docs.yml",
+                    "VerifyTests/VerifyXunit",
+                    "main",
+                    "3",
+                    BuildStatus.Succeeded,
+                    started: Fixtures.Now - TimeSpan.FromHours(8),
+                    finished: Fixtures.Now - TimeSpan.FromHours(8) + TimeSpan.FromMinutes(1))
+            ],
+            Fixtures.Now - TimeSpan.FromSeconds(12));
+        var row = Fixtures.RowOf(state, _ => _.Group?.Project == "VerifyXunit");
+        var menu = MonitorSession.OpenMenu(state, row).Menu!;
+        await Assert.That(menu.Items.Where(_ => _.Command == CommandKind.GroupByPrefix).Select(_ => _.Label)).IsEquivalentTo(["Group by prefix: Verify"]);
     }
 
     [Test]

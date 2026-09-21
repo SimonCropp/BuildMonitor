@@ -1,5 +1,5 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
-| BuildMonitor                                           6 pipelines, 1 failing, 4 running  Filter: [nothing like it ] |
+| BuildMonitor                                        6 pipelines, 1 failing, 4 running  Filter: [nothing like it ][x] |
 +----------------------------------------------------------------------------------------------------------------------+
 | No builds match "nothing like it"                                                                                    |
 |                                                                                                                      |

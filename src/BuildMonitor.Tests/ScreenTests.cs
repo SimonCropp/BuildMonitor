@@ -96,6 +96,17 @@ public class ScreenTests
         Verify(Fixtures.Render(MonitorSession.ToggleGroup(Fixtures.WithPrefixGroup(), Fixtures.VerifyPassing)));
 
     /// <summary>
+    /// The right click menu of a row whose project shares a prefix with another: what it could be
+    /// grouped by, above what it could be excluded from.
+    /// </summary>
+    [Test]
+    public Task PrefixMenuOpen()
+    {
+        var state = MonitorSession.ApplySettings(Fixtures.WithPrefixGroup(), Fixtures.Settings());
+        return Verify(Fixtures.Render(MonitorSession.OpenMenu(state, Fixtures.RowOf(state, _ => _.Build?.RepoName == "VerifyTests/VerifyXunit"))));
+    }
+
+    /// <summary>
     /// Deployments of one Octopus project group, which the server names: they share a group with
     /// nothing typed, and each member names its own project.
     /// </summary>
@@ -127,12 +138,12 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   > DiffEngine github   test.yml main           [####----] 03:00 left               [Cancel]                         |
-                |   ? nightly    jenkins                                     queued 30s               [Cancel]                         |
-                |   x Verify     github   test.yml feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]              |
-                |   x Verify     github   release.yml main                   50m ago                  [Retry] [Log]                    |
-                |   + [+] Verify          2 passing                          2h ago                                                    |
-                | > + DiffEngine github   docs.yml main                      23h ago                                                   |
+                |   > DiffEngine     github   test.yml main           [####----] 03:00 left               [Cancel]                     |
+                |   ? nightly        jenkins                                     queued 30s               [Cancel]                     |
+                |   x Verify         github   test.yml feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]          |
+                |   x Verify         github   release.yml main                   50m ago                  [Retry] [Log]                |
+                |   + [+] Verify              2 passing                          2h ago                                                |
+                | > + DiffEngine     github   docs.yml main                      23h ago                                               |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Options] [Filters] [Hide]                                                                   Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+

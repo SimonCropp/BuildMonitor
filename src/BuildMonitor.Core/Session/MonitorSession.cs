@@ -281,6 +281,16 @@ static class MonitorSession
             }
 
             items.Add(new("Refresh", CommandKind.Refresh));
+            // A group is as good a place to widen the grouping from as a row is: a repository
+            // group of one project's workflows is exactly what someone looking at
+            // "TheProject.Messages" wants folded into "TheProject".
+            AddGrouping(items, state, target.Group!.Project);
+            // Where the group is one someone asked for, the row it is on is where they would
+            // undo it: the options page holds the list, but nothing there says which row it made.
+            if (Prefix(state, target.Group.Project) is { } named)
+            {
+                items.Add(new($"Stop grouping: {named}", CommandKind.RemoveGroupPrefix, named));
+            }
         }
         else if (target.Build is { } build)
         {
@@ -333,6 +343,7 @@ static class MonitorSession
             }
 
             items.Add(new("Refresh", CommandKind.Refresh));
+            AddGrouping(items, state, build.ShortRepoName());
             // What is excluded, then which one of them: a name that runs long, as a repository's
             // does, pushes the word that says what it is off the end of a narrow menu.
             items.Add(new($"Exclude {PipelineNoun(state, build)}: {build.PipelineName}", CommandKind.ExcludePipeline));
@@ -397,16 +408,22 @@ static class MonitorSession
         return state with { Menu = null };
     }
 
-    public static (SessionState State, CommandKind Command) ChooseMenuItem(SessionState state, int index)
+    /// <summary>
+    /// The chosen item's command and its <see cref="MenuItem.Target"/>, which is the only thing
+    /// left of the menu once it closes: a Group by prefix item is one of several whose command is
+    /// the same, and the row they were opened on does not say which was clicked.
+    /// </summary>
+    public static (SessionState State, CommandKind Command, string? Target) ChooseMenuItem(SessionState state, int index)
     {
         if (state.Menu is null ||
             index < 0 ||
             index >= state.Menu.Items.Length)
         {
-            return (CloseMenu(state), CommandKind.None);
+            return (CloseMenu(state), CommandKind.None, null);
         }
 
-        return (CloseMenu(state), state.Menu.Items[index].Command);
+        var item = state.Menu.Items[index];
+        return (CloseMenu(state), item.Command, item.Target);
     }
 
     // Pages
@@ -642,6 +659,84 @@ static class MonitorSession
     /// </summary>
     public static ProviderDescriptor? Descriptor(SessionState state, Build build) =>
         ProviderDescriptors.Find(state.Connection(build.ConnectionId)?.Connection.ProviderId);
+
+    /// <summary>
+    /// The prefixes the name shares with another project, longest first, so a family is grouped
+    /// from a row that named it rather than by typing it on the options page. Offered on a build's
+    /// row and on a group's alike: a group of one repository's workflows is still a member of
+    /// whatever family that repository belongs to.
+    /// </summary>
+    static void AddGrouping(ImmutableArray<MenuItem>.Builder items, SessionState state, string project)
+    {
+        foreach (var prefix in PrefixCandidates.Of(project, Projects(state), state.Settings.GroupPrefixes))
+        {
+            items.Add(new($"Group by prefix: {prefix}", CommandKind.GroupByPrefix, prefix));
+        }
+    }
+
+    /// <summary>
+    /// Every project a row names, which the menu's prefixes are drawn from. Not narrowed by the
+    /// filter box: a prefix offered while a filter is typed would otherwise be one of the few
+    /// projects left on screen rather than one of the family.
+    /// </summary>
+    static IReadOnlyCollection<string> Projects(SessionState state)
+    {
+        var projects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var build in RowProjection.Builds(state))
+        {
+            projects.Add(build.ShortRepoName());
+        }
+
+        return projects;
+    }
+
+    /// <summary>
+    /// The configured prefix this group was made by, or null where the group is a repository or a
+    /// group the service itself named: neither is something the menu can take back.
+    /// </summary>
+    static string? Prefix(SessionState state, string project)
+    {
+        foreach (var prefix in state.Settings.GroupPrefixes)
+        {
+            if (string.Equals(prefix, project, StringComparison.OrdinalIgnoreCase))
+            {
+                return prefix;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The context menu's "Group by prefix": the prefix is added to the settings, so it groups
+    /// every passing build that starts with it and holds across restarts.
+    /// </summary>
+    public static SessionState GroupByPrefix(SessionState state, string prefix)
+    {
+        if (state.Settings.GroupPrefixes.Contains(prefix, StringComparer.OrdinalIgnoreCase))
+        {
+            return state;
+        }
+
+        return ApplySettings(state, state.Settings with { GroupPrefixes = state.Settings.GroupPrefixes.Add(prefix) });
+    }
+
+    /// <summary>
+    /// The context menu's "Stop grouping", which undoes one prefix and leaves the rest. The
+    /// members go back to the rows they had, each under its own repository.
+    /// </summary>
+    public static SessionState RemoveGroupPrefix(SessionState state, string prefix)
+    {
+        var kept = state.Settings.GroupPrefixes
+            .Where(_ => !string.Equals(_, prefix, StringComparison.OrdinalIgnoreCase))
+            .ToImmutableArray();
+        if (kept.Length == state.Settings.GroupPrefixes.Length)
+        {
+            return state;
+        }
+
+        return ApplySettings(state, state.Settings with { GroupPrefixes = kept });
+    }
 
     /// <summary>
     /// The context menu's "Exclude": an exact filter on the pipeline name, applied at once.

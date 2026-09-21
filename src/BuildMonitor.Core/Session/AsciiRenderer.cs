@@ -23,6 +23,11 @@ static class AsciiRenderer
     const string widestChips = "PR 9999 [Retry] [Log] [Open dir] [Triage]";
     // Inside the filter box's brackets.
     const int searchWidth = 16;
+    // The cross that empties the filter box, drawn only while there is something to empty.
+    const string clearSearch = "[x]";
+    // A member's first cell, indented by the width of the arrow its group is drawn behind, so the
+    // rows under a group read as under it.
+    const int indent = 4;
     // Beside a Directory field's box, where every head draws the button that asks for a folder.
     const string browse = " [ Browse ]";
 
@@ -63,7 +68,10 @@ static class AsciiRenderer
     {
         if (screen.Builds is { } builds)
         {
-            return $"{builds.Header}  Filter: [{Fit(builds.Search, searchWidth)}]";
+            // The cross only where there is text to clear, as every head draws it: a box that is
+            // already empty offers nothing to press.
+            var clear = builds.Search.Length > 0 ? clearSearch : "";
+            return $"{builds.Header}  Filter: [{Fit(builds.Search, searchWidth)}]{clear}";
         }
 
         return screen.Form?.Title ?? "";
@@ -79,21 +87,32 @@ static class AsciiRenderer
             return [page.Loading ? $"{page.Empty}..." : page.Empty];
         }
 
-        // "[-] " leads a group's name.
-        var longestName = Math.Max(
-            page.Names.Select(_ => _.Length).DefaultIfEmpty().Max(),
-            page.GroupNames.Select(_ => _.Length + 4).DefaultIfEmpty().Max());
+        // "[-] " leads a group's name, and a member is indented by as much. The indent is reserved
+        // wherever the page has a group at all, open or closed, so the column does not shift under
+        // the rows as one is opened.
+        var names = page.Names.Select(_ => _.Length).DefaultIfEmpty().Max();
+        var groups = page.GroupNames.Select(_ => _.Length + indent).DefaultIfEmpty().Max();
+        var longestName = Math.Max(page.GroupNames.Count > 0 ? names + indent : names, groups);
         var longestDetail = page.Details.Select(_ => _.Length).DefaultIfEmpty().Max();
         var author = Math.Min((page.Authors ?? []).Select(_ => _.Length).DefaultIfEmpty().Max(), maximumAuthor);
         var layout = Layout(inner, page.Rows.Any(_ => _.Provider.Length > 0), longestName, longestDetail, author);
         return page.Rows.Select(_ => RowLine(_, layout)).ToList();
     }
 
+    /// <summary>
+    /// The first cell's text: a group behind its arrow, and a member indented by the width of one,
+    /// so the rows a group holds read as being under it rather than beside it.
+    /// </summary>
     static string DisplayName(BuildRow row)
     {
         if (row.Kind == RowKind.Group)
         {
             return $"{(row.Expanded ? "[-]" : "[+]")} {row.Name}";
+        }
+
+        if (row.Kind == RowKind.Member)
+        {
+            return $"{new string(' ', indent)}{row.Name}";
         }
 
         return row.Name;

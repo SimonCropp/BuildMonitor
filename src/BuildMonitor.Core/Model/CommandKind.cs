@@ -33,6 +33,9 @@ enum CommandKind
     BrowseCodeDirectory,
     Refresh,
     ToggleGroup,
+    // Adds the menu item's prefix to the ones passing builds are grouped by, or takes it back off.
+    GroupByPrefix,
+    RemoveGroupPrefix,
     ExcludePipeline,
     ExcludeBranch,
     ExcludeRepo,

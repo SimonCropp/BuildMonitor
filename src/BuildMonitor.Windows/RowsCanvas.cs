@@ -367,9 +367,12 @@ sealed class RowsCanvas : Control
         // After the status square, a gap after each of the name, detail, timing and chips, and the
         // author and its gap when shown.
         var available = Width - RowHeight - TimingWidth() - 5 * gap - (authorWidth > 0 ? authorWidth + gap : 0);
-        // With the padding Draw leaves, so the widest text fits without an ellipsis.
+        // With the padding Draw leaves, so the widest text fits without an ellipsis. A member is
+        // indented by the arrow its group is drawn behind, and the room for it is reserved wherever
+        // the page has a group at all, so the column does not shift as one is opened.
+        var indent = builds.GroupNames.Count > 0 ? Indent() : 0;
         var nameWanted = markWidth + builds.Names
-            .Select(_ => MeasureName(_, Font))
+            .Select(_ => indent + MeasureName(_, Font))
             .Concat(builds.GroupNames.Select(_ => MeasureName($"▼ {_}", bold)))
             .DefaultIfEmpty()
             .Max();
@@ -393,6 +396,13 @@ sealed class RowsCanvas : Control
         var nameWidth = Math.Clamp(nameWanted, narrowest, Math.Max(narrowest, names - Math.Min(LogicalToDeviceUnits(minimumDetail), detailWanted)));
         return (nameWidth, names - nameWidth, barWidth, authorWidth, chipsWidth);
     }
+
+    /// <summary>
+    /// How far a member's first cell is pushed in: the width of the arrow its group is drawn
+    /// behind, so its mark starts where the group's name does and the rows read as being under it.
+    /// </summary>
+    int Indent() =>
+        MeasureName("▼ ", bold);
 
     /// <summary>
     /// The open or closed arrow a group's row is drawn behind, and nothing for any other row.
@@ -513,6 +523,14 @@ sealed class RowsCanvas : Control
         // Through NameFont, so a group's name keeps the weight that makes it read as a heading
         // while it takes the link colour, and the hit rectangle is measured in the font drawn.
         var font = NameFont(row);
+        // A member starts where its group's name does, under the group rather than beside it.
+        if (row.Kind == RowKind.Member)
+        {
+            var indent = Math.Min(Indent(), width);
+            x += indent;
+            width -= indent;
+        }
+
         // The arrow is drawn before the name but is no part of it: it is what opens and closes the
         // group, so it stays in the ordinary colour and outside the link's rectangle, and a click
         // on it reaches the row. Inside the link it left a closed group with no way to expand.

@@ -46,6 +46,8 @@ Matched against the name the row's first column shows, ignoring case, so the own
 
 A member of such a group names its own repository, since the group's row no longer does.
 
+Prefixes are added from here or from the [row's own menu](tray.md#the-window), which offers the ones its project shares with another and takes one back off from the group it made.
+
 
 ## Show builds from the last (days)
 

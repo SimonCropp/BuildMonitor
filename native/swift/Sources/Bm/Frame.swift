@@ -61,6 +61,7 @@ struct Frame {
         var isGroup: Bool { flags & Int32(BM_ROW_GROUP.rawValue) != 0 }
         var isSelected: Bool { flags & Int32(BM_ROW_SELECTED.rawValue) != 0 }
         var isExpanded: Bool { flags & Int32(BM_ROW_EXPANDED.rawValue) != 0 }
+        var isMember: Bool { flags & Int32(BM_ROW_MEMBER.rawValue) != 0 }
         var isNameLink: Bool { nameLink != Int32(BM_CHIP_NONE.rawValue) }
     }
 

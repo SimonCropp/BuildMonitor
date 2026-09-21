@@ -75,8 +75,8 @@ static class InputApplier
 
         if (input.ClickedMenuItem >= 0)
         {
-            var (chosen, command) = MonitorSession.ChooseMenuItem(state, input.ClickedMenuItem);
-            state = Execute(chosen, command, null, actions, window);
+            var (chosen, command, target) = MonitorSession.ChooseMenuItem(state, input.ClickedMenuItem);
+            state = Execute(chosen, command, target, actions, window);
         }
 
         if (input.ClickedButton >= 0)
@@ -388,6 +388,28 @@ static class InputApplier
                 }
 
                 return state;
+            case CommandKind.GroupByPrefix:
+            {
+                if (target is not { Length: > 0 } prefix)
+                {
+                    return state;
+                }
+
+                var grouped = MonitorSession.GroupByPrefix(state, prefix);
+                actions.SaveSettings(grouped.Settings);
+                return MonitorSession.SetStatus(grouped, $"Grouping by {prefix}");
+            }
+            case CommandKind.RemoveGroupPrefix:
+            {
+                if (target is not { Length: > 0 } removed)
+                {
+                    return state;
+                }
+
+                var ungrouped = MonitorSession.RemoveGroupPrefix(state, removed);
+                actions.SaveSettings(ungrouped.Settings);
+                return MonitorSession.SetStatus(ungrouped, $"Stopped grouping by {removed}");
+            }
             case CommandKind.ExcludePipeline:
             {
                 if (MonitorSession.SelectedBuild(state) is not { } build)

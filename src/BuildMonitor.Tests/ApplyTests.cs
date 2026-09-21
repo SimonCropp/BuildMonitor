@@ -160,6 +160,49 @@ public class ApplyTests
         await Assert.That(state.Menu).IsNull();
     }
 
+    /// <summary>
+    /// The whole way through: the menu offers the prefix the row's project shares with another,
+    /// the click groups by it, and the settings it was written to are saved.
+    /// </summary>
+    [Test]
+    public async Task GroupByPrefixFromTheMenu()
+    {
+        var actions = new RecordingActions();
+        // The fixture's own prefix cleared, so the menu is the only thing that sets one.
+        var builds = MonitorSession.ApplySettings(Fixtures.WithPrefixGroup(), Fixtures.Settings());
+        var row = Fixtures.RowOf(builds, _ => _.Build?.RepoName == "VerifyTests/VerifyXunit");
+        var state = Apply(builds, new(RightClickedRow: row), actions);
+        var items = state.Menu!.Items.Where(_ => _.Command == CommandKind.GroupByPrefix).ToList();
+        await Assert.That(items.Select(_ => _.Label)).IsEquivalentTo(["Group by prefix: Verify"]);
+
+        state = Apply(state, new(ClickedMenuItem: state.Menu.Items.IndexOf(items[0])), actions);
+        await Assert.That(state.Settings.GroupPrefixes).IsEquivalentTo(["Verify"]);
+        await Assert.That(actions.Calls).IsEquivalentTo(["SaveSettings"]);
+        // The repository's own two passing workflows and VerifyXunit's, which had a row of its own.
+        await Assert.That(RowProjection.Rows(state).Single(_ => _.Kind == RowKind.Group).Members.Length).IsEqualTo(3);
+    }
+
+    /// <summary>
+    /// And back off again from the group's own row, which is where the grouping is seen rather
+    /// than on the options page.
+    /// </summary>
+    [Test]
+    public async Task StopGroupingFromTheGroupsMenu()
+    {
+        var actions = new RecordingActions();
+        var grouped = Fixtures.WithPrefixGroup();
+        var row = Fixtures.RowOf(grouped, _ => _.Kind == RowKind.Group);
+        var state = Apply(grouped, new(RightClickedRow: row), actions);
+        var index = state.Menu!.Items.ToList().FindIndex(_ => _.Command == CommandKind.RemoveGroupPrefix);
+        await Assert.That(state.Menu.Items[index].Label).IsEqualTo("Stop grouping: Verify");
+
+        state = Apply(state, new(ClickedMenuItem: index), actions);
+        await Assert.That(state.Settings.GroupPrefixes).IsEmpty();
+        await Assert.That(actions.Calls).IsEquivalentTo(["SaveSettings"]);
+        // Back to the row it had, the group left holding the repository's own workflows.
+        await Assert.That(RowProjection.Rows(state).Any(_ => _.Kind == RowKind.Build && _.Build!.RepoName == "VerifyTests/VerifyXunit")).IsTrue();
+    }
+
     [Test]
     public async Task CancelFromTheMenu()
     {

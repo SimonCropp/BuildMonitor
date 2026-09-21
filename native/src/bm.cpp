@@ -545,7 +545,12 @@ void DrawHeader(const BmScreen& screen) {
         g.focusSearch = false;
     }
 
+    // The cross sits inside the box's frame rather than beside it, so it reads as part of the box
+    // the way the other heads draw it. The box keeps its full width and the cross is allowed to
+    // take the clicks on the corner it covers.
+    const float clearWidth = ImGui::GetFrameHeight();
     ImGui::SetNextItemWidth(searchWidth);
+    ImGui::SetNextItemAllowOverlap();
     ImGuiInputTextFlags flags = ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_EscapeClearsAll | ImGuiInputTextFlags_EnterReturnsTrue;
     if (ImGui::InputTextWithHint("##search", "Filter", g.search.data(), g.search.capacity() + 1, flags, TextResize, &g.search)) {
         g.input.key = BM_KEY_OPEN_BUILD;
@@ -555,6 +560,26 @@ void DrawHeader(const BmScreen& screen) {
     g.searchActive = ImGui::IsItemActive();
     if (ImGui::IsItemEdited()) {
         g.edits.push_back({BM_SEARCH_FIELD, std::string(g.search.c_str())});
+    }
+
+    // The cross that empties the box, in the cell held back for it and only while there is
+    // something to empty. Emptying is reported as the edit it is, so the session hears it the way
+    // it hears typing. The multiplication sign rather than a heavier cross: the text font is loaded
+    // with Latin and a handful of named marks, and this one is inside that.
+    if (!g.search.empty()) {
+        ImGui::SetCursorScreenPos(ImVec2(searchX + searchWidth - clearWidth, at.y));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, dim);
+        if (ImGui::Button("\xc3\x97##clearsearch", ImVec2(clearWidth, clearWidth))) {
+            g.search.clear();
+            g.searchActive = false;
+            g.edits.push_back({BM_SEARCH_FIELD, std::string()});
+        }
+
+        ImGui::PopStyleColor(2);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        }
     }
 }
 
@@ -603,14 +628,20 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
     } else if (ImGui::BeginTable("rows", 6, flags)) {
         // The name cell starts with a status square a row height wide, then is as wide as the widest
         // name across every row, not only those on screen, so it does not shift while scrolling.
+        // A member is indented by the width of the arrow its group is drawn behind, and the room
+        // for it is reserved wherever the page has a group at all, open or closed, so the column
+        // does not shift under the rows as one is opened.
+        const float indent = screen.groupNameCount > 0 ? ImGui::CalcTextSize("v ").x : 0.0f;
         float nameText = 0.0f;
         for (int32_t i = 0; i < screen.nameCount + screen.groupNameCount; i++) {
             std::string name = Str(screen, screen.names[i]);
+            float wanted = indent;
             if (i >= screen.nameCount) {
                 name = "v " + name;
+                wanted = 0.0f;
             }
 
-            nameText = std::max(nameText, ImGui::CalcTextSize(name.c_str()).x);
+            nameText = std::max(nameText, wanted + ImGui::CalcTextSize(name.c_str()).x);
         }
 
         // The detail cell likewise, up to forty characters: past that a long pipeline or branch is cut
@@ -743,6 +774,11 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             }
 
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + rowHeight + style.ItemSpacing.x);
+            // A member starts where its group's name does, under the group rather than beside it.
+            if ((row.flags & BM_ROW_MEMBER) != 0) {
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + indent);
+            }
+
             // A name that opens the run is drawn as a link over the selectable rather than as its
             // label, and only its text is the link, so a click beside it still selects the row.
             bool nameLink = row.nameLink != BM_CHIP_NONE;

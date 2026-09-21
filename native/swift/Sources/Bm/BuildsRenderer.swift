@@ -208,9 +208,13 @@ final class BuildsRenderer {
         // As wide as the widest name across every row, not only those on screen, so it does not shift
         // while scrolling; the detail likewise, up to forty characters, past which a long pipeline or
         // branch is cut short rather than pushing every row's chips into the drop down.
-        let nameWanted = markWidth + ((frame.names + frame.groupNames.map { "▼ " + $0 })
-            .map { measure($0).rounded(.up) }
-            .max() ?? 0)
+        // A member is indented by the width of the arrow its group is drawn behind, and the room
+        // for it is reserved wherever the page has a group at all, open or closed, so the column
+        // does not shift under the rows as one is opened.
+        let indent: CGFloat = frame.groupNames.isEmpty ? 0 : measure("▼ ").rounded(.up)
+        let nameWanted = markWidth + max(
+            indent + (frame.names.map { measure($0).rounded(.up) }.max() ?? 0),
+            frame.groupNames.map { measure("▼ " + $0).rounded(.up) }.max() ?? 0)
         let detailWanted = iconWidth + min(
             frame.details.map { measure($0).rounded(.up) }.max() ?? 0,
             measure(String(repeating: "0", count: 40)))
@@ -257,6 +261,13 @@ final class BuildsRenderer {
             // reaches the row. Inside the link it left a closed group with no way to expand.
             var nameX = x
             var nameRoom = nameWidth
+            // A member starts where its group's name does, under the group rather than beside it.
+            if row.isMember {
+                let pushed = min(indent, nameRoom)
+                nameX += pushed
+                nameRoom -= pushed
+            }
+
             let arrow = groupArrow(row)
             if !arrow.isEmpty {
                 drawText(arrow, at: CGPoint(x: nameX, y: textY), font: font, colour: Palette.text, width: nameRoom)
