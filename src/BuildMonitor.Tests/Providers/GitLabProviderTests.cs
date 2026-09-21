@@ -267,14 +267,14 @@ public class GitLabProviderTests
     }
 
     [Test]
-    [Arguments(nameof(AuthMethod.Browser))]
-    [Arguments(nameof(AuthMethod.Device))]
-    public async Task ASignInsTokenGoesInTheAuthorizationHeader(string method)
+    [Arguments(AuthMethod.Browser)]
+    [Arguments(AuthMethod.Device)]
+    public async Task ASignInsTokenGoesInTheAuthorizationHeader(AuthMethod method)
     {
         // GitLab finds an OAuth token only as a Bearer token, and looks for an access token in
         // PRIVATE-TOKEN, so a sign in's token there was refused on every request.
         var handler = new FakeHttpHandler().Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""");
-        var context = ProviderTestHelpers.Context("gitlab", handler, auth: Enum.Parse<AuthMethod>(method));
+        var context = ProviderTestHelpers.Context("gitlab", handler, auth: method);
         await ProviderTestHelpers.Provider("gitlab").Test(context, Cancel.None);
         await Assert.That(handler.RequestHeaders.Select(_ => _.Authorization?.ToString() ?? "none").Distinct()).IsEquivalentTo(["Bearer secret"]);
         await Assert.That(handler.RequestHeaders.Any(_ => _.Contains("PRIVATE-TOKEN"))).IsFalse();

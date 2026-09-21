@@ -1,4 +1,4 @@
-enum ConnectionHealth
+public enum ConnectionHealth
 {
     Unpolled,
     Ok,

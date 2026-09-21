@@ -73,13 +73,12 @@
     }
 
     [Test]
-    [Arguments("Running", 40, null, true)]
-    [Arguments("Queued", 40, null, true)]
-    [Arguments("Succeeded", 40, 10, true)]
-    [Arguments("Succeeded", 40, 35, false)]
-    public async Task ABuildFromBeforeTheHistory(string name, int startedDaysAgo, int? finishedDaysAgo, bool shown)
+    [Arguments(BuildStatus.Running, 40, null, true)]
+    [Arguments(BuildStatus.Queued, 40, null, true)]
+    [Arguments(BuildStatus.Succeeded, 40, 10, true)]
+    [Arguments(BuildStatus.Succeeded, 40, 35, false)]
+    public async Task ABuildFromBeforeTheHistory(BuildStatus status, int startedDaysAgo, int? finishedDaysAgo, bool shown)
     {
-        var status = Enum.Parse<BuildStatus>(name);
         var old = Fixtures.Build(
             Fixtures.GitHub.Id,
             "Verify/test.yml",

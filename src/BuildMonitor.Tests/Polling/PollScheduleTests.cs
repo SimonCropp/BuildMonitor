@@ -71,43 +71,43 @@ public class PollScheduleTests
             .IsEqualTo((ScheduleReason.Quiet, TimeSpan.FromMinutes(30)));
 
     [Test]
-    [Arguments(4, "Running", 30)]
-    [Arguments(5, "Finishing", 10)]
-    [Arguments(8, "Finishing", 10)]
+    [Arguments(4, ScheduleReason.Running, 30)]
+    [Arguments(5, ScheduleReason.Finishing, 10)]
+    [Arguments(8, ScheduleReason.Finishing, 10)]
     // A minute and a half past the slowest run, then slowing by a tenth of the overrun up to the idle cap.
-    [Arguments(9, "Overrun", 30)]
-    [Arguments(29, "Overrun", 123)]
-    [Arguments(59, "Overrun", 300)]
-    public async Task ARunningBuildPollsFastFromItsFastestRunToItsSlowest(int minutesIn, string reason, int seconds) =>
+    [Arguments(9, ScheduleReason.Overrun, 30)]
+    [Arguments(29, ScheduleReason.Overrun, 123)]
+    [Arguments(59, ScheduleReason.Overrun, 300)]
+    public async Task ARunningBuildPollsFastFromItsFastestRunToItsSlowest(int minutesIn, ScheduleReason reason, int seconds) =>
         await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(minutesIn)), durations: fiveToSeven))
-            .IsEqualTo((Enum.Parse<ScheduleReason>(reason), TimeSpan.FromSeconds(seconds)));
+            .IsEqualTo((reason, TimeSpan.FromSeconds(seconds)));
 
     [Test]
     public async Task ARunningBuildWithoutAnEstimateIsFinishing() =>
         await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(1)))).IsEqualTo((ScheduleReason.Finishing, TimeSpan.FromSeconds(10)));
 
     [Test]
-    [Arguments(60, "Finishing")]
-    [Arguments(300, "Running")]
-    [Arguments(-120, "Overrun")]
-    public async Task TheProvidersRemainingTimeBeatsTheHistory(int remainingSeconds, string reason) =>
+    [Arguments(60, ScheduleReason.Finishing)]
+    [Arguments(300, ScheduleReason.Running)]
+    [Arguments(-120, ScheduleReason.Overrun)]
+    public async Task TheProvidersRemainingTimeBeatsTheHistory(int remainingSeconds, ScheduleReason reason) =>
         await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(6), new(null, 50, TimeSpan.FromSeconds(remainingSeconds))), durations: fiveToSeven).Reason)
-            .IsEqualTo(Enum.Parse<ScheduleReason>(reason));
+            .IsEqualTo(reason);
 
     [Test]
-    [Arguments(5, "Running")]
-    [Arguments(7, "Finishing")]
-    [Arguments(10, "Overrun")]
-    public async Task TheProvidersDurationOpensTheWindowAtThreeQuartersOfIt(int minutesIn, string reason) =>
+    [Arguments(5, ScheduleReason.Running)]
+    [Arguments(7, ScheduleReason.Finishing)]
+    [Arguments(10, ScheduleReason.Overrun)]
+    public async Task TheProvidersDurationOpensTheWindowAtThreeQuartersOfIt(int minutesIn, ScheduleReason reason) =>
         await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(minutesIn), new(TimeSpan.FromMinutes(8), null, null)), durations: fiveToSeven).Reason)
-            .IsEqualTo(Enum.Parse<ScheduleReason>(reason));
+            .IsEqualTo(reason);
 
     [Test]
-    [Arguments(8, "Finishing")]
-    [Arguments(10, "Overrun")]
-    public async Task ACountdownStoppedAtZeroIsMeasuredAgainstTheProvidersDuration(int minutesIn, string reason) =>
+    [Arguments(8, ScheduleReason.Finishing)]
+    [Arguments(10, ScheduleReason.Overrun)]
+    public async Task ACountdownStoppedAtZeroIsMeasuredAgainstTheProvidersDuration(int minutesIn, ScheduleReason reason) =>
         await Assert.That(Pipeline(Running("ci", TimeSpan.FromMinutes(minutesIn), new(TimeSpan.FromMinutes(8), 100, TimeSpan.Zero))).Reason)
-            .IsEqualTo(Enum.Parse<ScheduleReason>(reason));
+            .IsEqualTo(reason);
 
     [Test]
     public async Task AQueuedBuildPollsAtTheInterval() =>

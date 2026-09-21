@@ -3,7 +3,7 @@
 /// being tried. Retry and Cancel used to be offered on every row, and a token that could only read
 /// found out from a refusal after the click.
 /// </summary>
-enum BuildAccess
+public enum BuildAccess
 {
     // The service does not say, or has not been asked. Retry and cancel are offered, and a refusal
     // says what the connection needs.

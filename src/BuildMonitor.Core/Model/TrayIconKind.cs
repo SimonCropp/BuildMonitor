@@ -1,7 +1,7 @@
 /// <summary>
 /// Keep in sync with BmTrayIcon in bm.h.
 /// </summary>
-enum TrayIconKind
+public enum TrayIconKind
 {
     Idle = 0,
     Running = 1,

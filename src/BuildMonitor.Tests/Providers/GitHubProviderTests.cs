@@ -417,10 +417,10 @@ public class GitHubProviderTests
     }
 
     [Test]
-    [Arguments(false, nameof(BuildAccess.Change), false)]
-    [Arguments(true, nameof(BuildAccess.Change), true)]
-    [Arguments(false, nameof(BuildAccess.Unknown), true)]
-    public async Task PushDecidesOnlyForATokenListingItsScopes(bool push, string access, bool offered)
+    [Arguments(false, BuildAccess.Change, false)]
+    [Arguments(true, BuildAccess.Change, true)]
+    [Arguments(false, BuildAccess.Unknown, true)]
+    public async Task PushDecidesOnlyForATokenListingItsScopes(bool push, BuildAccess access, bool offered)
     {
         // Whose a fine grained token's permissions are is not documented, and it can re-run with
         // Actions write where push is false.
@@ -428,7 +428,7 @@ public class GitHubProviderTests
             .Get(
                 "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
                 $$$"""[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z","permissions":{"admin":false,"maintain":false,"push":{{{push.ToString().ToLowerInvariant()}}},"triage":false,"pull":true}}]""");
-        var context = ProviderTestHelpers.Context("github", handler) with { Access = Enum.Parse<BuildAccess>(access) };
+        var context = ProviderTestHelpers.Context("github", handler) with { Access = access };
         var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
         await Assert.That(builds.Single(_ => _.RunNumber == "1234").CanCancel).IsEqualTo(offered);
         await Assert.That(builds.Single(_ => _.RunNumber == "1233").CanRetry).IsEqualTo(offered);

@@ -6,7 +6,7 @@
 /// are never drawn as a chip sit outside that order and may be added at the end.
 /// Keep in sync with BmChipKind in bm.h.
 /// </summary>
-enum ChipKind
+public enum ChipKind
 {
     None = 0,
     // The pipeline's name in the row's text, and the status square, which is the only part an

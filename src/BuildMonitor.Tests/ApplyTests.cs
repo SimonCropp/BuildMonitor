@@ -16,14 +16,14 @@ public class ApplyTests
     }
 
     [Test]
-    [Arguments(nameof(ChipKind.Build), "https://example.com/gh/Verify/test.yml/77")]
-    [Arguments(nameof(ChipKind.Branch), "https://github.com/VerifyTests/Verify/tree/feature/inline")]
-    public async Task ClickingANameInTheRowOpensIt(string link, string url)
+    [Arguments(ChipKind.Build, "https://example.com/gh/Verify/test.yml/77")]
+    [Arguments(ChipKind.Branch, "https://github.com/VerifyTests/Verify/tree/feature/inline")]
+    public async Task ClickingANameInTheRowOpensIt(ChipKind link, string url)
     {
         var actions = new RecordingActions();
         var builds = Fixtures.WithBuilds();
         var row = FailedRow(builds);
-        var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: Enum.Parse<ChipKind>(link)), actions);
+        var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: link), actions);
         await Assert.That(actions.Calls).IsEquivalentTo([$"OpenUrl {url}"]);
         await Assert.That(state.SelectedRow).IsEqualTo(row);
     }

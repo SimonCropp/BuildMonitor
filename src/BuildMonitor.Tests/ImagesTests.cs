@@ -4,16 +4,19 @@ public class ImagesTests
     public Task EmbeddedImages() =>
         Verify(Images.All());
 
+    /// <summary>
+    /// A case per kind rather than a loop in one, which stopped at the first kind missing a format
+    /// and did not say which. The matrix takes every value of the enum, so a kind added later is
+    /// covered as the loop covered it.
+    /// </summary>
     [Test]
-    public async Task EveryTrayKindHasEveryFormat()
+    [MatrixDataSource]
+    public async Task EveryTrayKindHasEveryFormat(TrayIconKind kind)
     {
-        foreach (var kind in Enum.GetValues<TrayIconKind>())
-        {
-            await Assert.That(Images.TrayIco(kind)).IsNotNull();
-            await Assert.That(Images.TrayPng(kind, 16)).IsNotNull();
-            await Assert.That(Images.TrayPng(kind, 256)).IsNotNull();
-            await Assert.That(Images.TrayArgb(kind, 22)!.Length).IsEqualTo(22 * 22 * 4);
-        }
+        await Assert.That(Images.TrayIco(kind)).IsNotNull();
+        await Assert.That(Images.TrayPng(kind, 16)).IsNotNull();
+        await Assert.That(Images.TrayPng(kind, 256)).IsNotNull();
+        await Assert.That(Images.TrayArgb(kind, 22)!.Length).IsEqualTo(22 * 22 * 4);
     }
 
     /// <summary>

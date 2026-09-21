@@ -3,7 +3,7 @@
 /// by the number of pipelines asked for, so fetching a subset would change the request and shrink
 /// the window; the whole connection is one group for it.
 /// </summary>
-enum FetchUnit
+public enum FetchUnit
 {
     // A request per pipeline: AppVeyor, Bitbucket, GoCD, Jenkins, Travis.
     Pipeline,

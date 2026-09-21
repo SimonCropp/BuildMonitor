@@ -18,18 +18,18 @@ public class GroupKeyTests
     }
 
     [Test]
-    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Succeeded), "verify")]
-    [Arguments("Verify", nameof(BuildStatus.Succeeded), "verify")]
-    [Arguments("owner/", nameof(BuildStatus.Succeeded), "")]
+    [Arguments("VerifyTests/Verify", BuildStatus.Succeeded, "verify")]
+    [Arguments("Verify", BuildStatus.Succeeded, "verify")]
+    [Arguments("owner/", BuildStatus.Succeeded, "")]
     // Only passes group: a failure keeps the row of its own that says which pipeline broke.
-    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Failed), null)]
-    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Running), null)]
-    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Queued), null)]
-    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Cancelled), null)]
-    [Arguments("VerifyTests/Verify", nameof(BuildStatus.Unknown), null)]
-    public async Task ABuildsIdIsItsKeysId(string repo, string status, string? expected)
+    [Arguments("VerifyTests/Verify", BuildStatus.Failed, null)]
+    [Arguments("VerifyTests/Verify", BuildStatus.Running, null)]
+    [Arguments("VerifyTests/Verify", BuildStatus.Queued, null)]
+    [Arguments("VerifyTests/Verify", BuildStatus.Cancelled, null)]
+    [Arguments("VerifyTests/Verify", BuildStatus.Unknown, null)]
+    public async Task ABuildsIdIsItsKeysId(string repo, BuildStatus status, string? expected)
     {
-        var build = Build(repo, Enum.Parse<BuildStatus>(status));
+        var build = Build(repo, status);
         await Assert.That(GroupKey.IdOf(build, [])).IsEqualTo(expected);
         await Assert.That(GroupKey.Of(build, [])?.Id).IsEqualTo(expected);
     }

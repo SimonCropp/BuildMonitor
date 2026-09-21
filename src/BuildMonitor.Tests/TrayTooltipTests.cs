@@ -30,26 +30,24 @@ public class TrayTooltipTests
         await Assert.That(ScreenBuilder.Tray(Fixtures.WithDependabotFailure()).Tooltip).IsEqualTo("BuildMonitor: Reports and Verify failing, 4 running");
 
     /// <summary>
-    /// Counts alone put "0 failing" beside the Attention icon, which reads as all clear.
+    /// Every health one connection can be in, on its own: what the icon does and what a hover
+    /// says. A connection that needs something done leads the tooltip and raises Attention, since
+    /// counts alone put "0 failing" beside that icon, which reads as all clear. The poller waits a
+    /// rate limit out by itself, so that raises no Attention, but a hover asking why the rows have
+    /// stopped changing still finds it. A poll in flight is the footer's to say, not the tray's.
     /// </summary>
     [Test]
-    public async Task ASignInLeads()
+    [Arguments(ConnectionHealth.Unpolled, TrayIconKind.Failed, "BuildMonitor: Verify failing, 4 running")]
+    [Arguments(ConnectionHealth.Ok, TrayIconKind.Failed, "BuildMonitor: Verify failing, 4 running")]
+    [Arguments(ConnectionHealth.Polling, TrayIconKind.Failed, "BuildMonitor: Verify failing, 4 running")]
+    [Arguments(ConnectionHealth.Error, TrayIconKind.Attention, "BuildMonitor: error polling GitHub. Verify failing, 4 running")]
+    [Arguments(ConnectionHealth.NeedsAuth, TrayIconKind.Attention, "BuildMonitor: sign in required for GitHub. Verify failing, 4 running")]
+    [Arguments(ConnectionHealth.RateLimited, TrayIconKind.Failed, "BuildMonitor: GitHub rate limited. Verify failing, 4 running")]
+    public async Task EachHealthOnItsOwn(ConnectionHealth health, TrayIconKind icon, string tooltip)
     {
-        var tray = ScreenBuilder.Tray(Fixtures.NeedsAuth());
-        await Assert.That(tray.Icon).IsEqualTo(TrayIconKind.Attention);
-        await Assert.That(tray.Tooltip).IsEqualTo("BuildMonitor: sign in required for GitHub. Verify failing, 4 running");
-    }
-
-    /// <summary>
-    /// The poller waits a rate limit out by itself, so it raises no Attention, but a hover asking
-    /// why the rows stopped changing still finds it.
-    /// </summary>
-    [Test]
-    public async Task ARateLimitIsSaidButRaisesNoAttention()
-    {
-        var tray = ScreenBuilder.Tray(Fixtures.RateLimited());
-        await Assert.That(tray.Icon).IsEqualTo(TrayIconKind.Failed);
-        await Assert.That(tray.Tooltip).IsEqualTo("BuildMonitor: GitHub rate limited. Verify failing, 4 running");
+        var tray = ScreenBuilder.Tray(MonitorSession.SetHealth(Fixtures.WithBuilds(), Fixtures.GitHub.Id, health));
+        await Assert.That(tray.Icon).IsEqualTo(icon);
+        await Assert.That(tray.Tooltip).IsEqualTo(tooltip);
     }
 
     /// <summary>

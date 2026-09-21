@@ -7,14 +7,13 @@ public class HistoryCutoffTests
         await Assert.That(HistoryCutoff.Of(now, 30)).IsEqualTo(new(2026, 8, 16, 0, 0, 0, TimeSpan.Zero));
 
     [Test]
-    [Arguments("Succeeded", -40, false)]
-    [Arguments("Failed", -40, false)]
-    [Arguments("Succeeded", -10, true)]
-    [Arguments("Running", -40, true)]
-    [Arguments("Queued", -40, true)]
-    public async Task KeepsRecentAndActive(string name, int days, bool kept)
+    [Arguments(BuildStatus.Succeeded, -40, false)]
+    [Arguments(BuildStatus.Failed, -40, false)]
+    [Arguments(BuildStatus.Succeeded, -10, true)]
+    [Arguments(BuildStatus.Running, -40, true)]
+    [Arguments(BuildStatus.Queued, -40, true)]
+    public async Task KeepsRecentAndActive(BuildStatus status, int days, bool kept)
     {
-        var status = Enum.Parse<BuildStatus>(name);
         var at = now.AddDays(days);
         var build = Build(status, at, status is BuildStatus.Running or BuildStatus.Queued ? null : at);
         await Assert.That(HistoryCutoff.Keeps(build, HistoryCutoff.Of(now, 30))).IsEqualTo(kept);

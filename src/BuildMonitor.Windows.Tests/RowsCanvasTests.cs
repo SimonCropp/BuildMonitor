@@ -67,13 +67,13 @@ public class RowsCanvasTests
     }
 
     [Test]
-    [Arguments(nameof(ChipKind.Build))]
-    [Arguments(nameof(ChipKind.Branch))]
-    public async Task ARowReportsTheLinksInItsText(string link)
+    [Arguments(ChipKind.Build)]
+    [Arguments(ChipKind.Branch)]
+    public async Task ARowReportsTheLinksInItsText(ChipKind link)
     {
         using var canvas = Drawn(1000);
         var row = FailedRow();
-        var input = ClickAlong(canvas, row, _ => _.ClickedChip == Enum.Parse<ChipKind>(link));
+        var input = ClickAlong(canvas, row, _ => _.ClickedChip == link);
         await Assert.That(input.ClickedChipRow).IsEqualTo(row);
     }
 
@@ -170,9 +170,9 @@ public class RowsCanvasTests
     /// beside it, and doing nothing, reads as a link that failed.
     /// </summary>
     [Test]
-    [Arguments("gh/DiffEngine/docs.yml/main", nameof(ChipKind.Repo))]
-    [Arguments("gh/Verify/test.yml/feature/inline", nameof(ChipKind.Build))]
-    public async Task TheMarkBeforeTheNameOpensWhatTheNameDoes(string key, string expected)
+    [Arguments("gh/DiffEngine/docs.yml/main", ChipKind.Repo)]
+    [Arguments("gh/Verify/test.yml/feature/inline", ChipKind.Build)]
+    public async Task TheMarkBeforeTheNameOpensWhatTheNameDoes(string key, ChipKind expected)
     {
         var state = Fixtures.WithBuilds();
         using var canvas = Drawn(1000, state);
@@ -182,7 +182,7 @@ public class RowsCanvasTests
         // The first pixels of the name cell, which is where the mark is drawn.
         Click(canvas, MouseButtons.Left, canvas.RowHeight + 12, y);
         var input = canvas.Drain();
-        await Assert.That(input.ClickedChip).IsEqualTo(Enum.Parse<ChipKind>(expected));
+        await Assert.That(input.ClickedChip).IsEqualTo(expected);
         await Assert.That(input.ClickedChipRow).IsEqualTo(row);
     }
 
