@@ -17,8 +17,7 @@ static class Concurrently
         var results = new TResult[items.Count];
         using var gate = new SemaphoreSlim(Limit);
         var tasks = new Task[items.Count];
-        var done = 0;
-        progress?.Invoke(new(0, items.Count));
+        var report = Reporter(items.Count, progress);
         for (var index = 0; index < items.Count; index++)
         {
             tasks[index] = Run(index);
@@ -39,8 +38,33 @@ static class Concurrently
                 gate.Release();
             }
 
-            progress?.Invoke(new(Interlocked.Increment(ref done), items.Count));
+            report();
         }
+    }
+
+    /// <summary>
+    /// Counts an item done and reports it, in order. Counted with an interlocked increment and
+    /// reported after, two items finishing together could report out of order, so the footer's
+    /// "polling 66/152" stepped back to 65 and on to 67, flickering through a first poll.
+    /// </summary>
+    static Action Reporter(int total, Action<PollProgress>? progress)
+    {
+        if (progress is null)
+        {
+            return () => { };
+        }
+
+        progress(new(0, total));
+        var gate = new Lock();
+        var done = 0;
+        return () =>
+        {
+            lock (gate)
+            {
+                done++;
+                progress(new(done, total));
+            }
+        };
     }
 
     /// <summary>
@@ -58,8 +82,7 @@ static class Concurrently
         var results = new Settled<TResult>[items.Count];
         using var gate = new SemaphoreSlim(Math.Max(1, limit));
         var tasks = new Task[items.Count];
-        var done = 0;
-        progress?.Invoke(new(0, items.Count));
+        var report = Reporter(items.Count, progress);
         for (var index = 0; index < items.Count; index++)
         {
             tasks[index] = Run(index);
@@ -85,7 +108,7 @@ static class Concurrently
                 gate.Release();
             }
 
-            progress?.Invoke(new(Interlocked.Increment(ref done), items.Count));
+            report();
         }
     }
 }
