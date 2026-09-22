@@ -5,7 +5,7 @@
 sealed class FooterPanel : Panel
 {
     FlowLayoutPanel buttons;
-    FormsLabel status;
+    LiveLabel status;
     List<FormsButton> pool = [];
     string signature = "";
     int clicked = -1;

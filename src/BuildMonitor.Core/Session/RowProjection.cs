@@ -142,10 +142,23 @@ static class RowProjection
             .ThenBy(_ => _.Key, StringComparer.Ordinal)
     ];
 
-    static ImmutableArray<Build> Selected(SessionState state, string connectionId) =>
-        BuildSelection.Select(
+    /// <summary>
+    /// A deferral drops a row after the selection rather than before it: dropped first, the run
+    /// before the failure would take the row, and a green row would say the pipeline passed.
+    /// </summary>
+    static IEnumerable<Build> Selected(SessionState state, string connectionId)
+    {
+        var selected = BuildSelection.Select(
             Filters.Apply(state.Settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
             state.Settings.ShowOtherBranches);
+        var deferrals = state.Settings.Deferrals;
+        if (deferrals.Length == 0)
+        {
+            return selected;
+        }
+
+        return selected.Where(_ => !Deferrals.Hides(deferrals, _));
+    }
 
     static int Rank(BuildStatus status) =>
         status switch

@@ -20,7 +20,7 @@ sealed class HeaderPanel : Panel
     const int clearWidth = 20;
 
     const int boxPadding = 4;
-    FormsLabel text;
+    LiveLabel text;
     Panel box;
     TextBox search;
     FormsButton clear;

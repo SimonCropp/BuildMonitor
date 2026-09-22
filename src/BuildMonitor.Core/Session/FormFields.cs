@@ -51,6 +51,7 @@ static class FormFields
     public const string AddFilter = "addFilter";
     public const string FilterPrefix = "filter:";
     public const string NoFilters = "noFilters";
+    public const string DeferralPrefix = "deferral:";
 
     // Connection
     public const string Provider = "provider";
@@ -75,5 +76,6 @@ static class FormFields
 
     public static string Connection(string id) => $"{ConnectionPrefix}{id}";
     public static string Filter(int index) => $"{FilterPrefix}{index}";
+    public static string Deferral(int index) => $"{DeferralPrefix}{index}";
     public static string Scope(string id) => $"{ScopePrefix}{id}";
 }

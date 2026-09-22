@@ -424,6 +424,13 @@ static class MonitorSession
 
             items.Add(new("Refresh", CommandKind.Refresh));
             AddGrouping(items, state, build.ShortRepoName());
+            if (build.Status == BuildStatus.Failed)
+            {
+                foreach (var days in Deferrals.Days)
+                {
+                    items.Add(new(Deferrals.Label(days), CommandKind.Defer, days.ToString(CultureInfo.InvariantCulture)));
+                }
+            }
         }
 
         AddExcludes(items, state, target.Builds);
@@ -494,8 +501,9 @@ static class MonitorSession
 
     /// <summary>
     /// The kind of thing a menu item does, in the order the menu offers them: what to look at or
-    /// copy, what changes a service's builds, what changes this machine or this window, and what
-    /// hides rows for good. A group's menu has only the last two, so one line.
+    /// copy, what changes a service's builds, what changes this machine or this window, what hides
+    /// a failure for a while, and what hides rows for good. A group's menu has only the third and
+    /// the last, so one line.
     /// </summary>
     static int Section(CommandKind command) =>
         command switch
@@ -508,10 +516,11 @@ static class MonitorSession
                 CommandKind.Refresh or
                 CommandKind.GroupByPrefix or
                 CommandKind.RemoveGroupPrefix => 2,
+            CommandKind.Defer => 3,
             CommandKind.ExcludePipeline or
                 CommandKind.ExcludeBranch or
                 CommandKind.ExcludeRepo or
-                CommandKind.ExcludeOrg => 3,
+                CommandKind.ExcludeOrg => 4,
             _ => 0
         };
 
@@ -627,7 +636,8 @@ static class MonitorSession
             new FiltersFormState
             {
                 Values = values.ToImmutable(),
-                Filters = state.Settings.Filters
+                Filters = state.Settings.Filters,
+                Deferrals = state.Settings.Deferrals
             });
     }
 
@@ -957,6 +967,28 @@ static class MonitorSession
     }
 
     /// <summary>
+    /// Ends a deferral on the page's draft, as a filter's removal is: the save is what makes it so.
+    /// </summary>
+    public static SessionState RemoveDeferral(SessionState state, int index)
+    {
+        if (state.Form is not FiltersFormState form ||
+            index < 0 ||
+            index >= form.Deferrals.Length)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            Form = form with
+            {
+                Deferrals = form.Deferrals.RemoveAt(index),
+                Error = null
+            }
+        };
+    }
+
+    /// <summary>
     /// What the build's service calls the thing an exclusion drops: an action, a job, a build
     /// config. Named after the pipeline in the menu and the status, so "Exclude CI" cannot read as
     /// excluding something other than the pipeline it names.
@@ -1213,8 +1245,41 @@ static class MonitorSession
     }
 
     /// <summary>
-    /// Takes back the exclude the status line reported. Only the filter it added comes out, so one
-    /// the user already had, of the same rows or others, stays.
+    /// The context menu's "Defer": hides the failed build's pipeline on its branch until
+    /// <paramref name="days"/> from <paramref name="now"/>. A second deferral of the same one
+    /// replaces the first rather than standing beside it, so the later of two times cannot be
+    /// shortened by the earlier one ending first.
+    /// </summary>
+    public static SessionState Defer(SessionState state, Build build, int days, DateTimeOffset now)
+    {
+        if (build.Status != BuildStatus.Failed ||
+            days < 1)
+        {
+            return state;
+        }
+
+        var name = build.Branch is null
+            ? $"{build.PipelineName} failure"
+            : $"{build.PipelineName} failure on {build.ShortBranchName()}";
+        var deferral = new Deferral(build.Key, name, now.AddDays(days));
+        var deferred = Follow(
+            state,
+            state with
+            {
+                Settings = state.Settings with
+                {
+                    Deferrals = [..state.Settings.Deferrals.Where(_ => _.Key != deferral.Key), deferral]
+                }
+            });
+        return deferred with
+        {
+            Undo = new(null, name, deferral)
+        };
+    }
+
+    /// <summary>
+    /// Takes back the exclude or deferral the status line reported. Only what it added comes out,
+    /// so a filter the user already had, of the same rows or others, stays.
     /// </summary>
     public static SessionState UndoExclude(SessionState state)
     {
@@ -1225,7 +1290,8 @@ static class MonitorSession
 
         var restored = ApplySettings(state, state.Settings with
         {
-            Filters = state.Settings.Filters.Remove(undo.Filter)
+            Filters = undo.Filter is null ? state.Settings.Filters : state.Settings.Filters.Remove(undo.Filter),
+            Deferrals = undo.Deferral is null ? state.Settings.Deferrals : state.Settings.Deferrals.Remove(undo.Deferral)
         });
         return restored with
         {
@@ -1457,21 +1523,23 @@ static class MonitorSession
         var notification = state.Notification;
         if (state.Settings.NotifyOnFailure)
         {
-            var failures = FailureDetector.NewFailures(previous, builds);
+            var failures = Undeferred(state, FailureDetector.NewFailures(previous, builds));
             notification = FailureDetector.Describe(failures) ?? notification;
         }
 
         return Follow(
             state,
-            next with
-            {
-                Builds =
-                [
-                    .. next.Builds.Where(_ => _.ConnectionId != connectionId),
-                    .. builds
-                ],
-                Notification = notification
-            },
+            LiftDeferrals(
+                next with
+                {
+                    Builds =
+                    [
+                        .. next.Builds.Where(_ => _.ConnectionId != connectionId),
+                        .. builds
+                    ],
+                    Notification = notification
+                },
+                now),
             now);
     }
 
@@ -1519,26 +1587,59 @@ static class MonitorSession
         if (state.Settings.NotifyOnFailure)
         {
             var news = arrived.Where(_ => !outcome.FirstFetch.Contains(_.PipelineId)).ToImmutableArray();
-            notification = FailureDetector.Describe(FailureDetector.NewFailures(previous, news)) ?? notification;
+            notification = FailureDetector.Describe(Undeferred(state, FailureDetector.NewFailures(previous, news))) ?? notification;
         }
 
         return Follow(
             state,
-            next with
-            {
-                Builds =
-                [
-                    .. next.Builds.Where(_ => _.ConnectionId != connectionId),
-                    .. previous
-                        .Where(_ => discovered.Contains(_.PipelineId) &&
-                                    !outcome.Fetched.Contains(_.PipelineId) &&
-                                    HistoryCutoff.Keeps(_, cutoff))
-                        .Select(_ => Offered(_, outcome.Access)),
-                    .. arrived
-                ],
-                Notification = notification
-            },
+            LiftDeferrals(
+                next with
+                {
+                    Builds =
+                    [
+                        .. next.Builds.Where(_ => _.ConnectionId != connectionId),
+                        .. previous
+                            .Where(_ => discovered.Contains(_.PipelineId) &&
+                                        !outcome.Fetched.Contains(_.PipelineId) &&
+                                        HistoryCutoff.Keeps(_, cutoff))
+                            .Select(_ => Offered(_, outcome.Access)),
+                        .. arrived
+                    ],
+                    Notification = notification
+                },
+                now),
             now);
+    }
+
+    /// <summary>
+    /// A deferred pipeline failing again is the failure the user put off, not news.
+    /// </summary>
+    static ImmutableArray<Build> Undeferred(SessionState state, ImmutableArray<Build> failures) =>
+        state.Settings.Deferrals.Length == 0
+            ? failures
+            : failures.RemoveAll(_ => Deferrals.Hides(state.Settings.Deferrals, _));
+
+    /// <summary>
+    /// Ends the deferrals that are due or whose pipeline has passed since, with the poll that
+    /// brought the builds saying so. Checked on a poll because a poll is what can end one early,
+    /// and the next one is never more than an interval away from one falling due. Not saved here:
+    /// the poller saves the settings when these differ from the ones it was handed.
+    /// </summary>
+    public static SessionState LiftDeferrals(SessionState state, DateTimeOffset now)
+    {
+        var standing = Deferrals.Standing(state.Settings.Deferrals, state.Builds, now);
+        if (standing == state.Settings.Deferrals)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            Settings = state.Settings with
+            {
+                Deferrals = standing
+            }
+        };
     }
 
     /// <summary>

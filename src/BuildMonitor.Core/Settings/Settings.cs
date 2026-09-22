@@ -52,4 +52,9 @@ record Settings
     public WindowPlacement? Window { get; init; }
     public ImmutableArray<Connection> Connections { get; init; } = [];
     public ImmutableArray<Filter> Filters { get; init; } = [];
+
+    /// <summary>
+    /// Broken builds put off from a row's menu, each until its own time. See <see cref="Deferral"/>.
+    /// </summary>
+    public ImmutableArray<Deferral> Deferrals { get; init; } = [];
 }
