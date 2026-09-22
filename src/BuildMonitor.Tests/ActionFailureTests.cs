@@ -8,6 +8,20 @@ public class ActionFailureTests
     }
 
     [Test]
+    public async Task RunNextRefusedNamesTheQueuePermission()
+    {
+        var message = ActionFailure.DescribeRunNext(ProviderDescriptors.AzureDevOps, "Moving TheProject e2e to the front of the queue", new AuthException("403 Forbidden", HttpStatusCode.Forbidden));
+        await Assert.That(message).IsEqualTo("Moving TheProject e2e to the front of the queue failed: Azure DevOps needs the Manage build queue permission on the pipeline");
+    }
+
+    [Test]
+    public async Task RunNextWithoutAQueuePermission()
+    {
+        var message = ActionFailure.DescribeRunNext(ProviderDescriptors.TeamCity, "Moving deploy to the front of the queue", new AuthException("403 Forbidden", HttpStatusCode.Forbidden));
+        await Assert.That(message).IsEqualTo("Moving deploy to the front of the queue failed: 403 Forbidden. The connection may not be allowed to change builds");
+    }
+
+    [Test]
     public async Task RefusedWithoutADocumentedPermission()
     {
         var message = ActionFailure.Describe(ProviderDescriptors.Jenkins, "Cancelling deploy", new AuthException("403 Forbidden", HttpStatusCode.Forbidden));

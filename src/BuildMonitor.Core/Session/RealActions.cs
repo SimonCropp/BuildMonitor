@@ -33,7 +33,8 @@ static class RealActions
                 // Without the run number the other two carry: a build still in the queue often has
                 // none yet, since several of the services only number a run once it starts.
                 $"Moved {build.PipelineName} to the front of the queue",
-                build.ConnectionId),
+                build.ConnectionId,
+                ActionFailure.DescribeRunNext),
             CopyLog: build => _ = Task.Run(async () =>
             {
                 var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
@@ -140,7 +141,7 @@ static class RealActions
         return $"{copied}: {files.Count} files in {triage.Directory}";
     }
 
-    static void Background(Func<Task> work, SessionHost host, string what, string? done = null, string? connectionId = null) =>
+    static void Background(Func<Task> work, SessionHost host, string what, string? done = null, string? connectionId = null, Func<SessionState, string?, string, Exception, string>? describe = null) =>
         _ = Task.Run(async () =>
         {
             try
@@ -154,7 +155,8 @@ static class RealActions
             catch (Exception exception)
             {
                 Log.Error(exception, "{What} failed", what);
-                host.Mutate(_ => MonitorSession.SetStatus(_, ActionFailure.Describe(_, connectionId, what, exception)));
+                var failure = describe ?? ActionFailure.Describe;
+                host.Mutate(_ => MonitorSession.SetStatus(_, failure(_, connectionId, what, exception)));
             }
         });
 }

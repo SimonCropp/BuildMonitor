@@ -145,6 +145,8 @@ static class ProviderDescriptors
         // project need not be fetched every five minutes.
         IdleCap: TimeSpan.FromMinutes(30),
         ActionPermission: "Build (Read & execute)",
+        // A security setting of the project or pipeline rather than a token scope.
+        QueuePermission: "the Manage build queue permission on the pipeline",
         // Microsoft's REST samples send a Microsoft Entra token as a Bearer token, and describe Basic
         // for a personal access token.
         SignInScheme: AuthScheme.Bearer,

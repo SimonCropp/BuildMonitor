@@ -47,7 +47,9 @@ Every build also leaves behind the name of the identity it was queued for, id an
  * Retry re-runs the build
  * Cancel cancels a queued or running build
  * Run next moves a build still in the queue to the front of it, which is what the run's own page
-   calls Run next. Only on a queued row: a build that has started has left the queue
+   calls Run next. Only on a queued row: a build that has started has left the queue. Besides the
+   token's Build (Read & execute), the user needs the Manage build queue permission on the
+   pipeline, which is a project security setting rather than a token scope
  * Log copies the logs of the failed tasks, or of a failed job when none of its tasks failed
 
 

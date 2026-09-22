@@ -71,6 +71,7 @@
     },
     IdleCap: 00:30:00,
     ActionPermission: Build (Read & execute),
+    QueuePermission: the Manage build queue permission on the pipeline,
     SignInScheme: Bearer,
     SignInNote: Work or school accounts only. Microsoft refuses a personal account's address; use a token.,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md

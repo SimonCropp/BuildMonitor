@@ -27,4 +27,27 @@ static class ActionFailure
 
         return $"{what} failed: the connection can watch builds but not change them. {descriptor.Name} needs {descriptor.ActionPermission}";
     }
+
+    public static string DescribeRunNext(SessionState state, string? connectionId, string what, Exception exception)
+    {
+        var connection = state.Settings.Connections.FirstOrDefault(_ => _.Id == connectionId);
+        var descriptor = connection is null ? null : ProviderDescriptors.Get(connection.ProviderId);
+        return DescribeRunNext(descriptor, what, exception);
+    }
+
+    /// <summary>
+    /// Where reordering the queue is a permission of its own, a connection that retries and
+    /// cancels can still be refused it, so the refusal names that permission rather than claiming
+    /// the connection can change nothing.
+    /// </summary>
+    public static string DescribeRunNext(ProviderDescriptor? descriptor, string what, Exception exception)
+    {
+        if (exception is AuthException &&
+            descriptor?.QueuePermission is { } needed)
+        {
+            return $"{what} failed: {descriptor.Name} needs {needed}";
+        }
+
+        return Describe(descriptor, what, exception);
+    }
 }

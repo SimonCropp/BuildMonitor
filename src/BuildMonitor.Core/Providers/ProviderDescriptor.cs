@@ -21,6 +21,10 @@
 /// before the chip is drawn, as <paramref name="HasArtifacts"/> is.</param>
 /// <param name="ActionPermission">What a credential needs to retry and cancel, named in the
 /// status when one is refused; null when the provider does not document it.</param>
+/// <param name="QueuePermission">What a credential needs to move a queued build to the front,
+/// where that is a permission apart from <paramref name="ActionPermission"/>. A connection that can
+/// cancel a build can still be refused this, and the retry and cancel message then blamed a token
+/// scope the connection already had.</param>
 /// <param name="FetchUnit">What one fetch covers, which the poller schedules as one group.</param>
 /// <param name="FetchConcurrency">How many groups are fetched at once. A cycle applies its rows only
 /// once every due group is back, so one at a time left a first poll of a few hundred jobs showing
@@ -65,6 +69,7 @@ record ProviderDescriptor(
     TimeSpan? IdleCap = null,
     TimeSpan? ProbeInterval = null,
     string? ActionPermission = null,
+    string? QueuePermission = null,
     AuthScheme? SignInScheme = null,
     string? SignInNote = null)
 {
