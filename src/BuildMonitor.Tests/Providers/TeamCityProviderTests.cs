@@ -36,7 +36,11 @@ public class TeamCityProviderTests
     {
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("teamcity", ProviderTestHelpers.Context("teamcity", handler, server));
-        await Verify(new { builds, handler.Requests });
+        await Verify(new
+        {
+            builds,
+            handler.Requests
+        });
     }
 
     /// <summary>
@@ -62,7 +66,10 @@ public class TeamCityProviderTests
             Identities = identities ?? new()
         };
         var provider = ProviderTestHelpers.Provider("teamcity");
-        var pipelines = new[] { new Pipeline("Verify_Build", "Verify / Build", "Verify", "Verify", "") };
+        var pipelines = new[]
+        {
+            new Pipeline("Verify_Build", "Verify / Build", "Verify", "Verify", "")
+        };
         var builds = await provider.FetchBuilds(context, pipelines, 5, Cancel.None);
         return builds.Single();
     }
@@ -105,7 +112,11 @@ public class TeamCityProviderTests
     {
         // A queuedDate filter would hide a build queued before the cutoff that is still queued or running.
         var handler = Handler();
-        var context = ProviderTestHelpers.Context("teamcity", handler, server) with { Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero) };
+        var context = ProviderTestHelpers.Context("teamcity", handler, server)
+            with
+            {
+                Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero)
+            };
         await ProviderTestHelpers.DiscoverAndFetch("teamcity", context);
         await Assert.That(handler.Requests.Any(_ => _.Contains("count:5)"))).IsTrue();
         await Assert.That(handler.Requests.Any(_ => _.Contains("queuedDate:("))).IsFalse();
@@ -119,11 +130,11 @@ public class TeamCityProviderTests
             .Get(
                 $"{server}/app/rest/buildTypes",
                 $$$"""
-                {"buildType":[
-                  {"id":"Verify_Build","builds":{"build":[{{{queued}}}]}},
-                  {"id":"Verify_Docs","builds":{"build":[{"id":100,"number":"7","status":"SUCCESS","state":"finished","buildTypeId":"Verify_Docs","queuedDate":"20240101T100000+0000","startDate":"20240101T100100+0000","finishDate":"20240101T100500+0000"}]}}
-                ]}
-                """);
+                   {"buildType":[
+                     {"id":"Verify_Build","builds":{"build":[{{{queued}}}]}},
+                     {"id":"Verify_Docs","builds":{"build":[{"id":100,"number":"7","status":"SUCCESS","state":"finished","buildTypeId":"Verify_Docs","queuedDate":"20240101T100000+0000","startDate":"20240101T100100+0000","finishDate":"20240101T100500+0000"}]}}
+                   ]}
+                   """);
         var context = ProviderTestHelpers.Context("teamcity", handler, server);
         Pipeline[] pipelines =
         [

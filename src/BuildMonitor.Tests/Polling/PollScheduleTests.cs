@@ -20,9 +20,9 @@ public class PollScheduleTests
             "gh",
             quota,
             idleCap,
-            [..groups],
+            [.. groups],
             memory ?? ImmutableDictionary<string, GroupMemory>.Empty,
-            [..builds],
+            [.. builds],
             durations ?? ImmutableDictionary<string, DurationRange>.Empty,
             TimeSpan.FromSeconds(30),
             TimeSpan.FromSeconds(10),
@@ -33,10 +33,14 @@ public class PollScheduleTests
             now);
 
     static PollGroup Group(string key, params string[] pipelineIds) =>
-        new(key, [..pipelineIds.Select(_ => new Pipeline(_, _, key, key, $"https://github.com/{key}"))]);
+        new(key, [.. pipelineIds.Select(_ => new Pipeline(_, _, key, key, $"https://github.com/{key}"))]);
 
     static GroupMemory Fetched(TimeSpan ago, params string[] pipelineIds) =>
-        GroupMemory.New with { LastAttempt = now - ago, FetchedPipelines = [..pipelineIds] };
+        GroupMemory.New with
+        {
+            LastAttempt = now - ago,
+            FetchedPipelines = [.. pipelineIds]
+        };
 
     static Build Finished(string pipelineId, BuildStatus status, TimeSpan ago) =>
         Fixtures.Build("gh", pipelineId, pipelineId, "repo", "main", "1", status, started: now - ago, finished: now - ago);
@@ -134,7 +138,10 @@ public class PollScheduleTests
         await Assert.That(minuteOff.DueAt).IsEqualTo(tick);
 
         // A group backing off after a failure is not pulled forward.
-        var failing = fetched with { Failures = 1 };
+        var failing = fetched with
+        {
+            Failures = 1
+        };
         var backingOff = PollSchedule.Group(Input([group], [nearlyOpen], ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, failing), durations: fiveToSeven), group);
         await Assert.That(backingOff.DueAt).IsEqualTo(tick);
     }
@@ -143,7 +150,11 @@ public class PollScheduleTests
     public async Task AGroupPollsAsOftenAsItsBusiestPipeline()
     {
         var group = Group("VerifyTests/Verify", "ci", "docs");
-        var builds = new[] { Finished("ci", BuildStatus.Failed, TimeSpan.FromMinutes(30)), Finished("docs", BuildStatus.Succeeded, TimeSpan.FromHours(12)) };
+        var builds = new[]
+        {
+            Finished("ci", BuildStatus.Failed, TimeSpan.FromMinutes(30)),
+            Finished("docs", BuildStatus.Succeeded, TimeSpan.FromHours(12))
+        };
         var memory = ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, Fetched(TimeSpan.Zero, "ci", "docs"));
         var plan = PollSchedule.Group(Input([group], builds, memory), group);
         await Assert.That(plan.Interval).IsEqualTo(TimeSpan.FromSeconds(30));
@@ -164,17 +175,29 @@ public class PollScheduleTests
     public async Task ANudgeIsDueAtOnceThenKeepsTheIntervalShortForThreeMinutes()
     {
         var group = Group("VerifyTests/Verify", "ci");
-        var builds = new[] { Finished("ci", BuildStatus.Succeeded, TimeSpan.FromDays(1)) };
+        var builds = new[]
+        {
+            Finished("ci", BuildStatus.Succeeded, TimeSpan.FromDays(1))
+        };
 
-        var nudged = Fetched(TimeSpan.FromMinutes(1), "ci") with { NudgedAt = now - TimeSpan.FromSeconds(5) };
+        var nudged = Fetched(TimeSpan.FromMinutes(1), "ci") with
+        {
+            NudgedAt = now - TimeSpan.FromSeconds(5)
+        };
         var dueNow = PollSchedule.Group(Input([group], builds, ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, nudged)), group);
         await Assert.That(dueNow.DueAt).IsEqualTo(now);
 
-        var afterFetch = Fetched(TimeSpan.Zero, "ci") with { NudgedAt = now - TimeSpan.FromMinutes(1) };
+        var afterFetch = Fetched(TimeSpan.Zero, "ci") with
+        {
+            NudgedAt = now - TimeSpan.FromMinutes(1)
+        };
         var shortened = PollSchedule.Group(Input([group], builds, ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, afterFetch)), group);
         await Assert.That((shortened.Reason, shortened.Interval)).IsEqualTo((ScheduleReason.Nudged, TimeSpan.FromSeconds(30)));
 
-        var expired = Fetched(TimeSpan.Zero, "ci") with { NudgedAt = now - TimeSpan.FromMinutes(4) };
+        var expired = Fetched(TimeSpan.Zero, "ci") with
+        {
+            NudgedAt = now - TimeSpan.FromMinutes(4)
+        };
         var quietAgain = PollSchedule.Group(Input([group], builds, ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, expired)), group);
         await Assert.That(quietAgain.Interval).IsEqualTo(TimeSpan.FromMinutes(5));
     }
@@ -186,7 +209,10 @@ public class PollScheduleTests
     public async Task FailuresBackOffPerGroup(int failures, int seconds)
     {
         var group = Group("VerifyTests/Verify", "ci");
-        var memory = Fetched(TimeSpan.Zero, "ci") with { Failures = failures };
+        var memory = Fetched(TimeSpan.Zero, "ci") with
+        {
+            Failures = failures
+        };
         var plan = PollSchedule.Group(Input([group], [Queued("ci", TimeSpan.FromMinutes(1))], ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, memory)), group);
         await Assert.That(plan.Interval).IsEqualTo(TimeSpan.FromSeconds(seconds));
     }
@@ -237,15 +263,20 @@ public class PollScheduleTests
         string[] keys = ["due", "soon", "later", "backingOff"];
         var groups = keys.Select(_ => Group(_, $"{_}-ci")).ToList();
         var builds = keys.Select(_ => Finished($"{_}-ci", BuildStatus.Succeeded, TimeSpan.FromDays(1))).ToList();
+
         // On the five minute idle cap, so up to thirty seconds early.
         static GroupMemory DueIn(string key, int seconds, int minutes = 5) =>
             Fetched(TimeSpan.FromMinutes(minutes) * (1 + PollSchedule.Spread("gh", key)) - TimeSpan.FromSeconds(seconds), $"{key}-ci");
+
         var memory = ImmutableDictionary<string, GroupMemory>.Empty
             .Add("due", DueIn("due", 0))
             .Add("soon", DueIn("soon", 20))
             .Add("later", DueIn("later", 40))
             // Five failures back off for eight minutes, past the idle cap.
-            .Add("backingOff", DueIn("backingOff", 20, 8) with { Failures = 5 });
+            .Add("backingOff", DueIn("backingOff", 20, 8) with
+            {
+                Failures = 5
+            });
         var plan = PollSchedule.Plan(Input(groups, builds, memory));
         await Assert.That(string.Join(',', plan.Fetch.Select(_ => _.Key))).IsEqualTo("due,soon");
         await Assert.That(plan.Deferred).IsEmpty();
@@ -271,18 +302,29 @@ public class PollScheduleTests
         var fetches = 0;
         while (at < now + TimeSpan.FromMinutes(30))
         {
-            var fetch = PollSchedule.Plan(input with { Memory = memory, Now = at }).Fetch;
+            var fetch = PollSchedule.Plan(input with
+            {
+                Memory = memory,
+                Now = at
+            }).Fetch;
             if (fetch.Length > 0)
             {
                 cycles++;
                 fetches += fetch.Length;
                 foreach (var group in fetch)
                 {
-                    memory = memory.SetItem(group.Key, memory[group.Key] with { LastAttempt = at });
+                    memory = memory.SetItem(group.Key, memory[group.Key] with
+                    {
+                        LastAttempt = at
+                    });
                 }
             }
 
-            at = PollSchedule.Plan(input with { Memory = memory, Now = at }).WakeAt!.Value;
+            at = PollSchedule.Plan(input with
+            {
+                Memory = memory,
+                Now = at
+            }).WakeAt!.Value;
         }
 
         // About every half minute, where fetching only what was due woke every four or five seconds.
@@ -303,7 +345,10 @@ public class PollScheduleTests
             Finished("quiet-ci", BuildStatus.Succeeded, TimeSpan.FromDays(1))
         };
         var memory = ImmutableDictionary<string, GroupMemory>.Empty
-            .Add("nudged", Fetched(TimeSpan.FromSeconds(30), "nudged-ci") with { NudgedAt = now - TimeSpan.FromSeconds(1) })
+            .Add("nudged", Fetched(TimeSpan.FromSeconds(30), "nudged-ci") with
+            {
+                NudgedAt = now - TimeSpan.FromSeconds(1)
+            })
             .Add("finishing", Fetched(TimeSpan.FromSeconds(20), "finishing-ci"))
             .Add("quiet", Fetched(TimeSpan.FromMinutes(10), "quiet-ci"));
         var plan = PollSchedule.Plan(Input(groups, builds, memory, quota: new(3, TimeSpan.FromMinutes(1), 3)));
@@ -325,7 +370,12 @@ public class PollScheduleTests
     [Test]
     public Task DescribesAPlan()
     {
-        var groups = new[] { Group("VerifyTests/Verify", "ci", "docs"), Group("VerifyTests/DiffEngine", "ci2"), Group("VerifyTests/New", "ci3") };
+        var groups = new[]
+        {
+            Group("VerifyTests/Verify", "ci", "docs"),
+            Group("VerifyTests/DiffEngine", "ci2"),
+            Group("VerifyTests/New", "ci3")
+        };
         var builds = new[]
         {
             Running("ci", TimeSpan.FromMinutes(2)),

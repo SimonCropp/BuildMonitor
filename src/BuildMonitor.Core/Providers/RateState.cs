@@ -50,7 +50,10 @@ record RateState(double? Limit, double? Remaining, DateTimeOffset? Reset, bool N
             observation.RetryAfter is { } retryAfter &&
             (PausedUntil is null || now + retryAfter > PausedUntil))
         {
-            next = next with { PausedUntil = now + retryAfter };
+            next = next with
+            {
+                PausedUntil = now + retryAfter
+            };
         }
 
         return next;

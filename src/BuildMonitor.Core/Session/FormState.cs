@@ -32,5 +32,8 @@ abstract record FormState
     /// <c>with</c> only reaches the members of its operand's static type.
     /// </summary>
     public FormState With(string id, string value) =>
-        this with { Values = Values.SetItem(id, value) };
+        this with
+        {
+            Values = Values.SetItem(id, value)
+        };
 }

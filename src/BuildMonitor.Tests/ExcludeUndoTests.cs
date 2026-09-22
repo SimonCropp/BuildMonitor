@@ -65,7 +65,12 @@ public class ExcludeUndoTests
         var actions = new RecordingActions();
         var own = new Filter(FilterKind.Prefix, FilterTarget.Branch, "feature/");
         var builds = Fixtures.WithBuilds();
-        var start = MonitorSession.ApplySettings(builds, builds.Settings with { Filters = [own] });
+        var start = MonitorSession.ApplySettings(
+            builds,
+            builds.Settings with
+            {
+                Filters = [own]
+            });
         // The user's filter hides the failed row, so the exclude is asked of another branch.
         var row = Fixtures.RowOf(start, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main");
         var state = Apply(start, new(RightClickedRow: row), actions);

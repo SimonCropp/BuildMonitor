@@ -25,9 +25,9 @@ public class SessionTests
         await Assert.That(string.Join(',', group.Members.Select(_ => _.PipelineName))).IsEqualTo("docs.yml,nuget.yml");
         await Assert.That(rows.Any(_ => _.Kind == RowKind.Member)).IsFalse();
         // The failing workflow of the same project is not hidden in the green group.
-        await Assert.That(rows.Count(_ => _.Build is { RepoName: "VerifyTests/Verify", Status: BuildStatus.Failed })).IsEqualTo(1);
+        await Assert.That(rows.Count(_ => _.Build is {RepoName: "VerifyTests/Verify", Status: BuildStatus.Failed})).IsEqualTo(1);
         // A project with one green workflow has nothing to group with.
-        await Assert.That(rows.Count(_ => _.Build is { RepoName: "VerifyTests/DiffEngine", PipelineName: "docs.yml" })).IsEqualTo(1);
+        await Assert.That(rows.Count(_ => _.Build is {RepoName: "VerifyTests/DiffEngine", PipelineName: "docs.yml"})).IsEqualTo(1);
     }
 
     /// <summary>
@@ -38,7 +38,7 @@ public class SessionTests
     public async Task FailedBuildsOfOneProjectEachKeepTheirRow()
     {
         var rows = RowProjection.Rows(Fixtures.WithTwoFailures());
-        var failures = rows.Where(_ => _.Build is { RepoName: "VerifyTests/Verify", Status: BuildStatus.Failed }).ToList();
+        var failures = rows.Where(_ => _.Build is {RepoName: "VerifyTests/Verify", Status: BuildStatus.Failed}).ToList();
         await Assert.That(failures.Select(_ => _.Build!.PipelineName).Order()).IsEquivalentTo(["release.yml", "test.yml"]);
         await Assert.That(failures.All(_ => _.Kind == RowKind.Build)).IsTrue();
         await Assert.That(rows.Count(_ => _.Kind == RowKind.Group)).IsEqualTo(1);
@@ -49,7 +49,7 @@ public class SessionTests
     {
         var state = Fixtures.WithGreenProject();
         var job = Fixtures.Build(Fixtures.Jenkins.Id, "verify", "verify", "Verify", "main", "9", BuildStatus.Succeeded, started: Fixtures.Now - TimeSpan.FromHours(2), finished: Fixtures.Now - TimeSpan.FromHours(2) + TimeSpan.FromMinutes(3));
-        var next = MonitorSession.ApplyPoll(state, Fixtures.Jenkins.Id, [], [..Fixtures.JenkinsBuilds(), job], Fixtures.Now);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.Jenkins.Id, [], [.. Fixtures.JenkinsBuilds(), job], Fixtures.Now);
         var passing = RowProjection.Rows(next).Single(_ => _.Group == Fixtures.VerifyPassing && _.Kind == RowKind.Group);
         await Assert.That(passing.Members.Select(_ => _.ConnectionId).Distinct().Count()).IsEqualTo(2);
     }
@@ -95,7 +95,7 @@ public class SessionTests
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], WithStatus(state, "Verify/nuget.yml", BuildStatus.Failed), Fixtures.Now);
         var rows = RowProjection.Rows(next);
         await Assert.That(rows.Any(_ => _.Group == Fixtures.VerifyPassing)).IsFalse();
-        var failed = rows.Single(_ => _.Build is { PipelineName: "nuget.yml" });
+        var failed = rows.Single(_ => _.Build is {PipelineName: "nuget.yml"});
         await Assert.That(failed.Kind).IsEqualTo(RowKind.Build);
         await Assert.That(failed.Build!.Status).IsEqualTo(BuildStatus.Failed);
     }
@@ -157,7 +157,7 @@ public class SessionTests
         var builds = Fixtures.WithBuilds();
         var state = MonitorSession.SelectRow(builds, DocsRow(builds));
         var run = Fixtures.Build(Fixtures.GitHub.Id, "DiffEngine/docs.yml", "docs.yml", "VerifyTests/DiffEngine", "feature/x", "301", BuildStatus.Running, started: Fixtures.Now);
-        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [..Fixtures.GitHubBuilds(), run], Fixtures.Now);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [.. Fixtures.GitHubBuilds(), run], Fixtures.Now);
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/DiffEngine/docs.yml/feature/x");
     }
 
@@ -241,7 +241,7 @@ public class SessionTests
         var builds = Fixtures.WithBuilds();
         var state = MonitorSession.OpenMenu(builds, Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main"));
         var rerun = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "feature/inline", "78", BuildStatus.Running, started: Fixtures.Now);
-        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [..Fixtures.GitHubBuilds(), rerun], Fixtures.Now);
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [.. Fixtures.GitHubBuilds(), rerun], Fixtures.Now);
         await Assert.That(next.Menu).IsNull();
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/DiffEngine/test.yml/main");
     }
@@ -295,9 +295,20 @@ public class SessionTests
 
     static ImmutableArray<Build> WithStatus(SessionState state, string pipelineId, BuildStatus status) =>
     [
-        ..state.Builds
+        .. state.Builds
             .Where(_ => _.ConnectionId == Fixtures.GitHub.Id)
-            .Select(_ => _.PipelineId == pipelineId ? _ with { Status = status } : _)
+            .Select(_ =>
+            {
+                if (_.PipelineId == pipelineId)
+                {
+                    return _ with
+                    {
+                        Status = status
+                    };
+                }
+
+                return _;
+            })
     ];
 
     [Test]
@@ -334,7 +345,7 @@ public class SessionTests
             Fixtures.GitHub.Id,
             [],
             [
-                ..state.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id),
+                .. state.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id),
                 Fixtures.Build(
                     Fixtures.GitHub.Id,
                     "VerifyXunit/docs.yml",
@@ -424,7 +435,7 @@ public class SessionTests
     {
         var state = Fixtures.WithQueuePriority();
         var watching = state.Builds.Select(_ => _.WatchOnly());
-        state = MonitorSession.ApplyPoll(state, Fixtures.TeamCity.Id, [], [..watching], Fixtures.Now);
+        state = MonitorSession.ApplyPoll(state, Fixtures.TeamCity.Id, [], [.. watching], Fixtures.Now);
         var row = Fixtures.RowOf(state, _ => _.Build?.PipelineId == "Verify_Build");
         await Assert.That(MonitorSession.OpenMenu(state, row).Menu!.Items.Any(_ => _.Command == CommandKind.RunNext)).IsFalse();
     }
@@ -434,8 +445,23 @@ public class SessionTests
     {
         // build-all's Cancel was behind the overflow chip, but the build finished before the click.
         var builds = Fixtures.WithBuilds();
-        var finished = Fixtures.JenkinsBuilds().Select(_ => _.PipelineId == "build-all" ? _ with { Status = BuildStatus.Succeeded, CanCancel = false, Finished = Fixtures.Now } : _);
-        var state = MonitorSession.ApplyPoll(builds, Fixtures.Jenkins.Id, [], [..finished], Fixtures.Now);
+        var finished = Fixtures.JenkinsBuilds()
+            .Select(_ =>
+            {
+                if (_.PipelineId == "build-all")
+                {
+                    return _
+                        with
+                        {
+                            Status = BuildStatus.Succeeded,
+                            CanCancel = false,
+                            Finished = Fixtures.Now
+                        };
+                }
+
+                return _;
+            });
+        var state = MonitorSession.ApplyPoll(builds, Fixtures.Jenkins.Id, [], [.. finished], Fixtures.Now);
         var row = Fixtures.RowOf(state, _ => _.Build?.PipelineId == "build-all");
         await Assert.That(MonitorSession.OpenOverflow(state, row, ChipKind.Cancel).Menu).IsNull();
     }
@@ -516,7 +542,11 @@ public class SessionTests
     public async Task ReplaceKeepsHealthOfExisting()
     {
         var state = Fixtures.WithBuilds();
-        var renamed = Fixtures.GitHub with { Name = "Hub" };
+        var renamed = Fixtures.GitHub
+            with
+            {
+                Name = "Hub"
+            };
         var next = MonitorSession.ReplaceConnection(state, renamed);
         var connection = next.Connection(Fixtures.GitHub.Id)!;
         await Assert.That(connection.Connection.Name).IsEqualTo("Hub");
@@ -655,7 +685,11 @@ public class SessionTests
         var next = InputApplier.Execute(state, CommandKind.ExcludeRepo, null, actions.Actions, null);
         await Assert.That(next.Settings.Filters.Single()).IsEqualTo(new(FilterKind.Exact, FilterTarget.Repo, "VerifyTests/Verify"));
         await Assert.That(actions.SavedSettings!.Filters).IsEquivalentTo(next.Settings.Filters);
-        await Assert.That(RowProjection.Rows(next).Any(_ => _.Builds.Any(build => build.RepoName == "VerifyTests/Verify"))).IsFalse();
+        await Assert.That(
+            RowProjection
+                .Rows(next)
+                .Any(_ => _.Builds.Any(_ => _.RepoName == "VerifyTests/Verify")))
+            .IsFalse();
         await Assert.That(next.Status).IsEqualTo("Excluded VerifyTests/Verify repo");
     }
 }

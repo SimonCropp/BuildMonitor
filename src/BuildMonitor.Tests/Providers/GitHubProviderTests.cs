@@ -35,7 +35,11 @@ public class GitHubProviderTests
     {
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("github", ProviderTestHelpers.Context("github", handler));
-        await Verify(new { builds, handler.Requests });
+        await Verify(new
+        {
+            builds,
+            handler.Requests
+        });
     }
 
     [Test]
@@ -80,7 +84,11 @@ public class GitHubProviderTests
         // before the cutoff that is still running or was re-run since.
         var handler = Handler()
             .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs", """{"total_count":0,"workflow_runs":[]}""");
-        var context = ProviderTestHelpers.Context("github", handler) with { Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero) };
+        var context = ProviderTestHelpers.Context("github", handler)
+            with
+            {
+                Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero)
+            };
         await ProviderTestHelpers.DiscoverAndFetch("github", context);
         await Assert.That(handler.Requests.Any(_ => _.Contains("/actions/runs?per_page=5"))).IsTrue();
         await Assert.That(handler.Requests.Any(_ => _.Contains("/actions/runs") && _.Contains("created="))).IsFalse();
@@ -114,7 +122,10 @@ public class GitHubProviderTests
             .Get(
                 "https://api.github.com/repos/SimonCropp/Forked/actions/workflows?per_page=100",
                 """{"total_count":1,"workflows":[{"id":1,"name":"Test","path":".github/workflows/test.yml","state":"active"}]}""");
-        var context = ProviderTestHelpers.Context("github", handler) with { ShowForksAndCollaborations = true };
+        var context = ProviderTestHelpers.Context("github", handler) with
+        {
+            ShowForksAndCollaborations = true
+        };
         var pipelines = await ProviderTestHelpers.Provider("github").DiscoverPipelines(context, Cancel.None);
         await Assert.That(pipelines.Single().RepoName).IsEqualTo("SimonCropp/Forked");
     }
@@ -251,7 +262,13 @@ public class GitHubProviderTests
             ArtifactPlan.DefaultPerFile,
             Cancel.None);
         await Assert.That(written).IsEqualTo(4);
-        await Assert.That(destination.ToArray()).IsEquivalentTo(new byte[] {80, 75, 3, 4});
+        await Assert.That(destination.ToArray()).IsEquivalentTo(new byte[]
+        {
+            80,
+            75,
+            3,
+            4
+        });
         // Anything, so the redirect to blob storage is not refused over a content type.
         await Assert.That(handler.RequestHeaders.Single().Accept.ToString()).IsEqualTo("*/*");
         await Assert.That(handler.Requests).IsEquivalentTo(["GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/artifacts/81/zip"]);
@@ -428,7 +445,10 @@ public class GitHubProviderTests
             .Get(
                 "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
                 $$$"""[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z","permissions":{"admin":false,"maintain":false,"push":{{{push.ToString().ToLowerInvariant()}}},"triage":false,"pull":true}}]""");
-        var context = ProviderTestHelpers.Context("github", handler) with { Access = access };
+        var context = ProviderTestHelpers.Context("github", handler) with
+        {
+            Access = access
+        };
         var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
         await Assert.That(builds.Single(_ => _.RunNumber == "1234").CanCancel).IsEqualTo(offered);
         await Assert.That(builds.Single(_ => _.RunNumber == "1233").CanRetry).IsEqualTo(offered);

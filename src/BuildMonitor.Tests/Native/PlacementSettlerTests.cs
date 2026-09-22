@@ -44,18 +44,29 @@ public class PlacementSettlerTests
         List<WindowPlacement> passed = [];
         for (var frame = 1; frame <= 60; frame++)
         {
-            if (settler.Poll(left with { X = 100 + frame * 5 }, At(1000 + frame * 16)) is { } placement)
+            if (settler.Poll(left with
+                {
+                    X = 100 + frame * 5
+                }, At(1000 + frame * 16)) is { } placement)
             {
                 passed.Add(placement);
             }
         }
 
-        if (settler.Poll(left with { X = 400 }, At(3000)) is { } settled)
+        if (settler.Poll(left with
+            {
+                X = 400
+            }, At(3000)) is { } settled)
         {
             passed.Add(settled);
         }
 
-        await Assert.That(passed).IsEquivalentTo([left with { X = 400 }]);
+        await Assert.That(passed).IsEquivalentTo([
+            left with
+            {
+                X = 400
+            }
+        ]);
     }
 
     /// <summary>
@@ -97,7 +108,10 @@ public class PlacementSettlerTests
     [Test]
     public async Task APlacementCrossesTheAbiAndBack()
     {
-        var maximized = left with { Maximized = true };
+        var maximized = left with
+        {
+            Maximized = true
+        };
         await Assert.That(NativeMonitorWindow.Placement(NativeMonitorWindow.Placement(maximized))).IsEqualTo(maximized);
         await Assert.That(NativeMonitorWindow.Placement(null).Known).IsEqualTo(0);
     }

@@ -21,7 +21,10 @@ readonly record struct RequestBucket(double Tokens, DateTimeOffset UpdatedAt)
     }
 
     public RequestBucket Spend(double requests) =>
-        this with { Tokens = Tokens - requests };
+        this with
+        {
+            Tokens = Tokens - requests
+        };
 
     /// <summary>
     /// When the bucket next holds a whole token.

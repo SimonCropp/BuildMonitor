@@ -351,7 +351,13 @@ public class ScreenTests
     public Task DefaultBranchOnly()
     {
         var state = Fixtures.WithBuilds();
-        state = MonitorSession.ApplySettings(state, state.Settings with { ShowOtherBranches = false });
+        state = MonitorSession.ApplySettings(
+            state,
+            state.Settings
+                with
+                {
+                    ShowOtherBranches = false
+                });
         return Verify(Fixtures.Render(state));
     }
 

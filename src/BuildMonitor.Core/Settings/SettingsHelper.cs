@@ -24,7 +24,10 @@ static class SettingsHelper
         // every build older than today.
         if (settings.HistoryDays < 1)
         {
-            settings = settings with { HistoryDays = new Settings().HistoryDays };
+            settings = settings with
+            {
+                HistoryDays = new Settings().HistoryDays
+            };
         }
 
         // Same reason, and a string's type default is null rather than the empty its initializer
@@ -34,7 +37,10 @@ static class SettingsHelper
         // and is honest about the annotation being a compile time promise the reader does not keep.
         if (string.IsNullOrEmpty(settings.CodeDirectory))
         {
-            settings = settings with { CodeDirectory = "" };
+            settings = settings with
+            {
+                CodeDirectory = ""
+            };
         }
 
         // Same reason once more, and worse for an array: the type default of an ImmutableArray is
@@ -43,7 +49,10 @@ static class SettingsHelper
         // every passing build.
         if (settings.GroupPrefixes.IsDefault)
         {
-            settings = settings with { GroupPrefixes = [] };
+            settings = settings with
+            {
+                GroupPrefixes = []
+            };
         }
 
         // And for a set, whose type default is null: a file written before OpenGroups existed
@@ -52,7 +61,10 @@ static class SettingsHelper
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (settings.OpenGroups is null)
         {
-            settings = settings with { OpenGroups = [] };
+            settings = settings with
+            {
+                OpenGroups = []
+            };
         }
 
         return settings;

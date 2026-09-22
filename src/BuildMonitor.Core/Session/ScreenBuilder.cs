@@ -154,7 +154,14 @@ static class ScreenBuilder
         }
 
         // The filter box does not narrow the builds, so the ones already sorted serve here too.
-        return [..RowProjection.Rows(state with { Search = "" }, builds), ..rows];
+        return
+        [
+            .. RowProjection.Rows(state with
+            {
+                Search = ""
+            }, builds),
+            .. rows
+        ];
     }
 
     /// <summary>
@@ -175,7 +182,7 @@ static class ScreenBuilder
             }
 
             // As NameOf says it, without copying a build's name out of its repository's.
-            if (row is { Kind: RowKind.Build, Build: { } build })
+            if (row is {Kind: RowKind.Build, Build: { } build})
             {
                 AddDistinct(seen, names, BuildExtensions.ShortRepoName(build.RepoName.AsSpan()));
                 continue;
@@ -299,7 +306,7 @@ static class ScreenBuilder
         {
             // No mark for a host nothing here has one for, and then no link either: a link on a
             // cell with no picture in it is a rectangle of nothing that reports a click.
-            if (RepoHosts.MarkOf(build.RepoUrl) is { Length: > 0 } mark)
+            if (RepoHosts.MarkOf(build.RepoUrl) is {Length: > 0} mark)
             {
                 return (mark, ChipKind.Repo);
             }
@@ -419,9 +426,12 @@ static class ScreenBuilder
 
     static void AppendPlain(List<DetailSpan> spans, string text)
     {
-        if (spans is [.., { Link: ChipKind.None } last])
+        if (spans is [.., {Link: ChipKind.None} last])
         {
-            spans[^1] = last with { Text = last.Text + text };
+            spans[^1] = last with
+            {
+                Text = last.Text + text
+            };
             return;
         }
 
@@ -448,7 +458,7 @@ static class ScreenBuilder
         var estimate = Estimator.Estimate(build, state.Medians);
         var (fraction, timing) = Progress.Compute(build, estimate, now);
         // Only the build that broke names anyone: on a pass or a run the name says nothing wrong.
-        var author = build is { Status: BuildStatus.Failed, Author: not null } &&
+        var author = build is {Status: BuildStatus.Failed, Author: not null} &&
                      authors.TryGetValue(build.Author.Trim(), out var shown)
             ? shown
             : "";
@@ -546,7 +556,7 @@ static class ScreenBuilder
 
     static List<string> Problems(SessionState state, DateTimeOffset now) =>
     [
-        ..MonitorSession.Unhealthy(state)
+        .. MonitorSession.Unhealthy(state)
             .Select(_ => _.Health == ConnectionHealth.NeedsAuth
                 ? $"Sign in required for {_.Connection.Name}"
                 : $"{_.Connection.Name}: {_.Describe(now)}")
@@ -559,7 +569,7 @@ static class ScreenBuilder
     /// </summary>
     static List<string> Polls(SessionState state, DateTimeOffset now) =>
     [
-        ..state.Connections
+        .. state.Connections
             .Where(_ => _.Health == ConnectionHealth.Polling)
             .OrderBy(_ => _.Connection.Name, StringComparer.OrdinalIgnoreCase)
             .Select(_ => $"{_.Connection.Name}: {_.Describe(now)}")
@@ -707,7 +717,7 @@ static class ScreenBuilder
     /// </summary>
     static List<Button> EditConnectionButtons(EditConnectionFormState form) =>
     [
-        ..ConnectionButtons(form),
+        .. ConnectionButtons(form),
         new("Remove", true, CommandKind.RemoveConnection, "Forget this connection and its stored credential")
     ];
 
@@ -841,7 +851,7 @@ static class ScreenBuilder
     {
         var saved = state.Connection(form.ConnectionId)?.Connection;
         var descriptor = ProviderDescriptors.Get(form.Editor.ProviderId);
-        var server = saved?.Server is { Length: > 0 } url ? $"{descriptor.Name}, {url}" : descriptor.Name;
+        var server = saved?.Server is {Length: > 0} url ? $"{descriptor.Name}, {url}" : descriptor.Name;
         var method = saved?.Auth ?? ConnectionDraft.Method(form.Editor);
         return new(
             "Remove connection",

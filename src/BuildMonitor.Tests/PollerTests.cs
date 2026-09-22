@@ -20,7 +20,10 @@ public class PollerTests
 
     static (SessionHost Host, MemorySecretStore Secrets, DurationHistory History) Setup(bool withToken = true)
     {
-        var settings = new Settings { Connections = [Fixtures.GitHub] };
+        var settings = new Settings
+        {
+            Connections = [Fixtures.GitHub]
+        };
         var host = new SessionHost(SessionState.Start(settings));
         var secrets = new MemorySecretStore();
         if (withToken)
@@ -146,7 +149,12 @@ public class PollerTests
     public async Task ExcludedPipelinesAreNotFetched()
     {
         var (host, secrets, history) = Setup();
-        host.Mutate(_ => MonitorSession.ApplySettings(_, _.Settings with { Filters = [new(FilterKind.Exact, FilterTarget.Pipeline, "Test")] }));
+        host.Mutate(_ => MonitorSession.ApplySettings(
+            _,
+            _.Settings with
+            {
+                Filters = [new(FilterKind.Exact, FilterTarget.Pipeline, "Test")]
+            }));
         var handler = GitHubHandler();
         var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null);
         await poller.PollOnce(Cancel.None);
@@ -331,7 +339,13 @@ public class PollerTests
         var now = Fixtures.Now;
         var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
         await poller.PollOnce(Cancel.None);
-        host.Mutate(_ => MonitorSession.ApplySettings(_, _.Settings with { Filters = [new(FilterKind.Exact, FilterTarget.Pipeline, "Quiet")] }));
+        host.Mutate(_ => MonitorSession.ApplySettings(
+            _,
+            _.Settings
+                with
+                {
+                    Filters = [new(FilterKind.Exact, FilterTarget.Pipeline, "Quiet")]
+                }));
         handler.Requests.Clear();
 
         now = now.AddSeconds(3);

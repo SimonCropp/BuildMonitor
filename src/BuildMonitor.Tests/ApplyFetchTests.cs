@@ -8,7 +8,7 @@
     ];
 
     static FetchOutcome Outcome(ImmutableArray<Pipeline> discovered, IEnumerable<string> fetched, IEnumerable<Build> builds, IEnumerable<string>? firstFetch = null) =>
-        new(discovered, [..fetched], [..firstFetch ?? []], [..builds], ConnectionHealth.Ok, null, null);
+        new(discovered, [.. fetched], [.. firstFetch ?? []], [.. builds], ConnectionHealth.Ok, null, null);
 
     static string Runs(SessionState state) =>
         string.Join(
@@ -121,7 +121,11 @@
         // group came due.
         var state = Fixtures.WithBuilds();
         var running = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "main", "78", BuildStatus.Running, started: Fixtures.Now);
-        var next = MonitorSession.ApplyFetch(state, Fixtures.GitHub.Id, Outcome(pipelines, ["Verify/test.yml"], [running]) with { Access = BuildAccess.Watch }, Fixtures.Now);
+        var next = MonitorSession.ApplyFetch(state, Fixtures.GitHub.Id, Outcome(pipelines, ["Verify/test.yml"], [running])
+            with
+            {
+                Access = BuildAccess.Watch
+            }, Fixtures.Now);
         await Assert.That(Offers(state, Fixtures.GitHub.Id)).IsTrue();
         await Assert.That(Offers(next, Fixtures.GitHub.Id)).IsFalse();
         await Assert.That(Offers(next, Fixtures.Jenkins.Id)).IsTrue();
@@ -132,7 +136,10 @@
     public async Task AConnectionThatMayChangeBuildsKeepsWhatItsProviderOffers()
     {
         var running = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "main", "78", BuildStatus.Running, started: Fixtures.Now);
-        var next = MonitorSession.ApplyFetch(Fixtures.WatchOnly(), Fixtures.GitHub.Id, Outcome(pipelines, ["Verify/test.yml"], [running]) with { Access = BuildAccess.Change }, Fixtures.Now);
+        var next = MonitorSession.ApplyFetch(Fixtures.WatchOnly(), Fixtures.GitHub.Id, Outcome(pipelines, ["Verify/test.yml"], [running]) with
+        {
+            Access = BuildAccess.Change
+        }, Fixtures.Now);
         await Assert.That(next.Builds.Single(_ => _.RunNumber == "78").CanCancel).IsTrue();
         await Assert.That(next.Connection(Fixtures.GitHub.Id)!.Access).IsEqualTo(BuildAccess.Change);
     }

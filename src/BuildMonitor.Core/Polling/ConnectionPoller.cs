@@ -318,7 +318,10 @@ sealed class ConnectionPoller
         Rotate(descriptor, now);
 
         var (rediscovered, accessChanged) = await Discover(provider, context, connection, secret, now, cancel);
-        context = context with { Access = access };
+        context = context with
+        {
+            Access = access
+        };
         // Every group, so no row keeps offering what the connection may no longer do, or keeps
         // hiding what it now may, until its group comes due.
         everything |= accessChanged;
@@ -327,7 +330,10 @@ sealed class ConnectionPoller
         var groups = PollGroup.Of(descriptor.FetchUnit, pipelines);
         Remember(descriptor, groups, now);
         // The probe and each group's own requests report no progress: the header counts groups.
-        var quiet = context with { Progress = _ => { } };
+        var quiet = context with
+        {
+            Progress = _ => { }
+        };
         await Probe(provider, quiet, descriptor, groups, rediscovered, now, cancel);
         var plan = PollSchedule.Plan(Input(descriptor, groups, state, everything, ignorePause, now));
         bucket = plan.Bucket;
@@ -629,7 +635,13 @@ sealed class ConnectionPoller
         discoveredWithSecret = secret;
         try
         {
-            discoveredPipelines = [..await provider.DiscoverPipelines(context with { Access = access }, cancel)];
+            discoveredPipelines = [
+                ..await provider.DiscoverPipelines(
+                    context with
+                    {
+                        Access = access
+                    },
+                    cancel)];
             discovered = now;
             discoveredWithForks = context.ShowForksAndCollaborations;
             discoveryFailures = 0;
@@ -691,7 +703,10 @@ sealed class ConnectionPoller
             }
 
             var key = PollGroup.KeyOf(descriptor.FetchUnit, pipeline);
-            next[key] = next[key] with { NudgedAt = now };
+            next[key] = next[key] with
+            {
+                NudgedAt = now
+            };
         }
 
         memory = next.ToImmutable();

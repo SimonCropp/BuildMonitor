@@ -19,12 +19,54 @@ public class RowProjectionTests
         var sorted = RowProjection.Builds(state);
         var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, sorted);
         var rows = new ProjectedRows(sorted, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, []);
-        await Assert.That(rows.IsFor(MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing), sorted)).IsFalse();
-        await Assert.That(rows.IsFor(state with { Search = "nuget" }, sorted)).IsFalse();
-        await Assert.That(rows.IsFor(state with { Settings = state.Settings with { GroupPrefixes = ["Verify"] } }, sorted)).IsFalse();
-        await Assert.That(rows.IsFor(state, [..sorted])).IsFalse();
-        await Assert.That(builds.IsFor(state with { Builds = [..state.Builds] })).IsFalse();
-        await Assert.That(builds.IsFor(state with { Settings = state.Settings with { ShowOtherBranches = !state.Settings.ShowOtherBranches } })).IsFalse();
+        await Assert.That(
+                rows.IsFor(MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing), sorted))
+            .IsFalse();
+        await Assert.That(
+                rows.IsFor(
+                    state
+                        with
+                        {
+                            Search = "nuget"
+                        },
+                    sorted))
+            .IsFalse();
+        await Assert.That(
+                rows.IsFor(
+                    state
+                        with
+                        {
+                            Settings = state.Settings
+                                with
+                                {
+                                    GroupPrefixes = ["Verify"]
+                                }
+                        },
+                    sorted))
+            .IsFalse();
+        await Assert.That(
+                rows.IsFor(state, [.. sorted]))
+            .IsFalse();
+        await Assert.That(
+                builds.IsFor(
+                    state
+                        with
+                        {
+                            Builds = [.. state.Builds]
+                        }))
+            .IsFalse();
+        await Assert.That(
+                builds.IsFor(
+                    state
+                        with
+                        {
+                            Settings = state.Settings
+                                with
+                                {
+                                    ShowOtherBranches = !state.Settings.ShowOtherBranches
+                                }
+                        }))
+            .IsFalse();
     }
 
     [Test]

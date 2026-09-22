@@ -5,7 +5,15 @@
     {
         var state = Fixtures.WithBuilds();
         var builds = Fixtures.GitHubBuilds();
-        var failed = builds.Select(_ => _.RunNumber == "1234" ? _ with { Status = BuildStatus.Failed, Finished = Fixtures.Now } : _).ToImmutableArray();
+        var failed = builds.Select(_ => _.RunNumber == "1234"
+                ? _
+                    with
+                    {
+                        Status = BuildStatus.Failed,
+                        Finished = Fixtures.Now
+                    }
+                : _)
+            .ToImmutableArray();
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, state.Connection(Fixtures.GitHub.Id)!.Pipelines, failed, Fixtures.Now);
         await Assert.That(next.Notification).IsEqualTo(new("test.yml failed", "VerifyTests/DiffEngine main #1234", failed.Single(_ => _.RunNumber == "1234").Key));
         await Verify(Fixtures.Render(next));
@@ -39,7 +47,10 @@
     public async Task SeveralFailuresAreSummarised()
     {
         var state = Fixtures.WithBuilds();
-        var failed = Fixtures.GitHubBuilds().Select(_ => _ with { Status = BuildStatus.Failed }).ToImmutableArray();
+        var failed = Fixtures.GitHubBuilds().Select(_ => _ with
+        {
+            Status = BuildStatus.Failed
+        }).ToImmutableArray();
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], failed, Fixtures.Now);
         await Assert.That(next.Notification!.Title).IsEqualTo("3 builds failed");
         await Assert.That(next.Notification.Message).IsEqualTo("test.yml, docs.yml");
@@ -49,8 +60,14 @@
     public async Task CanBeSwitchedOff()
     {
         var state = Fixtures.WithBuilds();
-        state = MonitorSession.ApplySettings(state, state.Settings with { NotifyOnFailure = false });
-        var failed = Fixtures.GitHubBuilds().Select(_ => _ with { Status = BuildStatus.Failed }).ToImmutableArray();
+        state = MonitorSession.ApplySettings(state, state.Settings with
+        {
+            NotifyOnFailure = false
+        });
+        var failed = Fixtures.GitHubBuilds().Select(_ => _ with
+        {
+            Status = BuildStatus.Failed
+        }).ToImmutableArray();
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], failed, Fixtures.Now);
         await Assert.That(next.Notification).IsNull();
     }
@@ -58,7 +75,10 @@
     [Test]
     public async Task ClearedAfterShowing()
     {
-        var state = Fixtures.WithBuilds() with { Notification = new("x", "y") };
+        var state = Fixtures.WithBuilds() with
+        {
+            Notification = new("x", "y")
+        };
         await Assert.That(MonitorSession.ClearNotification(state).Notification).IsNull();
     }
 }

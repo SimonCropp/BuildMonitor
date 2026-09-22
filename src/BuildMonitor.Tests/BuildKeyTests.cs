@@ -25,7 +25,11 @@ public class BuildKeyTests
     [Arguments("gh/Verify/test.yml")]
     public async Task AMissingBranchKeysAsAnEmptyOne(string key)
     {
-        var branchless = build with { Branch = null };
+        var branchless = build
+            with
+            {
+                Branch = null
+            };
         await Assert.That(branchless.HasKey(key)).IsEqualTo(key == branchless.Key);
     }
 
@@ -43,11 +47,49 @@ public class BuildKeyTests
     [Test]
     public async Task SameKeyAndSamePipelineCompareTheParts()
     {
-        await Assert.That(build.SameKey(build with { RunNumber = "78" })).IsTrue();
-        await Assert.That(build.SameKey(build with { Branch = "main" })).IsFalse();
-        await Assert.That((build with { Branch = null }).SameKey(build with { Branch = "" })).IsTrue();
-        await Assert.That(build.SamePipeline(build with { Branch = "main" })).IsTrue();
-        await Assert.That(build.SamePipeline(build with { PipelineId = "Verify/docs.yml" })).IsFalse();
-        await Assert.That(build.SamePipeline(build with { ConnectionId = "other" })).IsFalse();
+        await Assert.That(
+            build.SameKey(
+                build with
+                {
+                    RunNumber = "78"
+                }))
+            .IsTrue();
+        await Assert.That(
+                build.SameKey(
+                    build with
+                    {
+                        Branch = "main"
+                    }))
+            .IsFalse();
+        await Assert.That(
+                (
+                    build with
+                    {
+                        Branch = null
+                    })
+                .SameKey(
+                    build with
+                    {
+                        Branch = ""
+                    }))
+            .IsTrue();
+        await Assert.That(build.SamePipeline(
+                build with
+                {
+                    Branch = "main"
+                }))
+            .IsTrue();
+        await Assert.That(build.SamePipeline(
+            build with
+            {
+                PipelineId = "Verify/docs.yml"
+            }))
+            .IsFalse();
+        await Assert.That(build.SamePipeline(
+                build with
+                {
+                    ConnectionId = "other"
+                }))
+            .IsFalse();
     }
 }

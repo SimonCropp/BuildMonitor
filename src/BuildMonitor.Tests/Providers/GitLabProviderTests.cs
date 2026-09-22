@@ -40,14 +40,22 @@ public class GitLabProviderTests
     {
         var handler = Handler();
         var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
-        await Verify(new { builds, handler.Requests });
+        await Verify(new
+        {
+            builds,
+            handler.Requests
+        });
     }
 
     [Test]
     public async Task HistoryLimitIsSentAsUpdatedAfter()
     {
         var handler = Handler();
-        var context = ProviderTestHelpers.Context("gitlab", handler) with { Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero) };
+        var context = ProviderTestHelpers.Context("gitlab", handler)
+            with
+            {
+                Since = new DateTimeOffset(2026, 8, 16, 0, 0, 0, TimeSpan.Zero)
+            };
         await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
         await Assert.That(handler.Requests.Any(_ => _.Contains("updatedAfter") && _.Contains("2026-08-16T00"))).IsTrue();
     }
@@ -111,7 +119,12 @@ public class GitLabProviderTests
     {
         // In discovery order, most recently active first, a rediscovery that reordered the projects
         // changed the request's URL and lost the ETag cached for it.
-        var pipelines = new[] { "9", "10", "2" }
+        var pipelines = new[]
+            {
+                "9",
+                "10",
+                "2"
+            }
             .Select(_ => new Pipeline(_, $"verify/p{_}", $"verify/p{_}", null, $"https://gitlab.com/verify/p{_}/-/pipelines"))
             .ToList();
         var nodes = string.Join(',', pipelines.Select(_ => $$$"""{"id":"gid://gitlab/Project/{{{_.Id}}}","pipelines":{"nodes":[]}}"""));
@@ -394,7 +407,11 @@ public class GitLabProviderTests
     public async Task AConnectionThatCanOnlyWatchIsNotListedAtDeveloper()
     {
         var handler = Handler();
-        var context = ProviderTestHelpers.Context("gitlab", handler) with { Access = BuildAccess.Watch };
+        var context = ProviderTestHelpers.Context("gitlab", handler)
+            with
+            {
+                Access = BuildAccess.Watch
+            };
         await ProviderTestHelpers.Provider("gitlab").DiscoverPipelines(context, Cancel.None);
         await Assert.That(handler.Requests).DoesNotContain($"GET {developerListing}");
     }

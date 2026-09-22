@@ -43,7 +43,7 @@ static class InputApplier
             state = MonitorSession.ScrollTo(state, input.ScrollTo);
         }
 
-        if (input.FieldChanges is { Count: > 0 } changes)
+        if (input.FieldChanges is {Count: > 0} changes)
         {
             foreach (var change in changes)
             {
@@ -64,7 +64,7 @@ static class InputApplier
             // it. Selecting it alone looked like the click did nothing. A head sends a double click
             // on a group as one click, or it would open and close again.
             if (state.SelectedRow == clicked &&
-                MonitorSession.SelectedRow(state) is { Kind: RowKind.Group, Group: { } group })
+                MonitorSession.SelectedRow(state) is {Kind: RowKind.Group, Group: { } group})
             {
                 state = ToggleGroup(state, group, actions);
             }
@@ -318,7 +318,7 @@ static class InputApplier
             {
                 // A group has no one build to open, so Enter or a double click opens or closes it.
                 if (command == CommandKind.OpenBuild &&
-                    MonitorSession.SelectedRow(state) is { Kind: RowKind.Group, Group: { } group })
+                    MonitorSession.SelectedRow(state) is {Kind: RowKind.Group, Group: { } group})
                 {
                     return ToggleGroup(state, group, actions);
                 }
@@ -328,7 +328,7 @@ static class InputApplier
                 var selected = MonitorSession.SelectedBuild(state);
                 if (selected is null &&
                     command == CommandKind.OpenRepo &&
-                    MonitorSession.SelectedRow(state) is { Kind: RowKind.Group, Members: [var first, ..] })
+                    MonitorSession.SelectedRow(state) is {Kind: RowKind.Group, Members: [var first, ..]})
                 {
                     selected = first;
                 }
@@ -374,9 +374,12 @@ static class InputApplier
             case CommandKind.CopyStatus:
                 // The footer as shown, and left as it is: a status saying it was copied would replace
                 // the error being copied, often before it was read in full.
-                if (ScreenBuilder.Status(state, DateTimeOffset.UtcNow) is { Length: > 0 } status)
+                if (ScreenBuilder.Status(state, DateTimeOffset.UtcNow) is {Length: > 0} status)
                 {
-                    return state with { Clipboard = new(status) };
+                    return state with
+                    {
+                        Clipboard = new(status)
+                    };
                 }
 
                 return state;
@@ -463,7 +466,7 @@ static class InputApplier
                 return MonitorSession.OpenMenu(state, state.SelectedRow);
             case CommandKind.GroupByPrefix:
             {
-                if (target is not { Length: > 0 } prefix)
+                if (target is not {Length: > 0} prefix)
                 {
                     return state;
                 }
@@ -474,7 +477,7 @@ static class InputApplier
             }
             case CommandKind.RemoveGroupPrefix:
             {
-                if (target is not { Length: > 0 } removed)
+                if (target is not {Length: > 0} removed)
                 {
                     return state;
                 }
@@ -641,7 +644,7 @@ static class InputApplier
 
                 // A new connection that signed in before being abandoned leaves a token behind. An
                 // edited one's token is the connection's own, and stays.
-                if (state.Form is AddConnectionFormState { SignedIn: true } abandoned)
+                if (state.Form is AddConnectionFormState {SignedIn: true} abandoned)
                 {
                     actions.DeleteSecret(SecretKeys.Token(abandoned.ConnectionId));
                     actions.DeleteSecret(SecretKeys.Refresh(abandoned.ConnectionId));
@@ -655,7 +658,7 @@ static class InputApplier
             case CommandKind.OpenCodeDirectory:
                 // Only offered while the option holds something, so an empty one here is a menu
                 // built before a save that cleared it.
-                if (state.Settings.CodeDirectory is { Length: > 0 } code)
+                if (state.Settings.CodeDirectory is {Length: > 0} code)
                 {
                     actions.OpenDirectory(code);
                 }
@@ -690,7 +693,7 @@ static class InputApplier
     /// </summary>
     static string? Started(OptionsFormState form)
     {
-        if (form.Value(FormFields.CodeDirectory) is { Length: > 0 } typed)
+        if (form.Value(FormFields.CodeDirectory) is {Length: > 0} typed)
         {
             return typed;
         }
@@ -848,7 +851,12 @@ static class InputApplier
 
     static SessionState SaveFilters(SessionState state, FiltersFormState form, MonitorActions actions)
     {
-        state = MonitorSession.ApplySettings(state, state.Settings with { Filters = form.Filters });
+        state = MonitorSession.ApplySettings(
+            state,
+            state.Settings with
+            {
+                Filters = form.Filters
+            });
         actions.SaveSettings(state.Settings);
         return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), "Filters saved");
     }

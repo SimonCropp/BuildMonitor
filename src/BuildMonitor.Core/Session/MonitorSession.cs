@@ -7,7 +7,11 @@ using RowIdentity = (string? ConnectionId, string? PipelineId, string? Branch, s
 static class MonitorSession
 {
     public static SessionState Resize(SessionState state, int columns, int rows) =>
-        Clamp(state with { Columns = Math.Max(40, columns), Rows = Math.Max(10, rows) });
+        Clamp(state with
+        {
+            Columns = Math.Max(40, columns),
+            Rows = Math.Max(10, rows)
+        });
 
     public static int BodyRows(SessionState state) =>
         Math.Max(1, state.Rows - ScreenBuilder.Chrome);
@@ -15,10 +19,18 @@ static class MonitorSession
     // Scrolling
 
     public static SessionState Scroll(SessionState state, int delta) =>
-        Clamp(state with { ScrollTop = state.ScrollTop + delta });
+        Clamp(
+            state with
+            {
+                ScrollTop = state.ScrollTop + delta
+            });
 
     public static SessionState ScrollTo(SessionState state, int top) =>
-        Clamp(state with { ScrollTop = top });
+        Clamp(
+            state with
+            {
+                ScrollTop = top
+            });
 
     public static SessionState PageUp(SessionState state) =>
         Scroll(state, -BodyRows(state));
@@ -35,7 +47,10 @@ static class MonitorSession
     // Selection
 
     public static SessionState SelectRow(SessionState state, int row) =>
-        EnsureVisible(Clamp(state with { SelectedRow = row }));
+        EnsureVisible(Clamp(state with
+        {
+            SelectedRow = row
+        }));
 
     public static SessionState NextRow(SessionState state) =>
         SelectRow(state, state.SelectedRow + 1);
@@ -106,7 +121,11 @@ static class MonitorSession
             return state;
         }
 
-        return state with { ScrollTop = top, SelectedRow = selected };
+        return state with
+        {
+            ScrollTop = top,
+            SelectedRow = selected
+        };
     }
 
     /// <summary>
@@ -134,14 +153,20 @@ static class MonitorSession
             indexes.TryAdd(Identity(rows[index]), index);
         }
 
-        var followed = Clamp(after with { SelectedRow = Locate(previous, rows, indexes, before.SelectedRow) }, rows.Length);
+        var followed = Clamp(after with
+        {
+            SelectedRow = Locate(previous, rows, indexes, before.SelectedRow)
+        }, rows.Length);
         if (followed.Menu is { } menu &&
             (followed.ScrollTop != before.ScrollTop ||
              menu.Row >= previous.Length ||
              !indexes.TryGetValue(Identity(previous[menu.Row]), out var row) ||
              row != menu.Row))
         {
-            followed = followed with { Menu = null };
+            followed = followed with
+            {
+                Menu = null
+            };
         }
 
         if (polled is { } now)
@@ -257,7 +282,10 @@ static class MonitorSession
             return state;
         }
 
-        return EnsureVisible(Follow(state, state with { Search = text }));
+        return EnsureVisible(Follow(state, state with
+        {
+            Search = text
+        }));
     }
 
     // Groups
@@ -273,11 +301,17 @@ static class MonitorSession
         var toggled = ReferenceEquals(removed, open)
             ? open.Add(key.Id)
             : removed;
-        var next = state with { Settings = state.Settings with { OpenGroups = toggled } };
+        var next = state with
+        {
+            Settings = state.Settings with
+            {
+                OpenGroups = toggled
+            }
+        };
         var rows = RowProjection.Rows(next);
         for (var index = 0; index < rows.Length; index++)
         {
-            if (rows[index] is { Kind: RowKind.Group, Group: { } group } &&
+            if (rows[index] is {Kind: RowKind.Group, Group: { } group} &&
                 group.Id == key.Id)
             {
                 return SelectRow(next, index);
@@ -295,7 +329,13 @@ static class MonitorSession
     /// has had it since.
     /// </summary>
     public static SessionState PlaceWindow(SessionState state, WindowPlacement placement) =>
-        state with { Settings = state.Settings with { Window = placement } };
+        state with
+        {
+            Settings = state.Settings with
+            {
+                Window = placement
+            }
+        };
 
     // Context menu
 
@@ -377,7 +417,7 @@ static class MonitorSession
                 items.Add(new("Open directory", CommandKind.OpenRepoDirectory));
             }
 
-            if (target is { Kind: RowKind.Member, Group: { } group })
+            if (target is {Kind: RowKind.Member, Group: { } group})
             {
                 items.Add(new($"Collapse {group.Project}", CommandKind.ToggleGroup));
             }
@@ -387,7 +427,10 @@ static class MonitorSession
         }
 
         AddExcludes(items, state, target.Builds);
-        return SelectRow(state, row) with { Menu = new(row, Divided(items.ToImmutable())) };
+        return SelectRow(state, row) with
+        {
+            Menu = new(row, Divided(items.ToImmutable()))
+        };
     }
 
     /// <summary>
@@ -439,7 +482,10 @@ static class MonitorSession
         {
             if (Section(divided[index].Command) != Section(divided[index - 1].Command))
             {
-                divided[index] = divided[index] with { SeparatorAbove = true };
+                divided[index] = divided[index] with
+                {
+                    SeparatorAbove = true
+                };
             }
         }
 
@@ -494,7 +540,10 @@ static class MonitorSession
             return state;
         }
 
-        return SelectRow(state, row) with { Menu = new(row, items, Overflow: true) };
+        return SelectRow(state, row) with
+        {
+            Menu = new(row, items, Overflow: true)
+        };
     }
 
     public static SessionState CloseMenu(SessionState state)
@@ -504,7 +553,10 @@ static class MonitorSession
             return state;
         }
 
-        return state with { Menu = null };
+        return state with
+        {
+            Menu = null
+        };
     }
 
     /// <summary>
@@ -528,10 +580,19 @@ static class MonitorSession
     // Pages
 
     public static SessionState OpenBuilds(SessionState state) =>
-        state with { Page = Page.Builds, Form = null, SignIn = null, Menu = null };
+        state with
+        {
+            Page = Page.Builds,
+            Form = null,
+            SignIn = null,
+            Menu = null
+        };
 
     public static SessionState OpenConnections(SessionState state) =>
-        OpenForm(state, new ConnectionsFormState { Values = [] });
+        OpenForm(state, new ConnectionsFormState
+        {
+            Values = []
+        });
 
     public static SessionState OpenOptions(SessionState state)
     {
@@ -549,7 +610,10 @@ static class MonitorSession
         values[FormFields.HistoryDays] = settings.HistoryDays.ToString();
         values[FormFields.Port] = settings.Port.ToString();
         values[FormFields.CodeDirectory] = settings.CodeDirectory;
-        return OpenForm(state, new OptionsFormState { Values = values.ToImmutable() });
+        return OpenForm(state, new OptionsFormState
+        {
+            Values = values.ToImmutable()
+        });
     }
 
     public static SessionState OpenFilters(SessionState state)
@@ -698,7 +762,10 @@ static class MonitorSession
             return OpenBuilds(state);
         }
 
-        return OpenForm(state with { SignIn = null }, back);
+        return OpenForm(state with
+        {
+            SignIn = null
+        }, back);
     }
 
     /// <summary>
@@ -780,15 +847,34 @@ static class MonitorSession
             }
         }
 
-        return state with { Form = form with { Error = null } };
+        return state with
+        {
+            Form = form with
+            {
+                Error = null
+            }
+        };
     }
 
     public static SessionState SetFormError(SessionState state, FormError error) =>
         state.Form switch
         {
             // Clears the message too, or a failed test leaves "Testing..." above its error.
-            ConnectionFormState form => state with { Form = form with { Error = error, Message = null } },
-            { } form => state with { Form = form with { Error = error } },
+            ConnectionFormState form => state with
+            {
+                Form = form with
+                {
+                    Error = error,
+                    Message = null
+                }
+            },
+            { } form => state with
+            {
+                Form = form with
+                {
+                    Error = error
+                }
+            },
             null => state
         };
 
@@ -803,7 +889,14 @@ static class MonitorSession
             return state;
         }
 
-        return state with { Form = form with { Message = message, Error = null } };
+        return state with
+        {
+            Form = form with
+            {
+                Message = message,
+                Error = null
+            }
+        };
     }
 
     // Filters page
@@ -833,8 +926,15 @@ static class MonitorSession
             return SetFormError(state, new("That filter already exists.", FormFields.FilterText));
         }
 
-        var added = form with { Filters = form.Filters.Add(filter), Error = null };
-        return state with { Form = added.With(FormFields.FilterText, "") };
+        var added = form with
+        {
+            Filters = form.Filters.Add(filter),
+            Error = null
+        };
+        return state with
+        {
+            Form = added.With(FormFields.FilterText, "")
+        };
     }
 
     public static SessionState RemoveFilter(SessionState state, int index)
@@ -846,7 +946,14 @@ static class MonitorSession
             return state;
         }
 
-        return state with { Form = form with { Filters = form.Filters.RemoveAt(index), Error = null } };
+        return state with
+        {
+            Form = form with
+            {
+                Filters = form.Filters.RemoveAt(index),
+                Error = null
+            }
+        };
     }
 
     /// <summary>
@@ -922,7 +1029,10 @@ static class MonitorSession
             return state;
         }
 
-        return ApplySettings(state, state.Settings with { GroupPrefixes = state.Settings.GroupPrefixes.Add(prefix) });
+        return ApplySettings(state, state.Settings with
+        {
+            GroupPrefixes = state.Settings.GroupPrefixes.Add(prefix)
+        });
     }
 
     /// <summary>
@@ -939,7 +1049,10 @@ static class MonitorSession
             return state;
         }
 
-        return ApplySettings(state, state.Settings with { GroupPrefixes = kept });
+        return ApplySettings(state, state.Settings with
+        {
+            GroupPrefixes = kept
+        });
     }
 
     /// <summary>
@@ -1089,8 +1202,14 @@ static class MonitorSession
             return state;
         }
 
-        var excluded = ApplySettings(state, state.Settings with { Filters = state.Settings.Filters.Add(filter) });
-        return excluded with { Undo = new(filter, what) };
+        var excluded = ApplySettings(state, state.Settings with
+        {
+            Filters = state.Settings.Filters.Add(filter)
+        });
+        return excluded with
+        {
+            Undo = new(filter, what)
+        };
     }
 
     /// <summary>
@@ -1104,15 +1223,26 @@ static class MonitorSession
             return state;
         }
 
-        var restored = ApplySettings(state, state.Settings with { Filters = state.Settings.Filters.Remove(undo.Filter) });
-        return restored with { Undo = null };
+        var restored = ApplySettings(state, state.Settings with
+        {
+            Filters = state.Settings.Filters.Remove(undo.Filter)
+        });
+        return restored with
+        {
+            Undo = null
+        };
     }
 
     /// <summary>
     /// The Undo beside the status line goes when its message does.
     /// </summary>
     public static SessionState ForgetUndo(SessionState state) =>
-        state.Undo is null ? state : state with { Undo = null };
+        state.Undo is null
+            ? state
+            : state with
+            {
+                Undo = null
+            };
 
     // Settings
 
@@ -1132,7 +1262,10 @@ static class MonitorSession
                     return ConnectionState.Start(_);
                 }
 
-                return current with { Connection = _ };
+                return current with
+                {
+                    Connection = _
+                };
             })
             .ToImmutableArray();
         var ids = settings.Connections.Select(_ => _.Id).ToHashSet();
@@ -1140,12 +1273,15 @@ static class MonitorSession
         {
             Settings = settings,
             Connections = connections,
-            Builds = [..state.Builds.Where(_ => ids.Contains(_.ConnectionId))]
+            Builds = [.. state.Builds.Where(_ => ids.Contains(_.ConnectionId))]
         });
     }
 
     public static SessionState AddConnection(SessionState state, Connection connection) =>
-        ApplySettings(state, state.Settings with { Connections = state.Settings.Connections.Add(connection) });
+        ApplySettings(state, state.Settings with
+        {
+            Connections = state.Settings.Connections.Add(connection)
+        });
 
     /// <summary>
     /// In place rather than removed and added, so the connection keeps its position in the list
@@ -1156,7 +1292,7 @@ static class MonitorSession
             state,
             state.Settings with
             {
-                Connections = [..state.Settings.Connections.Select(_ => _.Id == connection.Id ? connection : _)]
+                Connections = [.. state.Settings.Connections.Select(_ => _.Id == connection.Id ? connection : _)]
             });
 
     public static SessionState RemoveConnection(SessionState state, string connectionId) =>
@@ -1164,7 +1300,7 @@ static class MonitorSession
             state,
             state.Settings with
             {
-                Connections = [..state.Settings.Connections.Where(_ => _.Id != connectionId)]
+                Connections = [.. state.Settings.Connections.Where(_ => _.Id != connectionId)]
             });
 
     // Sign in
@@ -1216,7 +1352,10 @@ static class MonitorSession
     {
         if (state.SignIn?.UserCode is { } code)
         {
-            return SetStatus(state with { Clipboard = new(code) }, "Copied the code");
+            return SetStatus(state with
+            {
+                Clipboard = new(code)
+            }, "Copied the code");
         }
 
         return state;
@@ -1235,7 +1374,12 @@ static class MonitorSession
         {
             Page = form.Page,
             SignIn = null,
-            Form = form with { SignedIn = true, Message = message, Error = null }
+            Form = form with
+            {
+                SignedIn = true,
+                Message = message,
+                Error = null
+            }
         };
     }
 
@@ -1251,7 +1395,10 @@ static class MonitorSession
         {
             Page = form.Page,
             SignIn = null,
-            Form = form with { Error = new(error, FormFields.Auth) }
+            Form = form with
+            {
+                Error = new(error, FormFields.Auth)
+            }
         };
     }
 
@@ -1262,16 +1409,31 @@ static class MonitorSession
             return state;
         }
 
-        return state with { Page = state.Form?.Page ?? Page.Builds, SignIn = null };
+        return state with
+        {
+            Page = state.Form?.Page ?? Page.Builds,
+            SignIn = null
+        };
     }
 
     // Polling
 
     public static SessionState SetHealth(SessionState state, string connectionId, ConnectionHealth health, string? error = null, DateTimeOffset? retryAfter = null) =>
-        UpdateConnection(state, connectionId, _ => _ with { Health = health, Error = error, RetryAfter = retryAfter, Progress = null });
+        UpdateConnection(state, connectionId, _ => _ with
+        {
+            Health = health,
+            Error = error,
+            RetryAfter = retryAfter,
+            Progress = null
+        });
 
     public static SessionState SetProgress(SessionState state, string connectionId, PollProgress progress) =>
-        UpdateConnection(state, connectionId, _ => _.Health == ConnectionHealth.Polling ? _ with { Progress = progress } : _);
+        UpdateConnection(state, connectionId, _ => _.Health == ConnectionHealth.Polling
+            ? _ with
+            {
+                Progress = progress
+            }
+            : _);
 
     /// <summary>
     /// The result of one poll: that connection's builds are replaced wholesale. Everything else
@@ -1282,7 +1444,15 @@ static class MonitorSession
         var next = UpdateConnection(
             state,
             connectionId,
-            _ => _ with { Health = ConnectionHealth.Ok, Error = null, RetryAfter = null, LastPolled = now, Pipelines = pipelines, Progress = null });
+            _ => _ with
+            {
+                Health = ConnectionHealth.Ok,
+                Error = null,
+                RetryAfter = null,
+                LastPolled = now,
+                Pipelines = pipelines,
+                Progress = null
+            });
         var previous = state.Builds.Where(_ => _.ConnectionId == connectionId).ToImmutableArray();
         var notification = state.Notification;
         if (state.Settings.NotifyOnFailure)
@@ -1297,8 +1467,8 @@ static class MonitorSession
             {
                 Builds =
                 [
-                    ..next.Builds.Where(_ => _.ConnectionId != connectionId),
-                    ..builds
+                    .. next.Builds.Where(_ => _.ConnectionId != connectionId),
+                    .. builds
                 ],
                 Notification = notification
             },
@@ -1358,13 +1528,13 @@ static class MonitorSession
             {
                 Builds =
                 [
-                    ..next.Builds.Where(_ => _.ConnectionId != connectionId),
-                    ..previous
+                    .. next.Builds.Where(_ => _.ConnectionId != connectionId),
+                    .. previous
                         .Where(_ => discovered.Contains(_.PipelineId) &&
                                     !outcome.Fetched.Contains(_.PipelineId) &&
                                     HistoryCutoff.Keeps(_, cutoff))
                         .Select(_ => Offered(_, outcome.Access)),
-                    ..arrived
+                    .. arrived
                 ],
                 Notification = notification
             },
@@ -1408,7 +1578,10 @@ static class MonitorSession
             return after;
         }
 
-        return after with { Moved = new(now, after.ScrollTop, positions.ToImmutable()) };
+        return after with
+        {
+            Moved = new(now, after.ScrollTop, positions.ToImmutable())
+        };
     }
 
     /// <summary>
@@ -1450,16 +1623,28 @@ static class MonitorSession
     }
 
     public static SessionState Notify(SessionState state, Notification notification) =>
-        state with { Notification = notification };
+        state with
+        {
+            Notification = notification
+        };
 
     public static SessionState ClearNotification(SessionState state) =>
-        state with { Notification = null };
+        state with
+        {
+            Notification = null
+        };
 
     public static SessionState ApplyMedians(SessionState state, ImmutableDictionary<string, TimeSpan> medians) =>
-        state with { Medians = medians };
+        state with
+        {
+            Medians = medians
+        };
 
     public static SessionState ApplyLocalRepos(SessionState state, ImmutableDictionary<string, string> repos) =>
-        state with { LocalRepos = repos };
+        state with
+        {
+            LocalRepos = repos
+        };
 
     static SessionState UpdateConnection(SessionState state, string connectionId, Func<ConnectionState, ConnectionState> change)
     {
@@ -1479,7 +1664,10 @@ static class MonitorSession
             return state;
         }
 
-        return state with { Connections = connections.SetItem(index, change(connections[index])) };
+        return state with
+        {
+            Connections = connections.SetItem(index, change(connections[index]))
+        };
     }
 
     // Triage
@@ -1503,7 +1691,10 @@ static class MonitorSession
             return state;
         }
 
-        return state with { Triaging = state.Triaging.Add(build) };
+        return state with
+        {
+            Triaging = state.Triaging.Add(build)
+        };
     }
 
     /// <summary>
@@ -1537,7 +1728,10 @@ static class MonitorSession
         };
 
     static SessionState EndTriage(SessionState state, Build build) =>
-        state with { Triaging = state.Triaging.RemoveAll(_ => SameRun(_, build)) };
+        state with
+        {
+            Triaging = state.Triaging.RemoveAll(_ => SameRun(_, build))
+        };
 
     static bool SameRun(Build first, Build second) =>
         first.SameKey(second) &&
@@ -1552,14 +1746,21 @@ static class MonitorSession
             return state;
         }
 
-        return state with { Status = status };
+        return state with
+        {
+            Status = status
+        };
     }
 
     /// <summary>
     /// Text fetched in the background, waiting for the loop to put it on the clipboard.
     /// </summary>
     public static SessionState Copy(SessionState state, string text, string status) =>
-        state with { Clipboard = new(text), Status = status };
+        state with
+        {
+            Clipboard = new(text),
+            Status = status
+        };
 
     /// <summary>
     /// Clears only the copy the loop made, so a second log that arrived meanwhile keeps its turn,
@@ -1609,13 +1810,23 @@ static class MonitorSession
     }
 
     public static SessionState Hide(SessionState state) =>
-        state with { Hidden = true, Menu = null };
+        state with
+        {
+            Hidden = true,
+            Menu = null
+        };
 
     public static SessionState Show(SessionState state) =>
-        state with { Hidden = false };
+        state with
+        {
+            Hidden = false
+        };
 
     public static SessionState Quit(SessionState state) =>
-        state with { Exit = true };
+        state with
+        {
+            Exit = true
+        };
 
     static string Flag(bool value)
     {

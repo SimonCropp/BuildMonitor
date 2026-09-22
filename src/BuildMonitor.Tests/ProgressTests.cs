@@ -52,7 +52,11 @@ public class ProgressTests
     [Test]
     public async Task ProviderRemainingWins()
     {
-        var build = Running(now - TimeSpan.FromMinutes(1)) with { Estimate = new(null, 40, TimeSpan.FromSeconds(90)) };
+        var build = Running(now - TimeSpan.FromMinutes(1))
+            with
+            {
+                Estimate = new(null, 40, TimeSpan.FromSeconds(90))
+            };
         var (fraction, text) = Progress.Compute(build, TimeSpan.FromHours(1), now);
         await Assert.That(fraction).IsEqualTo(0.4);
         await Assert.That(text).IsEqualTo("01:30 left");
@@ -61,7 +65,11 @@ public class ProgressTests
     [Test]
     public async Task ProviderRemainingWithoutPercentIsTheShareElapsed()
     {
-        var build = Running(now - TimeSpan.FromMinutes(3)) with { Estimate = new(null, null, TimeSpan.FromMinutes(1)) };
+        var build = Running(now - TimeSpan.FromMinutes(3))
+            with
+            {
+                Estimate = new(null, null, TimeSpan.FromMinutes(1))
+            };
         var (fraction, text) = Progress.Compute(build, null, now);
         await Assert.That(fraction).IsEqualTo(0.75);
         await Assert.That(text).IsEqualTo("01:00 left");
@@ -71,7 +79,10 @@ public class ProgressTests
     public async Task ProviderRemainingOfNothingOnABuildJustStartedFillsTheBar()
     {
         // Worked out, nothing elapsed and nothing left is 0/0, a NaN fraction.
-        var build = Running(now) with { Estimate = new(null, null, TimeSpan.Zero) };
+        var build = Running(now) with
+        {
+            Estimate = new(null, null, TimeSpan.Zero)
+        };
         var (fraction, text) = Progress.Compute(build, null, now);
         await Assert.That(fraction).IsEqualTo(0.95);
         await Assert.That(text).IsEqualTo("00:00 left");
@@ -81,7 +92,10 @@ public class ProgressTests
     public async Task ProviderOverrunShowsPlusAndCaps()
     {
         // Worked out, a minute over on a thirty second run is a negative fraction, an empty bar.
-        var build = Running(now - TimeSpan.FromSeconds(30)) with { Estimate = new(null, null, TimeSpan.FromMinutes(-1)) };
+        var build = Running(now - TimeSpan.FromSeconds(30)) with
+        {
+            Estimate = new(null, null, TimeSpan.FromMinutes(-1))
+        };
         var (fraction, text) = Progress.Compute(build, null, now);
         await Assert.That(fraction).IsEqualTo(0.95);
         await Assert.That(text).IsEqualTo("+01:00");
@@ -93,7 +107,10 @@ public class ProgressTests
     [Arguments(-10, 0)]
     public async Task ProviderPercentWithoutRemainingShowsElapsed(double percent, double expected)
     {
-        var build = Running(now - TimeSpan.FromMinutes(2)) with { Estimate = new(null, percent, null) };
+        var build = Running(now - TimeSpan.FromMinutes(2)) with
+        {
+            Estimate = new(null, percent, null)
+        };
         var (fraction, text) = Progress.Compute(build, TimeSpan.FromHours(1), now);
         await Assert.That(fraction).IsEqualTo(expected);
         await Assert.That(text).IsEqualTo("02:00");
@@ -144,7 +161,11 @@ public class ProgressTests
     [Test]
     public async Task FinishedShowsAge()
     {
-        var build = Running(now - TimeSpan.FromHours(3)) with { Status = BuildStatus.Succeeded, Finished = now - TimeSpan.FromHours(2) };
+        var build = Running(now - TimeSpan.FromHours(3)) with
+        {
+            Status = BuildStatus.Succeeded,
+            Finished = now - TimeSpan.FromHours(2)
+        };
         var (fraction, text) = Progress.Compute(build, null, now);
         await Assert.That(fraction).IsEqualTo(-1);
         await Assert.That(text).IsEqualTo("2h ago");

@@ -36,7 +36,10 @@ static class TrayIconPromotion
 
         var promoted = Inherited(entries, processPath) ?? true;
         return undecided
-            .Select(_ => _ with { Promoted = promoted })
+            .Select(_ => _ with
+            {
+                Promoted = promoted
+            })
             .ToList();
     }
 

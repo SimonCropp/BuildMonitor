@@ -63,7 +63,11 @@ static class BuildExtensions
             return build;
         }
 
-        return build with { CanRetry = false, CanCancel = false };
+        return build with
+        {
+            CanRetry = false,
+            CanCancel = false
+        };
     }
 
     /// <summary>

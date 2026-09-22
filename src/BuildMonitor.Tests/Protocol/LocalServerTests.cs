@@ -58,7 +58,11 @@ public class LocalServerTests
             var get = await started.Client.Send(new(Verb.Get, "gh/Verify/test.yml/feature/inline"), Cancel.None);
             var missing = await started.Client.Send(new(Verb.Get, "nope"), Cancel.None);
             await Assert.That(missing.Ok).IsFalse();
-            await Verify(new { list = list.Body, get = get.Body });
+            await Verify(new
+            {
+                list = list.Body,
+                get = get.Body
+            });
         }
         finally
         {
@@ -74,7 +78,11 @@ public class LocalServerTests
         {
             var summary = await started.Client.Send(new(Verb.Summary), Cancel.None);
             var connections = await started.Client.Send(new(Verb.Connections), Cancel.None);
-            await Verify(new { summary = summary.Body, connections = connections.Body });
+            await Verify(new
+            {
+                summary = summary.Body,
+                connections = connections.Body
+            });
         }
         finally
         {
@@ -126,8 +134,12 @@ public class LocalServerTests
             started.Host.Mutate(_ => _ with
             {
                 Builds = _.Builds.Replace(
-                    _.Builds.Single(build => build.Key == "gh/Verify/test.yml/feature/inline"),
-                    _.Builds.Single(build => build.Key == "gh/Verify/test.yml/feature/inline") with { ProviderRef = "VerifyTests/Verify|77|failure" })
+                    _.Builds.Single(_ => _.Key == "gh/Verify/test.yml/feature/inline"),
+                    _.Builds.Single(_ => _.Key == "gh/Verify/test.yml/feature/inline")
+                        with
+                        {
+                            ProviderRef = "VerifyTests/Verify|77|failure"
+                        })
             });
             var response = await started.Client.Send(new(Verb.Retry, "gh/Verify/test.yml/feature/inline"), Cancel.None);
             await Assert.That(response).IsEqualTo(Response.Success("Retried"));
@@ -172,8 +184,12 @@ public class LocalServerTests
             started.Host.Mutate(_ => _ with
             {
                 Builds = _.Builds.Replace(
-                    _.Builds.Single(build => build.Key == "gh/Verify/test.yml/feature/inline"),
-                    _.Builds.Single(build => build.Key == "gh/Verify/test.yml/feature/inline") with { ProviderRef = "VerifyTests/Verify|77|failure" })
+                    _.Builds.Single(_ => _.Key == "gh/Verify/test.yml/feature/inline"),
+                    _.Builds.Single(_ => _.Key == "gh/Verify/test.yml/feature/inline")
+                        with
+                        {
+                            ProviderRef = "VerifyTests/Verify|77|failure"
+                        })
             });
             var response = await started.Client.Send(new(Verb.Log, "gh/Verify/test.yml/feature/inline", "2"), Cancel.None);
             await Assert.That(response.Body).IsEqualTo("==> build <==\n... 1 earlier line dropped\nbuilding\nerror CS1002: ; expected");
@@ -210,5 +226,4 @@ public class LocalServerTests
         await Assert.That(await client.IsRunning(Cancel.None)).IsFalse();
         await Assert.That(async () => await client.Send(new(Verb.List), Cancel.None)).Throws<TrayUnreachableException>();
     }
-
 }

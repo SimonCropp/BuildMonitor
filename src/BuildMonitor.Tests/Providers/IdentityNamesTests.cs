@@ -65,17 +65,27 @@ public class IdentityNamesTests
 
         var deployments = await ProviderTestHelpers.DiscoverAndFetch(
             "octopus",
-            ProviderTestHelpers.Context("octopus", octopus, "https://octopus.example.com") with { Identities = shared });
+            ProviderTestHelpers.Context("octopus", octopus, "https://octopus.example.com")
+                with
+                {
+                    Identities = shared
+                });
         // Nothing has named the id yet, so the deployment names no one.
         await Assert.That(deployments.Single().Author).IsNull();
 
         await ProviderTestHelpers.DiscoverAndFetch(
             "azure-devops",
-            ProviderTestHelpers.Context("azure-devops", azure, scope: ("organization", "contoso")) with { Identities = shared });
+            ProviderTestHelpers.Context("azure-devops", azure, scope: ("organization", "contoso")) with
+            {
+                Identities = shared
+            });
 
         var named = await ProviderTestHelpers.DiscoverAndFetch(
             "octopus",
-            ProviderTestHelpers.Context("octopus", octopus, "https://octopus.example.com") with { Identities = shared });
+            ProviderTestHelpers.Context("octopus", octopus, "https://octopus.example.com") with
+            {
+                Identities = shared
+            });
         await Assert.That(named.Single().Author).IsEqualTo("Simon Cropp");
     }
 }

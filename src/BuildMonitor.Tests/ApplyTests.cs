@@ -284,7 +284,7 @@ public class ApplyTests
         {
             Builds =
             [
-                ..state.Builds.Select(_ => _ with
+                .. state.Builds.Select(_ => _ with
                 {
                     PipelineUrl = "https://ci.example.com/pipeline",
                     RepoUrl = "https://github.com/owner/name"
@@ -343,7 +343,10 @@ public class ApplyTests
     [Test]
     public async Task StartupThatWillNotRegisterSaysSo()
     {
-        var actions = new RecordingActions { RunAtLoginError = "Run at startup failed: denied" };
+        var actions = new RecordingActions
+        {
+            RunAtLoginError = "Run at startup failed: denied"
+        };
         var state = Apply(Fixtures.Options(), new(FieldChanges: [new(FormFields.RunAtStartup, "true")]), actions);
         state = Apply(state, new(ClickedButton: 0), actions);
 
@@ -465,7 +468,13 @@ public class ApplyTests
     [Arguments(AuthMethod.Device, "Adding it back means signing in again.")]
     public async Task TheRemovePageSaysWhatComingBackCosts(AuthMethod method, string expected)
     {
-        var state = MonitorSession.ReplaceConnection(Fixtures.WithBuilds(), Fixtures.GitHub with { Auth = method });
+        var state = MonitorSession.ReplaceConnection(
+            Fixtures.WithBuilds(),
+            Fixtures.GitHub
+                with
+                {
+                    Auth = method
+                });
         state = MonitorSession.OpenRemoveConnection(MonitorSession.OpenEditConnection(state, Fixtures.GitHub.Id));
         var fields = ScreenBuilder.Build(state, Fixtures.Now).Form!.Fields;
         await Assert.That(fields.Single(_ => _.Id == FormFields.RemoveReturn).Value).IsEqualTo(expected);
@@ -753,7 +762,10 @@ public class ApplyTests
     [Test]
     public async Task BrowsingPutsTheChosenDirectoryInTheField()
     {
-        var window = new FakeWindow { Picked = "/code" };
+        var window = new FakeWindow
+        {
+            Picked = "/code"
+        };
         var state = MonitorSession.OpenOptions(Fixtures.WithBuilds());
         state = InputApplier.Apply(state, new(ClickedField: FormFields.CodeDirectory), new RecordingActions().Actions, window);
         await Assert.That(state.Form!.Value(FormFields.CodeDirectory)).IsEqualTo("/code");

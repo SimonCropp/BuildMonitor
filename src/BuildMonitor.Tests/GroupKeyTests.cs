@@ -58,7 +58,10 @@ public class GroupKeyTests
     [Test]
     public async Task TheServicesOwnGroupKeysAheadOfTheProject()
     {
-        var build = Build("Deploy Api", BuildStatus.Succeeded) with { ProjectGroup = "Storefront" };
+        var build = Build("Deploy Api", BuildStatus.Succeeded) with
+        {
+            ProjectGroup = "Storefront"
+        };
         await Assert.That(GroupKey.Of(build, [])!.Project).IsEqualTo("Storefront");
         await Assert.That(GroupKey.IdOf(build, [])).IsEqualTo("storefront");
     }
@@ -69,7 +72,11 @@ public class GroupKeyTests
     [Test]
     public async Task APrefixBeatsTheServicesOwnGroup()
     {
-        var build = Build("TheProjectApi", BuildStatus.Succeeded) with { ProjectGroup = "Storefront" };
+        var build = Build("TheProjectApi", BuildStatus.Succeeded)
+            with
+            {
+                ProjectGroup = "Storefront"
+            };
         await Assert.That(GroupKey.Of(build, ["TheProject"])!.Project).IsEqualTo("TheProject");
         await Assert.That(GroupKey.IdOf(build, ["TheProject"])).IsEqualTo("theproject");
     }

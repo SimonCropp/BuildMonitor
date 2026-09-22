@@ -336,7 +336,12 @@ static class Fixtures
     public static SessionState WithPrefixGroup()
     {
         var state = WithGreenProject();
-        state = MonitorSession.ApplySettings(state, state.Settings with { GroupPrefixes = ["Verify"] });
+        state = MonitorSession.ApplySettings(
+            state,
+            state.Settings with
+            {
+                GroupPrefixes = ["Verify"]
+            });
         return MonitorSession.ApplyPoll(
             state,
             GitHub.Id,
@@ -447,7 +452,12 @@ static class Fixtures
     /// other snapshot carries that item.
     /// </summary>
     public static SessionState WithCodeDirectory() =>
-        MonitorSession.ApplySettings(WithLocalRepos(), Settings() with { CodeDirectory = "/code" });
+        MonitorSession.ApplySettings(
+            WithLocalRepos(),
+            Settings() with
+            {
+                CodeDirectory = "/code"
+            });
 
     /// <summary>
     /// Verify checked out as well, so the one failing row is also a row with a checkout. That is

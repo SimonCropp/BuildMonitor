@@ -14,7 +14,7 @@ public class MovedRowTests
 
     static SessionState Poll(SessionState state, Func<Build, Build> docsRun)
     {
-        ImmutableArray<Build> builds = [..Fixtures.GitHubBuilds().Select(_ => _.Key == docs ? docsRun(_) : _)];
+        ImmutableArray<Build> builds = [.. Fixtures.GitHubBuilds().Select(_ => _.Key == docs ? docsRun(_) : _)];
         return MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, state.Connection(Fixtures.GitHub.Id)!.Pipelines, builds, polled);
     }
 
@@ -23,14 +23,28 @@ public class MovedRowTests
     /// had none.
     /// </summary>
     static SessionState DocsFailedInPlace(SessionState state) =>
-        Poll(state, _ => _ with { Status = BuildStatus.Failed, Finished = polled });
+        Poll(
+            state,
+            _ => _ with
+            {
+                Status = BuildStatus.Failed,
+                Finished = polled
+            });
 
     /// <summary>
     /// A new docs.yml run, started a minute ago, failed. The newest failure, it takes the place of
     /// the Verify failure, which moves down one.
     /// </summary>
     static SessionState DocsFailedAnew(SessionState state) =>
-        Poll(state, _ => _ with { RunNumber = "301", Status = BuildStatus.Failed, Started = polled - TimeSpan.FromMinutes(1), Finished = polled });
+        Poll(
+            state,
+            _ => _ with
+            {
+                RunNumber = "301",
+                Status = BuildStatus.Failed,
+                Started = polled - TimeSpan.FromMinutes(1),
+                Finished = polled
+            });
 
     /// <summary>
     /// Where the build's row is drawn: the index a head reports a click on.

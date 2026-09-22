@@ -27,7 +27,14 @@ public class TriageTests
         var state = Fixtures.Triaging();
         var collecting = state.Triaging.Single();
         await Assert.That(MonitorSession.IsTriaging(state, collecting)).IsTrue();
-        await Assert.That(MonitorSession.IsTriaging(state, collecting with { RunNumber = "78" })).IsFalse();
+        await Assert.That(MonitorSession.IsTriaging(
+            state,
+            collecting
+                with
+                {
+                    RunNumber = "78"
+                }))
+            .IsFalse();
     }
 
     [Test]
@@ -110,6 +117,10 @@ public class TriageTests
     static RowChip Chip(SessionState state)
     {
         var row = Fixtures.RowOf(state, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
-        return ScreenBuilder.Build(state, Fixtures.Now).Builds!.Rows[row].Chips.Single(_ => _.Kind == ChipKind.Triage);
+        return ScreenBuilder.Build(state, Fixtures.Now)
+            .Builds!
+            .Rows[row]
+            .Chips
+            .Single(_ => _.Kind == ChipKind.Triage);
     }
 }
