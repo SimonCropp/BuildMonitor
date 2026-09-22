@@ -55,6 +55,14 @@ static class SettingsHelper
             };
         }
 
+        if (settings.Deferrals.IsDefault)
+        {
+            settings = settings with
+            {
+                Deferrals = []
+            };
+        }
+
         // And for a set, whose type default is null: a file written before OpenGroups existed
         // would throw at the first group drawn. The annotation says it cannot be null, and the
         // reader does not keep that promise, so this is not the dead check it reads as.

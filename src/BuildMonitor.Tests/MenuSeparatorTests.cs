@@ -14,7 +14,7 @@ public class MenuSeparatorTests
     [Test]
     public async Task AFailedBuildsRetryStandsApart() =>
         await Assert.That(LinedAbove(Fixtures.WithBuilds(), _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline"))
-            .IsEquivalentTo(["Retry", "Refresh", "Exclude action: test.yml"]);
+            .IsEquivalentTo(["Retry", "Refresh", "Defer 1 day", "Exclude action: test.yml"]);
 
     [Test]
     public async Task ARunningBuildsCancelStandsApart() =>

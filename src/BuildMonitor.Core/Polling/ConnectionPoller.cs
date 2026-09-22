@@ -438,7 +438,21 @@ sealed class ConnectionPoller
             current.Access != access)
         {
             var medians = history.Medians();
-            host.Mutate(_ => MonitorSession.ApplyMedians(MonitorSession.ApplyFetch(_, connectionId, outcome, clock()), medians));
+            Settings? lifted = null;
+            host.Mutate(_ =>
+            {
+                var next = MonitorSession.ApplyMedians(MonitorSession.ApplyFetch(_, connectionId, outcome, clock()), medians);
+                if (next.Settings.Deferrals != _.Settings.Deferrals)
+                {
+                    lifted = next.Settings;
+                }
+
+                return next;
+            });
+            if (lifted is not null)
+            {
+                await SaveLifted(lifted);
+            }
         }
 
         Spend(descriptor);
@@ -867,6 +881,22 @@ sealed class ConnectionPoller
 
     static TimeSpan Interval(Settings settings) =>
         TimeSpan.FromSeconds(Math.Max(5, settings.PollIntervalSeconds));
+
+    /// <summary>
+    /// Saves the deferrals a fetch ended. Only in memory, one ended by a fix came back with the next
+    /// start and hid that pipeline's next break, which is news.
+    /// </summary>
+    static async Task SaveLifted(Settings settings)
+    {
+        try
+        {
+            await SettingsHelper.Write(settings);
+        }
+        catch (Exception exception)
+        {
+            Log.Warning(exception, "Saving the deferrals a poll ended failed");
+        }
+    }
 
     /// <summary>
     /// Every finished successful run is recorded once. Its own timestamps say how long it took;

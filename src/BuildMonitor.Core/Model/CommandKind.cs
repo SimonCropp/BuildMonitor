@@ -75,5 +75,9 @@ public enum CommandKind
     Quit,
     CopyStatus,
     // The device flow's code, which the sign in page cannot let the user select.
-    CopyUserCode
+    CopyUserCode,
+    // Hides a failed build for the number of days its menu item carries as its target.
+    Defer,
+    // Ends a deferral early from the filters page, by its index as the target.
+    RemoveDeferral
 }

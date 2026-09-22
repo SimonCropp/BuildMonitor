@@ -814,7 +814,7 @@ static class ScreenBuilder
                 ConnectionsFormState => ConnectionsForm(state),
                 OptionsFormState form => OptionsForm(form),
                 AboutFormState => AboutForm(),
-                FiltersFormState form => FiltersForm(form),
+                FiltersFormState form => FiltersForm(form, now),
                 AddConnectionFormState form => AddConnectionForm(form),
                 EditConnectionFormState form => EditConnectionForm(form),
                 UpdateFormState form => UpdateForm(form, now),
@@ -1026,10 +1026,11 @@ static class ScreenBuilder
             _ => "not polled yet"
         };
 
-    static FormPage FiltersForm(FiltersFormState form)
+    static FormPage FiltersForm(FiltersFormState form, DateTimeOffset now)
     {
         var fields = new List<Field>();
-        if (form.Filters.Length == 0)
+        if (form.Filters.Length == 0 &&
+            form.Deferrals.Length == 0)
         {
             fields.Add(new(FormFields.NoFilters, FieldKind.Label, "", "No filters. Everything is shown."));
         }
@@ -1037,6 +1038,12 @@ static class ScreenBuilder
         for (var index = 0; index < form.Filters.Length; index++)
         {
             fields.Add(new(FormFields.Filter(index), FieldKind.ListRow, "Exclude", form.Filters[index].Describe()));
+        }
+
+        for (var index = 0; index < form.Deferrals.Length; index++)
+        {
+            var deferral = form.Deferrals[index];
+            fields.Add(new(FormFields.Deferral(index), FieldKind.ListRow, "Deferred", $"{deferral.Name}, {Deferrals.Remaining(deferral, now)}"));
         }
 
         fields.Add(new(FormFields.FilterTarget, FieldKind.Select, "Target", form.Value(FormFields.FilterTarget), Options: Enum.GetNames<FilterTarget>()));

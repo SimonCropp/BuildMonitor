@@ -228,6 +228,11 @@ static class InputApplier
             return Execute(state, CommandKind.RemoveFilter, id[FormFields.FilterPrefix.Length..], actions, null);
         }
 
+        if (id.StartsWith(FormFields.DeferralPrefix, StringComparison.Ordinal))
+        {
+            return Execute(state, CommandKind.RemoveDeferral, id[FormFields.DeferralPrefix.Length..], actions, null);
+        }
+
         switch (id)
         {
             // A click on a Directory field is its Browse button: the box itself reports edits, not
@@ -522,6 +527,23 @@ static class InputApplier
 
                 return Excluded(state, MonitorSession.ExcludeOrg(state, row.Builds), actions);
             }
+            case CommandKind.Defer:
+            {
+                if (MonitorSession.SelectedBuild(state) is not { } failed ||
+                    !int.TryParse(target, NumberStyles.None, CultureInfo.InvariantCulture, out var days))
+                {
+                    return state;
+                }
+
+                var deferred = MonitorSession.Defer(state, failed, days, DateTimeOffset.UtcNow);
+                if (deferred.Undo?.Deferral is not { } deferral)
+                {
+                    return deferred;
+                }
+
+                actions.SaveSettings(deferred.Settings);
+                return MonitorSession.SetStatus(deferred, $"Deferred the {deferral.Name} for {Deferrals.Span(days)}");
+            }
             case CommandKind.UndoExclude:
             {
                 if (state.Undo is not { } undo)
@@ -592,6 +614,13 @@ static class InputApplier
                 if (int.TryParse(target, out var index))
                 {
                     return MonitorSession.RemoveFilter(state, index);
+                }
+
+                return state;
+            case CommandKind.RemoveDeferral:
+                if (int.TryParse(target, out var ended))
+                {
+                    return MonitorSession.RemoveDeferral(state, ended);
                 }
 
                 return state;
@@ -855,7 +884,11 @@ static class InputApplier
             state,
             state.Settings with
             {
-                Filters = form.Filters
+                Filters = form.Filters,
+                // Only those the page left and a poll has not since ended: the page's copy is from
+                // when it opened, and saved whole it would bring back one that ended while it was
+                // open, such as a fixed pipeline's, to hide that pipeline's next break.
+                Deferrals = state.Settings.Deferrals.RemoveAll(_ => !form.Deferrals.Contains(_))
             });
         actions.SaveSettings(state.Settings);
         return MonitorSession.SetStatus(MonitorSession.OpenBuilds(state), "Filters saved");
