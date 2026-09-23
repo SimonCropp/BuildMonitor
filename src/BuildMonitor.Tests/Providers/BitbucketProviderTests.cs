@@ -1,18 +1,23 @@
 public class BitbucketProviderTests
 {
-    const string pipelines = "https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields=values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
+    const string fields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.source,values.target.destination,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
+
+    const string pipelines = $"https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields={fields}";
+
+    const string mainPipelines = $"https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=1&target.ref_type=BRANCH&target.ref_name=main&fields={fields}";
 
     static FakeHttpHandler Handler() =>
         new FakeHttpHandler()
             .Get(
-                "https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on&fields=next,values.slug,values.full_name,values.links.html.href",
-                """{"values":[{"slug":"diffengine","full_name":"verify/diffengine","links":{"html":{"href":"https://bitbucket.org/verify/diffengine"}}}]}""")
+                "https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on&fields=next,values.slug,values.full_name,values.links.html.href,values.mainbranch.name",
+                """{"values":[{"slug":"diffengine","full_name":"verify/diffengine","links":{"html":{"href":"https://bitbucket.org/verify/diffengine"}},"mainbranch":{"name":"main"}}]}""")
             .Get(
                 pipelines,
                 """
                 {"values":[
                   {"uuid":"{u1}","build_number":88,"state":{"name":"IN_PROGRESS","stage":{"name":"RUNNING"}},"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"main","commit":{"hash":"abc123"}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T11:55:00Z","completed_on":null},
-                  {"uuid":"{u2}","build_number":87,"state":{"name":"COMPLETED","result":{"name":"FAILED"}},"target":{"type":"pipeline_pullrequest_target","ref_type":"branch","ref_name":"feature","commit":{"hash":"def456"},"pullrequest":{"id":9,"title":"Feature"}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T10:00:00Z","completed_on":"2026-01-01T10:07:00Z","duration_in_seconds":420}
+                  {"uuid":"{u2}","build_number":87,"state":{"name":"COMPLETED","result":{"name":"FAILED"}},"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"feature","commit":{"hash":"def456"}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T10:00:00Z","completed_on":"2026-01-01T10:07:00Z","duration_in_seconds":420},
+                  {"uuid":"{u3}","build_number":86,"state":{"name":"COMPLETED","result":{"name":"SUCCESSFUL"}},"target":{"type":"pipeline_pullrequest_target","source":"feature","destination":"main","commit":{"hash":"def456"},"pullrequest":{"id":9}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T09:50:00Z","completed_on":"2026-01-01T09:57:00Z"}
                 ]}
                 """);
 
@@ -23,6 +28,42 @@ public class BitbucketProviderTests
         var builds = await ProviderTestHelpers.DiscoverAndFetch("bitbucket", ProviderTestHelpers.Context("bitbucket", handler, user: "simon@example.com", scope: ("workspace", "verify")));
         await Verify(new { builds, handler.Requests });
     }
+
+    /// <summary>
+    /// A window of pull requests, each built as its branch and as the pull request, asks for the
+    /// newest pipeline on main by its ref, which leaves out the pull request pipelines targeting it.
+    /// </summary>
+    [Test]
+    public async Task PullRequestsFillingTheWindowFetchTheMainBranchsNewestPipeline()
+    {
+        var handler = PullRequestsOnly()
+            .Get(
+                mainPipelines,
+                """{"values":[{"uuid":"{u9}","build_number":80,"state":{"name":"COMPLETED","result":{"name":"SUCCESSFUL"}},"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"main","commit":{"hash":"999"}},"creator":{"display_name":"Simon"},"created_on":"2025-12-31T10:00:00Z","completed_on":"2025-12-31T10:07:00Z"}]}""");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("bitbucket", ProviderTestHelpers.Context("bitbucket", handler, user: "simon@example.com", scope: ("workspace", "verify")));
+        await Assert.That(builds.Select(_ => $"{_.RunNumber} {_.Branch}")).IsEquivalentTo(["86 feature", "80 main"]);
+    }
+
+    /// <summary>
+    /// A main branch with no pipeline answers empty, and the fetches within the hour do not ask
+    /// again: Bitbucket allows a thousand requests an hour.
+    /// </summary>
+    [Test]
+    public async Task ARepositoryWithNoPipelineOnItsMainBranchIsAskedOnceAnHour()
+    {
+        var handler = PullRequestsOnly()
+            .Get(mainPipelines, """{"values":[]}""");
+        var context = ProviderTestHelpers.Context("bitbucket", handler, user: "simon@example.com", scope: ("workspace", "verify"));
+        await ProviderTestHelpers.DiscoverAndFetch("bitbucket", context);
+        await ProviderTestHelpers.DiscoverAndFetch("bitbucket", context);
+        await Assert.That(handler.Requests.Count(_ => _ == $"GET {mainPipelines}")).IsEqualTo(1);
+    }
+
+    static FakeHttpHandler PullRequestsOnly() =>
+        Handler()
+            .Get(
+                pipelines,
+                """{"values":[{"uuid":"{u3}","build_number":86,"state":{"name":"COMPLETED","result":{"name":"SUCCESSFUL"}},"target":{"type":"pipeline_pullrequest_target","source":"feature","destination":"main","commit":{"hash":"def456"},"pullrequest":{"id":9}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T09:50:00Z","completed_on":"2026-01-01T09:57:00Z"}]}""");
 
     /// <summary>
     /// A Bitbucket account id is a guid, so the name it arrives with here names it for whoever else

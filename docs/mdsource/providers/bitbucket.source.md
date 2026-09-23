@@ -10,7 +10,7 @@ An Atlassian [API token](https://id.atlassian.com/manage-profile/security/api-to
 
 ## Rows
 
-One per repository. Pull request pipelines link to the pull request.
+One per repository, showing its latest pipeline on the repository's main branch, which the repository listing names. Pull request pipelines link to the pull request. A pull request pipeline names the branch it came from as its source rather than as a ref, and is shown on that branch; Bitbucket builds no pull request from a fork.
 
 
 ## Actions
@@ -30,6 +30,8 @@ The countdown comes from the median of the repository's last ten successful pipe
 Bitbucket allows a thousand requests an hour, or the larger limit a workspace reports, and charges one per repository. Requests are budgeted to fit that hour: running and recently built repositories go first, and a quiet repository waits up to thirty minutes.
 
 Once a minute the ten most recently updated repositories are read, which a push moves to the top within seconds, so a pushed repository is fetched at once rather than when its schedule comes round. Pipelines started without a push, such as scheduled and manual runs, wait for the schedule.
+
+A repository whose last five pipelines hold none on its main branch, as a burst of pull requests leaves them, is asked for its newest pipeline on that branch, which leaves out the pull request pipelines targeting it. A repository with none since the [history cutoff](../options.md#show-builds-from-the-last-days) is not asked again for an hour.
 
 ```mermaid
 ---

@@ -10,8 +10,8 @@ sealed class BitbucketProvider : ProviderBase
 
     // Only what is read, as the probe already asks: whole repositories and pipelines came back
     // with every link and property Bitbucket has for them.
-    const string repositoryFields = "next,values.slug,values.full_name,values.links.html.href";
-    const string pipelineFields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
+    const string repositoryFields = "next,values.slug,values.full_name,values.links.html.href,values.mainbranch.name";
+    const string pipelineFields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.source,values.target.destination,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
@@ -27,7 +27,8 @@ sealed class BitbucketProvider : ProviderBase
                 _.FullName,
                 null,
                 $"{_.Links?.Html?.Href}/pipelines",
-                _.Links?.Html?.Href)));
+                _.Links?.Html?.Href,
+                DefaultBranch: _.MainBranch?.Name)));
             path = repositories.Next;
         }
 
@@ -44,16 +45,65 @@ sealed class BitbucketProvider : ProviderBase
                 $"repositories/{Encode(workspace)}/{pipeline.Id}/pipelines?sort=-created_on&pagelen={perPipeline}&fields={pipelineFields}",
                 BitbucketContext.Default.BitbucketPipelinePage,
                 cancel);
+            var fetched = new List<Build>();
             foreach (var run in page.Values)
             {
                 // A Bitbucket account id is a guid, so the name it arrives with here names it for
                 // whoever else is handed that id alone; see IdentityNames.
                 context.Identities.Add(run.Creator?.Uuid, run.Creator?.DisplayName);
-                builds.Add(Convert(context.Connection.Id, pipeline, run));
+                fetched.Add(Convert(context.Connection.Id, pipeline, run));
+            }
+
+            builds.AddRange(fetched);
+            if (pipeline.DefaultBranch is { } branch &&
+                fetched.All(_ => _.Branch != branch) &&
+                await DefaultRun(context, workspace, pipeline, branch, cancel) is { } own)
+            {
+                builds.Add(own);
             }
         }
 
         return builds;
+    }
+
+    /// <summary>
+    /// The repository's newest pipeline on its main branch, where its last few left it out: a
+    /// burst of pull requests, each built as its branch and as the pull request, fills them. Asked
+    /// for by branch, which leaves out the pull request pipelines targeting it. Bitbucket allows a
+    /// thousand requests an hour, so a repository with none since the history cutoff is not asked
+    /// again for an hour.
+    /// </summary>
+    static async Task<Build?> DefaultRun(ProviderContext context, string workspace, Pipeline pipeline, string branch, Cancel cancel)
+    {
+        var memory = context.Memory;
+        var now = DateTimeOffset.UtcNow;
+        if (DefaultRunMemory.KnownNone(memory, pipeline.Id, branch, now))
+        {
+            return null;
+        }
+
+        var page = await GetOrNone(
+            context,
+            $"repositories/{Encode(workspace)}/{pipeline.Id}/pipelines?sort=-created_on&pagelen=1&target.ref_type=BRANCH&target.ref_name={Encode(branch)}&fields={pipelineFields}",
+            BitbucketContext.Default.BitbucketPipelinePage,
+            cancel);
+        if (page?.Values.FirstOrDefault() is not { } run)
+        {
+            DefaultRunMemory.None(memory, pipeline.Id, branch, now);
+            return null;
+        }
+
+        var build = Convert(context.Connection.Id, pipeline, run);
+        if (build.Branch != branch ||
+            (context.Since is { } since && !HistoryCutoff.Keeps(build, since)))
+        {
+            DefaultRunMemory.None(memory, pipeline.Id, branch, now);
+            return null;
+        }
+
+        context.Identities.Add(run.Creator?.Uuid, run.Creator?.DisplayName);
+        DefaultRunMemory.Found(memory, pipeline.Id, branch);
+        return build;
     }
 
     /// <summary>
@@ -91,14 +141,24 @@ sealed class BitbucketProvider : ProviderBase
             _ => BuildStatus.Unknown
         };
         var web = $"https://bitbucket.org/{pipeline.RepoName}";
-        var branch = run.Target?.RefType == "branch" ? run.Target.RefName : null;
         var pullRequest = run.Target?.PullRequest?.Id?.ToString();
+        // A pull request pipeline names the branch it came from as its source rather than as a
+        // ref, and with none read every pull request of a repository shared one empty branch.
+        // Bitbucket builds no pull request from a fork, so the source is always this repository's.
+        var branch = run.Target?.RefType == "branch" ? run.Target.RefName : run.Target?.Source;
+        var name = branch ?? run.Target?.RefName;
+        if (name is null &&
+            pullRequest is not null)
+        {
+            name = PullRequestBranches.Unnamed(pullRequest);
+        }
+
         return new(
             connectionId,
             pipeline.Id,
             pipeline.Name,
             pipeline.RepoName,
-            branch ?? run.Target?.RefName,
+            name,
             run.BuildNumber.ToString(),
             status,
             (result ?? state)?.ToLowerInvariant(),
@@ -117,7 +177,8 @@ sealed class BitbucketProvider : ProviderBase
             CanCancel: state is "PENDING" or "IN_PROGRESS",
             Join(run.Uuid, run.Target?.RefType, run.Target?.RefName, run.Target?.Commit?.Hash),
             pipeline.Url,
-            pipeline.RepoUrl ?? web);
+            pipeline.RepoUrl ?? web,
+            DefaultBranch: pipeline.DefaultBranch);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

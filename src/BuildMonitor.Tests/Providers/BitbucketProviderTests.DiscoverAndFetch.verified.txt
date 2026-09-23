@@ -20,6 +20,7 @@
       ProviderRef: {u1}|branch|main|abc123,
       PipelineUrl: https://bitbucket.org/verify/diffengine/pipelines,
       RepoUrl: https://bitbucket.org/verify/diffengine,
+      DefaultBranch: main,
       Key: bitbucket/diffengine/main,
       PipelineKey: bitbucket/diffengine,
       IsActive: true,
@@ -39,8 +40,6 @@
       Finished: DateTimeOffset_3,
       BuildUrl: https://bitbucket.org/verify/diffengine/pipelines/results/87,
       BranchUrl: https://bitbucket.org/verify/diffengine/branch/feature,
-      PullRequestNumber: 9,
-      PullRequestUrl: https://bitbucket.org/verify/diffengine/pull-requests/9,
       CommitSha: def456,
       Author: Simon,
       CanRetry: true,
@@ -48,14 +47,44 @@
       ProviderRef: {u2}|branch|feature|def456,
       PipelineUrl: https://bitbucket.org/verify/diffengine/pipelines,
       RepoUrl: https://bitbucket.org/verify/diffengine,
+      DefaultBranch: main,
       Key: bitbucket/diffengine/feature,
       PipelineKey: bitbucket/diffengine,
       IsActive: false,
       Ordering: DateTimeOffset_2
+    },
+    {
+      ConnectionId: bitbucket,
+      PipelineId: diffengine,
+      PipelineName: verify/diffengine,
+      RepoName: verify/diffengine,
+      Branch: feature,
+      RunNumber: 86,
+      Status: Succeeded,
+      StatusText: successful,
+      Queued: DateTimeOffset_4,
+      Started: DateTimeOffset_4,
+      Finished: DateTimeOffset_5,
+      BuildUrl: https://bitbucket.org/verify/diffengine/pipelines/results/86,
+      BranchUrl: https://bitbucket.org/verify/diffengine/branch/feature,
+      PullRequestNumber: 9,
+      PullRequestUrl: https://bitbucket.org/verify/diffengine/pull-requests/9,
+      CommitSha: def456,
+      Author: Simon,
+      CanRetry: true,
+      CanCancel: false,
+      ProviderRef: {u3}|||def456,
+      PipelineUrl: https://bitbucket.org/verify/diffengine/pipelines,
+      RepoUrl: https://bitbucket.org/verify/diffengine,
+      DefaultBranch: main,
+      Key: bitbucket/diffengine/feature,
+      PipelineKey: bitbucket/diffengine,
+      IsActive: false,
+      Ordering: DateTimeOffset_4
     }
   ],
   Requests: [
-    GET https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on&fields=next,values.slug,values.full_name,values.links.html.href,
-    GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields=values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on
+    GET https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on&fields=next,values.slug,values.full_name,values.links.html.href,values.mainbranch.name,
+    GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields=values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.source,values.target.destination,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on
   ]
 }
