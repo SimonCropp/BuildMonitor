@@ -7,7 +7,7 @@
 | [x] Notify when a build fails                                                                                        |
 | Theme: <System>                                                                                                      |
 | Builds                                                                                                               |
-| [x] Show running builds on other branches                                                                            |
+| [x] Show other branches that are running or failing                                                                  |
 | [ ] Show forks and collaborator repositories                                                                         |
 | Show builds from the last (days): [30    ] (Running and queued builds always show.)                                  |
 | Group passing builds by prefix: [                                        ] (Comma separated, eg TheProject)          |

@@ -12,7 +12,7 @@ For GitHub Enterprise Server enter the server URL; the API is reached under `/ap
 
 ## Rows
 
-One per workflow, showing the latest run. A run on another branch that is queued or running gets its own row. Pull request runs link to the pull request.
+One per workflow, showing the latest run. A run on another branch that is running, queued or failed gets a row beneath it. Pull request runs link to the pull request.
 
 
 ## Actions

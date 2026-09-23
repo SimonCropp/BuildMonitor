@@ -48,9 +48,9 @@ System takes the desktop's own light or dark setting. Dark and Light keep to one
 ## Builds
 
 
-### Show running builds on other branches
+### Show other branches that are running or failing
 
-A pipeline's row is its latest run on any branch. With this on, every other branch that is queued or running right now gets a row too.
+A pipeline's row is its own latest build, on its default branch. With this on, each other branch whose latest build is running, queued or failed, a pull request's among them, gets a row beneath it, and hovering the pipeline's row lists the branches whose latest build passed. Off, a pipeline is its one row. See [The window](tray.md#the-window).
 
 
 ### Show forks and collaborator repositories

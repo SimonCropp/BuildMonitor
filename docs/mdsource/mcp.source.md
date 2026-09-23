@@ -72,7 +72,7 @@ A build or pipeline whose repository is checked out under the [code directory](o
 
 ### `list_builds`
 
-The latest build of every pipeline, with status, timing, progress and links. An optional filter keeps the builds whose pipeline, repository, branch or connection contains it.
+The latest build of every pipeline, on its default branch where BuildMonitor knows which that is, with status, timing, progress and links. After a pipeline's own build come its other branches whose latest build is running, queued or failed, pull requests among them, each marked `otherBranch`, as the window puts them on the rows beneath. An optional filter keeps the builds whose pipeline, repository, branch or connection contains it.
 
  * "What's building right now?"
  * "How long until the running builds finish?"
@@ -81,7 +81,7 @@ The latest build of every pipeline, with status, timing, progress and links. An 
 
 ### `list_failing`
 
-The pipelines whose latest build failed.
+The pipelines whose own latest build failed. A pull request or other branch failing is not its pipeline failing, as it is not in the window's counts or the tray icon; those are in `list_builds`, marked `otherBranch`.
 
  * "What's failing?"
  * "Which failing builds do I have checked out locally?"
@@ -136,7 +136,7 @@ Bitbucket and Travis have no artifact API: Bitbucket does not expose a pipeline'
 
 ### `summary`
 
-Counts of failing and running builds, the tray state, and each connection's health.
+Counts of pipelines, of those whose own build is failing, and of builds running on any branch, as the window's header counts them, then the tray state and each connection's health.
 
  * "How are my builds doing?"
  * "Is anything failing or still running?"
@@ -192,7 +192,7 @@ Opens the build, its branch or its pull request.
 
 ## Triaging failures
 
-The server also ships a prompt, `triage`, for working through every failing build whose code is checked out locally. A prompt is a command the user runs rather than a tool the assistant chooses to call: Claude Code lists it as `/buildmonitor:triage (MCP)` and runs it as `/mcp__buildmonitor__triage` too, and other clients offer it in their own prompt menu.
+The server also ships a prompt, `triage`, for working through every failing build whose code is checked out locally: each pipeline whose own build failed, as `list_failing` has them. A prompt is a command the user runs rather than a tool the assistant chooses to call: Claude Code lists it as `/buildmonitor:triage (MCP)` and runs it as `/mcp__buildmonitor__triage` too, and other clients offer it in their own prompt menu.
 
 It covers every configured connection, whatever the CI service. What narrows it is the [code directory](options.md#code-directory): a failing build whose repository has no checkout under it has no code here to work on, so it is named at the end rather than worked, which is also where a deployment that builds nothing ends up. Until that option is set every failure is in that list, and the prompt says so.
 

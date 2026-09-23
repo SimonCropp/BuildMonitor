@@ -10,9 +10,9 @@ To change this file edit the source file and then run MarkdownSnippets.
 BuildMonitor runs in the system tray. The icon shows the overall state:
 
  * grey: nothing is being watched, or everything is idle
- * blue: a build is queued or running
- * green: every latest build succeeded
- * red: a latest build failed
+ * blue: a build is queued or running, on any branch
+ * green: every pipeline's own latest build succeeded
+ * red: a pipeline's own latest build failed. A pull request failing leaves the icon as its pipeline's own build has it
  * amber: a connection needs attention, because its credential was refused or polling failed
 
 Left click the icon to open the window. Right click it for the menu: Open, Refresh, Connections, Options, Filters, Open logs, Raise issue, Update and Exit. On macOS either click opens the menu, and Open shows the window. Open code directory sits above Open logs once a [code directory](options.md#code-directory) is set, and opens that folder; it is left out entirely while the option is empty.
@@ -24,15 +24,21 @@ On Windows 11 the icon starts on the taskbar rather than behind the arrow with t
 
 <img src="../src/BuildMonitor.Windows.Tests/MonitorFormTests.Builds.verified.png">
 
-One list of pipelines across every connection, showing the latest run on any branch. A branch with a queued or running build gets a row of its own beside the latest one, which is what makes a pull request build visible while it runs; turn that off in [Options](options.md).
+One list of pipelines across every connection. A pipeline's row is its own latest build: the one on its default branch where BuildMonitor knows which that is, which each [provider's page](readme.md#providers) says, and its latest on any branch where it does not. A pull request's build never takes that row, so a green one cannot hide a red main, nor a red one paint main red.
 
-Rows sort what is happening now to the top: running, then queued, then failed, then everything else by age.
+Each of the pipeline's other branches, a pull request's among them, gets a row directly beneath it while its latest build is running, queued or failed. Such a row leaves the repository and the marks to the row above and names only the branch, so a column of them reads as the pipeline's. A branch whose latest build passed, or was cancelled, has no row; hover the pipeline's row to see those. Turn the rows for other branches off in [Options](options.md#show-other-branches-that-are-running-or-failing).
+
+<img src="../src/BuildMonitor.Windows.Tests/MonitorFormTests.Lanes.verified.png">
+
+Rows sort what is happening now to the top: running, then queued, then failed, then everything else by age. A pipeline's rows stay together and sort by the most urgent of them, so a pipeline whose pull request is running sits with the running rows, its own row above the pull request's.
+
+The header counts pipelines, how many of them are failing, and how many builds are running on any branch. A pipeline is failing when its own build failed: a pull request failing is red on its own row, and is announced, but counts for nothing in the header or the tray icon, where a contributor's broken fork would otherwise keep main looking red.
 
 The window opens where it was last left, at the size it had, and on Windows and Linux maximized if it was. If no screen reaches that any more, such as after a monitor is unplugged, it opens centred. On a Wayland desktop the compositor may place the window itself and keep only its size.
 
-Type in the Filter box at the top right to show only the builds whose repository, pipeline or branch, as the row names them, contain the text, ignoring case. A cross at the right of the box empties it, and shows only while there is something to empty; Escape does the same from anywhere in the window. A group keeps only the builds that match, so a filter reaches a build inside a closed group. The counts in the header and the tray icon still describe every build. The filter is not saved; to hide a pipeline for good, use [Filters](filters.md).
+Type in the Filter box at the top right to show only the builds whose repository, pipeline or branch, as the row names them, contain the text, ignoring case. A cross at the right of the box empties it, and shows only while there is something to empty; Escape does the same from anywhere in the window. A group keeps only the builds that match, so a filter reaches a build inside a closed group, and a branch's row that matches keeps its pipeline's row above it. The counts in the header and the tray icon still describe every build. The filter is not saved; to hide a pipeline for good, use [Filters](filters.md).
 
-Two or more passing builds of one project share a group, closed, where the latest of them would have been: a repository with a handful of green workflows otherwise buries the rows that need reading. The group's row names the project and says how many builds it holds and how long since the latest. Click a group, press Enter on it or right click it to open or close it, which is kept across restarts; open, each build is on a row beneath, indented under the group, with its project column left blank and its pipeline named, and right clicking one closes the group again. Projects are matched by repository name, so the same repository on two CI services is one group. Two things group ahead of that name: a prefix named in [Options](options.md), which groups a whole family of repositories, and the group the service itself files the pipeline under, which today is an Octopus project group. A member of either names its own repository rather than leaving the column blank, and opens it where the service reports one. Nothing else is grouped: a failed build keeps a row of its own that says which pipeline broke, and so does one running or queued.
+Two or more passing builds of one project share a group, closed, where the latest of them would have been: a repository with a handful of green workflows otherwise buries the rows that need reading. The group's row names the project and says how many builds it holds and how long since the latest. Click a group, press Enter on it or right click it to open or close it, which is kept across restarts; open, each build is on a row beneath, indented under the group, with its project column left blank and its pipeline named, and right clicking one closes the group again. Projects are matched by repository name, so the same repository on two CI services is one group. Two things group ahead of that name: a prefix named in [Options](options.md), which groups a whole family of repositories, and the group the service itself files the pipeline under, which today is an Octopus project group. A member of either names its own repository rather than leaving the column blank, and opens it where the service reports one. Nothing else is grouped: a failed build keeps a row of its own that says which pipeline broke, and so does one running or queued, and so does a pipeline with another branch's row beneath it, which a closed group would hide with it.
 
 Each row carries:
 
@@ -45,6 +51,8 @@ Each row carries:
  * a retry button, for a failed or cancelled run; a cancel button, for a queued or running one. Neither shows where the provider reports that the credential or its user may not do it
  * a log button, for a failed run, which fetches the log of what failed and puts it on the clipboard. The status line says when it has arrived
 
+A row for another branch carries its own status square, branch, progress, timing, author and buttons, its pull request's first. The repository, the pipeline, both marks and the folder button are left to its pipeline's row above.
+
 A row that broke, or is still running or queued, leads with its run: it is the reason the row is being read, so the first cell and the mark before it open the run, and the mark of the source's host moves to the second cell. A settled row leads with its project instead, since its run is of no interest.
 
 Either way the row shows both marks, and each part of it opens one thing, and only that thing:
@@ -56,7 +64,7 @@ Either way the row shows both marks, and each part of it opens one thing, and on
  * the branch, and the mark before it, open the branch
  * a group's row names the repository its builds share and opens it. Its members name their pipeline, since their own repository column is blank. A group its members do not share a repository with names none, so it opens nothing and each member names and opens its own instead
 
-Hover any of them and it says where it goes, after about a second, written as what it opens and then which one: `Open branch: main`. Hover the rest of a row and it says what the row could not fit: the whole repository name and branch, the commit and who wrote it, and how long ago it started. The timing says where its estimate came from, and each button says what it does.
+Hover any of them and it says where it goes, after about a second, written as what it opens and then which one: `Open branch: main`. Hover the rest of a row and it says what the row could not fit: the whole repository name and branch, the commit and who wrote it, and how long ago it started. A pipeline's row also lists its other branches that have no row of their own, each with its pull request, how its latest build ended and when, the first five and then how many more. The timing says where its estimate came from, and each button says what it does.
 
 The buttons are marks rather than words, so a row carries all of them in the width one label used to take. The drop down names each of them in full, and so does the hover.
 

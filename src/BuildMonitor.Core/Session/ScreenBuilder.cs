@@ -954,7 +954,7 @@ static class ScreenBuilder
             new(FormFields.NotifyOnFailure, FieldKind.Checkbox, "Notify when a build fails", form.Value(FormFields.NotifyOnFailure)),
             new(FormFields.Theme, FieldKind.Select, "Theme", form.Value(FormFields.Theme), Options: Enum.GetNames<Theme>()),
             Heading(FormFields.BuildsHeading, "Builds"),
-            new(FormFields.ShowOtherBranches, FieldKind.Checkbox, "Show running builds on other branches", form.Value(FormFields.ShowOtherBranches)),
+            new(FormFields.ShowOtherBranches, FieldKind.Checkbox, "Show other branches that are running or failing", form.Value(FormFields.ShowOtherBranches)),
             new(FormFields.ShowForks, FieldKind.Checkbox, "Show forks and collaborator repositories", form.Value(FormFields.ShowForks)),
             new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Note: "Running and queued builds always show."),
             new(FormFields.GroupPrefixes, FieldKind.Text, "Group passing builds by prefix", form.Value(FormFields.GroupPrefixes), Hint: "Comma separated, eg TheProject"),

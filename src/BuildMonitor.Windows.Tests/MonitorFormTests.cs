@@ -19,6 +19,13 @@ public class MonitorFormTests
     public Task Empty() =>
         Capture(Fixtures.Empty());
 
+    // A pipeline's own row on its main, and its pull requests that are running, queued or failed on
+    // the rows beneath it, their first cell and marks left to the row above. What the docs show for
+    // other branches.
+    [Test]
+    public Task Lanes() =>
+        Capture(Fixtures.WithLanes());
+
     [Test]
     public Task Groups() =>
         Capture(Fixtures.WithTwoFailures());
