@@ -39,12 +39,12 @@ public class StatusPrinterTests
 
                   build-all   Build all   main               #501     Running    04:00 left   https://example.com/jenkins/build-all/501
                   Deploy Web  Deploy Web                     #12      Running    02:15 left   https://example.com/octo/Projects-1/12
+                  DiffEngine  test.yml    main               #1234    Running    03:00 left   https://example.com/gh/DiffEngine/test.yml/1234
+                  nightly     Nightly                        #88      Queued     queued 30s   https://example.com/jenkins/nightly/88
                   Verify      test.yml    main               #76      Succeeded  1h ago       https://example.com/gh/Verify/test.yml/76
                                           🤖 Polyfill-9.1.0  #80      Running    02:00        https://example.com/gh/Verify/test.yml/80
                                           feature/docs       #79      Queued     queued 1m    https://example.com/gh/Verify/test.yml/79
                                           feature/inline     #77      Failed     25m ago      https://example.com/gh/Verify/test.yml/77
-                  DiffEngine  test.yml    main               #1234    Running    03:00 left   https://example.com/gh/DiffEngine/test.yml/1234
-                  nightly     Nightly                        #88      Queued     queued 30s   https://example.com/jenkins/nightly/88
                   DiffEngine  docs.yml    main               #300     Succeeded  23h ago      https://example.com/gh/DiffEngine/docs.yml/300
                 """);
     }

@@ -15,6 +15,21 @@ row status=1 flags=0 progress=0.40 'Deploy Web' link=Build status=Build '' spans
   tip Pipeline: Open Octopus Deploy history: Deploy Web
   tip Timing: Counting down from the service's estimate
   tip Cancel chip: Cancel this run on Octopus Deploy
+row status=1 flags=1 progress=0.50 'DiffEngine' link=Build status=Build 'test.yml main' spans=Pipeline:[]'test.yml',None:[]' ',Branch:[branch]'main' icon='provider-github-run' detail=Repo:'host-github' '03:00 left' author='' chips=Cancel:Cancel[cancel|]
+  tip Row: VerifyTests/DiffEngine @main/Fix the thing/SimonCropp 0123456/started 3m ago
+  tip Status: Open run: #1234
+  tip Name: Open run: #1234
+  tip Pipeline: Open GitHub Actions history: test.yml
+  tip DetailIcon: Open GitHub project: DiffEngine
+  tip Branch: Open branch: main
+  tip Timing: Counting down from the median of recent runs
+  tip Cancel chip: Cancel this run on GitHub Actions
+row status=0 flags=0 progress=-1.00 'nightly' link=Build status=Build '' spans= icon='provider-jenkins-run' detail=None:'' 'queued 30s' author='' chips=Cancel:Cancel[cancel|]
+  tip Row: nightly
+  tip Status: Open run: #88
+  tip Name: Open run: #88
+  tip Pipeline: Open Jenkins history: Nightly
+  tip Cancel chip: Cancel this run on Jenkins
 row status=2 flags=0 progress=-1.00 'Verify' link=Repo status=Build 'test.yml main' spans=Build:[]'test.yml',None:[]' ',Branch:[branch]'main' icon='host-github' detail=Pipeline:'provider-github-history' '1h ago' author='' chips=
   tip Row: VerifyTests/Verify @main/started 2h ago/Other branches:/@feature/cleanup PR 43 passed 45m ago/@feature/old passed 2d ago
   tip Status: Open run: #76
@@ -44,21 +59,6 @@ row status=3 flags=0 progress=-1.00 '' link=None status=Build 'feature/inline' s
   tip PullRequest chip: Open PR: 42
   tip Retry chip: Run again on GitHub Actions
   tip CopyLog chip: Copy failure log
-row status=1 flags=1 progress=0.50 'DiffEngine' link=Build status=Build 'test.yml main' spans=Pipeline:[]'test.yml',None:[]' ',Branch:[branch]'main' icon='provider-github-run' detail=Repo:'host-github' '03:00 left' author='' chips=Cancel:Cancel[cancel|]
-  tip Row: VerifyTests/DiffEngine @main/Fix the thing/SimonCropp 0123456/started 3m ago
-  tip Status: Open run: #1234
-  tip Name: Open run: #1234
-  tip Pipeline: Open GitHub Actions history: test.yml
-  tip DetailIcon: Open GitHub project: DiffEngine
-  tip Branch: Open branch: main
-  tip Timing: Counting down from the median of recent runs
-  tip Cancel chip: Cancel this run on GitHub Actions
-row status=0 flags=0 progress=-1.00 'nightly' link=Build status=Build '' spans= icon='provider-jenkins-run' detail=None:'' 'queued 30s' author='' chips=Cancel:Cancel[cancel|]
-  tip Row: nightly
-  tip Status: Open run: #88
-  tip Name: Open run: #88
-  tip Pipeline: Open Jenkins history: Nightly
-  tip Cancel chip: Cancel this run on Jenkins
 row status=2 flags=0 progress=-1.00 'DiffEngine' link=Repo status=Build 'docs.yml main' spans=Build:[]'docs.yml',None:[]' ',Branch:[branch]'main' icon='host-github' detail=Pipeline:'provider-github-history' '23h ago' author='' chips=
   tip Row: VerifyTests/DiffEngine @main/started 1d ago
   tip Status: Open run: #300

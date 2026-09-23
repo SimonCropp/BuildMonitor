@@ -30,7 +30,7 @@ Each of the pipeline's other branches, a pull request's among them, gets a row d
 
 <img src="../src/BuildMonitor.Windows.Tests/MonitorFormTests.Lanes.verified.png">
 
-Rows sort what is happening now to the top: running, then queued, then failed, then everything else by age. A pipeline's rows stay together and sort by the most urgent of them, so a pipeline whose pull request is running sits with the running rows, its own row above the pull request's.
+Rows sort what is happening now to the top: running, then queued, then failed, then everything else by age. A pipeline sorts by its own build, and its other branches' rows stay beneath it wherever that is, so a pipeline whose main passed sits with the passing rows even while one of its pull requests runs.
 
 The header counts pipelines, how many of them are failing, and how many builds are running on any branch. A pipeline is failing when its own build failed: a pull request failing is red on its own row, and is announced, but counts for nothing in the header or the tray icon, where a contributor's broken fork would otherwise keep main looking red.
 

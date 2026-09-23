@@ -1,8 +1,8 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                        6 pipelines, 0 failing, 6 running  Filter: [docs            ][x] |
 +----------------------------------------------------------------------------------------------------------------------+
-|   + Verify     github   test.yml @main                1h ago                                                         |
-| > ?                     @feature/docs                 queued 1m                PR 44 [Cancel]                        |
+| > + Verify     github   test.yml @main                1h ago                                                         |
+|   ?                     @feature/docs                 queued 1m                PR 44 [Cancel]                        |
 |   + DiffEngine github   docs.yml @main                23h ago                                                        |
 |                                                                                                                      |
 |                                                                                                                      |

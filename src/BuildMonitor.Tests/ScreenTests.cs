@@ -487,12 +487,12 @@ public class ScreenTests
                 [
                   Build [Build] '[build-all](Build)' provider-jenkins-run| | [Build all](Pipeline) main | [Cancel],
                   Build [Build] '[Deploy Web](Build)' provider-octopus-run| |  | [Cancel],
+                  Build [Build] '[DiffEngine](Build)' provider-github-run|host-github | [test.yml](Pipeline) [main](Branch) | [Cancel],
+                  Build [Build] '[nightly](Build)' provider-jenkins-run| |  | [Cancel],
                   Build [Build] '[Verify](Repo)' host-github|provider-github-history | [test.yml](Build) [main](Branch) | [OpenDirectory],
                   Build [Build] '' | | [🤖 Polyfill-9.1.0](Branch) | [PullRequest Cancel],
                   Build [Build] '' | | [feature/docs](Branch) | [PullRequest Cancel],
                   Build [Build] '' | | [feature/inline](Branch) | [PullRequest Retry CopyLog Triage],
-                  Build [Build] '[DiffEngine](Build)' provider-github-run|host-github | [test.yml](Pipeline) [main](Branch) | [Cancel],
-                  Build [Build] '[nightly](Build)' provider-jenkins-run| |  | [Cancel],
                   Build [Build] '[DiffEngine](Repo)' host-github|provider-github-history | [docs.yml](Build) [main](Branch) | []
                 ]
                 """);

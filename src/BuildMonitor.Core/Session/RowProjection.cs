@@ -210,8 +210,10 @@ static class RowProjection
     }
 
     /// <summary>
-    /// By each pipeline's most urgent row, the most recent of those where several tie, so a
-    /// pipeline whose pull request is running sits with the running rows, its own run above it.
+    /// By each pipeline's own run, its lanes following it wherever that sorts. Sorted by the most
+    /// urgent of its rows, a green main was pulled up among the running rows by a pull request, and
+    /// the list read green and red in no order; the rows are about the pipeline's own run, and its
+    /// lanes are what it has going on besides.
     /// </summary>
     static ImmutableArray<PipelineBuilds> Sort(SessionState state) =>
     [
@@ -225,11 +227,12 @@ static class RowProjection
             .Select(_ => _.Pipeline)
     ];
 
+    /// <summary>
+    /// The row a pipeline sorts by: its own run, or, where a deferral hid that, the first lane,
+    /// which names the pipeline in its place.
+    /// </summary>
     static Build Lead(PipelineBuilds pipeline) =>
-        pipeline.Shown
-            .OrderBy(_ => _.Rank())
-            .ThenByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)
-            .First();
+        pipeline.Head ?? pipeline.Lanes[0];
 
     /// <summary>
     /// A deferral drops a row after the selection rather than before it: dropped first, the run

@@ -71,8 +71,8 @@ public class RowProjectionTests
 
     /// <summary>
     /// A pipeline's lanes follow its own row, running before queued before failed, and the
-    /// pipeline sorts by the most urgent of its rows: Verify's running pull request puts Verify
-    /// among the running rows, its passing main above it.
+    /// pipeline sorts by its own run: Verify's main passed, so Verify sits with the passing rows,
+    /// its running pull request beneath it there.
     /// </summary>
     [Test]
     public Task LanesFollowTheirPipelinesRow() =>
@@ -82,12 +82,12 @@ public class RowProjectionTests
                 [
                   Build jenkins/build-all/main Running,
                   Build octo/Projects-1/ Running,
+                  Build gh/DiffEngine/test.yml/main Running,
+                  Build jenkins/nightly/ Queued,
                   Build gh/Verify/test.yml/main Succeeded,
                   Lane gh/Verify/test.yml/dependabot/nuget/src/Polyfill-9.1.0 Running,
                   Lane gh/Verify/test.yml/feature/docs Queued,
                   Lane gh/Verify/test.yml/feature/inline Failed,
-                  Build gh/DiffEngine/test.yml/main Running,
-                  Build jenkins/nightly/ Queued,
                   Build gh/DiffEngine/docs.yml/main Succeeded
                 ]
                 """);
