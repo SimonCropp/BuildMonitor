@@ -69,6 +69,11 @@ public class MonitorFormTests
     public Task SignInDevice() =>
         Capture(Fixtures.SignInDevice());
 
+    // Every line about the MCP servers shares an id, which left all but the last of them blank.
+    [Test]
+    public Task Update() =>
+        Capture(Fixtures.Update());
+
     [Test]
     public Task BuildsLight() =>
         Capture(Fixtures.WithBuilds(), Theme.Light);
