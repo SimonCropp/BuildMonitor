@@ -1,4 +1,4 @@
-﻿page: 0 rows: 9 details: 7 chips: 11 spans: 15 fields: 0 options: 0 buttons: 5 menu: 0 tray: 9 strings: 2917 bytes
+﻿page: 0 rows: 9 details: 7 chips: 11 spans: 15 fields: 0 options: 0 buttons: 5 menu: 0 tray: 9 strings: 2998 bytes
 search='' tip='Filter by repository, pipeline or branch' empty=''
 status='Polled 5s ago' tip=''
 row status=1 flags=0 progress=0.20 'build-all' link=Build status=Build 'Build all main' spans=Pipeline:[]'Build all',None:[]' ',None:[branch]'main' icon='provider-jenkins-run' detail=None:'' '04:00 left' author='' chips=Cancel:Cancel[cancel|]
@@ -16,7 +16,7 @@ row status=1 flags=0 progress=0.40 'Deploy Web' link=Build status=Build '' spans
   tip Timing: Counting down from the service's estimate
   tip Cancel chip: Cancel this run on Octopus Deploy
 row status=2 flags=0 progress=-1.00 'Verify' link=Repo status=Build 'test.yml main' spans=Build:[]'test.yml',None:[]' ',Branch:[branch]'main' icon='host-github' detail=Pipeline:'provider-github-history' '1h ago' author='' chips=
-  tip Row: VerifyTests/Verify @main/started 2h ago
+  tip Row: VerifyTests/Verify @main/started 2h ago/Other branches:/@feature/cleanup PR 43 passed 45m ago/@feature/old passed 2d ago
   tip Status: Open run: #76
   tip Pipeline: Open run: #76
   tip DetailIcon: Open GitHub Actions history: test.yml

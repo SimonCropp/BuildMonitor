@@ -438,6 +438,42 @@ public class ScreenTests
     }
 
     /// <summary>
+    /// The branches that passed have no row, so the pipeline's own row's hover is where they are:
+    /// each with its pull request, how it ended and when.
+    /// </summary>
+    [Test]
+    public async Task APipelinesHoverListsTheBranchesItFolds()
+    {
+        var row = ScreenBuilder.Build(Fixtures.WithLanes(), Fixtures.Now).Builds!.Rows.Single(_ => _.Name == "Verify");
+        await Assert.That(row.Tooltip(RowPart.Row)).IsEqualTo(
+            """
+            VerifyTests/Verify @main
+            started 2h ago
+            Other branches:
+            @feature/cleanup PR 43 passed 45m ago
+            @feature/old passed 2d ago
+            """.ReplaceLineEndings("\n"));
+    }
+
+    /// <summary>
+    /// Past a handful the rest are counted, so a batch of Dependabot updates does not fill the
+    /// screen with one hover.
+    /// </summary>
+    [Test]
+    public async Task AHoverCountsTheFoldedBranchesPastAHandful()
+    {
+        var state = Fixtures.WithDefaultBranches();
+        var passed = Enumerable.Range(1, 7)
+            .Select(_ => Fixtures.Build(Fixtures.GitHub.Id, "DiffEngine/docs.yml", "docs.yml", "VerifyTests/DiffEngine", $"feature/{_}", $"{400 + _}", BuildStatus.Succeeded, started: Fixtures.Now - TimeSpan.FromHours(_), finished: Fixtures.Now - TimeSpan.FromHours(_) + TimeSpan.FromMinutes(1)) with
+            {
+                DefaultBranch = "main"
+            });
+        state = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [.. Fixtures.GitHubBuildsOnMain(), .. passed], Fixtures.Now);
+        var row = ScreenBuilder.Build(state, Fixtures.Now).Builds!.Rows.Single(_ => _.DetailText == "docs.yml main");
+        await Assert.That(row.Tooltip(RowPart.Row).Split('\n')[^2..]).IsEquivalentTo(["@feature/5 passed 4h ago", "and 2 more"]);
+    }
+
+    /// <summary>
     /// What a head is handed for a lane: a build's row with nothing in its first cell and no marks,
     /// its branch alone in the second, its own run behind the square, and no folder button, which
     /// its pipeline's row carries.

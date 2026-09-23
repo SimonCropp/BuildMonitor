@@ -58,7 +58,7 @@ static class RowProjection
         // Each pipeline's group id once, and a key only for a group's row. Making a key for every
         // passing build at every step cost each of them a handful of strings a projection.
         var prefixes = state.Settings.GroupPrefixes;
-        var shown = new List<(List<Build> Builds, string? Id)>();
+        var shown = new List<(List<Build> Builds, ImmutableArray<Build> Folded, string? Id)>();
         foreach (var pipeline in pipelines)
         {
             var builds = Matching(pipeline, search);
@@ -71,17 +71,17 @@ static class RowProjection
             // does not join a group as letters typed hide its lanes. One with a lane is never
             // grouped: its lanes follow its row, and a closed group would hide them with it.
             var id = pipeline is {Lanes.IsEmpty: true, Head: { } head} ? GroupKey.IdOf(head, prefixes) : null;
-            shown.Add((builds, id));
+            shown.Add((builds, pipeline.Folded, id));
         }
 
         var groups = shown
             .Where(_ => _.Id is not null)
-            .GroupBy(_ => _.Id!, _ => _.Builds[0])
+            .GroupBy(_ => _.Id!)
             .Where(_ => _.Count() > 1)
-            .ToDictionary(_ => _.Key, _ => _.ToImmutableArray());
+            .ToDictionary(_ => _.Key, _ => _.ToList());
         var rows = ImmutableArray.CreateBuilder<Row>();
         var added = new HashSet<string>();
-        foreach (var (builds, id) in shown)
+        foreach (var (builds, folded, id) in shown)
         {
             // A group of one saves nothing and hides that build's links.
             if (id is null ||
@@ -89,12 +89,18 @@ static class RowProjection
             {
                 // The first names the pipeline: its own run, or, where a deferral hid that, its
                 // first lane, since a lane under no named row would read as a run of the pipeline
-                // above.
+                // above. The branches folded away go with the name.
                 for (var index = 0; index < builds.Count; index++)
                 {
                     var build = builds[index];
-                    var kind = index == 0 ? RowKind.Build : RowKind.Lane;
-                    rows.Add(new(kind, connections[build.ConnectionId], build, null, false, []));
+                    if (index == 0)
+                    {
+                        rows.Add(new(RowKind.Build, connections[build.ConnectionId], build, null, false, [], folded));
+                    }
+                    else
+                    {
+                        rows.Add(new(RowKind.Lane, connections[build.ConnectionId], build, null, false, [], []));
+                    }
                 }
 
                 continue;
@@ -107,7 +113,7 @@ static class RowProjection
 
             var key = GroupKey.Of(builds[0], prefixes)!;
             var expanded = IsExpanded(state, key);
-            rows.Add(new(RowKind.Group, null, null, key, expanded, members));
+            rows.Add(new(RowKind.Group, null, null, key, expanded, [..members.Select(_ => _.Builds[0])], []));
             if (!expanded)
             {
                 continue;
@@ -115,7 +121,8 @@ static class RowProjection
 
             foreach (var member in members)
             {
-                rows.Add(new(RowKind.Member, connections[member.ConnectionId], member, key, false, []));
+                var build = member.Builds[0];
+                rows.Add(new(RowKind.Member, connections[build.ConnectionId], build, key, false, [], member.Folded));
             }
         }
 

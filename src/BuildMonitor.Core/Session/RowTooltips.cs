@@ -12,13 +12,15 @@ static class RowTooltips
     /// blank popup. A lane draws no name and no marks, so it says nothing for them, and names its
     /// pipeline only where it has no branch to show in its place.
     /// </summary>
-    public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, RowKind kind, string providerName, DateTimeOffset now)
+    /// <param name="folded">The pipeline's other branches its row folds away, listed after the
+    /// summary.</param>
+    public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, RowKind kind, ImmutableArray<Build> folded, string providerName, DateTimeOffset now)
     {
         var run = OpensRun(build);
         var pipeline = $"Open {providerName} history: {build.PipelineName}";
         List<RowTooltip> tooltips =
         [
-            new(RowPart.Row, Summary(build, now)),
+            new(RowPart.Row, string.Join("\n", [Summary(build, now), ..Folded(folded, now)])),
             new(RowPart.Status, run)
         ];
         // Which cell holds which is decided by the row, so each part says what that row's part
@@ -162,6 +164,49 @@ static class RowTooltips
 
         return string.Join("\n", lines);
     }
+
+    /// <summary>
+    /// How many folded branches a hover names before it counts the rest.
+    /// </summary>
+    const int foldedShown = 5;
+
+    /// <summary>
+    /// The branches a pipeline's row folds away: those whose newest run settled without failing,
+    /// which get no row. The hover is where a pull request that passed an hour ago is still found,
+    /// rather than nowhere, each with its number where it has one, since a pull request is known by
+    /// it. Past a handful the rest are counted, so a repository with a batch of Dependabot updates
+    /// does not fill the screen with its hover.
+    /// </summary>
+    static IEnumerable<string> Folded(ImmutableArray<Build> folded, DateTimeOffset now)
+    {
+        if (folded.IsEmpty)
+        {
+            yield break;
+        }
+
+        yield return "Other branches:";
+        foreach (var build in folded.Take(foldedShown))
+        {
+            var pullRequest = build.PullRequestNumber is null ? "" : $" PR {build.PullRequestNumber}";
+            yield return $"{DetailSpan.BranchIconText}{build.ShortBranchName()}{pullRequest} {Outcome(build)} {Age(build, now)}";
+        }
+
+        if (folded.Length > foldedShown)
+        {
+            yield return $"and {folded.Length - foldedShown} more";
+        }
+    }
+
+    /// <summary>
+    /// How a folded run ended, in a word. Never failed or still going: those are rows.
+    /// </summary>
+    static string Outcome(Build build) =>
+        build.Status switch
+        {
+            BuildStatus.Succeeded => "passed",
+            BuildStatus.Cancelled => "cancelled",
+            _ => build.StatusText ?? "ended"
+        };
 
     /// <summary>
     /// Every tooltip for something a click opens is written the same way: what it is, then which

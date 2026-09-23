@@ -497,7 +497,7 @@ static class ScreenBuilder
             selected,
             false,
             RowChips.Of(build, row.Kind, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build)),
-            RowTooltips.Of(state, build, row.Kind, descriptor.Name, now),
+            RowTooltips.Of(state, build, row.Kind, row.Folded, descriptor.Name, now),
             author);
     }
 
