@@ -6,7 +6,7 @@ public class GitHubProviderTests
                 "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
                 """
                 [
-                  {"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"},
+                  {"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z","default_branch":"main"},
                   {"full_name":"SimonCropp/Forked","html_url":"https://github.com/SimonCropp/Forked","archived":false,"disabled":false,"fork":true,"pushed_at":"2099-01-01T00:00:00Z"},
                   {"full_name":"VerifyTests/Old","html_url":"https://github.com/VerifyTests/Old","archived":false,"disabled":false,"pushed_at":"2000-01-01T00:00:00Z"},
                   {"full_name":"VerifyTests/Archived","html_url":"https://github.com/VerifyTests/Archived","archived":true,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"}
@@ -23,9 +23,10 @@ public class GitHubProviderTests
             .Get(
                 "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5",
                 """
-                {"total_count":3,"workflow_runs":[
-                  {"id":500,"workflow_id":10,"run_number":1234,"status":"in_progress","conclusion":null,"head_branch":"main","head_sha":"0123456789abcdef","display_title":"Fix the thing","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/500","created_at":"2026-01-01T11:56:00Z","updated_at":"2026-01-01T11:57:00Z","run_started_at":"2026-01-01T11:57:00Z","actor":{"login":"SimonCropp"},"head_commit":{"message":"Fix the thing\n\nDetails"},"pull_requests":[]},
-                  {"id":499,"workflow_id":10,"run_number":1233,"status":"completed","conclusion":"failure","head_branch":"feature","head_sha":"fedcba9876543210","display_title":"Feature","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/499","created_at":"2026-01-01T11:00:00Z","updated_at":"2026-01-01T11:05:00Z","run_started_at":"2026-01-01T11:00:30Z","actor":{"login":"someone"},"head_commit":{"message":"Feature"},"head_repository":{"full_name":"someone/DiffEngine"},"pull_requests":[{"number":42}]},
+                {"total_count":4,"workflow_runs":[
+                  {"id":500,"workflow_id":10,"run_number":1234,"status":"in_progress","conclusion":null,"head_branch":"main","head_sha":"0123456789abcdef","display_title":"Fix the thing","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/500","created_at":"2026-01-01T11:56:00Z","updated_at":"2026-01-01T11:57:00Z","run_started_at":"2026-01-01T11:57:00Z","actor":{"login":"SimonCropp"},"head_commit":{"message":"Fix the thing\n\nDetails"},"head_repository":{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine"},"pull_requests":[]},
+                  {"id":499,"workflow_id":10,"run_number":1233,"status":"completed","conclusion":"failure","head_branch":"feature","head_sha":"fedcba9876543210","display_title":"Feature","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/499","created_at":"2026-01-01T11:00:00Z","updated_at":"2026-01-01T11:05:00Z","run_started_at":"2026-01-01T11:00:30Z","actor":{"login":"SimonCropp"},"head_commit":{"message":"Feature"},"head_repository":{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine"},"pull_requests":[{"number":42}]},
+                  {"id":497,"workflow_id":10,"run_number":1232,"status":"completed","conclusion":"success","head_branch":"main","head_sha":"a7fe96d","display_title":"Use main","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/497","created_at":"2026-01-01T10:30:00Z","updated_at":"2026-01-01T10:35:00Z","run_started_at":"2026-01-01T10:30:30Z","actor":{"login":"someone"},"head_commit":{"message":"Use main"},"head_repository":{"full_name":"someone/DiffEngine","html_url":"https://github.com/someone/DiffEngine"},"pull_requests":[]},
                   {"id":498,"workflow_id":11,"run_number":7,"status":"completed","conclusion":"success","head_branch":"main","head_sha":"aaa","display_title":"Old","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/498","created_at":"2026-01-01T10:00:00Z","updated_at":"2026-01-01T10:05:00Z","run_started_at":"2026-01-01T10:00:00Z","pull_requests":[]}
                 ]}
                 """);

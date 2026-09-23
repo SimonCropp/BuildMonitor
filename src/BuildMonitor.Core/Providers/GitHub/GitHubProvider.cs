@@ -115,7 +115,9 @@ sealed class GitHubProvider : ProviderBase
             next[stale[index].FullName] = (Pushed(stale[index]), perRepository[index]);
         }
 
-        // In the listing's order, most recently pushed first, whether listed now or remembered.
+        // In the listing's order, most recently pushed first, whether listed now or remembered. The
+        // default branch from this listing rather than the remembered one: renaming it need not
+        // move pushed_at, and a workflow listing is remembered until pushed_at moves.
         var pipelines = new List<Pipeline>();
         foreach (var repository in active)
         {
@@ -125,7 +127,7 @@ sealed class GitHubProvider : ProviderBase
                 next[repository.FullName] = listed;
             }
 
-            pipelines.AddRange(listed.Pipelines);
+            pipelines.AddRange(listed.Pipelines.Select(_ => _ with { DefaultBranch = repository.DefaultBranch }));
         }
 
         context.Memory.Set(listedWorkflows, next.ToImmutable());
@@ -308,13 +310,32 @@ sealed class GitHubProvider : ProviderBase
         };
         var pullRequest = run.PullRequests.FirstOrDefault();
         var web = $"https://github.com/{repository}";
-        var branchWeb = string.IsNullOrEmpty(run.HeadRepository?.FullName) ? web : $"https://github.com/{run.HeadRepository.FullName}";
+        // The branch's page is in the repository it lives in, a fork for a pull request from one,
+        // on the host the API names, which is not github.com for GitHub Enterprise.
+        var headRepository = run.HeadRepository;
+        var branchWeb = web;
+        if (headRepository is {HtmlUrl.Length: > 0})
+        {
+            branchWeb = headRepository.HtmlUrl;
+        }
+        else if (headRepository is {FullName.Length: > 0})
+        {
+            branchWeb = $"https://github.com/{headRepository.FullName}";
+        }
+
+        // A fork's branch behind its owner, since a fork's main is not this repository's main.
+        string? branch = null;
+        if (run.HeadBranch is { } head)
+        {
+            branch = PullRequestBranches.Head(head, PullRequestBranches.ForkOwner(headRepository?.FullName, repository));
+        }
+
         return new(
             connectionId,
             pipeline.Id,
             pipeline.Name,
             repository,
-            run.HeadBranch,
+            branch,
             run.RunNumber.ToString(),
             status,
             run.Status == "completed" ? run.Conclusion : run.Status,
@@ -333,7 +354,8 @@ sealed class GitHubProvider : ProviderBase
             CanCancel: change && run.Status != "completed",
             Join(repository, run.Id.ToString(), run.Conclusion),
             pipeline.Url,
-            pipeline.RepoUrl ?? web);
+            pipeline.RepoUrl ?? web,
+            DefaultBranch: pipeline.DefaultBranch);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)
