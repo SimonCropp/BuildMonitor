@@ -17,7 +17,7 @@ An [API token](https://app.travis-ci.com/account/preferences), also shown by `tr
 
 ## Rows
 
-One per repository, showing its latest build on the repository's default branch, which the repository listing names. Pull request builds link to the pull request on GitHub. The repository, branch and pull request links are on the host each build's commit names, which for a Travis CI Enterprise server is the GitHub Enterprise server it builds from; an Enterprise build whose commit names none has no such links. Travis reports a pull request build's branch as the one it targets and names the branch it came from nowhere, so a pull request build is shown as `pull/n`.
+One per repository, showing its latest build on the repository's default branch, which the repository listing names. Pull request builds link to the pull request, on GitHub, Bitbucket or GitLab as the repository listing says, in that service's own form. The repository, branch and pull request links are on the host each build's commit names, which for a Travis CI Enterprise server is the GitHub Enterprise server it builds from; an Enterprise build whose commit names none has no such links, nor does an Assembla repository, whose pages are under an id Travis does not list. Travis reports a pull request build's branch as the one it targets and names the branch it came from nowhere, so a pull request build is shown as `pull/n`.
 
 A failed branch is asked of a [GitHub connection](github.md#rows), where there is one, whether its pull request was merged or closed or the branch deleted, and loses its row if so. Without one it loses its row once the default branch has built since it failed.
 

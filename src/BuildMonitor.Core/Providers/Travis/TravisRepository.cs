@@ -6,4 +6,7 @@
     public TravisBuild? LastStartedBuild { get; set; }
     // In the listing discovery reads already, which sorts by its last build.
     public TravisBranch? DefaultBranch { get; set; }
+    // Where the source is: GithubRepository, BitbucketRepository, GitlabRepository or
+    // AssemblaRepository. travis-ci.com builds from all four.
+    public string? VcsType { get; set; }
 }

@@ -14,7 +14,7 @@ sealed class TravisProvider : ProviderBase
     {
         var repositories = await context.Http.Get("repos?repository.active=true&limit=100&sort_by=default_branch.last_build:desc", TravisContext.Default.TravisRepositories, cancel);
         return repositories.Repositories
-            .Select(_ => new Pipeline(_.Slug, _.Slug, _.Slug, null, $"{Web(context)}/{_.Slug}", RepoUrl(context, _.Slug), DefaultBranch: _.DefaultBranch?.Name))
+            .Select(_ => new Pipeline(_.Slug, _.Slug, _.Slug, null, $"{Web(context, _.VcsType)}/{_.Slug}", RepoUrl(context, _.Slug, _.VcsType), DefaultBranch: _.DefaultBranch?.Name))
             .ToList();
     }
 
@@ -23,50 +23,84 @@ sealed class TravisProvider : ProviderBase
 
     /// <summary>
     /// The web app for the API in use: app.travis-ci.com for the hosted service, the server
-    /// itself for Enterprise.
+    /// itself for Enterprise, under the source the repository is on, as the app files it.
     /// </summary>
-    static string Web(ProviderContext context)
+    static string Web(ProviderContext context, string? vcsType)
     {
+        var source = vcsType switch
+        {
+            "BitbucketRepository" => "bitbucket",
+            "GitlabRepository" => "gitlab",
+            "AssemblaRepository" => "assembla",
+            _ => "github"
+        };
         if (Hosted(context))
         {
-            return "https://app.travis-ci.com/github";
+            return $"https://app.travis-ci.com/{source}";
         }
 
-        return $"{context.Http.BaseAddress.Scheme}://{context.Http.BaseAddress.Host}/github";
+        return $"{context.Http.BaseAddress.Scheme}://{context.Http.BaseAddress.Host}/{source}";
     }
 
     /// <summary>
     /// The repository's page for a build whose commit names none, as <see cref="RepositoryPage"/>
-    /// reads it: github.com for the hosted service. An Enterprise server may build from a GitHub
-    /// Enterprise server of any name, which the listing does not give, and a guess of github.com
-    /// would open another repository of the name, or none.
+    /// reads it: on the hosted service, the host of the source the listing says it is on, since a
+    /// Bitbucket or GitLab repository composed on github.com opened another repository of the
+    /// name, or none. An Assembla repository's page is under an id Travis does not list, and an
+    /// Enterprise server may build from a GitHub Enterprise server of any name, which the listing
+    /// does not give, so neither has one.
     /// </summary>
-    static string? RepoUrl(ProviderContext context, string slug)
+    static string? RepoUrl(ProviderContext context, string slug, string? vcsType)
     {
-        if (Hosted(context))
+        if (!Hosted(context))
         {
-            return $"https://github.com/{slug}";
+            return null;
         }
 
-        return null;
+        return vcsType switch
+        {
+            "BitbucketRepository" => $"https://bitbucket.org/{slug}",
+            "GitlabRepository" => $"https://gitlab.com/{slug}",
+            "AssemblaRepository" => null,
+            _ => $"https://github.com/{slug}"
+        };
     }
 
     /// <summary>
     /// The repository's page on the host its commit's compare_url is on, the one address Travis
     /// gives on the repository's host: GitHub Enterprise's for a Travis CI Enterprise server built
     /// from one. Composed on github.com, such a build's repository, branch and pull request links
-    /// opened repositories github.com does not have.
+    /// opened repositories github.com does not have. None on Assembla, whose pages are not under
+    /// the repository's name.
     /// </summary>
     static string? RepositoryPage(Pipeline pipeline, TravisBuild build)
     {
         if (build.Commit?.CompareUrl is { } compare &&
             Uri.TryCreate(compare, UriKind.Absolute, out var address))
         {
+            if (address.Host.Contains("assembla", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
             return $"{address.GetLeftPart(UriPartial.Authority)}/{pipeline.RepoName}";
         }
 
         return pipeline.RepoUrl;
     }
+
+    /// <summary>
+    /// A branch's page and a pull request's under <paramref name="web"/>, in the form of the service
+    /// it is on, read from its host as the row's mark is: a Bitbucket or GitLab repository's
+    /// composed as GitHub's opened pages neither has.
+    /// </summary>
+    static (string Branch, string PullRequest) Paths(string web) =>
+        RepoHosts.MarkOf(web) switch
+        {
+            "host-bitbucket" => ("branch", "pull-requests"),
+            "host-gitlab" => ("-/tree", "-/merge_requests"),
+            _ => ("tree", "pull")
+        };
 
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
     {
@@ -158,11 +192,26 @@ sealed class TravisProvider : ProviderBase
         };
         var pullRequest = build.PullRequestNumber?.ToString();
         var web = RepositoryPage(pipeline, build);
+        var branch = build.Branch?.Name;
+        string? branchUrl = null;
+        string? pullRequestUrl = null;
+        if (web is not null)
+        {
+            var paths = Paths(web);
+            if (branch is not null)
+            {
+                branchUrl = $"{web}/{paths.Branch}/{branch}";
+            }
+
+            if (pullRequest is not null)
+            {
+                pullRequestUrl = $"{web}/{paths.PullRequest}/{pullRequest}";
+            }
+        }
+
         // A pull request build's branch is the one it targets, which filed every pull request as a
         // build of main, and Travis names the branch it came from nowhere: the pull request's own
         // ref is what it has.
-        var branch = build.Branch?.Name;
-        var branchUrl = branch is null || web is null ? null : $"{web}/tree/{branch}";
         if (pullRequest is not null)
         {
             branch = PullRequestBranches.Unnamed(pullRequest);
@@ -185,7 +234,7 @@ sealed class TravisProvider : ProviderBase
             $"{pipeline.Url}/builds/{build.Id}",
             branchUrl,
             pullRequest,
-            pullRequest is null || web is null ? null : $"{web}/pull/{pullRequest}",
+            pullRequestUrl,
             build.Commit?.Sha,
             build.Commit?.Message,
             build.Commit?.Author?.Name,
