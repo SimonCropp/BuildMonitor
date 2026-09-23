@@ -66,6 +66,7 @@ sealed class TeamCityProvider : ProviderBase
                 $"buildTypes?locator={locator}&fields=buildType(id,builds($locator(branch:default:any,state:any,canceled:any,failedToStart:any,count:{perPipeline}),{buildFields}))",
                 TeamCityContext.Default.TeamCityBuildTypes,
                 cancel);
+            var missing = new List<Pipeline>();
             foreach (var type in response.BuildType)
             {
                 if (!byType.TryGetValue(type.Id, out var pipeline))
@@ -73,15 +74,107 @@ sealed class TeamCityProvider : ProviderBase
                     continue;
                 }
 
-                builds.AddRange(
-                    (type.Builds?.Build ?? [])
+                var kept = (type.Builds?.Build ?? [])
                     .Where(_ => !RemovedFromQueue(_))
                     .Take(perPipeline)
-                    .Select(_ => Convert(context, pipeline, _)));
+                    .ToList();
+                var defaultBranch = DefaultBranch(context, pipeline, kept);
+                builds.AddRange(kept.Select(_ => Convert(context, pipeline, _) with { DefaultBranch = defaultBranch }));
+                if (MissesDefaultRun(context, pipeline, kept, defaultBranch))
+                {
+                    missing.Add(pipeline);
+                }
+            }
+
+            if (missing.Count > 0)
+            {
+                builds.AddRange(await DefaultRuns(context, missing, cancel));
             }
         }
 
         return builds;
+    }
+
+    /// <summary>
+    /// What the none memory files a configuration's default branch under before a build has named
+    /// it.
+    /// </summary>
+    const string unnamedDefault = "<default>";
+
+    /// <summary>
+    /// The branch the configuration's own builds are on: TeamCity flags each build on the default
+    /// branch, so it is the branch of any flagged build, remembered for the windows with none.
+    /// </summary>
+    static string? DefaultBranch(ProviderContext context, Pipeline pipeline, List<TeamCityBuild> builds)
+    {
+        var key = $"default-branch|{pipeline.Id}";
+        if (builds.FirstOrDefault(_ => _.DefaultBranch == true)?.BranchName is { } flagged)
+        {
+            context.Memory.Set(key, flagged);
+            return flagged;
+        }
+
+        context.Memory.TryGet<string>(key, out var remembered);
+        return remembered;
+    }
+
+    /// <summary>
+    /// Whether a configuration that builds branches has no build on its default branch in its
+    /// window, as a burst of pull requests leaves it, and was not asked for one lately and found
+    /// none. A configuration that builds no branches names none on any build, and every build of it
+    /// is already its own.
+    /// </summary>
+    static bool MissesDefaultRun(ProviderContext context, Pipeline pipeline, List<TeamCityBuild> builds, string? defaultBranch) =>
+        builds.Any(_ => _.BranchName is not null) &&
+        builds.All(_ => _.DefaultBranch != true) &&
+        !DefaultRunMemory.KnownNone(context.Memory, pipeline.Id, defaultBranch ?? unnamedDefault, DateTimeOffset.UtcNow);
+
+    /// <summary>
+    /// The newest build on the default branch of each configuration missing one, in one request
+    /// for them all, by the locator TeamCity has for that branch whatever it is called. A few
+    /// rather than one, as a build removed from the queue is listed and is not a run. One with
+    /// none since the history cutoff is not asked again for an hour.
+    /// </summary>
+    static async Task<List<Build>> DefaultRuns(ProviderContext context, List<Pipeline> missing, Cancel cancel)
+    {
+        var items = string.Join(',', missing.Select(_ => $"item:(id:{Encode(_.Id)})"));
+        var response = await GetOrNone(
+            context,
+            $"buildTypes?locator={items}&fields=buildType(id,builds($locator(branch:(default:true),state:any,canceled:any,failedToStart:any,count:3),{buildFields}))",
+            TeamCityContext.Default.TeamCityBuildTypes,
+            cancel);
+        var now = DateTimeOffset.UtcNow;
+        var found = new List<Build>();
+        foreach (var pipeline in missing)
+        {
+            context.Memory.TryGet<string>($"default-branch|{pipeline.Id}", out var remembered);
+            var run = response?.BuildType
+                .FirstOrDefault(_ => _.Id == pipeline.Id)?
+                .Builds?.Build
+                .FirstOrDefault(_ => !RemovedFromQueue(_) && _.DefaultBranch == true);
+            if (run?.BranchName is not { } branch)
+            {
+                DefaultRunMemory.None(context.Memory, pipeline.Id, remembered ?? unnamedDefault, now);
+                continue;
+            }
+
+            var build = Convert(context, pipeline, run) with
+            {
+                DefaultBranch = branch
+            };
+            if (context.Since is { } since &&
+                !HistoryCutoff.Keeps(build, since))
+            {
+                DefaultRunMemory.None(context.Memory, pipeline.Id, branch, now);
+                continue;
+            }
+
+            context.Memory.Set($"default-branch|{pipeline.Id}", branch);
+            DefaultRunMemory.Found(context.Memory, pipeline.Id, branch);
+            found.Add(build);
+        }
+
+        return found;
     }
 
     /// <summary>

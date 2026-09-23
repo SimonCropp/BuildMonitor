@@ -23,7 +23,7 @@ public class TeamCityProviderTests
                     {"id":9000,"number":"119","status":"FAILURE","state":"finished","branchName":"main","defaultBranch":true,"webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9000","statusText":"Tests failed: 1","queuedDate":"20260101T100000+0000","startDate":"20260101T100100+0000","finishDate":"20260101T100600+0000","buildTypeId":"Verify_Build"}
                   ]}},
                   {"id":"Verify_Docs","builds":{"build":[
-                    {"id":8999,"number":"50","status":"UNKNOWN","state":"finished","branchName":"main","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Docs/8999","statusText":"Canceled","queuedDate":"20260101T090000+0000","startDate":"20260101T090100+0000","finishDate":"20260101T090200+0000","buildTypeId":"Verify_Docs","canceledInfo":{"text":"stopped"}}
+                    {"id":8999,"number":"50","status":"UNKNOWN","state":"finished","branchName":"main","defaultBranch":true,"webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Docs/8999","statusText":"Canceled","queuedDate":"20260101T090000+0000","startDate":"20260101T090100+0000","finishDate":"20260101T090200+0000","buildTypeId":"Verify_Docs","canceledInfo":{"text":"stopped"}}
                   ]}},
                   {"id":"Other_Config","builds":{"build":[
                     {"id":8998,"number":"3","status":"SUCCESS","state":"queued","webUrl":"https://teamcity.example.com/buildConfiguration/Other/8998","queuedDate":"20260101T115900+0000","buildTypeId":"Other_Config"}
@@ -43,6 +43,57 @@ public class TeamCityProviderTests
         });
     }
 
+    // As the provider asks for them, which the request for a default branch's build carries whole.
+    const string buildFields = "build(id,number,status,state,branchName,defaultBranch,webUrl,statusText,queuedDate,startDate,finishDate,buildTypeId,canceledInfo(text),running-info(percentageComplete,elapsedSeconds,estimatedTotalSeconds,leftSeconds),triggered(user(username,name)),revisions(revision(version)),properties($locator(name:TriggeredBy),property(name,value)))";
+
+    const string defaultBuilds = $"{server}/app/rest/buildTypes?locator=item:(id:Verify_Build)&fields=buildType(id,builds($locator(branch:(default:true),state:any,canceled:any,failedToStart:any,count:3),{buildFields}))";
+
+    /// <summary>
+    /// Two pull requests fill Build's window. It builds branches and none of the builds is flagged
+    /// as the default branch's, so that one is asked for by the locator TeamCity has for it, which
+    /// also names the branch.
+    /// </summary>
+    [Test]
+    public async Task PullRequestsFillingTheWindowFetchTheDefaultBranchsNewestBuild()
+    {
+        var handler = PullRequestsOnly()
+            .Get(
+                defaultBuilds,
+                """{"buildType":[{"id":"Verify_Build","builds":{"build":[{"id":8990,"number":"110","status":"SUCCESS","state":"finished","branchName":"main","defaultBranch":true,"webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/8990","queuedDate":"20251231T100000+0000","startDate":"20251231T100100+0000","finishDate":"20251231T100600+0000","buildTypeId":"Verify_Build"}]}}]}""");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("teamcity", ProviderTestHelpers.Context("teamcity", handler, server));
+        await Assert.That(builds.Where(_ => _.PipelineId == "Verify_Build").Select(_ => $"{_.RunNumber} {_.Branch} (default {_.DefaultBranch})"))
+            .IsEquivalentTo(["120 pull/15 (default )", "118 pull/16 (default )", "110 main (default main)"]);
+    }
+
+    /// <summary>
+    /// A default branch with no build answers without one, and the fetches within the hour do not
+    /// ask again.
+    /// </summary>
+    [Test]
+    public async Task AConfigurationWithNoBuildOnItsDefaultBranchIsAskedOnceAnHour()
+    {
+        var handler = PullRequestsOnly()
+            .Get(defaultBuilds, """{"buildType":[{"id":"Verify_Build","builds":{"build":[]}}]}""");
+        var context = ProviderTestHelpers.Context("teamcity", handler, server);
+        await ProviderTestHelpers.DiscoverAndFetch("teamcity", context);
+        await ProviderTestHelpers.DiscoverAndFetch("teamcity", context);
+        await Assert.That(handler.Requests.Count(_ => _ == $"GET {defaultBuilds}")).IsEqualTo(1);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("item:"))).IsEqualTo(1);
+    }
+
+    static FakeHttpHandler PullRequestsOnly() =>
+        Handler()
+            .Get(
+                $"{server}/app/rest/buildTypes",
+                """
+                {"buildType":[
+                  {"id":"Verify_Build","builds":{"build":[
+                    {"id":9001,"number":"120","status":"SUCCESS","state":"running","branchName":"pull/15","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9001","queuedDate":"20260101T115000+0000","startDate":"20260101T115100+0000","buildTypeId":"Verify_Build"},
+                    {"id":9000,"number":"118","status":"FAILURE","state":"finished","branchName":"pull/16","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9000","queuedDate":"20260101T100000+0000","startDate":"20260101T100100+0000","finishDate":"20260101T100600+0000","buildTypeId":"Verify_Build"}
+                  ]}}
+                ]}
+                """);
+
     /// <summary>
     /// A build a pipeline started for someone else names that person through a build parameter,
     /// rather than whoever triggered it, which for such a run is the service account.
@@ -54,7 +105,7 @@ public class TeamCityProviderTests
                 $$$"""
                    {"buildType":[
                      {"id":"Verify_Build","builds":{"build":[
-                       {"id":9000,"number":"119","status":"FAILURE","state":"finished","branchName":"main","webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9000","queuedDate":"20260101T100000+0000","buildTypeId":"Verify_Build","triggered":{"user":{"username":"builder","name":"Build Service"}},{{{properties}}}}
+                       {"id":9000,"number":"119","status":"FAILURE","state":"finished","branchName":"main","defaultBranch":true,"webUrl":"https://teamcity.example.com/buildConfiguration/Verify_Build/9000","queuedDate":"20260101T100000+0000","buildTypeId":"Verify_Build","triggered":{"user":{"username":"builder","name":"Build Service"}},{{{properties}}}}
                      ]}}
                    ]}
                    """);

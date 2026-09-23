@@ -17,7 +17,7 @@ An [access token](https://www.jetbrains.com/help/teamcity/configuring-your-user-
 
 ## Rows
 
-One per build configuration. Branches named `pull/n` or `n/merge`, as the pull request features create them, are shown as pull request n. The VCS root's address is not read, so a row's name is plain text; the logo opens the build configuration.
+One per build configuration, showing its latest build on the configuration's default branch, which TeamCity flags on each build. Branches named `pull/n` or `n/merge`, as the pull request features create them, are shown as pull request n. The VCS root's address is not read, so a row's name is plain text; the logo opens the build configuration.
 
 TeamCity numbers a build when it starts, so a queued build shows no number until then. A build removed from the queue before it started is left out, and the row keeps showing the configuration's last run.
 
@@ -53,6 +53,8 @@ TeamCity reports the percentage complete and the seconds left of a running build
 ## Polling
 
 Each project is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)), up to four at a time. One request fetches the latest builds of every configuration in the project, so a project with hundreds of configurations costs one call a poll, and a long build queue cannot push a quiet configuration out of the list. TeamCity sends no ETags, so each poll interval one request asks only for the builds queued since the newest one seen, and a project with a new build is fetched at once rather than when its schedule comes round, which for a quiet project is up to thirty minutes. A change to an older build is not in that answer, and waits for the schedule.
+
+A configuration that builds branches, whose last five builds hold none flagged as the default branch's, as a burst of pull requests leaves them, is asked for its newest build there by `branch:(default:true)`, one request for all such configurations in the project. One with none since the [history cutoff](../options.md#show-builds-from-the-last-days) is not asked again for an hour.
 
 ```mermaid
 ---
