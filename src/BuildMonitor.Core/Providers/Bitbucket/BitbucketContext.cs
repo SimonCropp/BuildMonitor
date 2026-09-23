@@ -4,4 +4,7 @@
 [JsonSerializable(typeof(BitbucketStepPage))]
 [JsonSerializable(typeof(BitbucketWorkspace))]
 [JsonSerializable(typeof(BitbucketTrigger))]
+[JsonSerializable(typeof(BitbucketPullRequest))]
+[JsonSerializable(typeof(BitbucketBranch))]
+[JsonSerializable(typeof(BitbucketRepository))]
 partial class BitbucketContext : JsonSerializerContext;

@@ -104,7 +104,7 @@
     HasQueuePriority: false,
     OrgNoun: workspace,
     CustomClientId: false,
-    TokenNote: The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.,
+    TokenNote: The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket, and read:pullrequest:bitbucket to tell when a failed branch is gone.,
     FetchConcurrency: 8,
     Quota: {
       Requests: 1000.0,
@@ -116,7 +116,7 @@
     IdleCap: 00:30:00,
     ProbeInterval: 00:01:00,
     ActionPermission: write:pipeline:bitbucket,
-    HostsRepositories: false,
+    HostsRepositories: true,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/bitbucket.md
   },
   {

@@ -18,6 +18,8 @@ public class BranchHostsTests
     // A path that only starts with the server's is another server's.
     [Arguments("gitlab", "https://example.com/gitlab", "https://example.com/gitlabs/group/project", false)]
     [Arguments("gitlab", null, "https://github.com/VerifyTests/Verify", false)]
+    [Arguments("bitbucket", null, "https://bitbucket.org/verify/diffengine", true)]
+    [Arguments("bitbucket", null, "https://github.com/VerifyTests/Verify", false)]
     // A service that only builds holds no repositories to ask about.
     [Arguments("appveyor", null, "https://github.com/VerifyTests/Verify", false)]
     [Arguments("travis", null, "https://github.com/VerifyTests/Verify", false)]

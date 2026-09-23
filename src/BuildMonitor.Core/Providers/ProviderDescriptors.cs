@@ -262,13 +262,14 @@ static class ProviderDescriptors
         // with no link back to the run that made it, so a file there cannot be attributed to a build.
         HasArtifacts: false,
         OrgNoun: "workspace",
-        TokenNote: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.",
+        TokenNote: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket, and read:pullrequest:bitbucket to tell when a failed branch is gone.",
         FetchConcurrency: Concurrently.Limit,
         // A thousand requests an hour, or the scaled limit the workspace reports.
         Quota: new(1000, TimeSpan.FromHours(1), 250, LearnLimit: true),
         IdleCap: TimeSpan.FromMinutes(30),
         ProbeInterval: TimeSpan.FromMinutes(1),
-        ActionPermission: "write:pipeline:bitbucket");
+        ActionPermission: "write:pipeline:bitbucket",
+        HostsRepositories: true);
 
     public static readonly ProviderDescriptor Octopus = new(
         Id: "octopus",
