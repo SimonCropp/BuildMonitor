@@ -10,7 +10,7 @@ An [API token](https://app.travis-ci.com/account/preferences), also shown by `tr
 
 ## Rows
 
-One per repository. Pull request builds link to the pull request on GitHub.
+One per repository, showing its latest build on the repository's default branch, which the repository listing names. Pull request builds link to the pull request on GitHub. Travis reports a pull request build's branch as the one it targets and names the branch it came from nowhere, so a pull request build is shown as `pull/n`.
 
 
 ## Actions
@@ -30,6 +30,8 @@ The countdown comes from the median of the repository's last ten successful buil
 ## Polling
 
 Each repository is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). Travis sends no ETags, so every request returns a full response, and no rate limit headers, so a limit is only seen when a request is refused; the pause then starts at a minute and doubles. Once a minute the repositories are listed with the newest builds first, each with its last started build, and a repository whose last started build changed is fetched at once rather than when its schedule comes round, which for a quiet repository is up to thirty minutes. A build created but not yet started shows once it starts.
+
+A repository whose last five builds hold none on its default branch, as a burst of pull requests leaves them, is asked for its newest build there, by branch and by every event but a pull request's. A repository with none since the [history cutoff](../options.md#show-builds-from-the-last-days) is not asked again for an hour.
 
 ```mermaid
 ---

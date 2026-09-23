@@ -14,7 +14,7 @@ sealed class TravisProvider : ProviderBase
     {
         var repositories = await context.Http.Get("repos?repository.active=true&limit=100&sort_by=default_branch.last_build:desc", TravisContext.Default.TravisRepositories, cancel);
         return repositories.Repositories
-            .Select(_ => new Pipeline(_.Slug, _.Slug, _.Slug, null, $"{Web(context)}/{_.Slug}", $"https://github.com/{_.Slug}"))
+            .Select(_ => new Pipeline(_.Slug, _.Slug, _.Slug, null, $"{Web(context)}/{_.Slug}", $"https://github.com/{_.Slug}", DefaultBranch: _.DefaultBranch?.Name))
             .ToList();
     }
 
@@ -42,10 +42,55 @@ sealed class TravisProvider : ProviderBase
                 $"repo/{Encode(pipeline.Id)}/builds?limit={perPipeline}&sort_by=id:desc&include=build.commit",
                 TravisContext.Default.TravisBuilds,
                 cancel);
-            builds.AddRange(response.Builds.Select(_ => Convert(context, pipeline, _)));
+            var fetched = response.Builds.Select(_ => Convert(context, pipeline, _)).ToList();
+            builds.AddRange(fetched);
+            if (pipeline.DefaultBranch is { } branch &&
+                fetched.All(_ => _.Branch != branch) &&
+                await DefaultRun(context, pipeline, branch, cancel) is { } own)
+            {
+                builds.Add(own);
+            }
         }
 
         return builds;
+    }
+
+    /// <summary>
+    /// The repository's newest build on its default branch, where its last few left it out, as a
+    /// burst of pull requests does. By branch and by every event but a pull request's, since a pull
+    /// request build's branch is the one it targets and the branch filter alone keeps them. A
+    /// repository with none since the history cutoff is not asked again for an hour.
+    /// </summary>
+    static async Task<Build?> DefaultRun(ProviderContext context, Pipeline pipeline, string branch, Cancel cancel)
+    {
+        var memory = context.Memory;
+        var now = DateTimeOffset.UtcNow;
+        if (DefaultRunMemory.KnownNone(memory, pipeline.Id, branch, now))
+        {
+            return null;
+        }
+
+        var response = await GetOrNone(
+            context,
+            $"repo/{Encode(pipeline.Id)}/builds?limit=1&sort_by=id:desc&branch.name={Encode(branch)}&event_type=push,api,cron&include=build.commit",
+            TravisContext.Default.TravisBuilds,
+            cancel);
+        if (response?.Builds.FirstOrDefault() is not { } run)
+        {
+            DefaultRunMemory.None(memory, pipeline.Id, branch, now);
+            return null;
+        }
+
+        var build = Convert(context, pipeline, run);
+        if (build.Branch != branch ||
+            (context.Since is { } since && !HistoryCutoff.Keeps(build, since)))
+        {
+            DefaultRunMemory.None(memory, pipeline.Id, branch, now);
+            return null;
+        }
+
+        DefaultRunMemory.Found(memory, pipeline.Id, branch);
+        return build;
     }
 
     /// <summary>
@@ -76,8 +121,18 @@ sealed class TravisProvider : ProviderBase
             "canceled" => BuildStatus.Cancelled,
             _ => BuildStatus.Unknown
         };
-        var branch = build.Branch?.Name;
         var pullRequest = build.PullRequestNumber?.ToString();
+        // A pull request build's branch is the one it targets, which filed every pull request as a
+        // build of main, and Travis names the branch it came from nowhere: the pull request's own
+        // ref is what it has.
+        var branch = build.Branch?.Name;
+        var branchUrl = branch is null ? null : $"https://github.com/{pipeline.RepoName}/tree/{branch}";
+        if (pullRequest is not null)
+        {
+            branch = PullRequestBranches.Unnamed(pullRequest);
+            branchUrl = null;
+        }
+
         return new(
             context.Connection.Id,
             pipeline.Id,
@@ -92,7 +147,7 @@ sealed class TravisProvider : ProviderBase
             build.FinishedAt,
             null,
             $"{pipeline.Url}/builds/{build.Id}",
-            branch is null ? null : $"https://github.com/{pipeline.RepoName}/tree/{branch}",
+            branchUrl,
             pullRequest,
             pullRequest is null ? null : $"https://github.com/{pipeline.RepoName}/pull/{pullRequest}",
             build.Commit?.Sha,
@@ -106,7 +161,8 @@ sealed class TravisProvider : ProviderBase
                        status is BuildStatus.Queued or BuildStatus.Running,
             build.Id.ToString(),
             pipeline.Url,
-            pipeline.RepoUrl);
+            pipeline.RepoUrl,
+            DefaultBranch: pipeline.DefaultBranch);
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel) =>

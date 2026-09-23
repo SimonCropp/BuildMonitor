@@ -4,4 +4,6 @@
     public string Slug { get; set; } = "";
     // Only when asked for with include=repository.last_started_build, as the probe does.
     public TravisBuild? LastStartedBuild { get; set; }
+    // In the listing discovery reads already, which sorts by its last build.
+    public TravisBranch? DefaultBranch { get; set; }
 }

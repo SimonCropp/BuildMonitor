@@ -11,8 +11,8 @@ public class TravisProviderTests
                 "https://api.travis-ci.com/repo/VerifyTests%2FDiffEngine/builds?limit=5&sort_by=id:desc&include=build.commit",
                 """
                 {"builds":[
-                  {"id":900,"number":"120","state":"started","started_at":"2026-01-01T11:55:00Z","finished_at":null,"pull_request_number":null,"branch":{"name":"main"},"commit":{"sha":"abc","message":"Fix","author":{"name":"Simon"}}},
-                  {"id":899,"number":"119","state":"failed","started_at":"2026-01-01T10:00:00Z","finished_at":"2026-01-01T10:10:00Z","pull_request_number":7,"branch":{"name":"feature"},"commit":{"sha":"def","message":"Feature","author":{"name":"Simon"}}}
+                  {"id":900,"number":"120","state":"started","started_at":"2026-01-01T11:55:00Z","finished_at":null,"event_type":"push","pull_request_number":null,"branch":{"name":"main"},"commit":{"sha":"abc","message":"Fix","author":{"name":"Simon"}}},
+                  {"id":899,"number":"119","state":"failed","started_at":"2026-01-01T10:00:00Z","finished_at":"2026-01-01T10:10:00Z","event_type":"pull_request","pull_request_number":7,"branch":{"name":"main"},"commit":{"sha":"def","ref":"refs/pull/7/merge","message":"Feature","author":{"name":"Simon"}}}
                 ]}
                 """);
 
@@ -23,6 +23,41 @@ public class TravisProviderTests
         var builds = await ProviderTestHelpers.DiscoverAndFetch("travis", ProviderTestHelpers.Context("travis", handler));
         await Verify(new { builds, handler.Requests });
     }
+
+    const string mainBuilds = "https://api.travis-ci.com/repo/VerifyTests%2FDiffEngine/builds?limit=1&sort_by=id:desc&branch.name=main&event_type=push,api,cron&include=build.commit";
+
+    /// <summary>
+    /// A window of pull requests asks for the newest build of main by branch and by every event
+    /// but a pull request's: a pull request build's branch is the one it targets, so the branch
+    /// alone would keep them.
+    /// </summary>
+    [Test]
+    public async Task PullRequestsFillingTheWindowFetchTheDefaultBranchsNewestBuild()
+    {
+        var handler = PullRequestsOnly()
+            .Get(
+                mainBuilds,
+                """{"builds":[{"id":880,"number":"110","state":"passed","started_at":"2025-12-31T10:00:00Z","finished_at":"2025-12-31T10:10:00Z","event_type":"push","pull_request_number":null,"branch":{"name":"main"},"commit":{"sha":"999","message":"Release","author":{"name":"Simon"}}}]}""");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("travis", ProviderTestHelpers.Context("travis", handler));
+        await Assert.That(builds.Select(_ => $"{_.RunNumber} {_.Branch}")).IsEquivalentTo(["119 pull/7", "110 main"]);
+    }
+
+    [Test]
+    public async Task ARepositoryWithNoBuildOnItsDefaultBranchIsAskedOnceAnHour()
+    {
+        var handler = PullRequestsOnly()
+            .Get(mainBuilds, """{"builds":[]}""");
+        var context = ProviderTestHelpers.Context("travis", handler);
+        await ProviderTestHelpers.DiscoverAndFetch("travis", context);
+        await ProviderTestHelpers.DiscoverAndFetch("travis", context);
+        await Assert.That(handler.Requests.Count(_ => _ == $"GET {mainBuilds}")).IsEqualTo(1);
+    }
+
+    static FakeHttpHandler PullRequestsOnly() =>
+        Handler()
+            .Get(
+                "https://api.travis-ci.com/repo/VerifyTests%2FDiffEngine/builds?limit=5&sort_by=id:desc&include=build.commit",
+                """{"builds":[{"id":899,"number":"119","state":"failed","started_at":"2026-01-01T10:00:00Z","finished_at":"2026-01-01T10:10:00Z","event_type":"pull_request","pull_request_number":7,"branch":{"name":"main"},"commit":{"sha":"def","message":"Feature","author":{"name":"Simon"}}}]}""");
 
     [Test]
     public async Task RecentActivityReadsTheLastStartedBuildOfEachRepository()

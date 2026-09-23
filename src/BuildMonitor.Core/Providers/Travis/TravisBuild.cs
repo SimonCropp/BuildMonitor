@@ -6,6 +6,8 @@
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
     public long? PullRequestNumber { get; set; }
+    // push, pull_request, api or cron. A pull request build's branch is the one it targets.
+    public string? EventType { get; set; }
     public TravisBranch? Branch { get; set; }
     public TravisCommit? Commit { get; set; }
 
