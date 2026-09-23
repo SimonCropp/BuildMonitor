@@ -405,7 +405,7 @@ public class ScreenTests
     [Test]
     public Task DefaultBranchOnly()
     {
-        var state = Fixtures.WithBuilds();
+        var state = Fixtures.WithDefaultBranches();
         state = MonitorSession.ApplySettings(
             state,
             state.Settings

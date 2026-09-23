@@ -112,6 +112,20 @@ static class Fixtures
             branchUrl: "https://github.com/VerifyTests/DiffEngine/tree/main")
     ];
 
+    /// <summary>
+    /// <see cref="GitHubBuilds"/> as a provider that knows each repository's default branch reports
+    /// them: every run carries main, so Verify's own run is its passing main and its failing pull
+    /// request is another branch's.
+    /// </summary>
+    public static ImmutableArray<Build> GitHubBuildsOnMain() =>
+        [..GitHubBuilds().Select(_ => _ with { DefaultBranch = "main" })];
+
+    /// <summary>
+    /// <see cref="WithBuilds"/> with <see cref="GitHubBuildsOnMain"/> for the GitHub connection.
+    /// </summary>
+    public static SessionState WithDefaultBranches() =>
+        MonitorSession.ApplyPoll(WithBuilds(), GitHub.Id, [], GitHubBuildsOnMain(), Now - TimeSpan.FromSeconds(12));
+
     public static ImmutableArray<Build> JenkinsBuilds() =>
     [
         Build(

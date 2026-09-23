@@ -136,7 +136,7 @@ static class RowProjection
     [
         ..state.Connections
             .SelectMany(_ => Selected(state, _.Connection.Id))
-            .OrderBy(_ => Rank(_.Status))
+            .OrderBy(_ => _.Rank())
             .ThenByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)
             .ThenBy(_ => _.PipelineName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(_ => _.Key, StringComparer.Ordinal)
@@ -149,8 +149,9 @@ static class RowProjection
     static IEnumerable<Build> Selected(SessionState state, string connectionId)
     {
         var selected = BuildSelection.Select(
-            Filters.Apply(state.Settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
-            state.Settings.ShowOtherBranches);
+                Filters.Apply(state.Settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
+                state.Settings.ShowOtherBranches)
+            .SelectMany(_ => _.Shown);
         var deferrals = state.Settings.Deferrals;
         if (deferrals.Length == 0)
         {
@@ -159,13 +160,4 @@ static class RowProjection
 
         return selected.Where(_ => !Deferrals.Hides(deferrals, _));
     }
-
-    static int Rank(BuildStatus status) =>
-        status switch
-        {
-            BuildStatus.Running => 0,
-            BuildStatus.Queued => 1,
-            BuildStatus.Failed => 2,
-            _ => 3
-        };
 }

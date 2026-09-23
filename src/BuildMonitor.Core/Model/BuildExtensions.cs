@@ -13,6 +13,19 @@ static class BuildExtensions
         build.Status is BuildStatus.Failed or BuildStatus.Running or BuildStatus.Queued;
 
     /// <summary>
+    /// Where a build sorts among others: running, then queued, then failed, then the rest, so what
+    /// is happening now is at the top.
+    /// </summary>
+    public static int Rank(this Build build) =>
+        build.Status switch
+        {
+            BuildStatus.Running => 0,
+            BuildStatus.Queued => 1,
+            BuildStatus.Failed => 2,
+            _ => 3
+        };
+
+    /// <summary>
     /// Whether a row leads with its run rather than with its repository, which decides what its
     /// first cell opens and which of the two marks goes before it: a build that
     /// <see cref="NeedsAttention"/>, or one with no repository at all, as an Octopus deployment
