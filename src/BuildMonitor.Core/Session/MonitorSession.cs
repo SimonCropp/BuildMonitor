@@ -138,7 +138,8 @@ static class MonitorSession
     /// <para>
     /// The menu does not follow. Moved, it would put a different item under the pointer; left in
     /// place, it would sit beside another build. Unless its row is still where it was drawn, it
-    /// closes.
+    /// closes. Polling holds off while a menu is open, so this is the rare change that is not a
+    /// poll's, or a menu left open past <see cref="ConnectionPoller.MenuHoldLimit"/>.
     /// </para>
     /// </summary>
     /// <param name="polled">When the change is a poll's, which also records the positions it moved,

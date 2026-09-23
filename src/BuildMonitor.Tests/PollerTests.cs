@@ -332,6 +332,51 @@ public class PollerTests
     }
 
     [Test]
+    public async Task NothingIsRequestedWhileAContextMenuIsOpen()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = GitHubHandler();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Requests.Clear();
+        host.Mutate(_ => MonitorSession.OpenMenu(_, 0));
+
+        now = now.AddSeconds(3);
+        poller.Refresh();
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(handler.Requests).IsEmpty();
+
+        // The refresh the menu held is still waiting, so the rows update as soon as the menu closes
+        // rather than after the schedule's next due group.
+        host.Mutate(MonitorSession.CloseMenu);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(handler.Requests).IsNotEmpty();
+    }
+
+    [Test]
+    public async Task AContextMenuLeftOpenStopsHoldingPollingOff()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = GitHubHandler();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Requests.Clear();
+        host.Mutate(_ => MonitorSession.OpenMenu(_, 0));
+        poller.Refresh();
+        await poller.PollDue(Cancel.None);
+        await Assert.That(handler.Requests).IsEmpty();
+
+        now += ConnectionPoller.MenuHoldLimit + TimeSpan.FromSeconds(1);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(handler.Requests).IsNotEmpty();
+    }
+
+    [Test]
     public async Task AFilterAddedLaterStopsFetchingAtOnce()
     {
         var (host, secrets, history) = Setup();

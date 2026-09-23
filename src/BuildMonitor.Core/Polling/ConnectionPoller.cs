@@ -41,6 +41,9 @@ sealed class ConnectionPoller
     ConcurrentDictionary<string, byte> nudges = new();
     int refreshRequested;
     DateTimeOffset? pausedUntil;
+    // When an open context menu first held a cycle back, so one left open cannot stop the polling
+    // for good. Null whenever no menu is holding it.
+    DateTimeOffset? menuHeldFrom;
     DateTimeOffset? wakeAt;
     int failures;
     int rateLimits;
@@ -58,6 +61,20 @@ sealed class ConnectionPoller
     /// How often the information log summarises a connection's fetch cycles.
     /// </summary>
     public static readonly TimeSpan SummaryEvery = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// How long the loop sleeps between looks while a context menu holds it back. Short, so the
+    /// cycle the menu held runs as soon as it closes rather than after the next due group.
+    /// </summary>
+    public static readonly TimeSpan MenuHoldPoll = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>
+    /// The longest an open context menu holds polling off. A menu is closed by the click that
+    /// chooses from it or by the next one anywhere else, but one the user opened and walked away
+    /// from stays open, and without a limit the rows, the tray icon and the failure notifications
+    /// would all stop with it.
+    /// </summary>
+    public static readonly TimeSpan MenuHoldLimit = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// How often the pipeline list is re-read. New pipelines are rare and discovery is the
@@ -123,7 +140,8 @@ sealed class ConnectionPoller
         loop ?? Task.CompletedTask;
 
     /// <summary>
-    /// A refresh and one cycle, whatever the schedule or a pause says.
+    /// A refresh and one cycle, whatever the schedule or a rate limit pause says. An open context
+    /// menu still holds it: see <see cref="HeldByMenu"/>.
     /// </summary>
     public Task<ConnectionHealth> PollOnce(Cancel cancel)
     {
@@ -159,9 +177,11 @@ sealed class ConnectionPoller
     }
 
     /// <summary>
-    /// How long to sleep: out a pause, whatever arrived; until a wake alone when sign in is
-    /// required, because nothing changes about a dead token on its own; not at all when a refresh
-    /// or nudge is waiting; otherwise until the schedule's next due group.
+    /// How long to sleep: out a pause, whatever arrived; a look at a time while a context menu
+    /// holds the cycle back, ahead of the branches that would otherwise sleep out a refresh or
+    /// spin on one; until a wake alone when sign in is required, because nothing changes about a
+    /// dead token on its own; not at all when a refresh or nudge is waiting; otherwise until the
+    /// schedule's next due group.
     /// </summary>
     TimeSpan? Delay()
     {
@@ -169,6 +189,11 @@ sealed class ConnectionPoller
         if (Paused(now) is { } remaining)
         {
             return remaining;
+        }
+
+        if (HeldByMenu(now))
+        {
+            return MenuHoldPoll;
         }
 
         if (host.State.Connection(connectionId)?.Health == ConnectionHealth.NeedsAuth &&
@@ -239,6 +264,11 @@ sealed class ConnectionPoller
 
         if (!ignorePause &&
             Paused(clock()) is not null)
+        {
+            return Health();
+        }
+
+        if (HeldByMenu(clock()))
         {
             return Health();
         }
@@ -863,6 +893,30 @@ sealed class ConnectionPoller
         }
 
         return asked;
+    }
+
+    /// <summary>
+    /// Whether the open context menu holds this cycle back. A poll re-sorts the rows, and a menu
+    /// whose row moved closes rather than let the next click land on another build, so the rows
+    /// are left alone while one is open. Nothing is lost by waiting: every group stays due and the
+    /// refresh flag is still set, so the cycle runs as soon as the menu closes. Held no longer
+    /// than <see cref="MenuHoldLimit"/>, after which a poll lands and closes the menu as before.
+    /// </summary>
+    bool HeldByMenu(DateTimeOffset now)
+    {
+        if (host.State.Menu is null)
+        {
+            menuHeldFrom = null;
+            return false;
+        }
+
+        if (menuHeldFrom is not { } from)
+        {
+            menuHeldFrom = now;
+            return true;
+        }
+
+        return now - from < MenuHoldLimit;
     }
 
     TimeSpan? Paused(DateTimeOffset now)
