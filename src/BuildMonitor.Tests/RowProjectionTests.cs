@@ -4,20 +4,20 @@ public class RowProjectionTests
     public async Task AProjectionIsForAStateThatOnlyMovedTheSelection()
     {
         var state = Fixtures.WithGreenProject();
-        var sorted = RowProjection.Builds(state);
-        var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, sorted);
-        var rows = new ProjectedRows(sorted, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, []);
+        var pipelines = RowProjection.Pipelines(state);
+        var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, pipelines, RowProjection.Builds(state));
+        var rows = new ProjectedRows(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, []);
         var moved = MonitorSession.SelectRow(state, 1);
         await Assert.That(builds.IsFor(moved)).IsTrue();
-        await Assert.That(rows.IsFor(moved, sorted)).IsTrue();
+        await Assert.That(rows.IsFor(moved, pipelines)).IsTrue();
     }
 
     [Test]
     public async Task AProjectionIsNotForAStateWithOtherInputs()
     {
         var state = Fixtures.WithGreenProject();
-        var sorted = RowProjection.Builds(state);
-        var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, sorted);
+        var sorted = RowProjection.Pipelines(state);
+        var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, sorted, RowProjection.Builds(state));
         var rows = new ProjectedRows(sorted, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, []);
         await Assert.That(
                 rows.IsFor(MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing), sorted))
@@ -68,6 +68,29 @@ public class RowProjectionTests
                         }))
             .IsFalse();
     }
+
+    /// <summary>
+    /// A pipeline's lanes follow its own row, running before queued before failed, and the
+    /// pipeline sorts by the most urgent of its rows: Verify's running pull request puts Verify
+    /// among the running rows, its passing main above it.
+    /// </summary>
+    [Test]
+    public Task LanesFollowTheirPipelinesRow() =>
+        Verify(RowProjection.Rows(Fixtures.WithLanes()).Select(_ => $"{_.Kind} {_.Build?.Key} {_.Build?.Status}"))
+            .Snapshot(
+                """
+                [
+                  Build jenkins/build-all/main Running,
+                  Build octo/Projects-1/ Running,
+                  Build gh/Verify/test.yml/main Succeeded,
+                  Lane gh/Verify/test.yml/dependabot/nuget/src/Polyfill-9.1.0 Running,
+                  Lane gh/Verify/test.yml/feature/docs Queued,
+                  Lane gh/Verify/test.yml/feature/inline Failed,
+                  Build gh/DiffEngine/test.yml/main Running,
+                  Build jenkins/nightly/ Queued,
+                  Build gh/DiffEngine/docs.yml/main Succeeded
+                ]
+                """);
 
     [Test]
     public async Task ProjectingAgainGivesTheSameRows()

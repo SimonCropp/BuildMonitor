@@ -18,9 +18,12 @@ static class RowChips
     /// <summary>
     /// In <see cref="ChipKind"/> order, which is the order a head draws them in.
     /// </summary>
+    /// <param name="kind">The row's kind: a lane leaves out the checkout's folder, which its
+    /// pipeline's row above opens already. Required, so the overflow cannot offer a lane one its
+    /// row does not show.</param>
     /// <param name="triaging">Whether a triage of this run is still collecting, as
     /// <see cref="MonitorSession.IsTriaging"/> says.</param>
-    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging)
+    public static IReadOnlyList<RowChip> Of(Build build, RowKind kind, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging)
     {
         List<RowChip> chips = [];
         // The number is the one thing about a pull request worth a row's width: which one it is.
@@ -57,7 +60,8 @@ static class RowChips
         // opens nothing. The tooltip carries the directory, which is the one thing about this
         // button a row cannot show and the reader cannot guess.
         var directory = LocalRepos.Find(localRepos, build);
-        if (directory is not null)
+        if (directory is not null &&
+            kind != RowKind.Lane)
         {
             chips.Add(new(ChipKind.OpenDirectory, "Open dir", $"Open folder: {directory}", "folder"));
         }

@@ -126,6 +126,124 @@ static class Fixtures
     public static SessionState WithDefaultBranches() =>
         MonitorSession.ApplyPoll(WithBuilds(), GitHub.Id, [], GitHubBuildsOnMain(), Now - TimeSpan.FromSeconds(12));
 
+    /// <summary>
+    /// <see cref="WithDefaultBranches"/> with Verify's pull requests at every stage: a Dependabot
+    /// update running, one queued, feature/inline failing as before, and two that passed. The three
+    /// still going or broken are lanes under Verify's own row, the two that passed fold into it.
+    /// </summary>
+    public static SessionState WithLanes()
+    {
+        const string dependabot = "dependabot/nuget/src/Polyfill-9.1.0";
+        ImmutableArray<Build> lanes =
+        [
+            Build(
+                GitHub.Id,
+                "Verify/test.yml",
+                "test.yml",
+                "VerifyTests/Verify",
+                dependabot,
+                "80",
+                BuildStatus.Running,
+                started: Now - TimeSpan.FromMinutes(2),
+                branchUrl: $"https://github.com/VerifyTests/Verify/tree/{dependabot}",
+                pullRequest: "45",
+                pullRequestUrl: "https://github.com/VerifyTests/Verify/pull/45",
+                commitMessage: "Bump Polyfill from 9.0.0 to 9.1.0",
+                author: "dependabot[bot]"),
+            Build(
+                GitHub.Id,
+                "Verify/test.yml",
+                "test.yml",
+                "VerifyTests/Verify",
+                "feature/docs",
+                "79",
+                BuildStatus.Queued,
+                queued: Now - TimeSpan.FromMinutes(1),
+                branchUrl: "https://github.com/VerifyTests/Verify/tree/feature/docs",
+                pullRequest: "44",
+                pullRequestUrl: "https://github.com/VerifyTests/Verify/pull/44",
+                commitMessage: "Document inline snapshots",
+                author: "SimonCropp"),
+            Build(
+                GitHub.Id,
+                "Verify/test.yml",
+                "test.yml",
+                "VerifyTests/Verify",
+                "feature/cleanup",
+                "78",
+                BuildStatus.Succeeded,
+                started: Now - TimeSpan.FromMinutes(50),
+                finished: Now - TimeSpan.FromMinutes(45),
+                branchUrl: "https://github.com/VerifyTests/Verify/tree/feature/cleanup",
+                pullRequest: "43",
+                pullRequestUrl: "https://github.com/VerifyTests/Verify/pull/43",
+                author: "SimonCropp"),
+            Build(
+                GitHub.Id,
+                "Verify/test.yml",
+                "test.yml",
+                "VerifyTests/Verify",
+                "feature/old",
+                "70",
+                BuildStatus.Succeeded,
+                started: Now - TimeSpan.FromDays(3),
+                finished: Now - TimeSpan.FromDays(3) + TimeSpan.FromMinutes(5),
+                branchUrl: "https://github.com/VerifyTests/Verify/tree/feature/old",
+                author: "SimonCropp")
+        ];
+        return MonitorSession.ApplyPoll(
+            WithBuilds(),
+            GitHub.Id,
+            [],
+            [
+                ..GitHubBuildsOnMain(),
+                ..lanes.Select(_ => _ with { DefaultBranch = "main" })
+            ],
+            Now - TimeSpan.FromSeconds(12));
+    }
+
+    /// <summary>
+    /// <see cref="WithLanes"/> with Verify checked out, so its row carries the folder and its
+    /// failing lane the triage.
+    /// </summary>
+    public static SessionState WithLanesCheckedOut() =>
+        MonitorSession.ApplyLocalRepos(WithLanes(), LocalRepos.Index([new("/code/Verify", "Verify", "VerifyTests/Verify")]));
+
+    /// <summary>
+    /// <see cref="WithPrefixGroup"/> knowing each repository's default branch, with a pull request
+    /// running on nuget.yml: nuget.yml leaves the group to have its lane under it, and the group
+    /// keeps its other two members.
+    /// </summary>
+    public static SessionState WithLaneInAPrefixGroup()
+    {
+        var state = WithPrefixGroup();
+        return MonitorSession.ApplyPoll(
+            state,
+            GitHub.Id,
+            [],
+            [
+                ..state.Builds
+                    .Where(_ => _.ConnectionId == GitHub.Id)
+                    .Select(_ => _ with { DefaultBranch = "main" }),
+                Build(
+                    GitHub.Id,
+                    "Verify/nuget.yml",
+                    "nuget.yml",
+                    "VerifyTests/Verify",
+                    "feature/pack",
+                    "13",
+                    BuildStatus.Running,
+                    started: Now - TimeSpan.FromMinutes(4),
+                    branchUrl: "https://github.com/VerifyTests/Verify/tree/feature/pack",
+                    pullRequest: "46",
+                    pullRequestUrl: "https://github.com/VerifyTests/Verify/pull/46") with
+                {
+                    DefaultBranch = "main"
+                }
+            ],
+            Now - TimeSpan.FromSeconds(12));
+    }
+
     public static ImmutableArray<Build> JenkinsBuilds() =>
     [
         Build(

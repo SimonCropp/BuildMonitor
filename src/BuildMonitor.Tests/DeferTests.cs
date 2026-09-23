@@ -86,6 +86,42 @@ public class DeferTests
     }
 
     /// <summary>
+    /// A lane deferred goes on its own: the pipeline's row and its other lanes stay.
+    /// </summary>
+    [Test]
+    public async Task DeferringALaneHidesOnlyIt()
+    {
+        var builds = Fixtures.WithLanes();
+        var lane = RowProjection.Rows(builds).Single(_ => _ is {Kind: RowKind.Lane, Build.Status: BuildStatus.Failed}).Build!;
+        var state = MonitorSession.Defer(builds, lane, 1, Fixtures.Now);
+        var rows = RowProjection.Rows(state);
+        await Assert.That(rows.Any(_ => _.Build?.Key == lane.Key)).IsFalse();
+        await Assert.That(rows.Any(_ => _.Build?.Key == "gh/Verify/test.yml/main")).IsTrue();
+        await Assert.That(rows.Count(_ => _.Kind == RowKind.Lane)).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// A pipeline's own failure deferred leaves its lanes, and the first of them names the
+    /// pipeline in its place: a lane with no named row over it reads as a run of the row above.
+    /// </summary>
+    [Test]
+    public async Task ALaneOutlivesItsDeferredPipelineAndNamesIt()
+    {
+        var lanes = Fixtures.WithLanes();
+        var runs = lanes.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id).ToList();
+        var index = runs.FindIndex(_ => _.Key == "gh/Verify/test.yml/main");
+        runs[index] = runs[index] with
+        {
+            Status = BuildStatus.Failed
+        };
+        var broken = MonitorSession.ApplyPoll(lanes, Fixtures.GitHub.Id, [], [.. runs], Fixtures.Now);
+        var state = MonitorSession.Defer(broken, runs[index], 1, Fixtures.Now);
+        var verify = RowProjection.Rows(state).Where(_ => _.Build?.RepoName == "VerifyTests/Verify").ToList();
+        await Assert.That(verify.Select(_ => _.Kind)).IsEquivalentTo([RowKind.Build, RowKind.Lane, RowKind.Lane]);
+        await Assert.That(verify[0].Build!.Branch).IsEqualTo("dependabot/nuget/src/Polyfill-9.1.0");
+    }
+
+    /// <summary>
     /// A deferred pipeline running again is worth watching, so only its failure is hidden.
     /// </summary>
     [Test]

@@ -402,6 +402,65 @@ public class ScreenTests
         return Verify(Fixtures.Render(MonitorSession.OpenOverflow(state, row, ChipKind.Retry)));
     }
 
+    /// <summary>
+    /// Verify's own row is its main, passing, and its pull requests that are running, queued or
+    /// failed are each on a row beneath it: the first cell and the marks left to the row above, the
+    /// branch alone in the second, and a PR button of their own. The two that passed are not rows.
+    /// </summary>
+    [Test]
+    public Task Lanes() =>
+        Verify(Fixtures.Render(Fixtures.WithLanes()));
+
+    /// <summary>
+    /// A filter that matches a lane keeps the row it sits under, so it still reads as a run of
+    /// Verify rather than of whatever row the filter left above it.
+    /// </summary>
+    [Test]
+    public Task LanesSearched() =>
+        Verify(Fixtures.Render(MonitorSession.Search(Fixtures.WithLanes(), "docs")));
+
+    /// <summary>
+    /// A pipeline with a lane is never grouped: its lanes follow its row, and a closed group would
+    /// hide them with it. The group keeps the rest of its members.
+    /// </summary>
+    [Test]
+    public Task ALaneKeepsItsPipelineOutOfItsGroup() =>
+        Verify(Fixtures.Render(Fixtures.WithLaneInAPrefixGroup()));
+
+    /// <summary>
+    /// A lane's menu is its own run's: deferring or excluding it acts on its branch alone.
+    /// </summary>
+    [Test]
+    public Task LaneMenuOpen()
+    {
+        var state = Fixtures.WithLanes();
+        return Verify(Fixtures.Render(MonitorSession.OpenMenu(state, Fixtures.RowOf(state, _ => _ is {Kind: RowKind.Lane, Build.Status: BuildStatus.Failed}))));
+    }
+
+    /// <summary>
+    /// What a head is handed for a lane: a build's row with nothing in its first cell and no marks,
+    /// its branch alone in the second, its own run behind the square, and no folder button, which
+    /// its pipeline's row carries.
+    /// </summary>
+    [Test]
+    public Task ALaneIsABuildsRowWithItsPipelineLeftToTheRowAbove() =>
+        Verify(ScreenBuilder.Build(Fixtures.WithLanesCheckedOut(), Fixtures.Now).Builds!.Rows
+            .Select(_ => $"{_.Kind} [{_.StatusLink}] '{Link(_.Name, _.NameLink)}' {_.NameIcon}|{_.DetailIcon} | {string.Concat(_.Detail.Select(span => Link(span.Text, span.Link)))} | [{string.Join(' ', _.Chips.Select(chip => chip.Kind))}]"))
+            .Snapshot(
+                """
+                [
+                  Build [Build] '[build-all](Build)' provider-jenkins-run| | [Build all](Pipeline) main | [Cancel],
+                  Build [Build] '[Deploy Web](Build)' provider-octopus-run| |  | [Cancel],
+                  Build [Build] '[Verify](Repo)' host-github|provider-github-history | [test.yml](Build) [main](Branch) | [OpenDirectory],
+                  Build [Build] '' | | [🤖 Polyfill-9.1.0](Branch) | [PullRequest Cancel],
+                  Build [Build] '' | | [feature/docs](Branch) | [PullRequest Cancel],
+                  Build [Build] '' | | [feature/inline](Branch) | [PullRequest Retry CopyLog Triage],
+                  Build [Build] '[DiffEngine](Build)' provider-github-run|host-github | [test.yml](Pipeline) [main](Branch) | [Cancel],
+                  Build [Build] '[nightly](Build)' provider-jenkins-run| |  | [Cancel],
+                  Build [Build] '[DiffEngine](Repo)' host-github|provider-github-history | [docs.yml](Build) [main](Branch) | []
+                ]
+                """);
+
     [Test]
     public Task DefaultBranchOnly()
     {

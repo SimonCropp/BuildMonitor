@@ -10,6 +10,11 @@
 /// never grouped: each one wants reading, and a group is a line that hides its members.
 /// </para>
 /// <para>
+/// A pipeline's rows stay together: its own run, then the runs on its other branches that are
+/// running, queued or failed, each on the row beneath. Sorted apart, a pull request's run landed
+/// anywhere in the list and said nothing about which pipeline it was a run of.
+/// </para>
+/// <para>
 /// The last projection is handed back while a state holds the same instances of what it reads. A
 /// poll projected the rows before and after it to keep the selection, and the screen then projected
 /// them again, each a sort and a grouping of every build. The state before a poll is the one the
@@ -24,52 +29,74 @@ static class RowProjection
     static ProjectedRows? lastRows;
 
     public static ImmutableArray<Row> Rows(SessionState state) =>
-        Rows(state, Builds(state));
+        Rows(state, Pipelines(state));
 
     /// <summary>
-    /// The rows from <paramref name="sorted"/>, which is this state's <see cref="Builds"/>, for a
-    /// caller that has them already. <see cref="Builds"/> is most of the time a projection takes,
+    /// The rows from <paramref name="pipelines"/>, which is this state's <see cref="Pipelines"/>,
+    /// for a caller that has them already. Sorting them is most of the time a projection takes,
     /// and a screen rebuild used to take it three times, four with a filter typed.
     /// </summary>
-    public static ImmutableArray<Row> Rows(SessionState state, ImmutableArray<Build> sorted)
+    public static ImmutableArray<Row> Rows(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
     {
         if (lastRows is { } last &&
-            last.IsFor(state, sorted))
+            last.IsFor(state, pipelines))
         {
             return last.Rows;
         }
 
-        var rows = Project(state, sorted);
-        lastRows = new(sorted, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, rows);
+        var rows = Project(state, pipelines);
+        lastRows = new(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, rows);
         return rows;
     }
 
-    static ImmutableArray<Row> Project(SessionState state, ImmutableArray<Build> sorted)
+    static ImmutableArray<Row> Project(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
     {
         // Narrowed before grouping, so a group holds only the members that match: a closed group
         // left whole would hide the one build the filter was typed to find.
         var search = state.Search.Trim();
-        var builds = sorted.Where(_ => Matches(_, search)).ToImmutableArray();
         var connections = state.Connections.ToDictionary(_ => _.Connection.Id);
-        // Each build's group id once, and a key only for a group's row. Making a key for every
+        // Each pipeline's group id once, and a key only for a group's row. Making a key for every
         // passing build at every step cost each of them a handful of strings a projection.
         var prefixes = state.Settings.GroupPrefixes;
-        var ids = builds.Select(_ => GroupKey.IdOf(_, prefixes)).ToArray();
-        var groups = Enumerable.Range(0, builds.Length)
-            .Where(_ => ids[_] is not null)
-            .GroupBy(_ => ids[_]!, _ => builds[_])
+        var shown = new List<(List<Build> Builds, string? Id)>();
+        foreach (var pipeline in pipelines)
+        {
+            var builds = Matching(pipeline, search);
+            if (builds.Count == 0)
+            {
+                continue;
+            }
+
+            // Judged on the whole pipeline rather than on what the search left of it, so a pipeline
+            // does not join a group as letters typed hide its lanes. One with a lane is never
+            // grouped: its lanes follow its row, and a closed group would hide them with it.
+            var id = pipeline is {Lanes.IsEmpty: true, Head: { } head} ? GroupKey.IdOf(head, prefixes) : null;
+            shown.Add((builds, id));
+        }
+
+        var groups = shown
+            .Where(_ => _.Id is not null)
+            .GroupBy(_ => _.Id!, _ => _.Builds[0])
             .Where(_ => _.Count() > 1)
             .ToDictionary(_ => _.Key, _ => _.ToImmutableArray());
         var rows = ImmutableArray.CreateBuilder<Row>();
         var added = new HashSet<string>();
-        for (var index = 0; index < builds.Length; index++)
+        foreach (var (builds, id) in shown)
         {
-            var build = builds[index];
             // A group of one saves nothing and hides that build's links.
-            if (ids[index] is not { } id ||
+            if (id is null ||
                 !groups.TryGetValue(id, out var members))
             {
-                rows.Add(new(RowKind.Build, connections[build.ConnectionId], build, null, false, []));
+                // The first names the pipeline: its own run, or, where a deferral hid that, its
+                // first lane, since a lane under no named row would read as a run of the pipeline
+                // above.
+                for (var index = 0; index < builds.Count; index++)
+                {
+                    var build = builds[index];
+                    var kind = index == 0 ? RowKind.Build : RowKind.Lane;
+                    rows.Add(new(kind, connections[build.ConnectionId], build, null, false, []));
+                }
+
                 continue;
             }
 
@@ -78,7 +105,7 @@ static class RowProjection
                 continue;
             }
 
-            var key = GroupKey.Of(build, prefixes)!;
+            var key = GroupKey.Of(builds[0], prefixes)!;
             var expanded = IsExpanded(state, key);
             rows.Add(new(RowKind.Group, null, null, key, expanded, members));
             if (!expanded)
@@ -93,6 +120,38 @@ static class RowProjection
         }
 
         return rows.ToImmutable();
+    }
+
+    /// <summary>
+    /// What of a pipeline the filter box keeps. A lane that matches keeps its pipeline's own run
+    /// above it, since a lane with no named row over it reads as a run of the pipeline above that;
+    /// an own run that matches keeps only itself.
+    /// </summary>
+    static List<Build> Matching(PipelineBuilds pipeline, string search)
+    {
+        if (search.Length == 0)
+        {
+            return [..pipeline.Shown];
+        }
+
+        var lanes = pipeline.Lanes.Where(_ => Matches(_, search)).ToList();
+        if (lanes.Count > 0)
+        {
+            if (pipeline.Head is { } own)
+            {
+                lanes.Insert(0, own);
+            }
+
+            return lanes;
+        }
+
+        if (pipeline.Head is { } head &&
+            Matches(head, search))
+        {
+            return [head];
+        }
+
+        return [];
     }
 
     /// <summary>
@@ -115,49 +174,79 @@ static class RowProjection
         build.ShortBranchName().Contains(search, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Every connection's builds: filtered, reduced to the runs worth a row, and sorted so what is
-    /// happening now sits at the top. Not narrowed by the filter box, so the tray, the header's
-    /// counts and the MCP tools still describe everything watched while a filter is typed.
+    /// Every connection's builds that get a row, in the order of <see cref="Pipelines"/>. Not
+    /// narrowed by the filter box, so the tray, the header's counts and the MCP tools still
+    /// describe everything watched while a filter is typed.
     /// </summary>
-    public static ImmutableArray<Build> Builds(SessionState state)
+    public static ImmutableArray<Build> Builds(SessionState state) =>
+        Sorted(state).Sorted;
+
+    /// <summary>
+    /// Every connection's pipelines: filtered, reduced to the runs worth a row, and sorted so what
+    /// is happening now sits at the top.
+    /// </summary>
+    public static ImmutableArray<PipelineBuilds> Pipelines(SessionState state) =>
+        Sorted(state).Pipelines;
+
+    static SortedBuilds Sorted(SessionState state)
     {
         if (lastBuilds is { } last &&
             last.IsFor(state))
         {
-            return last.Sorted;
+            return last;
         }
 
-        var sorted = Sort(state);
-        lastBuilds = new(state.Settings, state.Connections, state.Builds, sorted);
+        var pipelines = Sort(state);
+        var sorted = new SortedBuilds(state.Settings, state.Connections, state.Builds, pipelines, [..pipelines.SelectMany(_ => _.Shown)]);
+        lastBuilds = sorted;
         return sorted;
     }
 
-    static ImmutableArray<Build> Sort(SessionState state) =>
+    /// <summary>
+    /// By each pipeline's most urgent row, the most recent of those where several tie, so a
+    /// pipeline whose pull request is running sits with the running rows, its own run above it.
+    /// </summary>
+    static ImmutableArray<PipelineBuilds> Sort(SessionState state) =>
     [
         ..state.Connections
             .SelectMany(_ => Selected(state, _.Connection.Id))
+            .Select(_ => (Pipeline: _, Lead: Lead(_)))
+            .OrderBy(_ => _.Lead.Rank())
+            .ThenByDescending(_ => _.Lead.Ordering ?? DateTimeOffset.MinValue)
+            .ThenBy(_ => _.Lead.PipelineName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(_ => _.Lead.Key, StringComparer.Ordinal)
+            .Select(_ => _.Pipeline)
+    ];
+
+    static Build Lead(PipelineBuilds pipeline) =>
+        pipeline.Shown
             .OrderBy(_ => _.Rank())
             .ThenByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)
-            .ThenBy(_ => _.PipelineName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(_ => _.Key, StringComparer.Ordinal)
-    ];
+            .First();
 
     /// <summary>
     /// A deferral drops a row after the selection rather than before it: dropped first, the run
-    /// before the failure would take the row, and a green row would say the pipeline passed.
+    /// before the failure would take the row, and a green row would say the pipeline passed. A
+    /// deferred lane goes on its own, and a pipeline goes only once nothing of it is left.
     /// </summary>
-    static IEnumerable<Build> Selected(SessionState state, string connectionId)
+    static IEnumerable<PipelineBuilds> Selected(SessionState state, string connectionId)
     {
         var selected = BuildSelection.Select(
-                Filters.Apply(state.Settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
-                state.Settings.ShowOtherBranches)
-            .SelectMany(_ => _.Shown);
+            Filters.Apply(state.Settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
+            state.Settings.ShowOtherBranches);
         var deferrals = state.Settings.Deferrals;
         if (deferrals.Length == 0)
         {
             return selected;
         }
 
-        return selected.Where(_ => !Deferrals.Hides(deferrals, _));
+        return selected
+            .Select(_ => _ with
+            {
+                Head = _.Head is { } head && Deferrals.Hides(deferrals, head) ? null : _.Head,
+                Lanes = _.Lanes.RemoveAll(_ => Deferrals.Hides(deferrals, _))
+            })
+            .Where(_ => _.Head is not null ||
+                        _.Lanes.Length > 0);
     }
 }

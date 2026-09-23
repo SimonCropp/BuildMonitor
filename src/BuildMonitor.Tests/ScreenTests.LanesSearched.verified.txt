@@ -1,0 +1,40 @@
+﻿+----------------------------------------------------------------------------------------------------------------------+
+| BuildMonitor                                        9 pipelines, 1 failing, 6 running  Filter: [docs            ][x] |
++----------------------------------------------------------------------------------------------------------------------+
+|   + Verify     github   test.yml @main                1h ago                                                         |
+| > ?                     @feature/docs                 queued 1m                PR 44 [Cancel]                        |
+|   + DiffEngine github   docs.yml @main                23h ago                                                        |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+
+| [Refresh] [Connections] [Options] [Filters] [Hide]                                                     Polled 5s ago |
++----------------------------------------------------------------------------------------------------------------------+
+tray: Failed "BuildMonitor: Verify failing, 6 running"
+  Open
+  Refresh
+  Connections
+  Options
+  Filters
+  Open logs
+  Raise issue
+  Update
+  Exit

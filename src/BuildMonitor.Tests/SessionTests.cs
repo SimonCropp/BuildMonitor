@@ -161,6 +161,56 @@ public class SessionTests
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/DiffEngine/docs.yml/feature/x");
     }
 
+    /// <summary>
+    /// With the default branch known, a run starting on another branch is a lane under the
+    /// pipeline's row rather than the pipeline, so a selection on that row stays on it.
+    /// </summary>
+    [Test]
+    public async Task SelectionStaysOnThePipelineWhenALaneStarts()
+    {
+        var builds = Fixtures.WithDefaultBranches();
+        var state = MonitorSession.SelectRow(builds, DocsRow(builds));
+        var run = Fixtures.Build(Fixtures.GitHub.Id, "DiffEngine/docs.yml", "docs.yml", "VerifyTests/DiffEngine", "feature/x", "301", BuildStatus.Running, started: Fixtures.Now) with
+        {
+            DefaultBranch = "main"
+        };
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [.. Fixtures.GitHubBuildsOnMain(), run], Fixtures.Now);
+        await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/DiffEngine/docs.yml/main");
+    }
+
+    /// <summary>
+    /// A lane that passes folds into its pipeline's row, and a selection on it goes to that row
+    /// rather than to whichever row slid into its place.
+    /// </summary>
+    [Test]
+    public async Task ALaneThatFoldsHandsTheSelectionToItsPipeline()
+    {
+        var builds = Fixtures.WithDefaultBranches();
+        var state = MonitorSession.SelectRow(builds, Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline"));
+        var runs = Fixtures.GitHubBuildsOnMain().ToList();
+        var index = runs.FindIndex(_ => _.Branch == "feature/inline");
+        runs[index] = runs[index] with
+        {
+            Status = BuildStatus.Succeeded
+        };
+        var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [.. runs], Fixtures.Now);
+        await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/test.yml/main");
+    }
+
+    /// <summary>
+    /// A lane's drop down offers what its row does, which leaves out the folder its pipeline's row
+    /// carries, and keeps the triage that needs the same checkout.
+    /// </summary>
+    [Test]
+    public async Task ALanesOverflowOffersNoFolder()
+    {
+        var state = Fixtures.WithLanesCheckedOut();
+        var row = Fixtures.RowOf(state, _ => _ is {Kind: RowKind.Lane, Build.Status: BuildStatus.Failed});
+        var commands = MonitorSession.OpenOverflow(state, row, ChipKind.None).Menu!.Items.Select(_ => _.Command).ToList();
+        await Assert.That(commands).DoesNotContain(CommandKind.OpenRepoDirectory);
+        await Assert.That(commands).Contains(CommandKind.Triage);
+    }
+
     [Test]
     public async Task SelectionMovesUpWhenItsPipelineIsExcluded()
     {

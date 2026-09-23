@@ -54,7 +54,8 @@ static class ScreenBuilder
 
     static Screen BuildsScreen(SessionState state, DateTimeOffset now, ImmutableArray<Build> builds, TrayModel tray, string status)
     {
-        var rows = RowProjection.Rows(state, builds);
+        var pipelines = RowProjection.Pipelines(state);
+        var rows = RowProjection.Rows(state, pipelines);
         var body = MonitorSession.BodyRows(state);
         var top = Math.Clamp(state.ScrollTop, 0, Math.Max(0, rows.Length - body));
         var visible = rows.Skip(top).Take(body).ToList();
@@ -80,7 +81,7 @@ static class ScreenBuilder
             menu = new(open.Row - top, open.Items.Select(_ => new MenuEntry(_.Label, _.SeparatorAbove)).ToList(), open.Overflow);
         }
 
-        var sized = Sized(state, builds, rows);
+        var sized = Sized(state, pipelines, rows);
         var loading = Loading(state, rows.Length);
         return new(
             Title,
@@ -146,20 +147,20 @@ static class ScreenBuilder
     /// could show, so the columns hold still rather than jumping with each letter. The rows shown
     /// stay in, because a build the filter lifts out of its closed group was never measured there.
     /// </summary>
-    static ImmutableArray<Row> Sized(SessionState state, ImmutableArray<Build> builds, ImmutableArray<Row> rows)
+    static ImmutableArray<Row> Sized(SessionState state, ImmutableArray<PipelineBuilds> pipelines, ImmutableArray<Row> rows)
     {
         if (state.Search.Length == 0)
         {
             return rows;
         }
 
-        // The filter box does not narrow the builds, so the ones already sorted serve here too.
+        // The filter box does not narrow the pipelines, so the ones already sorted serve here too.
         return
         [
             .. RowProjection.Rows(state with
             {
                 Search = ""
-            }, builds),
+            }, pipelines),
             .. rows
         ];
     }
@@ -217,6 +218,8 @@ static class ScreenBuilder
         {
             RowKind.Group => row.Group!.Project,
             RowKind.Member => MemberName(row),
+            // The row above names the project; a lane is a run of it on another branch.
+            RowKind.Lane => "",
             _ => row.Build!.ShortRepoName()
         };
 
@@ -290,11 +293,13 @@ static class ScreenBuilder
     }
 
     /// <summary>
-    /// The mark leading the second cell: whichever of the two the first cell did not take.
+    /// The mark leading the second cell: whichever of the two the first cell did not take. None on
+    /// a lane, whose pipeline's row above already shows both.
     /// </summary>
     static (string Icon, ChipKind Link) DetailIconOf(Row row, ProviderDescriptor descriptor)
     {
-        if (row.Build is not { } build)
+        if (row.Build is not { } build ||
+            row.Kind == RowKind.Lane)
         {
             return ("", ChipKind.None);
         }
@@ -355,11 +360,24 @@ static class ScreenBuilder
     /// is left out only where the first cell is already showing that name, as it is on an AppVeyor
     /// row whose project is named after its repository, or on a member naming its own project under
     /// a group the server or a prefix made. A member with a blank first cell has nothing to repeat,
-    /// so its pipeline stays: without it the row named its run nowhere a click could reach.
+    /// so its pipeline stays: without it the row named its run nowhere a click could reach. A lane
+    /// names its branch alone, the row above having named its pipeline, unless it has no branch to
+    /// name, and then the pipeline is what it has.
     /// </summary>
     static (string Pipeline, string Branch) DetailParts(Row row)
     {
         var build = row.Build!;
+        if (row.Kind == RowKind.Lane)
+        {
+            var branch = build.ShortBranchName();
+            if (branch.Length == 0)
+            {
+                return (build.PipelineName, "");
+            }
+
+            return ("", branch);
+        }
+
         if (NameOf(row).Length > 0 &&
             NamedAfterProject(build))
         {
@@ -463,8 +481,11 @@ static class ScreenBuilder
             : "";
         var descriptor = ProviderDescriptors.Get(row.Connection!.Connection.ProviderId);
         var detailIcon = DetailIconOf(row, descriptor);
+        var lane = row.Kind == RowKind.Lane;
         return new(
-            row.Kind,
+            // A lane is drawn as a build's row with its first cell and its marks left out: nothing
+            // about it asks a head for anything a build's row does not have.
+            lane ? RowKind.Build : row.Kind,
             build.Status,
             NameOf(row),
             NameLinkOf(row),
@@ -473,13 +494,13 @@ static class ScreenBuilder
             DetailOf(row),
             detailIcon.Icon,
             detailIcon.Link,
-            descriptor.Id,
+            lane ? "" : descriptor.Id,
             fraction,
             timing,
             selected,
             false,
-            RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build)),
-            RowTooltips.Of(state, build, descriptor.Name, now),
+            RowChips.Of(build, row.Kind, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build)),
+            RowTooltips.Of(state, build, row.Kind, descriptor.Name, now),
             author);
     }
 

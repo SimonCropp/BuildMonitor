@@ -8,6 +8,18 @@ public class ScreenPayloadTests
         return Verify(payload.Describe());
     }
 
+    /// <summary>
+    /// A lane reaches a native head as a build's row with no flags, no name and no marks: nothing
+    /// a head draws is new, so the committed renderers draw it as they are.
+    /// </summary>
+    [Test]
+    public Task Lanes()
+    {
+        var payload = new ScreenPayload();
+        payload.Build(ScreenBuilder.Build(Fixtures.WithLanes(), Fixtures.Now));
+        return Verify(payload.Describe());
+    }
+
     [Test]
     public Task Form()
     {

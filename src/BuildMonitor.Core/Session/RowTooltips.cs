@@ -9,9 +9,10 @@ static class RowTooltips
     /// <summary>
     /// A build's row. Every entry is optional: a part with nothing of its own to say falls back to
     /// <see cref="RowPart.Row"/> through <see cref="BuildRow.Tooltip"/>, rather than showing a
-    /// blank popup.
+    /// blank popup. A lane draws no name and no marks, so it says nothing for them, and names its
+    /// pipeline only where it has no branch to show in its place.
     /// </summary>
-    public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, string providerName, DateTimeOffset now)
+    public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, RowKind kind, string providerName, DateTimeOffset now)
     {
         var run = OpensRun(build);
         var pipeline = $"Open {providerName} history: {build.PipelineName}";
@@ -24,7 +25,14 @@ static class RowTooltips
         // opens. A hover that named the usual destination rather than this one would be worse
         // than none: it is the only thing saying where a click goes.
         var repository = build.RepoUrl is { } repo ? $"Open {RepoHosts.NameOf(repo)} project: {build.ShortRepoName()}" : null;
-        if (build.LeadsWithRun())
+        if (kind == RowKind.Lane)
+        {
+            if (build.ShortBranchName().Length == 0)
+            {
+                tooltips.Add(new(RowPart.Pipeline, pipeline));
+            }
+        }
+        else if (build.LeadsWithRun())
         {
             tooltips.Add(new(RowPart.Name, run));
             tooltips.Add(new(RowPart.Pipeline, pipeline));
