@@ -237,9 +237,10 @@ static class ScreenBuilder
     }
 
     /// <summary>
-    /// What a click on a row's first cell opens. A broken or running build's row leads with the
-    /// run: it is the reason the row is being read, so the first thing on it is the thing to open.
-    /// A settled row leads with the repository, which is what its cell names.
+    /// What a click on a row's first cell opens. A row that <see cref="BuildExtensions.LeadsWithRun"/>
+    /// opens the run: it is the reason the row is being read, or, where the build has no repository,
+    /// the only thing the cell could open. Any other row leads with the repository, which is what
+    /// its cell names.
     /// <para>
     /// The name is the repository's either way. It is the run's title as much as the project's,
     /// and a row that renamed its first cell by status would be unreadable as a column.
@@ -257,24 +258,20 @@ static class ScreenBuilder
             return ChipKind.None;
         }
 
-        if (build.NeedsAttention())
+        if (build.LeadsWithRun())
         {
             return ChipKind.Build;
         }
 
-        if (build.RepoUrl is not null)
-        {
-            return ChipKind.Repo;
-        }
-
-        return ChipKind.None;
+        return ChipKind.Repo;
     }
 
     /// <summary>
     /// The mark before a row's first cell: the service that ran the build where the cell opens the
     /// run, and the host of the source where it opens the repository. Nothing before a blank cell,
     /// which is a member under a group named for its repository: a mark there would only say what
-    /// the row above already does.
+    /// the row above already does, and nothing where the cell opens a repository on a host there is
+    /// no mark for, since the only logo to hand there would be the wrong one.
     /// </summary>
     static string NameIconOf(Row row, ProviderDescriptor descriptor)
     {
@@ -284,7 +281,7 @@ static class ScreenBuilder
             return "";
         }
 
-        if (build.NeedsAttention())
+        if (build.LeadsWithRun())
         {
             return ProviderMarks.Run(descriptor.Id, build.Status);
         }
@@ -302,10 +299,11 @@ static class ScreenBuilder
             return ("", ChipKind.None);
         }
 
-        if (build.NeedsAttention())
+        if (build.LeadsWithRun())
         {
-            // No mark for a host nothing here has one for, and then no link either: a link on a
-            // cell with no picture in it is a rectangle of nothing that reports a click.
+            // No mark for a host nothing here has one for, or for a build with no repository at
+            // all, and then no link either: a link on a cell with no picture in it is a rectangle
+            // of nothing that reports a click.
             if (RepoHosts.MarkOf(build.RepoUrl) is {Length: > 0} mark)
             {
                 return (mark, ChipKind.Repo);
@@ -393,7 +391,7 @@ static class ScreenBuilder
         // so that no part of a row repeats the one beside it. A row that leads with its run and
         // leaves the pipeline out, because the first cell already names it, has nothing left to
         // carry that page; it is the least of the four, and the run's own page links to it.
-        Append(spans, pipeline, build.NeedsAttention() ? ChipKind.Pipeline : ChipKind.Build);
+        Append(spans, pipeline, build.LeadsWithRun() ? ChipKind.Pipeline : ChipKind.Build);
         Append(spans, branch, build.BranchUrl is null ? ChipKind.None : ChipKind.Branch);
         return spans;
     }

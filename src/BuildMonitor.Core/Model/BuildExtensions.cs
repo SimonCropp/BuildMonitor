@@ -12,6 +12,18 @@ static class BuildExtensions
     public static bool NeedsAttention(this Build build) =>
         build.Status is BuildStatus.Failed or BuildStatus.Running or BuildStatus.Queued;
 
+    /// <summary>
+    /// Whether a row leads with its run rather than with its repository, which decides what its
+    /// first cell opens and which of the two marks goes before it: a build that
+    /// <see cref="NeedsAttention"/>, or one with no repository at all, as an Octopus deployment
+    /// is. A run is what such a row has to lead with; without this its first cell opened nothing
+    /// and carried no mark, so a column of deployments began in blank space beside rows that
+    /// started with a logo.
+    /// </summary>
+    public static bool LeadsWithRun(this Build build) =>
+        build.NeedsAttention() ||
+        build.RepoUrl is null;
+
     public static string RunNumberLabel(this Build build)
     {
         if (build.RunNumber.Length == 0)

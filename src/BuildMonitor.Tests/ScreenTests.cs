@@ -245,6 +245,27 @@ public class ScreenTests
                 """);
 
     /// <summary>
+    /// A settled build with no repository at all, as every Octopus deployment is, leads with its
+    /// run like a broken one: there is no repository to lead with, and no host mark to draw. The
+    /// mark of the service that ran it goes before the name, and the name opens the run; before
+    /// this the cell carried no mark and opened nothing, so a column of deployments began in blank
+    /// space beside rows that started with a logo.
+    /// </summary>
+    [Test]
+    public Task ARowWithNoRepositoryLeadsWithItsRun() =>
+        Verify(ScreenBuilder.Build(MonitorSession.ToggleGroup(Fixtures.WithProjectGroup(), Fixtures.StorefrontPassing), Fixtures.Now).Builds!.Rows
+            .Where(_ => _.Provider == "octopus")
+            .Select(_ => $"{Link(_.Name, _.NameLink)} | {_.NameIcon} | {_.DetailIcon} | {string.Concat(_.Detail.Select(span => Link(span.Text, span.Link)))}"))
+            .Snapshot(
+                """
+                [
+                  [Deploy Web](Build) | provider-octopus-run |  | ,
+                  [Deploy Api](Build) | provider-octopus-run |  | Production,
+                  [Deploy Database](Build) | provider-octopus-run |  | Production
+                ]
+                """);
+
+    /// <summary>
     /// A row whose pipeline is named after its project, as an AppVeyor one is, leaves the pipeline
     /// out of its second cell. It still leads with its run while that run is going: the cell it
     /// leads with is chosen by the status, and never by what the cell beside it happens to hold.

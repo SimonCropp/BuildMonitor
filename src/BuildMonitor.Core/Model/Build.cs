@@ -15,7 +15,8 @@
 /// </param>
 /// <param name="RepoUrl">
 /// The source repository's page, which the row's name opens. Null where the provider does not
-/// know it, and then the name is plain text rather than a link to something else. Kept apart from
+/// know it, as an Octopus deployment has none, and then the row
+/// <see cref="BuildExtensions.LeadsWithRun">leads with its run</see> instead. Kept apart from
 /// <paramref name="PipelineUrl"/> because one field for both had every provider choose which it
 /// meant: an AppVeyor logo opened github.com while a Jenkins one opened Jenkins.
 /// </param>

@@ -24,7 +24,7 @@ static class RowTooltips
         // opens. A hover that named the usual destination rather than this one would be worse
         // than none: it is the only thing saying where a click goes.
         var repository = build.RepoUrl is { } repo ? $"Open {RepoHosts.NameOf(repo)} project: {build.ShortRepoName()}" : null;
-        if (build.NeedsAttention())
+        if (build.LeadsWithRun())
         {
             tooltips.Add(new(RowPart.Name, run));
             tooltips.Add(new(RowPart.Pipeline, pipeline));
