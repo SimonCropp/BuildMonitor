@@ -72,6 +72,14 @@ public class PixelTests
     public Task Connections() =>
         Capture(Fixtures.Connections());
 
+    // A pipeline's pull requests on the rows beneath its own: rows handed over as builds' rows with
+    // no name and no marks, which no other native baseline draws.
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 7)]
+    public Task Lanes() =>
+        Capture(Fixtures.WithLanes());
+
     static async Task Capture(SessionState state)
     {
         // Pinned rather than System, so a capture does not depend on the theme of whoever ran it.
