@@ -30,6 +30,12 @@
 /// passing builds sharing one are grouped under it ahead of the repository name. Null for every
 /// provider that has no such thing, and then the repository name groups them as before.
 /// </param>
+/// <param name="DefaultBranch">
+/// The pipeline's default branch, carried from <see cref="Pipeline.DefaultBranch"/> or worked out
+/// by the provider from the runs it fetched, in the form of <paramref name="Branch"/>, so a run is
+/// on it when the two are equal. Every build of one pipeline in one fetch carries the same one.
+/// Null where the service has no such thing: GoCD, Octopus Deploy and Jenkins.
+/// </param>
 record Build(
     string ConnectionId,
     string PipelineId,
@@ -55,7 +61,8 @@ record Build(
     string ProviderRef,
     string PipelineUrl,
     string? RepoUrl = null,
-    string? ProjectGroup = null)
+    string? ProjectGroup = null,
+    string? DefaultBranch = null)
 {
     /// <summary>
     /// What a row is: a pipeline on a branch. Stable across polls so the selection survives a

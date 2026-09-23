@@ -13,4 +13,9 @@
 /// repository name, so a family of projects deployed together reads as one row without anyone
 /// having to name a prefix. Null where the service has no such grouping, which is every provider
 /// but Octopus Deploy.</param>
-record Pipeline(string Id, string Name, string RepoName, string? Group, string Url, string? RepoUrl = null, string? ProjectGroup = null);
+/// <param name="DefaultBranch">The branch the pipeline's own runs are on, where discovery can say:
+/// the repository's default branch, in the form the provider writes <see cref="Build.Branch"/>.
+/// Without it a pull request's run was as much the pipeline as a push to main was. Null where the
+/// service does not say at discovery, or says something stale, and the provider then works it out
+/// from the runs it fetches.</param>
+record Pipeline(string Id, string Name, string RepoName, string? Group, string Url, string? RepoUrl = null, string? ProjectGroup = null, string? DefaultBranch = null);
