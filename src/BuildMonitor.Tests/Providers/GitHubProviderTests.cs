@@ -43,6 +43,100 @@ public class GitHubProviderTests
         });
     }
 
+    /// <summary>
+    /// Two pull requests fill Test's share of a page of four, and its run of main comes third. It
+    /// was in the response already, so it is kept past the cap rather than asked for again.
+    /// </summary>
+    [Test]
+    public async Task ARunOnTheDefaultBranchPastTheCapIsKept()
+    {
+        var handler = TwoWorkflows()
+            .Get(
+                "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=4",
+                $$"""
+                {"workflow_runs":[
+                  {{Run(604, 10, "fix-b")}},
+                  {{Run(603, 10, "fix-a")}},
+                  {{Run(602, 10, "main")}},
+                  {{Run(601, 12, "main")}}
+                ]}
+                """);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", ProviderTestHelpers.Context("github", handler), perPipeline: 2);
+        await Assert.That(builds.Select(_ => $"{_.PipelineName} {_.Branch}")).IsEquivalentTo(["Test fix-b", "Test fix-a", "Test main", "Docs main"]);
+        await Assert.That(handler.Requests.Any(_ => _.Contains("/actions/workflows/10/runs"))).IsFalse();
+    }
+
+    /// <summary>
+    /// A page with no run of main for a workflow asks that workflow for its runs on main, which a
+    /// fork's main matches too, so that one is passed over for the repository's own.
+    /// </summary>
+    [Test]
+    public async Task ADefaultBranchRunIsAskedOfTheWorkflowWhenThePageHasNone()
+    {
+        var handler = OneWorkflowOfPullRequests()
+            .Get(
+                "https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows/10/runs?branch=main&per_page=5",
+                $$"""
+                {"workflow_runs":[
+                  {{Run(598, 10, "main", "someone/DiffEngine")}},
+                  {{Run(590, 10, "main")}}
+                ]}
+                """);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", ProviderTestHelpers.Context("github", handler));
+        await Assert.That(builds.Select(_ => $"#{_.RunNumber} {_.Branch}")).IsEquivalentTo(["#1604 fix-b", "#1603 fix-a", "#1590 main"]);
+    }
+
+    /// <summary>
+    /// A workflow with no run on main, as one only pull requests trigger has, costs its request once
+    /// an hour rather than each poll.
+    /// </summary>
+    [Test]
+    public async Task AWorkflowWithNoRunOnTheDefaultBranchIsAskedOnceAnHour()
+    {
+        const string asked = "GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows/10/runs?branch=main&per_page=5";
+        var handler = OneWorkflowOfPullRequests()
+            .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows/10/runs?branch=main&per_page=5", """{"workflow_runs":[]}""");
+        var context = ProviderTestHelpers.Context("github", handler);
+        await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        await Assert.That(handler.Requests.Count(_ => _ == asked)).IsEqualTo(1);
+    }
+
+    static FakeHttpHandler Listing(string workflows) =>
+        new FakeHttpHandler()
+            .Get(
+                "https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
+                """[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z","default_branch":"main"}]""")
+            .Get("https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows?per_page=100", workflows);
+
+    static FakeHttpHandler TwoWorkflows() =>
+        Listing(
+            """
+            {"workflows":[
+              {"id":10,"name":"Test","path":".github/workflows/test.yml","state":"active"},
+              {"id":12,"name":"Docs","path":".github/workflows/docs.yml","state":"active"}
+            ]}
+            """);
+
+    static FakeHttpHandler OneWorkflowOfPullRequests() =>
+        Listing("""{"workflows":[{"id":10,"name":"Test","path":".github/workflows/test.yml","state":"active"}]}""")
+            .Get(
+                "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5",
+                $$"""
+                {"workflow_runs":[
+                  {{Run(604, 10, "fix-b")}},
+                  {{Run(603, 10, "fix-a")}}
+                ]}
+                """);
+
+    /// <summary>
+    /// A finished run, numbered after its id so each reads apart, newer for a higher id.
+    /// </summary>
+    static string Run(long id, long workflow, string branch, string repository = "VerifyTests/DiffEngine") =>
+        $$"""
+          {"id":{{id}},"workflow_id":{{workflow}},"run_number":{{id + 1000}},"status":"completed","conclusion":"success","head_branch":"{{branch}}","head_sha":"sha{{id}}","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/{{id}}","created_at":"2026-01-01T{{id / 60 % 24:00}}:{{id % 60:00}}:00Z","updated_at":"2026-01-01T{{id / 60 % 24:00}}:{{id % 60:00}}:30Z","run_started_at":"2026-01-01T{{id / 60 % 24:00}}:{{id % 60:00}}:00Z","head_repository":{"full_name":"{{repository}}","html_url":"https://github.com/{{repository}}"},"pull_requests":[]}
+          """;
+
     [Test]
     public async Task DiscoveryListsWorkflowsOnlyForARepositoryPushedSince()
     {

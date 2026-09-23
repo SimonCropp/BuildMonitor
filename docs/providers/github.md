@@ -42,6 +42,8 @@ Runs are fetched a repository at a time, each on its own schedule (see [Poll int
 
 Each poll interval, page 1 of the repository list is read again, most recently pushed first, with the same conditional request discovery uses, so it costs nothing while nothing is pushed. A repository whose last push moved is fetched at once rather than when its schedule comes round. Runs that start without a push, such as scheduled runs, manual dispatches, re-runs started on the web and pull requests from forks, wait for the schedule: up to five minutes on a quiet repository.
 
+A repository's page of runs holds five a workflow, and a batch of pull requests can fill a workflow's five. Its latest run on the default branch is kept past the five where the page holds it, and where it does not, that workflow's runs on the default branch are asked for, with the same conditional request. A workflow with none since the [history cutoff](../options.md#show-builds-from-the-last-days), such as one only pull requests trigger, is not asked again for an hour.
+
 Discovery lists a repository's workflows again only once it has been pushed to since they were last listed, and every repository's once an hour, so a workflow enabled or disabled without a push can take up to an hour to show or go.
 
 ```mermaid
@@ -74,7 +76,10 @@ flowchart TD
     stretch --> due{"Due, and within<br/>450 requests a minute?"}
     due -- "no" --> sleep(["Sleep until a repository,<br/>the probe or the<br/>listing is due"])
     due -- "yes, most urgent first" --> fetch["GET repos/{owner}/{repo}/actions/runs<br/>with If-None-Match,<br/>8 at a time"]
-    fetch -- "200 or 304" --> rows["Update its rows"]
+    fetch -- "200 or 304" --> held{"A run on the default<br/>branch for each workflow,<br/>or none in the last hour?"}
+    held -- "yes" --> rows["Update its rows"]
+    held -- "no" --> workflow["GET repos/{owner}/{repo}/actions/<br/>workflows/{id}/runs?branch={default}<br/>for each workflow without one"]
+    workflow --> rows
     fetch -- "429, or 403 from<br/>a secondary limit" --> pause["Pause the connection<br/>as long as GitHub asks,<br/>or from a minute, doubling"]
     fetch -- "other failure" --> backoff["Back off that repository,<br/>doubling up to 10 minutes"]
     rows --> sleep

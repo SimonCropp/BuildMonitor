@@ -255,6 +255,9 @@ sealed class GitHubProvider : ProviderBase
                     token);
                 var builds = new List<Build>();
                 var taken = new Dictionary<long, int>();
+                // The workflows with a run on their default branch among those kept, which is the
+                // run a workflow's row is.
+                var own = new HashSet<long>();
                 foreach (var run in runs.WorkflowRuns)
                 {
                     if (!byWorkflow.TryGetValue(run.WorkflowId, out var pipeline))
@@ -269,14 +272,36 @@ sealed class GitHubProvider : ProviderBase
                         continue;
                     }
 
+                    var build = Convert(context.Connection.Id, repository.Key, pipeline, run, change);
+                    var onDefault = build.Branch is not null &&
+                                    build.Branch == pipeline.DefaultBranch;
                     taken.TryGetValue(run.WorkflowId, out var soFar);
-                    if (soFar >= perPipeline)
+                    // Past the cap only for the workflow's first run on its default branch: a batch
+                    // of pull requests fills a workflow's share of the page, and its own run, in the
+                    // response already, would have been dropped for them.
+                    if (soFar >= perPipeline &&
+                        (!onDefault || own.Contains(run.WorkflowId)))
                     {
                         continue;
                     }
 
                     taken[run.WorkflowId] = soFar + 1;
-                    builds.Add(Convert(context.Connection.Id, repository.Key, pipeline, run, change));
+                    if (onDefault)
+                    {
+                        own.Add(run.WorkflowId);
+                    }
+
+                    builds.Add(build);
+                }
+
+                foreach (var (id, pipeline) in byWorkflow)
+                {
+                    if (pipeline.DefaultBranch is { } defaultBranch &&
+                        !own.Contains(id) &&
+                        await DefaultRun(context, repository.Key, id, pipeline, defaultBranch, perPipeline, change, token) is { } run)
+                    {
+                        builds.Add(run);
+                    }
                 }
 
                 return builds;
@@ -291,6 +316,56 @@ sealed class GitHubProvider : ProviderBase
             all.Count,
             Stopwatch.GetElapsedTime(started).TotalSeconds);
         return all;
+    }
+
+    /// <summary>
+    /// A workflow's newest run on the default branch, where the repository's page of runs had none:
+    /// its share of the page went to pull requests, or it runs on the default branch rarely, as a
+    /// scheduled or dispatched workflow does. Asked of the workflow's own runs rather than the
+    /// repository's, whose default branch the scheduled and issue-triggered workflows would fill.
+    /// The branch filter matches a fork's branch of the same name too, so a fork's main is passed
+    /// over. A workflow with none since the history cutoff, as one only pull requests trigger has,
+    /// is not asked again for an hour.
+    /// </summary>
+    static async Task<Build?> DefaultRun(ProviderContext context, string repository, long workflowId, Pipeline pipeline, string branch, int perPipeline, bool change, Cancel cancel)
+    {
+        var memory = context.Memory;
+        var now = DateTimeOffset.UtcNow;
+        if (DefaultRunMemory.KnownNone(memory, pipeline.Id, branch, now))
+        {
+            return null;
+        }
+
+        var runs = await GetOrNone(
+            context,
+            $"repos/{repository}/actions/workflows/{workflowId}/runs?branch={Encode(branch)}&per_page={perPipeline}",
+            GitHubContext.Default.GitHubRuns,
+            cancel);
+        foreach (var run in runs?.WorkflowRuns ?? [])
+        {
+            if (run.Conclusion == "skipped")
+            {
+                continue;
+            }
+
+            var build = Convert(context.Connection.Id, repository, pipeline, run, change);
+            if (build.Branch != branch)
+            {
+                continue;
+            }
+
+            if (context.Since is { } since &&
+                !HistoryCutoff.Keeps(build, since))
+            {
+                break;
+            }
+
+            DefaultRunMemory.Found(memory, pipeline.Id, branch);
+            return build;
+        }
+
+        DefaultRunMemory.None(memory, pipeline.Id, branch, now);
+        return null;
     }
 
     static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRun run, bool change)
