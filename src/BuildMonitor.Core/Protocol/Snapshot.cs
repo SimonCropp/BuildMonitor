@@ -120,15 +120,19 @@ static class Snapshot
                 _.Pipelines.Length))
             .ToList();
 
+    /// <summary>
+    /// Counted as the header and the tray count, so the summary an assistant reads says what the
+    /// window does.
+    /// </summary>
     public static SummaryDto Summary(SessionState state, DateTimeOffset now)
     {
-        var builds = Builds(state, now);
+        var counts = BuildCounts.Of(RowProjection.Pipelines(state));
         var screen = ScreenBuilder.Build(state, now);
         return new(
             state.Connections.Length,
-            builds.Count,
-            builds.Count(_ => _.Status == nameof(BuildStatus.Failed)),
-            builds.Count(_ => _.Status is nameof(BuildStatus.Running) or nameof(BuildStatus.Queued)),
+            counts.Pipelines,
+            counts.Failing,
+            counts.Running,
             screen.Tray.Icon.ToString(),
             screen.Status,
             Connections(state));

@@ -1,4 +1,4 @@
-﻿page: 0 rows: 9 details: 7 chips: 11 spans: 15 fields: 0 options: 0 buttons: 5 menu: 0 tray: 9 strings: 2922 bytes
+﻿page: 0 rows: 9 details: 7 chips: 11 spans: 15 fields: 0 options: 0 buttons: 5 menu: 0 tray: 9 strings: 2917 bytes
 search='' tip='Filter by repository, pipeline or branch' empty=''
 status='Polled 5s ago' tip=''
 row status=1 flags=0 progress=0.20 'build-all' link=Build status=Build 'Build all main' spans=Pipeline:[]'Build all',None:[]' ',None:[branch]'main' icon='provider-jenkins-run' detail=None:'' '04:00 left' author='' chips=Cancel:Cancel[cancel|]

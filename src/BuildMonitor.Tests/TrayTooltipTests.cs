@@ -25,6 +25,46 @@ public class TrayTooltipTests
     public async Task AProjectIsNamedOnce() =>
         await Assert.That(ScreenBuilder.Tray(Fixtures.WithTwoFailures()).Tooltip).IsEqualTo("BuildMonitor: Verify failing, 4 running");
 
+    /// <summary>
+    /// A pull request failing under a pipeline whose main passes is its row's red, not the tray's:
+    /// a contributor's broken fork would otherwise keep the icon red with nothing wrong on main.
+    /// </summary>
+    [Test]
+    public async Task AFailingLaneIsNotAFailingPipeline()
+    {
+        var tray = ScreenBuilder.Tray(Fixtures.WithLanes());
+        await Assert.That(tray.Icon).IsEqualTo(TrayIconKind.Running);
+        await Assert.That(tray.Tooltip).IsEqualTo("BuildMonitor: 0 failing, 6 running");
+    }
+
+    /// <summary>
+    /// The pipeline's own run failing is, whatever its lanes are doing.
+    /// </summary>
+    [Test]
+    public async Task AFailingDefaultBranchIs()
+    {
+        var lanes = Fixtures.WithLanes();
+        var runs = lanes.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id).ToList();
+        var index = runs.FindIndex(_ => _.Key == "gh/Verify/test.yml/main");
+        runs[index] = runs[index] with
+        {
+            Status = BuildStatus.Failed
+        };
+        var tray = ScreenBuilder.Tray(MonitorSession.ApplyPoll(lanes, Fixtures.GitHub.Id, [], [.. runs], Fixtures.Now));
+        await Assert.That(tray.Icon).IsEqualTo(TrayIconKind.Failed);
+        await Assert.That(tray.Tooltip).IsEqualTo("BuildMonitor: Verify failing, 6 running");
+    }
+
+    /// <summary>
+    /// Green once every pipeline's own run passed, though a pull request of one of them failed.
+    /// </summary>
+    [Test]
+    public async Task EveryDefaultBranchPassingIsGreen()
+    {
+        var state = MonitorSession.ApplyPoll(Fixtures.Connected(), Fixtures.GitHub.Id, [], [.. Fixtures.GitHubBuildsOnMain().Where(_ => !_.IsActive)], Fixtures.Now);
+        await Assert.That(ScreenBuilder.Tray(state).Icon).IsEqualTo(TrayIconKind.Success);
+    }
+
     [Test]
     public async Task TwoProjectsAreJoined() =>
         await Assert.That(ScreenBuilder.Tray(Fixtures.WithDependabotFailure()).Tooltip).IsEqualTo("BuildMonitor: Reports and Verify failing, 4 running");

@@ -30,4 +30,25 @@ record PipelineBuilds(Build? Head, ImmutableArray<Build> Lanes, ImmutableArray<B
             }
         }
     }
+
+    /// <summary>
+    /// Whether the pipeline is failing: its own run failed. A failed lane is a pull request's or
+    /// another branch's, and counting one would keep the tray red for a contributor's broken fork
+    /// with nothing wrong on main. It still has its row, and its failure is still announced.
+    /// </summary>
+    public bool Failing =>
+        Head is {Status: BuildStatus.Failed};
+
+    /// <summary>
+    /// Whether the pipeline's own run passed.
+    /// </summary>
+    public bool Passing =>
+        Head is {Status: BuildStatus.Succeeded};
+
+    /// <summary>
+    /// How many of its runs with a row are running or queued, lanes as well: a pull request being
+    /// built is something happening, whichever branch it is on.
+    /// </summary>
+    public int Running =>
+        Shown.Count(_ => _.IsActive);
 }

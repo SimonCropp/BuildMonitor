@@ -15,13 +15,13 @@ static class ScreenBuilder
     public static Screen Build(SessionState state, DateTimeOffset now)
     {
         // Once for the tray, the rows and the columns, each of which used to sort every build itself.
-        var builds = RowProjection.Builds(state);
-        var tray = Tray(state, builds);
+        var pipelines = RowProjection.Pipelines(state);
+        var tray = Tray(state, pipelines);
         var status = Status(state, now);
         return state.Page switch
         {
-            Page.Builds when state.Hidden => HiddenScreen(state, now, builds, tray, status),
-            Page.Builds => BuildsScreen(state, now, builds, tray, status),
+            Page.Builds when state.Hidden => HiddenScreen(state, now, pipelines, tray, status),
+            Page.Builds => BuildsScreen(state, now, pipelines, tray, status),
             _ => FormScreen(state, now, tray, status)
         };
     }
@@ -32,14 +32,13 @@ static class ScreenBuilder
     /// sized each row of a large account. Showing the window changes the state, which rebuilds the
     /// page whole.
     /// </summary>
-    static Screen HiddenScreen(SessionState state, DateTimeOffset now, ImmutableArray<Build> builds, TrayModel tray, string status)
+    static Screen HiddenScreen(SessionState state, DateTimeOffset now, ImmutableArray<PipelineBuilds> pipelines, TrayModel tray, string status)
     {
-        var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
-        var running = builds.Count(_ => _.IsActive);
+        var counts = BuildCounts.Of(pipelines);
         return new(
             Title,
             Page.Builds,
-            new(Header(state, builds.Length, failing, running), [], 0, 0, -1, failing, running, [], [], [], false, state.Search, SearchTooltip, ""),
+            new(Header(state, counts), [], 0, 0, -1, counts.Failing, counts.Running, [], [], [], false, state.Search, SearchTooltip, ""),
             null,
             Buttons(state),
             status,
@@ -52,24 +51,22 @@ static class ScreenBuilder
             state.Settings.Theme);
     }
 
-    static Screen BuildsScreen(SessionState state, DateTimeOffset now, ImmutableArray<Build> builds, TrayModel tray, string status)
+    static Screen BuildsScreen(SessionState state, DateTimeOffset now, ImmutableArray<PipelineBuilds> pipelines, TrayModel tray, string status)
     {
-        var pipelines = RowProjection.Pipelines(state);
         var rows = RowProjection.Rows(state, pipelines);
         var body = MonitorSession.BodyRows(state);
         var top = Math.Clamp(state.ScrollTop, 0, Math.Max(0, rows.Length - body));
         var visible = rows.Skip(top).Take(body).ToList();
         // Across every failed build rather than the visible rows, so a name does not grow and shrink
-        // while scrolling past someone who shares it.
-        var authors = AuthorNames.Of(builds.Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
+        // while scrolling past someone who shares it. Lanes too: a failed lane names who broke it.
+        var authors = AuthorNames.Of(RowProjection.Builds(state).Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
         var composed = new List<BuildRow>(visible.Count);
         for (var index = 0; index < visible.Count; index++)
         {
             composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now, authors));
         }
 
-        var failing = builds.Count(_ => _.Status == BuildStatus.Failed);
-        var running = builds.Count(_ => _.IsActive);
+        var counts = BuildCounts.Of(pipelines);
         var selected = state.SelectedRow >= top && state.SelectedRow < top + visible.Count
             ? state.SelectedRow - top
             : -1;
@@ -86,7 +83,7 @@ static class ScreenBuilder
         return new(
             Title,
             Page.Builds,
-            new(Header(state, builds.Length, failing, running), composed, top, rows.Length, selected, failing, running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized), loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), authors.Values.Distinct().ToList()),
+            new(Header(state, counts), composed, top, rows.Length, selected, counts.Failing, counts.Running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized), loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), authors.Values.Distinct().ToList()),
             null,
             Buttons(state),
             status,
@@ -455,14 +452,14 @@ static class ScreenBuilder
         spans.Add(new(text));
     }
 
-    static string Header(SessionState state, int pipelines, int failing, int running)
+    static string Header(SessionState state, BuildCounts counts)
     {
         if (state.Connections.Length == 0)
         {
             return "No connections";
         }
 
-        return $"{Plural(pipelines, "pipeline")}, {failing} failing, {running} running";
+        return $"{Plural(counts.Pipelines, "pipeline")}, {counts.Failing} failing, {counts.Running} running";
     }
 
     static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now, IReadOnlyDictionary<string, string> authors)
@@ -1213,12 +1210,12 @@ static class ScreenBuilder
     // Tray
 
     public static TrayModel Tray(SessionState state) =>
-        Tray(state, RowProjection.Builds(state));
+        Tray(state, RowProjection.Pipelines(state));
 
-    static TrayModel Tray(SessionState state, ImmutableArray<Build> builds)
+    static TrayModel Tray(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
     {
-        var icon = Icon(state, builds);
-        var tooltip = TrayTooltip(state, builds);
+        var icon = Icon(state, pipelines);
+        var tooltip = TrayTooltip(state, pipelines);
 
         List<TrayMenuItem> items =
         [
@@ -1258,21 +1255,23 @@ static class ScreenBuilder
     /// alone put "0 failing, 0 running" beside it, which reads as all clear. Failures are named, as
     /// their rows name them, rather than counted, since which one is the next thing a hover wants.
     /// Names come off the end as "and 2 more" until the line fits in <see cref="TrayTooltipLimit"/>.
+    /// A pipeline is named for its own run failing, as <see cref="PipelineBuilds.Failing"/> says.
     /// </summary>
-    static string TrayTooltip(SessionState state, ImmutableArray<Build> builds)
+    static string TrayTooltip(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
     {
         if (state.Connections.Length == 0)
         {
             return $"{Title}: no connections";
         }
 
-        var failed = builds.Count(_ => _.Status == BuildStatus.Failed);
-        var names = builds
-            .Where(_ => _.Status == BuildStatus.Failed)
-            .Select(_ => _.ShortRepoName())
+        var counts = BuildCounts.Of(pipelines);
+        var failed = counts.Failing;
+        var names = pipelines
+            .Where(_ => _.Failing)
+            .Select(_ => _.Head!.ShortRepoName())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var running = builds.Count(_ => _.IsActive);
+        var running = counts.Running;
         // What raised the icon leads, as Unhealthy orders them: a rate limit raises no Attention.
         var problems = MonitorSession.Unhealthy(state).Select(TrayProblem).ToList();
         var lead = problems.Count == 0 ? "" : $"{FirstOf(problems)}. ";
@@ -1331,26 +1330,32 @@ static class ScreenBuilder
     /// Attention is for a connection that may need the user: a sign in, or an error. A rate limit
     /// never does, since the poller waits it out by itself, so it leaves the icon to the builds and
     /// is said only in the tooltip, where a hover asking why the rows have stopped changing finds it.
+    /// <para>
+    /// Red and green go by each pipeline's own run, blue by any run with a row: a pull request
+    /// failing leaves the tray as its pipeline's main has it, and one being built is still something
+    /// running. A pipeline whose own run a deferral hid has none to judge, and says nothing to green.
+    /// </para>
     /// </summary>
-    static TrayIconKind Icon(SessionState state, ImmutableArray<Build> builds)
+    static TrayIconKind Icon(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
     {
         if (state.Connections.Any(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error))
         {
             return TrayIconKind.Attention;
         }
 
-        if (builds.Any(_ => _.Status == BuildStatus.Failed))
+        if (pipelines.Any(_ => _.Failing))
         {
             return TrayIconKind.Failed;
         }
 
-        if (builds.Any(_ => _.IsActive))
+        if (pipelines.Any(_ => _.Running > 0))
         {
             return TrayIconKind.Running;
         }
 
-        if (builds.Length > 0 &&
-            builds.All(_ => _.Status == BuildStatus.Succeeded))
+        var judged = pipelines.Where(_ => _.Head is not null).ToList();
+        if (judged.Count > 0 &&
+            judged.All(_ => _.Passing))
         {
             return TrayIconKind.Success;
         }
