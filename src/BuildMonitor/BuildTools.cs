@@ -8,7 +8,7 @@ using ModelContextProtocol.Server;
 sealed class BuildTools(MonitorTools tools)
 {
     [McpServerTool(Name = "list_builds", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Lists the latest build of every monitored pipeline across every CI connection, on its default branch where the service says which that is, with status, timing, progress and links. After a pipeline's own build come its other branches, pull requests and pushed branches, whose latest run is running, queued or failed, each marked otherBranch. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it.")]
+    [Description("Lists the latest build of every monitored pipeline across every CI connection, on its default branch where the service says which that is, with status, timing, progress and links. A pipeline's other branches, pull requests and pushed branches, whose latest run is running, queued or failed are listed too, each marked otherBranch. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it.")]
     public Task<List<BuildDto>> ListBuilds(
         [Description("Optional substring to filter on pipeline, repository, branch or connection name.")]
         string? filter = null,

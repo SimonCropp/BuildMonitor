@@ -1,4 +1,4 @@
-﻿page: 0 rows: 9 details: 7 chips: 11 spans: 15 fields: 0 options: 0 buttons: 5 menu: 0 tray: 9 strings: 2998 bytes
+﻿page: 0 rows: 9 details: 7 chips: 11 spans: 21 fields: 0 options: 0 buttons: 5 menu: 0 tray: 9 strings: 3421 bytes
 search='' tip='Filter by repository, pipeline or branch' empty=''
 status='Polled 5s ago' tip=''
 row status=1 flags=0 progress=0.20 'build-all' link=Build status=Build 'Build all main' spans=Pipeline:[]'Build all',None:[]' ',None:[branch]'main' icon='provider-jenkins-run' detail=None:'' '04:00 left' author='' chips=Cancel:Cancel[cancel|]
@@ -15,6 +15,16 @@ row status=1 flags=0 progress=0.40 'Deploy Web' link=Build status=Build '' spans
   tip Pipeline: Open Octopus Deploy history: Deploy Web
   tip Timing: Counting down from the service's estimate
   tip Cancel chip: Cancel this run on Octopus Deploy
+row status=1 flags=0 progress=-1.00 'Verify' link=Build status=Build 'test.yml 🤖 Polyfill-9.1.0' spans=Pipeline:[]'test.yml',None:[]' ',Branch:[branch]'🤖 Polyfill-9.1.0' icon='provider-github-run' detail=Repo:'host-github' '02:00' author='' chips=PullRequest:PR 45[pull-request|45],Cancel:Cancel[cancel|]
+  tip Row: VerifyTests/Verify/@dependabot/nuget/src/Polyfill-9.1.0/Bump Polyfill from 9.0.0 to 9.1.0/dependabot[bot]/started 2m ago
+  tip Status: Open run: #80
+  tip Name: Open run: #80
+  tip Pipeline: Open GitHub Actions history: test.yml
+  tip DetailIcon: Open GitHub project: Verify
+  tip Branch: Open branch: 🤖 Polyfill-9.1.0
+  tip Timing: No estimate yet, so this is how long it has run
+  tip PullRequest chip: Open PR: 45
+  tip Cancel chip: Cancel this run on GitHub Actions
 row status=1 flags=1 progress=0.50 'DiffEngine' link=Build status=Build 'test.yml main' spans=Pipeline:[]'test.yml',None:[]' ',Branch:[branch]'main' icon='provider-github-run' detail=Repo:'host-github' '03:00 left' author='' chips=Cancel:Cancel[cancel|]
   tip Row: VerifyTests/DiffEngine @main/Fix the thing/SimonCropp 0123456/started 3m ago
   tip Status: Open run: #1234
@@ -30,6 +40,26 @@ row status=0 flags=0 progress=-1.00 'nightly' link=Build status=Build '' spans= 
   tip Name: Open run: #88
   tip Pipeline: Open Jenkins history: Nightly
   tip Cancel chip: Cancel this run on Jenkins
+row status=0 flags=0 progress=-1.00 'Verify' link=Build status=Build 'test.yml feature/docs' spans=Pipeline:[]'test.yml',None:[]' ',Branch:[branch]'feature/docs' icon='provider-github-run' detail=Repo:'host-github' 'queued 1m' author='' chips=PullRequest:PR 44[pull-request|44],Cancel:Cancel[cancel|]
+  tip Row: VerifyTests/Verify @feature/docs/Document inline snapshots/SimonCropp
+  tip Status: Open run: #79
+  tip Name: Open run: #79
+  tip Pipeline: Open GitHub Actions history: test.yml
+  tip DetailIcon: Open GitHub project: Verify
+  tip Branch: Open branch: feature/docs
+  tip PullRequest chip: Open PR: 44
+  tip Cancel chip: Cancel this run on GitHub Actions
+row status=3 flags=0 progress=-1.00 'Verify' link=Build status=Build 'test.yml feature/inline' spans=Pipeline:[]'test.yml',None:[]' ',Branch:[branch]'feature/inline' icon='provider-github-failed' detail=Repo:'host-github' '25m ago' author='SimonCropp' chips=PullRequest:PR 42[pull-request|42],Retry:Retry[retry|],CopyLog:Log[log|]
+  tip Row: VerifyTests/Verify @feature/inline/Inline snapshots/SimonCropp/started 30m ago
+  tip Status: Open run: #77
+  tip Name: Open run: #77
+  tip Pipeline: Open GitHub Actions history: test.yml
+  tip DetailIcon: Open GitHub project: Verify
+  tip Branch: Open branch: feature/inline
+  tip Timing: Ran for 05:00
+  tip PullRequest chip: Open PR: 42
+  tip Retry chip: Run again on GitHub Actions
+  tip CopyLog chip: Copy failure log
 row status=2 flags=0 progress=-1.00 'Verify' link=Repo status=Build 'test.yml main' spans=Build:[]'test.yml',None:[]' ',Branch:[branch]'main' icon='host-github' detail=Pipeline:'provider-github-history' '1h ago' author='' chips=
   tip Row: VerifyTests/Verify @main/started 2h ago/Other branches:/@feature/cleanup PR 43 passed 45m ago/@feature/old passed 2d ago
   tip Status: Open run: #76
@@ -38,27 +68,6 @@ row status=2 flags=0 progress=-1.00 'Verify' link=Repo status=Build 'test.yml ma
   tip Name: Open GitHub project: Verify
   tip Branch: Open branch: main
   tip Timing: Ran for 05:00
-row status=1 flags=0 progress=-1.00 '' link=None status=Build '🤖 Polyfill-9.1.0' spans=Branch:[branch]'🤖 Polyfill-9.1.0' icon='' detail=None:'' '02:00' author='' chips=PullRequest:PR 45[pull-request|45],Cancel:Cancel[cancel|]
-  tip Row: VerifyTests/Verify/@dependabot/nuget/src/Polyfill-9.1.0/Bump Polyfill from 9.0.0 to 9.1.0/dependabot[bot]/started 2m ago
-  tip Status: Open run: #80
-  tip Branch: Open branch: 🤖 Polyfill-9.1.0
-  tip Timing: No estimate yet, so this is how long it has run
-  tip PullRequest chip: Open PR: 45
-  tip Cancel chip: Cancel this run on GitHub Actions
-row status=0 flags=0 progress=-1.00 '' link=None status=Build 'feature/docs' spans=Branch:[branch]'feature/docs' icon='' detail=None:'' 'queued 1m' author='' chips=PullRequest:PR 44[pull-request|44],Cancel:Cancel[cancel|]
-  tip Row: VerifyTests/Verify @feature/docs/Document inline snapshots/SimonCropp
-  tip Status: Open run: #79
-  tip Branch: Open branch: feature/docs
-  tip PullRequest chip: Open PR: 44
-  tip Cancel chip: Cancel this run on GitHub Actions
-row status=3 flags=0 progress=-1.00 '' link=None status=Build 'feature/inline' spans=Branch:[branch]'feature/inline' icon='' detail=None:'' '25m ago' author='SimonCropp' chips=PullRequest:PR 42[pull-request|42],Retry:Retry[retry|],CopyLog:Log[log|]
-  tip Row: VerifyTests/Verify @feature/inline/Inline snapshots/SimonCropp/started 30m ago
-  tip Status: Open run: #77
-  tip Branch: Open branch: feature/inline
-  tip Timing: Ran for 05:00
-  tip PullRequest chip: Open PR: 42
-  tip Retry chip: Run again on GitHub Actions
-  tip CopyLog chip: Copy failure log
 row status=2 flags=0 progress=-1.00 'DiffEngine' link=Repo status=Build 'docs.yml main' spans=Build:[]'docs.yml',None:[]' ',Branch:[branch]'main' icon='host-github' detail=Pipeline:'provider-github-history' '23h ago' author='' chips=
   tip Row: VerifyTests/DiffEngine @main/started 1d ago
   tip Status: Open run: #300

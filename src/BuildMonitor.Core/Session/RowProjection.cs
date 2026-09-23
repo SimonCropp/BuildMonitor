@@ -10,11 +10,6 @@
 /// never grouped: each one wants reading, and a group is a line that hides its members.
 /// </para>
 /// <para>
-/// A pipeline's rows stay together: its own run, then the runs on its other branches that are
-/// running, queued or failed, each on the row beneath. Sorted apart, a pull request's run landed
-/// anywhere in the list and said nothing about which pipeline it was a run of.
-/// </para>
-/// <para>
 /// The last projection is handed back while a state holds the same instances of what it reads. A
 /// poll projected the rows before and after it to keep the selection, and the screen then projected
 /// them again, each a sort and a grouping of every build. The state before a poll is the one the
@@ -54,55 +49,44 @@ static class RowProjection
         // Narrowed before grouping, so a group holds only the members that match: a closed group
         // left whole would hide the one build the filter was typed to find.
         var search = state.Search.Trim();
-        var connections = state.Connections.ToDictionary(_ => _.Connection.Id);
-        // Each pipeline's group id once, and a key only for a group's row. Making a key for every
-        // passing build at every step cost each of them a handful of strings a projection.
-        var prefixes = state.Settings.GroupPrefixes;
-        var shown = new List<(List<Build> Builds, ImmutableArray<Build> Folded, string? Id)>();
+        var builds = Sorted(state).Sorted.Where(_ => Matches(_, search)).ToImmutableArray();
+        // What each pipeline's own run folds away, for its hover. By reference, since two runs can
+        // be equal as records.
+        var folded = new Dictionary<Build, ImmutableArray<Build>>(ReferenceEqualityComparer.Instance);
         foreach (var pipeline in pipelines)
         {
-            var builds = Matching(pipeline, search);
-            if (builds.Count == 0)
+            if (pipeline.Head is { } head)
             {
-                continue;
+                folded[head] = pipeline.Folded;
             }
-
-            // Judged on the whole pipeline rather than on what the search left of it, so a pipeline
-            // does not join a group as letters typed hide its lanes. One with a lane is never
-            // grouped: its lanes follow its row, and a closed group would hide them with it.
-            var id = pipeline is {Lanes.IsEmpty: true, Head: { } head} ? GroupKey.IdOf(head, prefixes) : null;
-            shown.Add((builds, pipeline.Folded, id));
         }
 
-        var groups = shown
-            .Where(_ => _.Id is not null)
-            .GroupBy(_ => _.Id!)
+        var connections = state.Connections.ToDictionary(_ => _.Connection.Id);
+        // Each build's group id once, and a key only for a group's row. Making a key for every
+        // passing build at every step cost each of them a handful of strings a projection.
+        var prefixes = state.Settings.GroupPrefixes;
+        var ids = builds.Select(_ => GroupKey.IdOf(_, prefixes)).ToArray();
+        // A repository's pipelines together, in the order its most recent one came, so under a
+        // prefix group each repository is named once, on the first of its rows.
+        var groups = Enumerable.Range(0, builds.Length)
+            .Where(_ => ids[_] is not null)
+            .GroupBy(_ => ids[_]!, _ => builds[_])
             .Where(_ => _.Count() > 1)
-            .ToDictionary(_ => _.Key, _ => _.ToList());
+            .ToDictionary(
+                _ => _.Key,
+                _ => _.GroupBy(_ => _.RepoName, StringComparer.OrdinalIgnoreCase)
+                    .SelectMany(_ => _)
+                    .ToImmutableArray());
         var rows = ImmutableArray.CreateBuilder<Row>();
         var added = new HashSet<string>();
-        foreach (var (builds, folded, id) in shown)
+        for (var index = 0; index < builds.Length; index++)
         {
+            var build = builds[index];
             // A group of one saves nothing and hides that build's links.
-            if (id is null ||
+            if (ids[index] is not { } id ||
                 !groups.TryGetValue(id, out var members))
             {
-                // The first names the pipeline: its own run, or, where a deferral hid that, its
-                // first lane, since a lane under no named row would read as a run of the pipeline
-                // above. The branches folded away go with the name.
-                for (var index = 0; index < builds.Count; index++)
-                {
-                    var build = builds[index];
-                    if (index == 0)
-                    {
-                        rows.Add(new(RowKind.Build, connections[build.ConnectionId], build, null, false, [], folded));
-                    }
-                    else
-                    {
-                        rows.Add(new(RowKind.Lane, connections[build.ConnectionId], build, null, false, [], []));
-                    }
-                }
-
+                rows.Add(new(RowKind.Build, connections[build.ConnectionId], build, null, false, [], FoldedOf(folded, build)));
                 continue;
             }
 
@@ -111,60 +95,31 @@ static class RowProjection
                 continue;
             }
 
-            var key = GroupKey.Of(builds[0], prefixes)!;
+            var key = GroupKey.Of(build, prefixes)!;
             var expanded = IsExpanded(state, key);
-            // A repository's pipelines together, in the order its most recent one came, so under a
-            // prefix group each repository is named once, on the first of its rows.
-            var byRepository = members
-                .GroupBy(_ => _.Builds[0].RepoName, StringComparer.OrdinalIgnoreCase)
-                .SelectMany(_ => _)
-                .ToList();
-            rows.Add(new(RowKind.Group, null, null, key, expanded, [..byRepository.Select(_ => _.Builds[0])], []));
+            rows.Add(new(RowKind.Group, null, null, key, expanded, members, []));
             if (!expanded)
             {
                 continue;
             }
 
             string? above = null;
-            foreach (var member in byRepository)
+            foreach (var member in members)
             {
-                var build = member.Builds[0];
-                var namedAbove = string.Equals(above, build.RepoName, StringComparison.OrdinalIgnoreCase);
-                rows.Add(new(RowKind.Member, connections[build.ConnectionId], build, key, false, [], member.Folded, namedAbove));
-                above = build.RepoName;
+                var namedAbove = string.Equals(above, member.RepoName, StringComparison.OrdinalIgnoreCase);
+                rows.Add(new(RowKind.Member, connections[member.ConnectionId], member, key, false, [], FoldedOf(folded, member), namedAbove));
+                above = member.RepoName;
             }
         }
 
         return rows.ToImmutable();
     }
 
-    /// <summary>
-    /// What of a pipeline the filter box keeps. A lane that matches keeps its pipeline's own run
-    /// above it, since a lane with no named row over it reads as a run of the pipeline above that;
-    /// an own run that matches keeps only itself.
-    /// </summary>
-    static List<Build> Matching(PipelineBuilds pipeline, string search)
+    static ImmutableArray<Build> FoldedOf(Dictionary<Build, ImmutableArray<Build>> folded, Build build)
     {
-        if (search.Length == 0)
+        if (folded.TryGetValue(build, out var branches))
         {
-            return [..pipeline.Shown];
-        }
-
-        var lanes = pipeline.Lanes.Where(_ => Matches(_, search)).ToList();
-        if (lanes.Count > 0)
-        {
-            if (pipeline.Head is { } own)
-            {
-                lanes.Insert(0, own);
-            }
-
-            return lanes;
-        }
-
-        if (pipeline.Head is { } head &&
-            Matches(head, search))
-        {
-            return [head];
+            return branches;
         }
 
         return [];
@@ -190,9 +145,11 @@ static class RowProjection
         build.ShortBranchName().Contains(search, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Every connection's builds that get a row, in the order of <see cref="Pipelines"/>. Not
-    /// narrowed by the filter box, so the tray, the header's counts and the MCP tools still
-    /// describe everything watched while a filter is typed.
+    /// Every connection's builds that get a row, each sorted by its own status: running, queued,
+    /// failed, then the rest by age. A pipeline's other branches sort among the rest rather than
+    /// under their pipeline's own run, which put a failed pull request under a green main, and a
+    /// green main up among the running rows. Not narrowed by the filter box, so the tray, the
+    /// header's counts and the MCP tools still describe everything watched while a filter is typed.
     /// </summary>
     public static ImmutableArray<Build> Builds(SessionState state) =>
         Sorted(state).Sorted;
@@ -213,16 +170,22 @@ static class RowProjection
         }
 
         var pipelines = Sort(state);
-        var sorted = new SortedBuilds(state.Settings, state.Connections, state.Builds, pipelines, [..pipelines.SelectMany(_ => _.Shown)]);
+        ImmutableArray<Build> builds =
+        [
+            ..pipelines
+                .SelectMany(_ => _.Shown)
+                .OrderBy(_ => _.Rank())
+                .ThenByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)
+                .ThenBy(_ => _.PipelineName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(_ => _.Key, StringComparer.Ordinal)
+        ];
+        var sorted = new SortedBuilds(state.Settings, state.Connections, state.Builds, pipelines, builds);
         lastBuilds = sorted;
         return sorted;
     }
 
     /// <summary>
-    /// By each pipeline's own run, its lanes following it wherever that sorts. Sorted by the most
-    /// urgent of its rows, a green main was pulled up among the running rows by a pull request, and
-    /// the list read green and red in no order; the rows are about the pipeline's own run, and its
-    /// lanes are what it has going on besides.
+    /// By each pipeline's own run, for the readers that walk pipelines rather than rows.
     /// </summary>
     static ImmutableArray<PipelineBuilds> Sort(SessionState state) =>
     [

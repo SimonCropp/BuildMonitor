@@ -5,8 +5,7 @@ static class Snapshot
 {
     /// <summary>
     /// The builds, not the rows: an open group lists its members twice, once behind its own row and
-    /// once as member rows, and a closed one hides them. Each pipeline's own run, then its other
-    /// branches, as the rows put them.
+    /// once as member rows, and a closed one hides them. In the rows' order.
     /// </summary>
     public static List<BuildDto> Builds(SessionState state, DateTimeOffset now) =>
         Shown(state)
@@ -31,17 +30,13 @@ static class Snapshot
     /// </summary>
     static IEnumerable<(Build Build, bool OtherBranch)> Shown(SessionState state)
     {
-        foreach (var pipeline in RowProjection.Pipelines(state))
+        var heads = RowProjection.Pipelines(state)
+            .Select(_ => _.Head)
+            .OfType<Build>()
+            .ToHashSet(ReferenceEqualityComparer.Instance);
+        foreach (var build in RowProjection.Builds(state))
         {
-            if (pipeline.Head is { } head)
-            {
-                yield return (head, false);
-            }
-
-            foreach (var lane in pipeline.Lanes)
-            {
-                yield return (lane, true);
-            }
+            yield return (build, !heads.Contains(build));
         }
     }
 

@@ -12,7 +12,7 @@ For GitHub Enterprise Server enter the server URL; the API is reached under `/ap
 
 ## Rows
 
-One per workflow, showing its latest run on the repository's default branch, which the repository listing names. A run on another branch that is running, queued or failed gets a row beneath it. Pull request runs link to the pull request. A run from a fork is shown on the fork's branch behind its owner, `someone:main`, so a fork's main is never taken for the repository's, and its branch opens in the fork. GitHub leaves the pull request off a run from a fork, so that row has no pull request button.
+One per workflow, showing its latest run on the repository's default branch, which the repository listing names. A run on another branch that is running, queued or failed gets a row of its own. Pull request runs link to the pull request. A run from a fork is shown on the fork's branch behind its owner, `someone:main`, so a fork's main is never taken for the repository's, and its branch opens in the fork. GitHub leaves the pull request off a run from a fork, so that row has no pull request button.
 
 
 ## Actions

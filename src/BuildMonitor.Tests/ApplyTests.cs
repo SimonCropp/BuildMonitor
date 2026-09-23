@@ -630,7 +630,7 @@ public class ApplyTests
         var builds = Fixtures.WithLocalRepos();
         var row = FailedRow(builds);
         var chips = MonitorSession.SelectedBuild(MonitorSession.SelectRow(builds, row))!;
-        await Assert.That(RowChips.Of(chips, RowKind.Build, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), builds.LocalRepos, false).Select(_ => _.Kind)).DoesNotContain(ChipKind.OpenDirectory);
+        await Assert.That(RowChips.Of(chips, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), builds.LocalRepos, false).Select(_ => _.Kind)).DoesNotContain(ChipKind.OpenDirectory);
 
         var state = Apply(builds, new(ClickedChipRow: row, ClickedChip: ChipKind.OpenDirectory), actions);
         await Assert.That(actions.Calls).IsEmpty();
@@ -718,11 +718,11 @@ public class ApplyTests
     {
         var withCheckout = Fixtures.WithTriageableFailure();
         var green = MonitorSession.SelectedBuild(MonitorSession.SelectRow(withCheckout, RunningRow(withCheckout)))!;
-        await Assert.That(RowChips.Of(green, RowKind.Build, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), withCheckout.LocalRepos, false).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
+        await Assert.That(RowChips.Of(green, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), withCheckout.LocalRepos, false).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
 
         var noCheckout = Fixtures.WithLocalRepos();
         var failed = MonitorSession.SelectedBuild(MonitorSession.SelectRow(noCheckout, FailedRow(noCheckout)))!;
-        await Assert.That(RowChips.Of(failed, RowKind.Build, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), noCheckout.LocalRepos, false).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
+        await Assert.That(RowChips.Of(failed, ProviderDescriptors.Get(Fixtures.GitHub.ProviderId), noCheckout.LocalRepos, false).Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);
     }
 
     /// <summary>

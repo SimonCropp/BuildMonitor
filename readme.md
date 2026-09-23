@@ -9,7 +9,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 [![Build status](https://github.com/SimonCropp/BuildMonitor/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/SimonCropp/BuildMonitor/actions/workflows/test.yml) [![NuGet Status](https://img.shields.io/nuget/v/BuildMonitor.svg?label=BuildMonitor)](https://www.nuget.org/packages/BuildMonitor/)
 
-A build/CI monitor that runs in the system tray on Windows, macOS and Linux. It polls the CI services a developer cares about, shows one row per pipeline, its pull requests beneath it while they build or fail, with a progress bar and countdown for running builds, links straight to the build, the branch and the pull request, can retry or cancel a build, and copies the log of a failed one. A local [MCP](/docs/mcp.md) server lets an AI assistant read and act on the same list.
+A build/CI monitor that runs in the system tray on Windows, macOS and Linux. It polls the CI services a developer cares about, shows one row per pipeline, and a row for each pull request while it builds or fails, with a progress bar and countdown for running builds, links straight to the build, the branch and the pull request, can retry or cancel a build, and copies the log of a failed one. A local [MCP](/docs/mcp.md) server lets an AI assistant read and act on the same list.
 
 <img src="/src/BuildMonitor.Windows.Tests/MonitorFormTests.Searched.verified.png">
 

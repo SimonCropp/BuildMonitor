@@ -197,19 +197,6 @@ public class SessionTests
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/test.yml/main");
     }
 
-    /// <summary>
-    /// A lane's drop down offers what its row does, which leaves out the folder its pipeline's row
-    /// carries, and keeps the triage that needs the same checkout.
-    /// </summary>
-    [Test]
-    public async Task ALanesOverflowOffersNoFolder()
-    {
-        var state = Fixtures.WithLanesCheckedOut();
-        var row = Fixtures.RowOf(state, _ => _ is {Kind: RowKind.Lane, Build.Status: BuildStatus.Failed});
-        var commands = MonitorSession.OpenOverflow(state, row, ChipKind.None).Menu!.Items.Select(_ => _.Command).ToList();
-        await Assert.That(commands).DoesNotContain(CommandKind.OpenRepoDirectory);
-        await Assert.That(commands).Contains(CommandKind.Triage);
-    }
 
     [Test]
     public async Task SelectionMovesUpWhenItsPipelineIsExcluded()

@@ -72,8 +72,8 @@ public class PixelTests
     public Task Connections() =>
         Capture(Fixtures.Connections());
 
-    // A pipeline's pull requests on the rows beneath its own: rows handed over as builds' rows with
-    // no name and no marks, which no other native baseline draws.
+    // A pipeline's pull requests on rows of their own, each sorted by its own status, and its main
+    // green at the bottom.
     [Test]
     [PixelTest]
     [NotInParallel(nameof(PixelTests), Order = 7)]

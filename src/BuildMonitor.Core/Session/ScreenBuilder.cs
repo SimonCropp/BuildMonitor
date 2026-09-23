@@ -215,8 +215,6 @@ static class ScreenBuilder
         {
             RowKind.Group => row.Group!.Project,
             RowKind.Member => MemberName(row),
-            // The row above names the project; a lane is a run of it on another branch.
-            RowKind.Lane => "",
             _ => row.Build!.ShortRepoName()
         };
 
@@ -293,13 +291,11 @@ static class ScreenBuilder
     }
 
     /// <summary>
-    /// The mark leading the second cell: whichever of the two the first cell did not take. None on
-    /// a lane, whose pipeline's row above already shows both.
+    /// The mark leading the second cell: whichever of the two the first cell did not take.
     /// </summary>
     static (string Icon, ChipKind Link) DetailIconOf(Row row, ProviderDescriptor descriptor)
     {
-        if (row.Build is not { } build ||
-            row.Kind == RowKind.Lane)
+        if (row.Build is not { } build)
         {
             return ("", ChipKind.None);
         }
@@ -360,24 +356,11 @@ static class ScreenBuilder
     /// is left out only where the first cell is already showing that name, as it is on an AppVeyor
     /// row whose project is named after its repository, or on a member naming its own project under
     /// a group the server or a prefix made. A member with a blank first cell has nothing to repeat,
-    /// so its pipeline stays: without it the row named its run nowhere a click could reach. A lane
-    /// names its branch alone, the row above having named its pipeline, unless it has no branch to
-    /// name, and then the pipeline is what it has.
+    /// so its pipeline stays: without it the row named its run nowhere a click could reach.
     /// </summary>
     static (string Pipeline, string Branch) DetailParts(Row row)
     {
         var build = row.Build!;
-        if (row.Kind == RowKind.Lane)
-        {
-            var branch = build.ShortBranchName();
-            if (branch.Length == 0)
-            {
-                return (build.PipelineName, "");
-            }
-
-            return ("", branch);
-        }
-
         if (NameOf(row).Length > 0 &&
             NamedAfterProject(build))
         {
@@ -481,11 +464,8 @@ static class ScreenBuilder
             : "";
         var descriptor = ProviderDescriptors.Get(row.Connection!.Connection.ProviderId);
         var detailIcon = DetailIconOf(row, descriptor);
-        var lane = row.Kind == RowKind.Lane;
         return new(
-            // A lane is drawn as a build's row with its first cell and its marks left out: nothing
-            // about it asks a head for anything a build's row does not have.
-            lane ? RowKind.Build : row.Kind,
+            row.Kind,
             build.Status,
             NameOf(row),
             NameLinkOf(row),
@@ -494,13 +474,13 @@ static class ScreenBuilder
             DetailOf(row),
             detailIcon.Icon,
             detailIcon.Link,
-            lane ? "" : descriptor.Id,
+            descriptor.Id,
             fraction,
             timing,
             selected,
             false,
-            RowChips.Of(build, row.Kind, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build)),
-            RowTooltips.Of(state, build, row.Kind, row.Folded, descriptor.Name, now),
+            RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build)),
+            RowTooltips.Of(state, build, row.Folded, descriptor.Name, now),
             author);
     }
 

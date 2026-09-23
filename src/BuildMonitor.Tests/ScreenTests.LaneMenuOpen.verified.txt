@@ -1,16 +1,15 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                           6 pipelines, 0 failing, 6 running  Filter: [                ] |
 +----------------------------------------------------------------------------------------------------------------------+
-|   > build-all  jenkins  Build all @main    [##------] 04:00 left               [Cancel]                              |
-|   > Deploy Web octopus                     [###-----] 02:15 left               [Cancel]                              |
-|   > DiffEngine github   test.yml @main     [####----] 03:00 left               [Cancel]                              |
-|   ? nightly    jenkins                                queued 30s               [Cancel]                              |
-|   + Verify     github   test.yml @main                1h ago                                                         |
-|   >                     @🤖 Polyfill-9.1.0            02:00                    PR 45 [Cancel]                        |
-|   ?                     @feature/docs                 queued 1m                PR 44 [Cancel]                        |
-| > x                     @feature/inline               25m ago       SimonCropp PR 42 [Retry] [Log]                   |
-|   +----------------------------------+                23h ago                                                        |
-|   | Open build                       |                                                                               |
+|   > build-all  jenkins  Build all @main             [##------] 04:00 left               [Cancel]                     |
+|   > Deploy Web octopus                              [###-----] 02:15 left               [Cancel]                     |
+|   > Verify     github   test.yml @🤖 Polyfill-9.1.0            02:00                    PR 45 [Cancel]               |
+|   > DiffEngine github   test.yml @main              [####----] 03:00 left               [Cancel]                     |
+|   ? nightly    jenkins                                         queued 30s               [Cancel]                     |
+|   ? Verify     github   test.yml @feature/docs                 queued 1m                PR 44 [Cancel]               |
+| > x Verify     github   test.yml @feature/inline               25m ago       SimonCropp PR 42 [Retry] [Log]          |
+|   +----------------------------------+                         1h ago                                                |
+|   | Open build                       |                         23h ago                                               |
 |   | Open branch                      |                                                                               |
 |   | Open pull request                |                                                                               |
 |   | Copy build URL                   |                                                                               |
@@ -25,9 +24,10 @@
 |   | Defer 7 days                     |                                                                               |
 |   |----------------------------------|                                                                               |
 |   | Exclude action: test.yml         |                                                                               |
-+---| Exclude branch: feature/inline   |-------------------------------------------------------------------------------+
-| [R| Exclude repo: VerifyTests/Verify |ters] [Hide]                                                     Polled 5s ago |
-+---| Exclude org: VerifyTests         |-------------------------------------------------------------------------------+
+|   | Exclude branch: feature/inline   |                                                                               |
++---| Exclude repo: VerifyTests/Verify |-------------------------------------------------------------------------------+
+| [R| Exclude org: VerifyTests         |ters] [Hide]                                                     Polled 5s ago |
++---+----------------------------------+-------------------------------------------------------------------------------+
 tray: Running "BuildMonitor: 0 failing, 6 running"
   Open
   Refresh

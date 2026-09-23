@@ -15,7 +15,7 @@ An [API key](https://octopus.com/docs/api/authentication/create-an-api-key), cre
 
 ## Rows
 
-One per project, showing the latest deployment. The project stands in for the repository, so each row is named after its project rather than grouped under the space, and being a project rather than a repository it is plain text rather than a link; the logo opens the project. The environment stands in for the branch and the release version for the run number, so another environment whose latest deployment is running, queued or failed gets a row beneath the project's, as another branch does on a build service.
+One per project, showing the latest deployment. The project stands in for the repository, so each row is named after its project rather than grouped under the space, and being a project rather than a repository it is plain text rather than a link; the logo opens the project. The environment stands in for the branch and the release version for the run number, so another environment whose latest deployment is running, queued or failed gets a row of its own, as another branch does on a build service.
 
 Passing deployments are grouped under the project group the server files their project in, so a family of projects deployed together takes one row rather than one each. The group names are read with the projects, once per discovery rather than per poll, from `{space}/projectgroups`; a key that may not list them loses the grouping and nothing else, and those projects group by their own names as they did before. A prefix named in [Options](../options.md) still wins, being the one of the two someone typed.
 

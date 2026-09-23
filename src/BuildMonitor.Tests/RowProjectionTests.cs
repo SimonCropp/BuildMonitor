@@ -70,24 +70,23 @@ public class RowProjectionTests
     }
 
     /// <summary>
-    /// A pipeline's lanes follow its own row, running before queued before failed, and the
-    /// pipeline sorts by its own run: Verify's main passed, so Verify sits with the passing rows,
-    /// its running pull request beneath it there.
+    /// Every row sorts by its own status: Verify's pull requests go up with the running, queued and
+    /// failed rows, and its passing main to the bottom with the green ones.
     /// </summary>
     [Test]
-    public Task LanesFollowTheirPipelinesRow() =>
+    public Task EachRowSortsByItsOwnStatus() =>
         Verify(RowProjection.Rows(Fixtures.WithLanes()).Select(_ => $"{_.Kind} {_.Build?.Key} {_.Build?.Status}"))
             .Snapshot(
                 """
                 [
                   Build jenkins/build-all/main Running,
                   Build octo/Projects-1/ Running,
+                  Build gh/Verify/test.yml/dependabot/nuget/src/Polyfill-9.1.0 Running,
                   Build gh/DiffEngine/test.yml/main Running,
                   Build jenkins/nightly/ Queued,
+                  Build gh/Verify/test.yml/feature/docs Queued,
+                  Build gh/Verify/test.yml/feature/inline Failed,
                   Build gh/Verify/test.yml/main Succeeded,
-                  Lane gh/Verify/test.yml/dependabot/nuget/src/Polyfill-9.1.0 Running,
-                  Lane gh/Verify/test.yml/feature/docs Queued,
-                  Lane gh/Verify/test.yml/feature/inline Failed,
                   Build gh/DiffEngine/docs.yml/main Succeeded
                 ]
                 """);

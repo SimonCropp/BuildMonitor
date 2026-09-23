@@ -86,26 +86,27 @@ public class DeferTests
     }
 
     /// <summary>
-    /// A lane deferred goes on its own: the pipeline's row and its other lanes stay.
+    /// Another branch's failure deferred goes on its own: the pipeline's row and its other
+    /// branches' rows stay.
     /// </summary>
     [Test]
-    public async Task DeferringALaneHidesOnlyIt()
+    public async Task DeferringAnotherBranchHidesOnlyIt()
     {
         var builds = Fixtures.WithLanes();
-        var lane = RowProjection.Rows(builds).Single(_ => _ is {Kind: RowKind.Lane, Build.Status: BuildStatus.Failed}).Build!;
+        var lane = builds.Builds.Single(_ => _.Key == failedKey);
         var state = MonitorSession.Defer(builds, lane, 1, Fixtures.Now);
         var rows = RowProjection.Rows(state);
         await Assert.That(rows.Any(_ => _.Build?.Key == lane.Key)).IsFalse();
         await Assert.That(rows.Any(_ => _.Build?.Key == "gh/Verify/test.yml/main")).IsTrue();
-        await Assert.That(rows.Count(_ => _.Kind == RowKind.Lane)).IsEqualTo(2);
+        await Assert.That(rows.Count(_ => _.Build is {RepoName: "VerifyTests/Verify", Branch: not "main"})).IsEqualTo(2);
     }
 
     /// <summary>
-    /// A pipeline's own failure deferred leaves its lanes, and the first of them names the
-    /// pipeline in its place: a lane with no named row over it reads as a run of the row above.
+    /// A pipeline's own failure deferred leaves its other branches' rows, each naming the
+    /// pipeline as any row does.
     /// </summary>
     [Test]
-    public async Task ALaneOutlivesItsDeferredPipelineAndNamesIt()
+    public async Task DeferringAPipelinesOwnRunLeavesItsOtherBranches()
     {
         var lanes = Fixtures.WithLanes();
         var runs = lanes.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id).ToList();
@@ -117,8 +118,8 @@ public class DeferTests
         var broken = MonitorSession.ApplyPoll(lanes, Fixtures.GitHub.Id, [], [.. runs], Fixtures.Now);
         var state = MonitorSession.Defer(broken, runs[index], 1, Fixtures.Now);
         var verify = RowProjection.Rows(state).Where(_ => _.Build?.RepoName == "VerifyTests/Verify").ToList();
-        await Assert.That(verify.Select(_ => _.Kind)).IsEquivalentTo([RowKind.Build, RowKind.Lane, RowKind.Lane]);
-        await Assert.That(verify[0].Build!.Branch).IsEqualTo("dependabot/nuget/src/Polyfill-9.1.0");
+        await Assert.That(string.Join(", ", verify.Select(_ => _.Build!.Branch))).IsEqualTo("dependabot/nuget/src/Polyfill-9.1.0, feature/docs, feature/inline");
+        await Assert.That(verify.All(_ => _.Kind == RowKind.Build)).IsTrue();
     }
 
     /// <summary>

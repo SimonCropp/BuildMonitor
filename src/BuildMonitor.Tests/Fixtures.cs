@@ -203,13 +203,6 @@ static class Fixtures
     }
 
     /// <summary>
-    /// <see cref="WithLanes"/> with Verify checked out, so its row carries the folder and its
-    /// failing lane the triage.
-    /// </summary>
-    public static SessionState WithLanesCheckedOut() =>
-        MonitorSession.ApplyLocalRepos(WithLanes(), LocalRepos.Index([new("/code/Verify", "Verify", "VerifyTests/Verify")]));
-
-    /// <summary>
     /// <see cref="WithPrefixGroup"/> knowing each repository's default branch, with a pull request
     /// running on nuget.yml: nuget.yml leaves the group to have its lane under it, and the group
     /// keeps its other two members.

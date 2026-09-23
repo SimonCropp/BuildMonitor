@@ -72,7 +72,7 @@ A build or pipeline whose repository is checked out under the [code directory](o
 
 ### `list_builds`
 
-The latest build of every pipeline, on its default branch where BuildMonitor knows which that is, with status, timing, progress and links. After a pipeline's own build come its other branches whose latest build is running, queued or failed, pull requests among them, each marked `otherBranch`, as the window puts them on the rows beneath. An optional filter keeps the builds whose pipeline, repository, branch or connection contains it.
+The latest build of every pipeline, on its default branch where BuildMonitor knows which that is, with status, timing, progress and links. Its other branches whose latest build is running, queued or failed, pull requests among them, are listed too, each marked `otherBranch`, in the order the window puts the rows. An optional filter keeps the builds whose pipeline, repository, branch or connection contains it.
 
  * "What's building right now?"
  * "How long until the running builds finish?"
