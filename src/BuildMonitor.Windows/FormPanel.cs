@@ -1,12 +1,17 @@
 /// <summary>
-/// A form page as real controls, one per <see cref="Field"/>, keyed by id. Rebuilt only when
-/// the sequence of ids changes; otherwise values are pushed into controls that do not have the
-/// focus, so a frame never fights the typist.
+/// A form page as real controls, one per <see cref="Field"/>, in the order of the fields. Rebuilt
+/// only when the sequence of ids changes; otherwise values are pushed into controls that do not
+/// have the focus, so a frame never fights the typist.
+/// <para>
+/// Matched to their fields by position rather than by id, as the other heads match theirs: an id
+/// is not unique on a page, and the update page gives one to every line about the MCP servers.
+/// Keyed by id, each of those lines but the last was left empty and still held its row.
+/// </para>
 /// </summary>
 sealed class FormPanel : Panel
 {
     TableLayoutPanel table;
-    Dictionary<string, Control> controls = new();
+    List<Control> controls = [];
     List<FieldChange> changes = [];
     string? clickedField;
     string signature = "";
@@ -42,12 +47,9 @@ sealed class FormPanel : Panel
                 Rebuild(form);
             }
 
-            foreach (var field in form.Fields)
+            foreach (var (control, field) in controls.Zip(form.Fields))
             {
-                if (controls.TryGetValue(field.Id, out var control))
-                {
-                    Update(control, field);
-                }
+                Update(control, field);
             }
         }
         finally
@@ -95,7 +97,7 @@ sealed class FormPanel : Panel
                 table.Controls.Add(control, 1, row);
             }
 
-            controls[field.Id] = control;
+            controls.Add(control);
             row++;
         }
 

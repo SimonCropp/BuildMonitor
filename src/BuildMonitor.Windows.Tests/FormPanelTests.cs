@@ -63,6 +63,22 @@ public class FormPanelTests
         await Assert.That(panel.DrainClickedField()).IsEqualTo(FormFields.Connection(Fixtures.Jenkins.Id));
     }
 
+    /// <summary>
+    /// Every line of the update page, though the lines about the MCP servers share an id. Keyed by
+    /// id, all but the last of them were left empty, and each empty one still held its row.
+    /// </summary>
+    [Test]
+    public async Task LinesSharingAnIdEachShowTheirOwn()
+    {
+        using var panel = new FormPanel();
+        var form = ScreenBuilder.Build(Fixtures.Update(), Fixtures.Now).Form!;
+        panel.Apply(form);
+        // Past the version, the one field drawn with its label in front of its value.
+        var shown = Descendants(panel).OfType<Label>().Select(_ => _.Text).Skip(1);
+        var lines = form.Fields.Skip(1).Select(_ => _.Value);
+        await Assert.That(shown).IsEquivalentTo(lines, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
     [Test]
     public async Task ControlsAreRebuiltOnlyWhenFieldsChange()
     {
