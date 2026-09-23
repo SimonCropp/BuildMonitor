@@ -73,7 +73,7 @@
       Author: Simon,
       CanRetry: true,
       CanCancel: false,
-      ProviderRef: {u3}|||def456,
+      ProviderRef: {u3}|pullrequest|feature|def456|main|999|9,
       PipelineUrl: https://bitbucket.org/verify/diffengine/pipelines,
       RepoUrl: https://bitbucket.org/verify/diffengine,
       DefaultBranch: main,
@@ -85,6 +85,6 @@
   ],
   Requests: [
     GET https://api.bitbucket.org/2.0/repositories/verify?role=member&pagelen=100&sort=-updated_on&fields=next,values.slug,values.full_name,values.links.html.href,values.mainbranch.name,
-    GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields=values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.source,values.target.destination,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on
+    GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields=values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.source,values.target.destination,values.target.destination_commit.hash,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on
   ]
 }

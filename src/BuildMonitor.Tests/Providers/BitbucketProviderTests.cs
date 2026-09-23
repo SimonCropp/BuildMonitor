@@ -1,6 +1,6 @@
 public class BitbucketProviderTests
 {
-    const string fields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.source,values.target.destination,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
+    const string fields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.source,values.target.destination,values.target.destination_commit.hash,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
 
     const string pipelines = $"https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines?sort=-created_on&pagelen=5&fields={fields}";
 
@@ -17,7 +17,7 @@ public class BitbucketProviderTests
                 {"values":[
                   {"uuid":"{u1}","build_number":88,"state":{"name":"IN_PROGRESS","stage":{"name":"RUNNING"}},"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"main","commit":{"hash":"abc123"}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T11:55:00Z","completed_on":null},
                   {"uuid":"{u2}","build_number":87,"state":{"name":"COMPLETED","result":{"name":"FAILED"}},"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"feature","commit":{"hash":"def456"}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T10:00:00Z","completed_on":"2026-01-01T10:07:00Z","duration_in_seconds":420},
-                  {"uuid":"{u3}","build_number":86,"state":{"name":"COMPLETED","result":{"name":"SUCCESSFUL"}},"target":{"type":"pipeline_pullrequest_target","source":"feature","destination":"main","commit":{"hash":"def456"},"pullrequest":{"id":9}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T09:50:00Z","completed_on":"2026-01-01T09:57:00Z"}
+                  {"uuid":"{u3}","build_number":86,"state":{"name":"COMPLETED","result":{"name":"SUCCESSFUL"}},"target":{"type":"pipeline_pullrequest_target","source":"feature","destination":"main","destination_commit":{"hash":"999"},"commit":{"hash":"def456"},"pullrequest":{"id":9}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T09:50:00Z","completed_on":"2026-01-01T09:57:00Z"}
                 ]}
                 """);
 
@@ -63,7 +63,7 @@ public class BitbucketProviderTests
         Handler()
             .Get(
                 pipelines,
-                """{"values":[{"uuid":"{u3}","build_number":86,"state":{"name":"COMPLETED","result":{"name":"SUCCESSFUL"}},"target":{"type":"pipeline_pullrequest_target","source":"feature","destination":"main","commit":{"hash":"def456"},"pullrequest":{"id":9}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T09:50:00Z","completed_on":"2026-01-01T09:57:00Z"}]}""");
+                """{"values":[{"uuid":"{u3}","build_number":86,"state":{"name":"COMPLETED","result":{"name":"SUCCESSFUL"}},"target":{"type":"pipeline_pullrequest_target","source":"feature","destination":"main","destination_commit":{"hash":"999"},"commit":{"hash":"def456"},"pullrequest":{"id":9}},"creator":{"display_name":"Simon"},"created_on":"2026-01-01T09:50:00Z","completed_on":"2026-01-01T09:57:00Z"}]}""");
 
     /// <summary>
     /// A Bitbucket account id is a guid, so the name it arrives with here names it for whoever else
@@ -114,6 +114,30 @@ public class BitbucketProviderTests
                   POST https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines
                   {"target":{"type":"pipeline_ref_target","ref_type":"branch","ref_name":"feature","commit":{"type":"commit","hash":"def456"}}},
                   POST https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines/{u1}/stopPipeline
+                ]
+                """);
+    }
+
+    /// <summary>
+    /// A pull request pipeline names no ref, and sent back as its commit alone it ran that commit's
+    /// default pipeline, outside the pull request. It goes back with both branches, both commits and
+    /// the pull request, since Bitbucket refuses a pull request target missing any of them.
+    /// </summary>
+    [Test]
+    public async Task APullRequestPipelineIsRetriedForItsPullRequest()
+    {
+        var handler = Handler()
+            .Map("POST", "https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines", "{}", HttpStatusCode.Created);
+        var context = ProviderTestHelpers.Context("bitbucket", handler, user: "simon@example.com", scope: ("workspace", "verify"));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("bitbucket", context);
+        handler.Requests.Clear();
+        await ProviderTestHelpers.Provider("bitbucket").Retry(context, builds.Single(_ => _.RunNumber == "86"), Cancel.None);
+        await Verify(handler.Requests)
+            .Snapshot(
+                """
+                [
+                  POST https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines
+                  {"target":{"type":"pipeline_pullrequest_target","commit":{"type":"commit","hash":"def456"},"source":"feature","destination":"main","destination_commit":{"type":"commit","hash":"999"},"pullrequest":{"id":9}}}
                 ]
                 """);
     }

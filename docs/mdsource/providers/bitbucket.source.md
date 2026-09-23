@@ -15,7 +15,7 @@ One per repository, showing its latest pipeline on the repository's main branch,
 
 ## Actions
 
- * Retry starts a new pipeline for the same commit; Bitbucket has no rerun
+ * Retry starts a new pipeline for the same commit; Bitbucket has no rerun. A pull request pipeline is retried as a pull request pipeline for the same pull request and the same commits of both branches, not as the commit's default pipeline
  * Cancel stops a pending or running pipeline
  * Log copies the logs of the failed steps
 

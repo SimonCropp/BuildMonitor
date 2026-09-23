@@ -1,7 +1,8 @@
 /// <summary>
 /// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pipelines/
 /// <para>
-/// Bitbucket has no rerun endpoint, so a retry starts a new pipeline for the same commit.
+/// Bitbucket has no rerun endpoint, so a retry starts a new pipeline for the same commit, and for a
+/// pull request pipeline, for the same pull request.
 /// </para>
 /// </summary>
 sealed class BitbucketProvider : ProviderBase
@@ -11,7 +12,7 @@ sealed class BitbucketProvider : ProviderBase
     // Only what is read, as the probe already asks: whole repositories and pipelines came back
     // with every link and property Bitbucket has for them.
     const string repositoryFields = "next,values.slug,values.full_name,values.links.html.href,values.mainbranch.name";
-    const string pipelineFields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.source,values.target.destination,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
+    const string pipelineFields = "values.uuid,values.build_number,values.state,values.target.ref_type,values.target.ref_name,values.target.source,values.target.destination,values.target.destination_commit.hash,values.target.commit.hash,values.target.pullrequest.id,values.creator.uuid,values.creator.display_name,values.created_on,values.completed_on";
 
     public override async Task<IReadOnlyList<Pipeline>> DiscoverPipelines(ProviderContext context, Cancel cancel)
     {
@@ -153,6 +154,11 @@ sealed class BitbucketProvider : ProviderBase
             name = PullRequestBranches.Unnamed(pullRequest);
         }
 
+        // A pull request pipeline names no ref. What stands in for one is what a retry has to send
+        // back: both branches, both commits and the pull request.
+        var providerRef = pullRequest is null
+            ? Join(run.Uuid, run.Target?.RefType, run.Target?.RefName, run.Target?.Commit?.Hash)
+            : Join(run.Uuid, "pullrequest", run.Target?.Source, run.Target?.Commit?.Hash, run.Target?.Destination, run.Target?.DestinationCommit?.Hash, pullRequest);
         return new(
             connectionId,
             pipeline.Id,
@@ -175,18 +181,35 @@ sealed class BitbucketProvider : ProviderBase
             run.Creator?.DisplayName,
             CanRetry: state == "COMPLETED" && run.Target?.Commit?.Hash is not null,
             CanCancel: state is "PENDING" or "IN_PROGRESS",
-            Join(run.Uuid, run.Target?.RefType, run.Target?.RefName, run.Target?.Commit?.Hash),
+            providerRef,
             pipeline.Url,
             pipeline.RepoUrl ?? web,
             DefaultBranch: pipeline.DefaultBranch);
     }
 
+    /// <summary>
+    /// A pull request pipeline names no ref, and sent back as its commit alone it ran that commit's
+    /// default pipeline, outside the pull request. So it goes back as a pull request target, with
+    /// both branches and both commits, since Bitbucket refuses one missing any of them.
+    /// </summary>
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)
     {
         var parts = Split(build);
-        var target = parts[1] == "branch"
-            ? new BitbucketTarget("pipeline_ref_target", "branch", parts[2], new("commit", parts[3]))
-            : new BitbucketTarget("pipeline_commit_target", null, null, new("commit", parts[3]));
+        var commit = new BitbucketTargetCommit("commit", parts[3]);
+        var target = parts[1] switch
+        {
+            "branch" => new BitbucketTarget("pipeline_ref_target", "branch", parts[2], commit),
+            "pullrequest" => new BitbucketTarget(
+                "pipeline_pullrequest_target",
+                null,
+                null,
+                commit,
+                Source: parts[2],
+                Destination: parts[4],
+                DestinationCommit: new("commit", parts[5]),
+                PullRequest: new(long.Parse(parts[6]))),
+            _ => new BitbucketTarget("pipeline_commit_target", null, null, commit)
+        };
         var body = HttpJson.Json(new(target), BitbucketContext.Default.BitbucketTrigger);
         return context.Http.Send(HttpMethod.Post, $"repositories/{Encode(context.Scope("workspace"))}/{build.PipelineId}/pipelines", body, cancel);
     }

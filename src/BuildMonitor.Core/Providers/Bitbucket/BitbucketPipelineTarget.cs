@@ -12,4 +12,7 @@
     // and the one it targets.
     public string? Source { get; set; }
     public string? Destination { get; set; }
+    // The destination's commit a pull request pipeline merged into its own, which a retry of it
+    // has to send back: Bitbucket refuses a pull request target without one.
+    public BitbucketCommit? DestinationCommit { get; set; }
 }
