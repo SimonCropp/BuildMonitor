@@ -1,12 +1,12 @@
 ﻿+------------------------------------------------------------------------------+
 | BuildMonitor   6 pipelines, 1 failing, 4 running  Filter: [                ] |
 +------------------------------------------------------------------------------+
-|   > build-all  jenkins  Build all main        04:00 left               [...] |
+|   > build-all  jenkins  Build all @main       04:00 left               [...] |
 |   > Deploy Web octopus                        02:15 left               [...] |
-| > > DiffEngine github   test.yml main         03:00 left               [...] |
+| > > DiffEngine github   test.yml @main        03:00 left               [...] |
 |   ? nightly    jenkins                        queued 30s               [...] |
-|   x Verify     github   test.yml feature/inl> 25m ago       SimonCropp [...] |
-|   + DiffEngine github   docs.yml main         23h ago                  [...] |
+|   x Verify     github   test.yml @feature/in> 25m ago       SimonCropp [...] |
+|   + DiffEngine github   docs.yml @main        23h ago                  [...] |
 |                                                                              |
 |                                                                              |
 |                                                                              |

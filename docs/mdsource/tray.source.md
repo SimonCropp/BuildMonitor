@@ -31,7 +31,7 @@ Each row carries:
 
  * a status square; the squares of neighbouring rows touch, so a run of failures reads as one block
  * two marks: the logo of the service that ran the build, badged in its corner, and the bare logo of the service hosting its source. The badge says what that mark opens: a play for the run, a red cross where it broke, and a grey clock where the mark opens the pipeline's own page, which is a list of past runs and no run at all. The badge is also what tells the two marks apart where they are the same company, GitHub Actions being the octocat badged and the repository beside it the octocat alone. A host nothing here has a mark for, most self hosted Git, gets none, and nor does a provider that reports no repository
- * the repository, then the pipeline and branch; the pipeline is left out when it is named after the repository, as an AppVeyor project is. A Dependabot branch is the same 🤖 and the package it updates, so `dependabot/nuget/src/Foo-1.0` reads `🤖 Foo-1.0`
+ * the repository, then the pipeline and branch, the branch behind a branch mark so the two read apart even where either name has spaces in it; the pipeline is left out when it is named after the repository, as an AppVeyor project is. A Dependabot branch is the same 🤖 and the package it updates, so `dependabot/nuget/src/Foo-1.0` reads `🤖 Foo-1.0`
  * a progress bar and a countdown while the build runs, from the provider's own estimate where it gives one and otherwise from the median of the pipeline's last ten successful runs. A build that runs past its estimate shows how far over it is. Without any estimate the elapsed time is shown
  * who broke it, on a failed run only: their first name, or their whole name where two people on screen share one. An app is a 🤖 rather than a login, since which app it was says nothing the mark does not; two apps at once keep their names behind it
  * a pull request button, the number beside its mark, which opens the pull request
@@ -46,7 +46,7 @@ Either way the row shows both marks, and each part of it opens one thing, and on
  * the first cell, and the mark before it, open the run on a row that wants reading, and the repository on a settled one, on GitHub, GitLab, Bitbucket or wherever the source is. Jenkins, TeamCity and Octopus report no repository, so a settled row of theirs has a name in plain text rather than a link somewhere else
  * the mark leading the second cell opens whichever of the two the first cell did not
  * the pipeline opens the run on a settled row and its own page on the service — the AppVeyor project, the Jenkins job, the Actions workflow — on a row that leads with its run
- * the branch opens the branch
+ * the branch, and the mark before it, open the branch
  * a group's row names the repository its builds share and opens it. Its members name their pipeline, since their own repository column is blank. A group its members do not share a repository with names none, so it opens nothing and each member names and opens its own instead
 
 Hover any of them and it says where it goes, after about a second, written as what it opens and then which one: `Open branch: main`. Hover the rest of a row and it says what the row could not fit: the whole repository name and branch, the commit and who wrote it, and how long ago it started. The timing says where its estimate came from, and each button says what it does.

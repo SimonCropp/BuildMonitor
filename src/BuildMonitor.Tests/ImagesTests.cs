@@ -42,6 +42,7 @@ public class ImagesTests
     {
         foreach (var name in RepoHosts.All
                      .Concat(ProviderMarks.All)
+                     .Append(DetailSpan.BranchIcon)
                      .Concat(RowChips.Icons))
         {
             await Assert.That(Images.Glyph(name, 16)).IsNotNull();

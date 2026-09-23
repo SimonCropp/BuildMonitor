@@ -27,6 +27,9 @@ final class BuildsRenderer {
     let chipGap: CGFloat = 6
     /// Between a chip's icon and the text after it, where it has both.
     let chipIconGap: CGFloat = 4
+    /// Before a detail run's icon, on top of the space the run already follows: after a space alone
+    /// the branch's mark sat closer to the pipeline than to the branch it leads.
+    let spanIconLead: CGFloat = 4
     /// The button beside a directory field's box. Matches FormView, which draws the same field
     /// with real controls for the window this one only captures.
     let browseLabel = "Browse"
@@ -218,7 +221,9 @@ final class BuildsRenderer {
         let nameWanted = markWidth + max(
             indent + (frame.names.map { measure($0).rounded(.up) }.max() ?? 0),
             frame.groupNames.map { measure("▼ " + $0).rounded(.up) }.max() ?? 0)
-        let detailWanted = iconWidth + min(
+        // The details are text alone, so the branch's mark is added on top once any row draws one.
+        let spanIcons: CGFloat = frame.rows.contains { $0.spans.contains { !$0.icon.isEmpty } } ? spanIconWidth : 0
+        let detailWanted = iconWidth + spanIcons + min(
             frame.details.map { measure($0).rounded(.up) }.max() ?? 0,
             measure(String(repeating: "0", count: 40)))
         // The bar gives way before anything else, since the timing beside it says the same: it shows
@@ -350,9 +355,16 @@ final class BuildsRenderer {
         }
     }
 
+    /// How far a detail run's icon pushes its text along: the room before it, the icon at a chip
+    /// icon's size, and the gap a chip leaves between its icon and its text.
+    private var spanIconWidth: CGFloat {
+        spanIconLead + iconSize + chipIconGap
+    }
+
     /// The detail cell run by run: plain text dimmed and links in the link colour, a run too long for
-    /// what is left of the cell cut short with an ellipsis. Each link records only what showed of it,
-    /// so a click resolves against the text on screen.
+    /// what is left of the cell cut short with an ellipsis, and a run's icon before its text. Each
+    /// link records its icon and only what showed of its text, so a click resolves against what is
+    /// on screen.
     private func drawDetail(_ row: Frame.Row, index: Int, from start: CGFloat, width: CGFloat, textY: CGFloat) {
         let right = start + width
         var x = start
@@ -361,10 +373,28 @@ final class BuildsRenderer {
                 return
             }
 
+            var spanStart = x
+            if !span.icon.isEmpty {
+                // The link starts at the picture, not at the room left before it.
+                spanStart += spanIconLead
+                // Only where the whole of it fits: a picture is not cut short with an ellipsis the
+                // way text is, so one running on past the cell would draw over the bar beside it.
+                guard spanStart + iconSize <= right else {
+                    return
+                }
+
+                if let image = RowIcons.images[span.icon] {
+                    let square = CGRect(x: spanStart, y: textY + (lineHeight - iconSize) / 2, width: iconSize, height: iconSize)
+                    image.draw(in: square, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                }
+
+                x += spanIconWidth
+            }
+
             let spanWidth = measure(span.text)
-            drawText(span.text, at: CGPoint(x: x, y: textY), font: font, colour: span.isLink ? Palette.chipText : Palette.dim, width: right - x)
+            drawText(span.text, at: CGPoint(x: x, y: textY), font: font, colour: span.isLink ? Palette.chipText : Palette.dim, width: max(0, right - x))
             if span.isLink {
-                let spanRect = CGRect(x: x, y: textY, width: min(spanWidth, right - x), height: lineHeight)
+                let spanRect = CGRect(x: spanStart, y: textY, width: min(x + spanWidth, right) - spanStart, height: lineHeight)
                 chips.append(Hit(row: index, chip: span.link, overflow: false, rect: spanRect))
                 tip(spanRect, row.tooltip(span.link == Int32(BM_CHIP_BRANCH.rawValue) ? BM_PART_BRANCH : BM_PART_PIPELINE))
             }

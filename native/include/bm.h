@@ -132,6 +132,10 @@ typedef struct BmChip {
 /* One run of a row's detail: plain text, drawn dimmed, or a link, drawn in the link colour. */
 typedef struct BmSpan {
     BmString text;
+    /* A name given to bm_set_row_icon, drawn before the text at a chip icon's size, or empty. Part
+       of the run, so a click on it reports the run's link. The branch carries one, since a space
+       alone did not say where a pipeline's name ended and the branch's began. */
+    BmString icon;
     /* A BmChipKind a click on the run reports, or BM_CHIP_NONE for plain text. */
     int32_t link;
 } BmSpan;
@@ -313,7 +317,8 @@ typedef struct BmScreen {
     int32_t nameCount;
     int32_t groupNameCount;
     /* Every distinct detail across all rows, to size that column from. The chips give way to the
-       width these want, up to a readable maximum, before the details are cut short. */
+       width these want, up to a readable maximum, before the details are cut short. Text only: once
+       any row's spans carry an icon, add its width and gap to these. */
     const BmString* details;
     int32_t detailCount;
     /* Every distinct author across all failed builds, to size the author column from. With none the
@@ -485,7 +490,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 17
+#define BM_VERSION 18
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -567,8 +572,8 @@ BM_API int32_t bm_tray_init(void);
 BM_API void bm_tray_set_icon(int32_t kind, const uint8_t* png, int32_t length);
 
 BM_API void bm_tray_set_menu_icon(const char* name, const uint8_t* png, int32_t length);
-/* A PNG a row can name in BmRow.nameIcon or BmRow.detailIcon, or a chip in BmChip.icon. Call
-   after bm_init; a second call for a name replaces it. */
+/* A PNG a row can name in BmRow.nameIcon, BmRow.detailIcon or BmSpan.icon, or a chip in
+   BmChip.icon. Call after bm_init; a second call for a name replaces it. */
 BM_API void bm_set_row_icon(const char* name, const uint8_t* png, int32_t length);
 
 BM_API void bm_shutdown(void);

@@ -376,7 +376,7 @@ static class ScreenBuilder
     /// What a row's second cell says, in runs, one rule for the row and for the details the column is
     /// sized from, as for <see cref="NameOf"/>. The pipeline links to the run and the branch to its
     /// page. A branch the provider gave no page is plain text, as a link that opened nothing would
-    /// read as broken.
+    /// read as broken, but it keeps its mark: the mark is what says where the pipeline ends.
     /// </summary>
     static List<DetailSpan> DetailOf(Row row)
     {
@@ -392,15 +392,15 @@ static class ScreenBuilder
         // leaves the pipeline out, because the first cell already names it, has nothing left to
         // carry that page; it is the least of the four, and the run's own page links to it.
         Append(spans, pipeline, build.LeadsWithRun() ? ChipKind.Pipeline : ChipKind.Build);
-        Append(spans, branch, build.BranchUrl is null ? ChipKind.None : ChipKind.Branch);
+        Append(spans, branch, build.BranchUrl is null ? ChipKind.None : ChipKind.Branch, DetailSpan.BranchIcon);
         return spans;
     }
 
     /// <summary>
     /// Adds a run after a space. Plain text joins the plain text before it, so a head draws no more
-    /// runs than the links need.
+    /// runs than the links need, unless it carries an icon, which has to lead its own run.
     /// </summary>
-    static void Append(List<DetailSpan> spans, string text, ChipKind link)
+    static void Append(List<DetailSpan> spans, string text, ChipKind link, string icon = "")
     {
         if (text.Length == 0)
         {
@@ -412,19 +412,20 @@ static class ScreenBuilder
             AppendPlain(spans, " ");
         }
 
-        if (link == ChipKind.None)
+        if (link == ChipKind.None &&
+            icon.Length == 0)
         {
             AppendPlain(spans, text);
         }
         else
         {
-            spans.Add(new(text, link));
+            spans.Add(new(text, link, icon));
         }
     }
 
     static void AppendPlain(List<DetailSpan> spans, string text)
     {
-        if (spans is [.., {Link: ChipKind.None} last])
+        if (spans is [.., {Link: ChipKind.None, Icon: ""} last])
         {
             spans[^1] = last with
             {

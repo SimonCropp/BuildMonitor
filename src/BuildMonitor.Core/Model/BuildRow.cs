@@ -22,8 +22,8 @@
 /// by each head testing the row's kind, which is how the row's links drifted apart in the first
 /// place.</param>
 /// <param name="Detail">The second cell, in runs: the pipeline, linked to whichever of the run
-/// and its own page on the service the first cell did not take, and the branch, linked to the
-/// branch where the provider gave it a page; or a group's count.</param>
+/// and its own page on the service the first cell did not take, and the branch behind its mark,
+/// linked to the branch where the provider gave it a page; or a group's count.</param>
 /// <param name="DetailIcon">The mark leading the second cell, the other of the row's two, or
 /// empty for a group's own row.</param>
 /// <param name="DetailIconLink">What a click on <paramref name="DetailIcon"/> opens:
@@ -62,8 +62,9 @@ record BuildRow(
     string Author = "")
 {
     /// <summary>
-    /// The runs of <see cref="Detail"/> joined, for a head that measures or prints the cell whole.
-    /// Derived rather than stored, so it cannot say something the runs do not.
+    /// The text of the runs of <see cref="Detail"/> joined, without their icons, for a head that
+    /// measures or prints the cell whole. Derived rather than stored, so it cannot say something
+    /// the runs do not.
     /// </summary>
     public string DetailText =>
         string.Concat(Detail.Select(_ => _.Text));

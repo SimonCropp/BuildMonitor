@@ -14,7 +14,8 @@ record BuildsPage(
     IReadOnlyList<string> Names,
     IReadOnlyList<string> GroupNames,
     // Every distinct second column across all rows, for the same reason. The chips give way to the
-    // width these want before the pipeline and branch are cut short.
+    // width these want before the pipeline and branch are cut short. Text only: the branch's mark
+    // is a picture, so a head adds its width to these once any row draws one.
     IReadOnlyList<string> Details,
     // No rows yet because a connection has not finished its first poll, so a head draws a spinner
     // rather than an empty page.

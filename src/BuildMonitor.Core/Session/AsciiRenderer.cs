@@ -95,7 +95,10 @@ static class AsciiRenderer
         var names = page.Names.Select(_ => _.Length).DefaultIfEmpty().Max();
         var groups = page.GroupNames.Select(_ => _.Length + indent).DefaultIfEmpty().Max();
         var longestName = Math.Max(page.GroupNames.Count > 0 ? names + indent : names, groups);
-        var longestDetail = page.Details.Select(_ => _.Length).DefaultIfEmpty().Max();
+        // The details are text alone, so the mark's width is added once any row draws one, as the
+        // pixel heads add the width of its picture.
+        var marks = page.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)) ? DetailSpan.BranchIconText.Length : 0;
+        var longestDetail = page.Details.Select(_ => _.Length).DefaultIfEmpty().Max() + marks;
         var author = Math.Min((page.Authors ?? []).Select(_ => _.Length).DefaultIfEmpty().Max(), maximumAuthor);
         var layout = Layout(inner, page.Rows.Any(_ => _.Provider.Length > 0), longestName, longestDetail, author);
         return page.Rows.Select(_ => RowLine(_, layout)).ToList();
@@ -178,7 +181,7 @@ static class AsciiRenderer
             cells.Add(Fit(row.Provider, providerWidth));
         }
 
-        cells.Add(Fit(row.DetailText, layout.Detail));
+        cells.Add(Fit(DetailText(row), layout.Detail));
         if (layout.Bar)
         {
             cells.Add(Bar(row.Progress));
@@ -192,6 +195,22 @@ static class AsciiRenderer
 
         cells.Add(Fit(Chips(row.Chips, layout.Chips), layout.Chips));
         return string.Join(' ', cells);
+    }
+
+    /// <summary>
+    /// The second cell run by run, a run's icon as the character standing in for it.
+    /// </summary>
+    static string DetailText(BuildRow row) =>
+        string.Concat(row.Detail.Select(_ => Mark(_.Icon) + _.Text));
+
+    static string Mark(string icon)
+    {
+        if (icon == DetailSpan.BranchIcon)
+        {
+            return DetailSpan.BranchIconText;
+        }
+
+        return "";
     }
 
     static string Bar(double progress)

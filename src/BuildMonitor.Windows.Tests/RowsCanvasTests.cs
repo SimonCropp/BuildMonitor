@@ -187,6 +187,31 @@ public class RowsCanvasTests
     }
 
     /// <summary>
+    /// The mark before the branch is part of the branch's link, as the mark before the name is part
+    /// of the name's. Measured as how far the link runs past its text, because where it lands
+    /// depends on the fonts of the machine running the test.
+    /// </summary>
+    [Test]
+    public async Task TheMarkBeforeTheBranchOpensTheBranch()
+    {
+        using var canvas = Drawn(1000);
+        var row = FailedRow();
+        var y = canvas.RowHeight * row + canvas.RowHeight / 2;
+        var reported = new List<int>();
+        for (var x = 0; x < canvas.Width; x++)
+        {
+            Click(canvas, MouseButtons.Left, x, y);
+            if (canvas.Drain().ClickedChip == ChipKind.Branch)
+            {
+                reported.Add(x);
+            }
+        }
+
+        var text = TextRenderer.MeasureText("feature/inline", canvas.Font, Size.Empty, TextFormatFlags.NoPadding).Width;
+        await Assert.That(reported.Max() - reported.Min() + 1).IsGreaterThanOrEqualTo(text + canvas.LogicalToDeviceUnits(16));
+    }
+
+    /// <summary>
     /// The folder chip is a bare picture, so its hover is the only thing that says which directory
     /// it opens. Without one it fell through to the row's own text, which is about the build.
     /// </summary>

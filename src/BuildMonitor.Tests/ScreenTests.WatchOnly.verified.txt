@@ -1,12 +1,12 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                           6 pipelines, 1 failing, 4 running  Filter: [                ] |
 +----------------------------------------------------------------------------------------------------------------------+
-|   > build-all  jenkins  Build all main          [##------] 04:00 left               [Cancel]                         |
-|   > Deploy Web octopus                          [###-----] 02:15 left               [Cancel]                         |
-| > > DiffEngine github   test.yml main           [####----] 03:00 left                                                |
-|   ? nightly    jenkins                                     queued 30s               [Cancel]                         |
-|   x Verify     github   test.yml feature/inline            25m ago       SimonCropp PR 42 [Log]                      |
-|   + DiffEngine github   docs.yml main                      23h ago                                                   |
+|   > build-all  jenkins  Build all @main          [##------] 04:00 left               [Cancel]                        |
+|   > Deploy Web octopus                           [###-----] 02:15 left               [Cancel]                        |
+| > > DiffEngine github   test.yml @main           [####----] 03:00 left                                               |
+|   ? nightly    jenkins                                      queued 30s               [Cancel]                        |
+|   x Verify     github   test.yml @feature/inline            25m ago       SimonCropp PR 42 [Log]                     |
+|   + DiffEngine github   docs.yml @main                      23h ago                                                  |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

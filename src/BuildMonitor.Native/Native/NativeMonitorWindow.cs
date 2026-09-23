@@ -74,11 +74,12 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     static void SetRowIcons()
     {
         // Every picture a row can name, under the name it names it by: the two marks it leads its
-        // cells with, and its chips, which are drawn as pictures rather than labels. The names are
-        // what BuildRow.NameIcon, DetailIcon and RowChip.Icon carry, and what bm.cpp and
-        // BuildsRenderer.swift look each image up by.
+        // cells with, the branch's mark, and its chips, which are drawn as pictures rather than
+        // labels. The names are what BuildRow.NameIcon, DetailIcon, DetailSpan.Icon and
+        // RowChip.Icon carry, and what bm.cpp and BuildsRenderer.swift look each image up by.
         foreach (var name in ProviderMarks.All
                      .Concat(RepoHosts.All)
+                     .Append(DetailSpan.BranchIcon)
                      .Concat(RowChips.Icons))
         {
             SetRowIcon(name);

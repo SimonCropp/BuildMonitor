@@ -70,7 +70,7 @@ static class RowTooltips
             $"{group.Project}: {Plural(members.Length, "passing build")}"
         };
         lines.AddRange(members
-            .Select(_ => _.Branch is null ? _.PipelineName : $"{_.PipelineName} {_.ShortBranchName()}")
+            .Select(_ => _.Branch is null ? _.PipelineName : $"{_.PipelineName} {DetailSpan.BranchIconText}{_.ShortBranchName()}")
             .Distinct(StringComparer.OrdinalIgnoreCase));
         List<RowTooltip> tooltips =
         [
@@ -117,13 +117,14 @@ static class RowTooltips
 
     /// <summary>
     /// What the row cannot say for itself: the whole repository name and branch, which the cells
-    /// shorten, the commit and who wrote it.
+    /// shorten, the commit and who wrote it. The branch follows the text standing in for its mark,
+    /// as it does in the group's hover, since a hover can only be text.
     /// </summary>
     static string Summary(Build build, DateTimeOffset now)
     {
         var lines = new List<string>
         {
-            build.Branch is null ? build.RepoName : $"{build.RepoName} {build.Branch}"
+            build.Branch is null ? build.RepoName : $"{build.RepoName} {DetailSpan.BranchIconText}{build.Branch}"
         };
         if (build.CommitMessage is not null)
         {

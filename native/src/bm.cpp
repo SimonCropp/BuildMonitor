@@ -545,14 +545,43 @@ std::string TipOf(const BmScreen& screen, const BmRow& row, int32_t part) {
     return fallback == nullptr ? std::string() : Str(screen, fallback->text);
 }
 
+// Before a detail run's icon, on top of the space the run already follows: after a space alone the
+// branch's mark sat closer to the pipeline than to the branch it leads.
+const float spanIconLead = 4.0f;
+
+// A detail run's icon and the gap a chip leaves between its icon and its text: the part of the run
+// before its text, inside its link.
+float SpanIconInside() {
+    return chipIconSize + chipIconGap;
+}
+
+// How far a detail run's icon pushes its text along: the room before it, then the icon and its gap.
+float SpanIconWidth() {
+    return spanIconLead + SpanIconInside();
+}
+
+// A detail run's icon, centred on the line of text that starts at at. A name that was never
+// registered draws nothing, and the text still leaves its room, so the columns stay in line.
+void DrawSpanIcon(const std::string& icon, ImVec2 at) {
+    auto found = g.rowIcons.find(icon);
+    if (found == g.rowIcons.end()) {
+        return;
+    }
+
+    const float top = at.y + (ImGui::GetTextLineHeight() - chipIconSize) / 2.0f;
+    ImGui::GetWindowDrawList()->AddImage(static_cast<ImTextureID>(found->second.id), ImVec2(at.x, top), ImVec2(at.x + chipIconSize, top + chipIconSize));
+}
+
 // Text that opens something: an invisible button the size of the text, which takes the click from the
 // row's selectable beneath it, with the text drawn over it in the link colour and underlined while the
-// pointer is over it. The button is the last item, so the cursor is never left moved with nothing
-// submitted after it, which ImGui reports as an error.
-void LinkText(const char* begin, const char* end, int32_t row, int32_t kind, const std::string& tip = std::string()) {
+// pointer is over it. An icon, where the run has one, leads the text inside the same button, so a
+// click on it is a click on the link, and only the text is underlined. The button is the last item,
+// so the cursor is never left moved with nothing submitted after it, which ImGui reports as an error.
+void LinkText(const char* begin, const char* end, int32_t row, int32_t kind, const std::string& tip = std::string(), const std::string& icon = std::string()) {
     ImVec2 at = ImGui::GetCursorScreenPos();
+    const float lead = icon.empty() ? 0.0f : SpanIconInside();
     ImVec2 size = ImGui::CalcTextSize(begin, end);
-    if (ImGui::InvisibleButton("##link", size)) {
+    if (ImGui::InvisibleButton("##link", ImVec2(lead + size.x, size.y))) {
         g.input.clickedChipRow = row;
         g.input.clickedChip = kind;
     }
@@ -561,14 +590,19 @@ void LinkText(const char* begin, const char* end, int32_t row, int32_t kind, con
 
     Tip(tip);
     ImDrawList* draw = ImGui::GetWindowDrawList();
-    draw->AddText(at, ImGui::GetColorU32(chipText), begin, end);
+    if (!icon.empty()) {
+        DrawSpanIcon(icon, at);
+    }
+
+    const ImVec2 textAt(at.x + lead, at.y);
+    draw->AddText(textAt, ImGui::GetColorU32(chipText), begin, end);
     if (ImGui::IsItemHovered()) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-        draw->AddLine(ImVec2(at.x, at.y + size.y - 1.0f), ImVec2(at.x + size.x, at.y + size.y - 1.0f), ImGui::GetColorU32(chipText));
+        draw->AddLine(ImVec2(textAt.x, textAt.y + size.y - 1.0f), ImVec2(textAt.x + size.x, textAt.y + size.y - 1.0f), ImGui::GetColorU32(chipText));
     }
 }
 
-// The detail cell run by run: plain text dimmed, links through LinkText.
+// The detail cell run by run: plain text dimmed, links through LinkText, a run's icon before its text.
 void DrawDetail(const BmScreen& screen, const BmRow& row, int32_t index) {
     if (row.spanCount <= 0) {
         // An item all the same, since the cursor was moved down to the line of text.
@@ -582,7 +616,23 @@ void DrawDetail(const BmScreen& screen, const BmRow& row, int32_t index) {
             ImGui::SameLine(0.0f, 0.0f);
         }
 
+        const std::string icon = Str(screen, span.icon);
+        if (!icon.empty()) {
+            // Outside the link, so a click in the room before the mark is not a click on it.
+            ImGui::Dummy(ImVec2(spanIconLead, ImGui::GetTextLineHeight()));
+            ImGui::SameLine(0.0f, 0.0f);
+        }
+
         if (span.link == BM_CHIP_NONE) {
+            if (!icon.empty()) {
+                // A branch with no page to open still leads with its mark: the mark is what says
+                // where the pipeline's name ends. Room made with a Dummy, since the text after it
+                // is an item of its own.
+                DrawSpanIcon(icon, ImGui::GetCursorScreenPos());
+                ImGui::Dummy(ImVec2(SpanIconInside(), ImGui::GetTextLineHeight()));
+                ImGui::SameLine(0.0f, 0.0f);
+            }
+
             ImGui::PushStyleColor(ImGuiCol_Text, dim);
             ImGui::TextUnformatted(Begin(screen, span.text), End(screen, span.text));
             ImGui::PopStyleColor();
@@ -595,7 +645,8 @@ void DrawDetail(const BmScreen& screen, const BmRow& row, int32_t index) {
             End(screen, span.text),
             index,
             span.link,
-            TipOf(screen, row, span.link == BM_CHIP_BRANCH ? BM_PART_BRANCH : BM_PART_PIPELINE));
+            TipOf(screen, row, span.link == BM_CHIP_BRANCH ? BM_PART_BRANCH : BM_PART_PIPELINE),
+            icon);
         ImGui::PopID();
     }
 }
@@ -755,6 +806,13 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             anyMark = anyMark || screen.rows[i].nameIcon.length > 0;
         }
 
+        // The details are text alone, so the branch's mark is added on top of them once any row
+        // draws one.
+        bool anySpanIcon = false;
+        for (int32_t i = 0; i < screen.spanCount; i++) {
+            anySpanIcon = anySpanIcon || screen.spans[i].icon.length > 0;
+        }
+
         const ImGuiStyle& style = ImGui::GetStyle();
         // Measured rather than fixed, so each cell holds its widest text at whatever size the font
         // was loaded: a countdown past an hour, and the widest set of chips a row carries.
@@ -776,7 +834,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         const float shared = tableWidth - timingWidth - authorWidth - 5.0f * 2.0f * style.CellPadding.x;
         const float markWidth = anyMark ? iconSize + style.ItemSpacing.x : 0.0f;
         const float nameWanted = rowHeight + style.ItemSpacing.x + markWidth + nameText + 2.0f * style.CellPadding.x;
-        const float detailWanted = (anyIcon ? iconSize + style.ItemSpacing.x : 0.0f) + detailText;
+        const float detailWanted = (anyIcon ? iconSize + style.ItemSpacing.x : 0.0f) + (anySpanIcon ? SpanIconWidth() : 0.0f) + detailText;
         // The bar gives way before anything else, since the timing beside it says the same: it shows
         // only while the names, the detail and every chip still fit. Hidden, its column is kept at no
         // width, so the columns after it keep their indexes.

@@ -122,6 +122,7 @@ sealed unsafe class ScreenPayload
                         new()
                         {
                             Text = Add(span.Text),
+                            Icon = Add(span.Icon),
                             Link = (int) span.Link
                         });
                 }
@@ -317,7 +318,7 @@ sealed unsafe class ScreenPayload
         foreach (var row in rows)
         {
             var rowChips = chips.Skip(row.ChipOffset).Take(row.ChipCount).Select(_ => $"{(ChipKind) _.Kind}:{Text(_.Label)}[{Text(_.Icon)}|{Text(_.Text)}]");
-            var rowSpans = spans.Skip(row.SpanOffset).Take(row.SpanCount).Select(_ => $"{(ChipKind) _.Link}:'{Text(_.Text)}'");
+            var rowSpans = spans.Skip(row.SpanOffset).Take(row.SpanCount).Select(_ => $"{(ChipKind) _.Link}:[{Text(_.Icon)}]'{Text(_.Text)}'");
             builder.AppendLine($"row status={row.Status} flags={row.Flags} progress={row.Progress:0.00} '{Text(row.Name)}' link={(ChipKind) row.NameLink} status={(ChipKind) row.StatusLink} '{Text(row.Detail)}' spans={string.Join(',', rowSpans)} icon='{Text(row.NameIcon)}' detail={(ChipKind) row.DetailIconLink}:'{Text(row.DetailIcon)}' '{Text(row.Timing)}' author='{Text(row.Author)}' chips={string.Join(',', rowChips)}");
             // A line each, and on their own lines: a tooltip runs to a sentence, and several of
             // them joined onto the row would put what a link opens past the width of the snapshot.

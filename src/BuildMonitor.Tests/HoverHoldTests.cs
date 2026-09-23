@@ -13,7 +13,7 @@ public class HoverHoldTests
     public async Task APointerOnAChipHoldsTheRowsStill()
     {
         var state = Apply(Fixtures.WithBuilds(), new(HoveredChipRow: 1, HoveredChip: ChipKind.Retry));
-        await Assert.That(state.Hover).IsEqualTo(new HoverState(1, ChipKind.Retry));
+        await Assert.That(state.Hover).IsEqualTo(new(1, ChipKind.Retry));
         await Assert.That(state.HoldsRows).IsTrue();
     }
 

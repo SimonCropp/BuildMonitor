@@ -1,8 +1,8 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                           2 pipelines, 0 failing, 2 running  Filter: [                ] |
 +----------------------------------------------------------------------------------------------------------------------+
-| > > Verify   teamcity Verify / Package main                  01:00         [Cancel]                                  |
-|   ? Verify   teamcity Verify / Build main                    queued 2m     [Cancel] [Run next]                       |
+| > > Verify   teamcity Verify / Package @main                 01:00         [Cancel]                                  |
+|   ? Verify   teamcity Verify / Build @main                   queued 2m     [Cancel] [Run next]                       |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

@@ -18,9 +18,11 @@ struct Frame {
         let text: String
     }
 
-    /// One run of a row's detail: plain text, or a link a click reports as a chip's kind.
+    /// One run of a row's detail: plain text, or a link a click reports as a chip's kind, and the
+    /// row icon drawn before it, or empty.
     struct Span {
         let text: String
+        let icon: String
         let link: Int32
 
         var isLink: Bool { link != Int32(BM_CHIP_NONE.rawValue) }
@@ -148,7 +150,7 @@ struct Frame {
         }
 
         let spans = UnsafeBufferPointer(start: screen.spans, count: Int(screen.spanCount)).map {
-            Span(text: text($0.text), link: $0.link)
+            Span(text: text($0.text), icon: text($0.icon), link: $0.link)
         }
 
         let rows = UnsafeBufferPointer(start: screen.rows, count: Int(screen.rowCount)).map { row -> Row in

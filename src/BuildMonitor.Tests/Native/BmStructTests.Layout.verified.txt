@@ -98,5 +98,5 @@
     Triage=19,
     OpenMenu=20
   ],
-  Version: 17
+  Version: 18
 }

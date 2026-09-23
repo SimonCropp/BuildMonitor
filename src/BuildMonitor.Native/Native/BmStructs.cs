@@ -45,6 +45,7 @@ struct BmChip
 struct BmSpan
 {
     public BmString Text;
+    public BmString Icon;
     public int Link;
 }
 

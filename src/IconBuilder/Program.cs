@@ -63,7 +63,11 @@ static class Program
         ("busy", Lucide.Hourglass),
         // An arrow into a bar: the queue's front is a place a build is moved to, which a plain up
         // arrow reads as one step up rather than all the way.
-        ("run-next", Lucide.ArrowUpToLine)
+        ("run-next", Lucide.ArrowUpToLine),
+        // Not a chip: the mark leading a branch in a row's text, which is what sets it apart from
+        // the pipeline before it. Separated by a space alone, "Build and Test fix perf" could be
+        // split anywhere.
+        ("branch", Lucide.GitBranch)
     ];
 
     static SKColor glyphColour = new(0x8A, 0x8A, 0x8A);

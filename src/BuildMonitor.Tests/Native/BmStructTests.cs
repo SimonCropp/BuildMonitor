@@ -9,7 +9,7 @@ public class BmStructTests
     [Arguments(typeof(BmString), 8)]
     [Arguments(typeof(BmRow), 8 + 6 * 8 + 8 + 4 + 4 + 16 + 8)]
     [Arguments(typeof(BmChip), 4 * 8 + 4)]
-    [Arguments(typeof(BmSpan), 8 + 4)]
+    [Arguments(typeof(BmSpan), 2 * 8 + 4)]
     [Arguments(typeof(BmTooltip), 8 + 4)]
     [Arguments(typeof(BmField), 8 + 5 * 8 + 8)]
     [Arguments(typeof(BmButton), 2 * 8 + 4)]

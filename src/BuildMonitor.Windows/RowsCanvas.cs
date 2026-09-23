@@ -42,6 +42,9 @@ sealed class RowsCanvas : Control
     const string overflowLabel = "…";
     // Between a chip's icon and the text after it, where it has both.
     const int chipIconGap = 4;
+    // Before a detail run's icon, on top of the space the run already follows: after a space alone
+    // the branch's mark sat closer to the pipeline than to the branch it leads.
+    const int spanIconLead = 4;
     // The chips of the widest row, which the chips column is as wide as while there is room: a
     // failed pull request build with a checkout carries every one of them. Cancel and Run next are
     // not among them; both belong to a build still going or still waiting, which has neither a log
@@ -391,8 +394,10 @@ sealed class RowsCanvas : Control
             .DefaultIfEmpty()
             .Max();
         // Forty characters at most: past that a long pipeline or branch is cut short rather than
-        // pushing every row's chips into the drop down.
-        var detailWanted = iconWidth + Math.Min(
+        // pushing every row's chips into the drop down. The details are text alone, so the branch's
+        // mark is added on top once any row draws one.
+        var spanIcons = builds.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)) ? SpanIconWidth() : 0;
+        var detailWanted = iconWidth + spanIcons + Math.Min(
             builds.Details.Select(_ => MeasureName(_, Font)).DefaultIfEmpty().Max(),
             MeasureName(new('0', 40), Font));
         var widest = WidestChips();
@@ -610,36 +615,62 @@ sealed class RowsCanvas : Control
 
     /// <summary>
     /// The second cell run by run: plain text dimmed and links in the link colour, cut short with an
-    /// ellipsis where the cell ends. Each run starts at the measured width of all the text before it
-    /// rather than the sum of each run's own width, which would round short a pixel a run, and each
-    /// link's hit rectangle is clipped to what showed of it.
+    /// ellipsis where the cell ends, and a run's icon before its text. Each run starts at the
+    /// measured width of all the text before it, plus the icons drawn so far, rather than the sum
+    /// of each run's own width, which would round short a pixel a run, and each link's hit rectangle
+    /// takes in its icon and is clipped to what showed of its text.
     /// </summary>
     void DrawDetail(Graphics graphics, BuildRow row, int index, int x, Rectangle bounds, int width)
     {
         var right = x + width;
         var before = "";
+        var icons = 0;
         foreach (var span in row.Detail)
         {
-            var left = x + Measure(before);
+            var left = x + icons + Measure(before);
             if (left >= right)
             {
                 return;
             }
 
+            if (span.Icon.Length > 0)
+            {
+                // The link starts at the picture, not at the room left before it.
+                left += LogicalToDeviceUnits(spanIconLead);
+                // Only where the whole of it fits: a picture is not cut short with an ellipsis the
+                // way text is, so one running on past the cell would draw over the bar beside it.
+                var side = LogicalToDeviceUnits(iconSize);
+                if (left + side > right)
+                {
+                    return;
+                }
+
+                Icons.Draw(graphics, span.Icon, new(left, bounds.Top + (bounds.Height - side) / 2, side, side));
+                icons += SpanIconWidth();
+            }
+
+            var textLeft = x + icons + Measure(before);
             before += span.Text;
-            var cell = new Rectangle(left, bounds.Top, right - left, bounds.Height);
+            var cell = new Rectangle(textLeft, bounds.Top, Math.Max(0, right - textLeft), bounds.Height);
             if (span.Link == ChipKind.None)
             {
                 TextRenderer.DrawText(graphics, span.Text, Font, cell, Palette.Dim, runFlags);
                 continue;
             }
 
-            var link = LinkBounds(left, Math.Min(x + Measure(before), right) - left, bounds);
+            var link = LinkBounds(left, Math.Min(x + icons + Measure(before), right) - left, bounds);
             TextRenderer.DrawText(graphics, span.Text, link == hoverLink ? underline : Font, cell, Palette.ChipText, runFlags);
             chips.Add((index, span.Link, false, link));
             Tip(link, row.Tooltip(span.Link == ChipKind.Branch ? RowPart.Branch : RowPart.Pipeline));
         }
     }
+
+    /// <summary>
+    /// How far a run's icon pushes its text along: the room before it, the icon at a chip icon's
+    /// size, and the gap a chip leaves between its icon and its text.
+    /// </summary>
+    int SpanIconWidth() =>
+        LogicalToDeviceUnits(spanIconLead) + LogicalToDeviceUnits(iconSize) + LogicalToDeviceUnits(chipIconGap);
 
     /// <summary>
     /// A line of text centred in its row: what a link in the text is hit tested against.

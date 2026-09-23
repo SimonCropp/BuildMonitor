@@ -160,12 +160,12 @@ public class ScreenTests
                 +----------------------------------------------------------------------------------------------------------------------+
                 | BuildMonitor                                           9 pipelines, 2 failing, 4 running  Filter: [                ] |
                 +----------------------------------------------------------------------------------------------------------------------+
-                |   > DiffEngine     github   test.yml main           [####----] 03:00 left               [Cancel]                     |
-                |   ? nightly        jenkins                                     queued 30s               [Cancel]                     |
-                |   x Verify         github   test.yml feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]          |
-                |   x Verify         github   release.yml main                   50m ago                  [Retry] [Log]                |
-                |   + [+] Verify              2 passing                          2h ago                                                |
-                | > + DiffEngine     github   docs.yml main                      23h ago                                               |
+                |   > DiffEngine     github   test.yml @main           [####----] 03:00 left               [Cancel]                    |
+                |   ? nightly        jenkins                                      queued 30s               [Cancel]                    |
+                |   x Verify         github   test.yml @feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]         |
+                |   x Verify         github   release.yml @main                   50m ago                  [Retry] [Log]               |
+                |   + [+] Verify              2 passing                           2h ago                                               |
+                | > + DiffEngine     github   docs.yml @main                      23h ago                                              |
                 +----------------------------------------------------------------------------------------------------------------------+
                 | [Refresh] [Connections] [Options] [Filters] [Hide]                                                     Polled 5s ago |
                 +----------------------------------------------------------------------------------------------------------------------+
@@ -220,6 +220,40 @@ public class ScreenTests
                   [Build] [DiffEngine](Repo) | [docs.yml](Build) [main](Branch)
                 ]
                 """);
+
+    /// <summary>
+    /// The branch leads with its mark, and is a run of its own for it, whether or not it links
+    /// anywhere: a space alone did not say where a pipeline's name ended, and Jenkins, which gives
+    /// a branch no page, names its jobs with spaces in them. Nothing else in the cell has one.
+    /// </summary>
+    [Test]
+    public Task TheBranchLeadsWithItsMark() =>
+        Verify(ScreenBuilder.Build(Fixtures.WithGreenProject(), Fixtures.Now).Builds!.Rows
+            .Select(_ => string.Join(" + ", _.Detail.Select(_ => $"{_.Link}[{_.Icon}]'{_.Text}'"))))
+            .Snapshot(
+                """
+                [
+                  Pipeline[]'Build all' + None[]' ' + None[branch]'main',
+                  ,
+                  Pipeline[]'test.yml' + None[]' ' + Branch[branch]'main',
+                  ,
+                  Pipeline[]'test.yml' + None[]' ' + Branch[branch]'feature/inline',
+                  None[]'2 passing',
+                  Build[]'docs.yml' + None[]' ' + Branch[branch]'main'
+                ]
+                """);
+
+    /// <summary>
+    /// A hover is only text, so where the row draws the branch's mark a group's list of its
+    /// pipelines writes the text standing in for it. Joined by a space alone, a pipeline and a
+    /// branch with spaces in either could be split anywhere.
+    /// </summary>
+    [Test]
+    public async Task AGroupsHoverMarksEachBranch()
+    {
+        var row = ScreenBuilder.Build(Fixtures.WithGreenProject(), Fixtures.Now).Builds!.Rows.Single(_ => _.Kind == RowKind.Group);
+        await Assert.That(row.Tooltip(RowPart.Row)).IsEqualTo("Verify: 2 passing builds\ndocs.yml @main\nnuget.yml @main");
+    }
 
     /// <summary>
     /// The two marks, and which way round they sit: a row that broke or is still running leads

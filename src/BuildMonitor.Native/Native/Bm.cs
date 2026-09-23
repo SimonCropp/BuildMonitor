@@ -8,7 +8,7 @@ static partial class Bm
     /// <summary>
     /// Keep in sync with BM_VERSION in bm.h.
     /// </summary>
-    public const int ExpectedVersion = 17;
+    public const int ExpectedVersion = 18;
 
     /// <summary>
     /// BmInput.ChangedField for an edit of the filter box, which is not one of BmScreen.Fields.
