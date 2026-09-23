@@ -60,7 +60,7 @@
     HasArtifacts: true,
     HasQueuePriority: true,
     CustomClientId: false,
-    TokenNote: The token needs Build (Read & execute).,
+    TokenNote: The token needs Build (Read & execute), and Code (Read) to tell when a failed branch is gone.,
     FetchUnit: Repository,
     FetchConcurrency: 8,
     Quota: {
@@ -75,7 +75,7 @@
     QueuePermission: the Manage build queue permission on the pipeline,
     SignInScheme: Bearer,
     SignInNote: Work or school accounts only. Microsoft refuses a personal account's address; use a token.,
-    HostsRepositories: false,
+    HostsRepositories: true,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md
   },
   {

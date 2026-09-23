@@ -20,6 +20,10 @@ public class BranchHostsTests
     [Arguments("gitlab", null, "https://github.com/VerifyTests/Verify", false)]
     [Arguments("bitbucket", null, "https://bitbucket.org/verify/diffengine", true)]
     [Arguments("bitbucket", null, "https://github.com/VerifyTests/Verify", false)]
+    [Arguments("azure-devops", null, "https://dev.azure.com/contoso/Verify/_git/DiffEngine", true)]
+    // Another organization's repository is not this connection's, though the host is the same.
+    [Arguments("azure-devops", null, "https://dev.azure.com/fabrikam/Verify/_git/DiffEngine", false)]
+    [Arguments("azure-devops", null, "https://github.com/VerifyTests/Verify", false)]
     // A service that only builds holds no repositories to ask about.
     [Arguments("appveyor", null, "https://github.com/VerifyTests/Verify", false)]
     [Arguments("travis", null, "https://github.com/VerifyTests/Verify", false)]
@@ -30,7 +34,8 @@ public class BranchHostsTests
             Id = "x",
             ProviderId = provider,
             Name = "x",
-            Server = server
+            Server = server,
+            Scope = ImmutableDictionary<string, string>.Empty.Add("organization", "contoso")
         };
         await Assert.That(BranchHosts.Answers(connection, repository)).IsEqualTo(answers);
     }

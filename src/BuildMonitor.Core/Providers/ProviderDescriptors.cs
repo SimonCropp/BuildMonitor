@@ -137,7 +137,7 @@ static class ProviderDescriptors
         HasPullRequests: true,
         HasArtifacts: true,
         HasQueuePriority: true,
-        TokenNote: "The token needs Build (Read & execute).",
+        TokenNote: "The token needs Build (Read & execute), and Code (Read) to tell when a failed branch is gone.",
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
         // Half the 200 throughput units a user may spend in any five minutes.
@@ -151,7 +151,8 @@ static class ProviderDescriptors
         // Microsoft's REST samples send a Microsoft Entra token as a Bearer token, and describe Basic
         // for a personal access token.
         SignInScheme: AuthScheme.Bearer,
-        SignInNote: "Work or school accounts only. Microsoft refuses a personal account's address; use a token.");
+        SignInNote: "Work or school accounts only. Microsoft refuses a personal account's address; use a token.",
+        HostsRepositories: true);
 
     public static readonly ProviderDescriptor TeamCity = new(
         Id: "teamcity",

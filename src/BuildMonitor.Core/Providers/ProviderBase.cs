@@ -87,7 +87,8 @@ abstract class ProviderBase : IProvider
     /// A repository's path under this connection's <see cref="RepositoryRoot"/>, "owner/name" or a
     /// group's longer one, unescaped, or null for an address that is not under it. Unescaped, so each
     /// provider escapes it as its own routes want: GitLab takes the whole path as one segment, Azure
-    /// DevOps a project name with spaces in it.
+    /// DevOps a project name with spaces in it. A clone address's .git goes, since GoCD names its
+    /// repository by the address its git material clones.
     /// </summary>
     protected string? RepositoryPath(ProviderContext context, string repository)
     {
@@ -99,6 +100,11 @@ abstract class ProviderBase : IProvider
         }
 
         var path = Uri.UnescapeDataString(url.AbsolutePath[root.AbsolutePath.Length..].Trim('/'));
+        if (path.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+        {
+            path = path[..^".git".Length];
+        }
+
         if (path.Length == 0 ||
             path.Split('/').Any(_ => _.Length == 0))
         {

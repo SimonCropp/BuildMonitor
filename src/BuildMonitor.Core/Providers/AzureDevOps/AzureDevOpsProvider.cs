@@ -383,6 +383,61 @@ sealed class AzureDevOpsProvider : ProviderBase
         return (null, null, null);
     }
 
+    /// <summary>
+    /// The organization's own address, or an on premises server's collection, under which Azure
+    /// Repos serves its repositories as well as the API. A repository of another organization is
+    /// not under it, and is not asked of this connection.
+    /// </summary>
+    public override Uri RepositoryRoot(Connection connection) =>
+        BaseAddress(connection);
+
+    /// <summary>
+    /// What became of a failed branch of an Azure Repos repository in this organization. A pull
+    /// request is asked for its status, completed being merged and abandoned closed. Any other branch
+    /// is asked for the refs that start with its name, and then the tags, which Azure DevOps answers
+    /// with none for a repository the token can see and a 404 for one it cannot, so none of either is
+    /// a branch deleted. A pipeline's GitHub repository is not under this organization, and is asked
+    /// of a GitHub connection instead.
+    /// </summary>
+    public override async Task<BranchFate> FateOf(ProviderContext context, BranchQuestion question, Cancel cancel)
+    {
+        if (RepositoryPath(context, question.Repository)?.Split('/') is not [var project, "_git", var name])
+        {
+            return BranchFate.Unknown;
+        }
+
+        var repository = $"{Encode(project)}/_apis/git/repositories/{Encode(name)}";
+        if (question.PullRequest is { } number)
+        {
+            var pullRequest = await GetOrNone(context, $"{repository}/pullrequests/{Encode(number)}?{apiVersion}", AzureDevOpsContext.Default.AzureDevOpsPullRequest, cancel);
+            return pullRequest?.Status switch
+            {
+                "active" => BranchFate.Open,
+                "completed" => BranchFate.Merged,
+                "abandoned" => BranchFate.Closed,
+                _ => BranchFate.Unknown
+            };
+        }
+
+        foreach (var kind in (string[]) ["heads", "tags"])
+        {
+            var reference = $"{kind}/{question.Branch}";
+            var refs = await GetOrNone(context, $"{repository}/refs?filter={EncodePath(reference)}&{apiVersion}", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsRef, cancel);
+            if (refs is null)
+            {
+                return BranchFate.Unknown;
+            }
+
+            // The filter matches every ref that starts with it, so heads/fix lists heads/fix-2 too.
+            if (refs.Value.Any(_ => _.Name == $"refs/{reference}"))
+            {
+                return BranchFate.Open;
+            }
+        }
+
+        return BranchFate.Deleted;
+    }
+
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)
     {
         var parts = Split(build);

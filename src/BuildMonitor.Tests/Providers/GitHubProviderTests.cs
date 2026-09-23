@@ -529,6 +529,17 @@ public class GitHubProviderTests
     }
 
     /// <summary>
+    /// GoCD names a repository by the address its git material clones, .git and all.
+    /// </summary>
+    [Test]
+    public async Task ACloneAddressIsAskedAboutItsRepository()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/pulls/42", """{"number":42,"state":"open"}""");
+        await Assert.That(await FateOf(handler, "fix", "42", "https://github.com/VerifyTests/Verify.git")).IsEqualTo(BranchFate.Open);
+    }
+
+    /// <summary>
     /// An enterprise server's repository is asked of that server's API.
     /// </summary>
     [Test]
