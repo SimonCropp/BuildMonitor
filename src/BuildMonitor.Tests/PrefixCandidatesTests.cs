@@ -29,6 +29,24 @@ public class PrefixCandidatesTests
             .IsEquivalentTo(["TheProject"]);
 
     /// <summary>
+    /// Every project on screen being under the one sub family does not make the family above it
+    /// unnameable: "NServiceBus" is offered beside "NServiceBus.Community" although the two hold
+    /// the same rows. "NService" is not, a hump rather than a segment and no name the family goes
+    /// by.
+    /// </summary>
+    [Test]
+    public async Task ASegmentHoldingTheSameRowsIsStillOffered()
+    {
+        string[] family =
+        [
+            "NServiceBus.Community.Validation",
+            "NServiceBus.Community.Serilog"
+        ];
+        await Assert.That(PrefixCandidates.Of("NServiceBus.Community.Validation", family, []))
+            .IsEquivalentTo(["NServiceBus.Community", "NServiceBus"]);
+    }
+
+    /// <summary>
     /// A prefix of nothing but its own name would make a group of one, which draws as the plain
     /// row it already was.
     /// </summary>

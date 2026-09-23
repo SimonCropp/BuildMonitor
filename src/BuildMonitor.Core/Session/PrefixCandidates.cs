@@ -8,10 +8,11 @@
 /// not offer "TheProject" would leave the options page as the only way to say it.
 /// </para>
 /// <para>
-/// Only prefixes another project shares are offered, and each has to reach further than the one
-/// before it. A prefix nothing else starts with would make a group of one, which draws as the
-/// plain row it already was, and a shorter one holding the same rows as the last is that group
-/// under a worse name.
+/// Only prefixes another project shares are offered: a prefix nothing else starts with would make
+/// a group of one, which draws as the plain row it already was. A shorter prefix holding the same
+/// rows as the last is offered when it ends a separated segment, since a family whose every
+/// project on screen is "NServiceBus.Community.*" is still named after "NServiceBus", but not when
+/// it only ends a camel hump, where "NService" is the same group under a worse name.
 /// </para>
 /// </summary>
 static class PrefixCandidates
@@ -33,8 +34,8 @@ static class PrefixCandidates
     public static ImmutableArray<string> Of(string project, IReadOnlyCollection<string> projects, ImmutableArray<string> existing)
     {
         var candidates = ImmutableArray.CreateBuilder<string>();
-        // How far the last prefix offered reaches. A shorter one that reaches no further would
-        // make the same group under a worse name: "TheProjectApi" beside "TheProjectUi" offers
+        // How far the last prefix offered reaches. A camel hump that reaches no further would make
+        // the same group under a worse name: "TheProjectApi" beside "TheProjectUi" offers
         // "TheProject", and "The" after it is the same two rows.
         var reach = 1;
         // Backwards, so the longest prefix is offered first: the narrower group is the one the
@@ -46,6 +47,8 @@ static class PrefixCandidates
                 continue;
             }
 
+            var separated = separators.Contains(project[index]);
+
             var candidate = project[..index].TrimEnd(separators);
             if (candidate.Length < shortest ||
                 candidates.Contains(candidate, StringComparer.OrdinalIgnoreCase) ||
@@ -55,7 +58,13 @@ static class PrefixCandidates
             }
 
             var shared = Sharing(candidate, projects);
-            if (shared <= reach)
+            if (shared <= 1)
+            {
+                continue;
+            }
+
+            if (shared == reach &&
+                !separated)
             {
                 continue;
             }
