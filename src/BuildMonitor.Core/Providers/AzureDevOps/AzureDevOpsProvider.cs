@@ -158,23 +158,29 @@ sealed class AzureDevOpsProvider : ProviderBase
         };
         string? branch = null;
         string? pullRequest = null;
+        // The branch its page is at, which a pull request from a fork has none of here.
+        string? linked = null;
         if (build.SourceBranch is { } source)
         {
             if (source.StartsWith("refs/heads/", StringComparison.Ordinal))
             {
                 branch = source["refs/heads/".Length..];
+                linked = branch;
             }
             else if (source.StartsWith("refs/pull/", StringComparison.Ordinal))
             {
                 pullRequest = source.Split('/')[2];
+                linked = PullRequestSource(build);
+                branch = linked ?? PullRequestBranches.Unnamed(pullRequest);
             }
             else
             {
                 branch = source;
+                linked = branch;
             }
         }
 
-        var (repositoryWeb, branchUrl, pullRequestUrl) = RepositoryLinks(context, project, build.Repository, branch, pullRequest);
+        var (repositoryWeb, branchUrl, pullRequestUrl) = RepositoryLinks(context, project, build.Repository, linked, pullRequest);
         return new(
             context.Connection.Id,
             pipeline.Id,
@@ -200,6 +206,42 @@ sealed class AzureDevOpsProvider : ProviderBase
             Join(project, build.Id.ToString()),
             pipeline.Url,
             repositoryWeb);
+    }
+
+    /// <summary>
+    /// The branch a pull request build came from. Its source branch is the pull request's merge
+    /// ref, which gave every pull request of a definition one empty branch, so one key and one row
+    /// between them. Null for a pull request from a fork: Azure DevOps names neither the fork nor its
+    /// owner, and the fork's branch bare would read as one of this repository's, most often main.
+    /// </summary>
+    static string? PullRequestSource(AzureDevOpsBuild build)
+    {
+        var fork = build.Parameter("system.pullRequest.isFork") ?? build.TriggerInfo?.IsFork;
+        if (string.Equals(fork, "True", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var source = build.Parameter("system.pullRequest.sourceBranch") ?? build.TriggerInfo?.SourceBranch;
+        if (source is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        return HeadName(source);
+    }
+
+    /// <summary>
+    /// A branch as the rows name it: GitHub sends the bare name, Azure Repos the ref.
+    /// </summary>
+    static string HeadName(string branch)
+    {
+        if (branch.StartsWith("refs/heads/", StringComparison.Ordinal))
+        {
+            return branch["refs/heads/".Length..];
+        }
+
+        return branch;
     }
 
     /// <summary>

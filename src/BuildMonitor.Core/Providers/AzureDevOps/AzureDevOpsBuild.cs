@@ -62,6 +62,42 @@
         return null;
     }
 
+    /// <summary>
+    /// The variables the build was queued with, as a JSON object written into a string, which for a
+    /// pull request build say which branch it came from and which it targets. Read through
+    /// <see cref="Parameter"/>.
+    /// </summary>
+    public string? Parameters { get; set; }
+
+    /// <summary>
+    /// One of <see cref="Parameters"/> as text, or null where the string is absent, is not an object
+    /// of strings, or has no such name. Parsed here rather than by the serializer: it is text the
+    /// pipeline wrote, and one that did not parse would otherwise fail the project's whole fetch.
+    /// </summary>
+    public string? Parameter(string name)
+    {
+        if (Parameters is not { Length: > 0 } text)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(text);
+            if (document.RootElement.ValueKind == JsonValueKind.Object &&
+                document.RootElement.TryGetProperty(name, out var value) &&
+                value.ValueKind == JsonValueKind.String)
+            {
+                return value.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return null;
+    }
+
     [JsonPropertyName("_links")]
     public AzureDevOpsLinks? Links { get; set; }
 }

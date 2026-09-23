@@ -21,6 +21,8 @@ For Azure DevOps Server enter the server URL and the collection as the organizat
 
 One per pipeline definition. Pull request builds show the pull request number and link to it, on Azure Repos and on GitHub repositories, which are also the two kinds whose name links to the repository. The logo opens the pipeline definition.
 
+A pull request build's source branch is the pull request's merge ref, so it is shown on the branch it came from instead, from the build's `system.pullRequest.sourceBranch` parameter or its `pr.sourceBranch` trigger info. Azure DevOps names neither a fork nor its owner, so a pull request from a fork is shown as `pull/n` rather than on a branch name that would read as one of the repository's own.
+
 
 ## Authors
 
