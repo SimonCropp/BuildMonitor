@@ -6,9 +6,9 @@ public class MonitorToolsTests
 {
     const string failingBuild = "gh/Verify/test.yml/feature/inline";
 
-    static (MonitorTools Tools, SessionHost Host, List<string> Opened) Create(FakeHttpHandler? http = null)
+    static (MonitorTools Tools, SessionHost Host, List<string> Opened) Create(FakeHttpHandler? http = null, SessionState? state = null)
     {
-        var host = new SessionHost(Fixtures.WithBuilds());
+        var host = new SessionHost(state ?? Fixtures.WithBuilds());
         var poller = new Poller(host, new MemorySecretStore(), new(), http ?? new FakeHttpHandler());
         var opened = new List<string>();
         var handler = new MessageHandler(
@@ -83,6 +83,46 @@ public class MonitorToolsTests
         var (tools, _, _) = Create();
         var failing = await tools.ListFailing(null, Cancel.None);
         await Assert.That(failing.Select(_ => _.Key)).IsEquivalentTo(["gh/Verify/test.yml/feature/inline"]);
+    }
+
+    /// <summary>
+    /// A pipeline's other branches follow its own build in the list, marked, and a pull request
+    /// failing under a passing main is not a failing pipeline: the summary and the tray say the
+    /// same, and triage would otherwise go looking for a break on main that is not there.
+    /// </summary>
+    [Test]
+    public async Task OtherBranchesAreMarkedAndNotFailingPipelines()
+    {
+        var (tools, _, _) = Create(state: Fixtures.WithLanes());
+        var builds = (await tools.ListBuilds(null, Cancel.None)).Where(_ => _.Key.StartsWith("gh/Verify/"));
+        await Assert.That(builds.Select(_ => $"{_.Key} {_.OtherBranch}"))
+            .IsEquivalentTo(
+            [
+                "gh/Verify/test.yml/main ",
+                "gh/Verify/test.yml/dependabot/nuget/src/Polyfill-9.1.0 True",
+                "gh/Verify/test.yml/feature/docs True",
+                "gh/Verify/test.yml/feature/inline True"
+            ]);
+        await Assert.That(await tools.ListFailing(null, Cancel.None)).IsEmpty();
+        await Assert.That((await tools.Summary(Cancel.None)).Failing).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// A lane shows the pull request an older run of its branch named, as AppVeyor's branch build
+    /// and pull request build of one commit split it between them. Opening it by the key
+    /// list_builds gave goes through the row, not the first run held on that key, which names none.
+    /// </summary>
+    [Test]
+    public async Task OpeningThePullRequestALaneBorrowed()
+    {
+        var branchBuild = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "feature/inline", "78", BuildStatus.Running, started: Fixtures.Now) with
+        {
+            DefaultBranch = "main"
+        };
+        var state = MonitorSession.ApplyPoll(Fixtures.WithBuilds(), Fixtures.GitHub.Id, [], [branchBuild, .. Fixtures.GitHubBuildsOnMain()], Fixtures.Now);
+        var (tools, _, opened) = Create(state: state);
+        await tools.OpenBuild("gh/Verify/test.yml/feature/inline", "pr", Cancel.None);
+        await Assert.That(opened).IsEquivalentTo(["https://github.com/VerifyTests/Verify/pull/42"]);
     }
 
     /// <summary>

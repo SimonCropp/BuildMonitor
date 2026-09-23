@@ -8,7 +8,7 @@ using ModelContextProtocol.Server;
 sealed class BuildTools(MonitorTools tools)
 {
     [McpServerTool(Name = "list_builds", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Lists the latest build of every monitored pipeline across every CI connection, with status, timing, progress and links. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it.")]
+    [Description("Lists the latest build of every monitored pipeline across every CI connection, on its default branch where the service says which that is, with status, timing, progress and links. After a pipeline's own build come its other branches, pull requests and pushed branches, whose latest run is running, queued or failed, each marked otherBranch. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it.")]
     public Task<List<BuildDto>> ListBuilds(
         [Description("Optional substring to filter on pipeline, repository, branch or connection name.")]
         string? filter = null,
@@ -16,7 +16,7 @@ sealed class BuildTools(MonitorTools tools)
         tools.ListBuilds(filter, cancel);
 
     [McpServerTool(Name = "list_failing", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Lists only the pipelines whose latest build failed.")]
+    [Description("Lists only the pipelines whose own latest build failed, the one on their default branch. A pull request or other branch failing is not its pipeline failing: those are in list_builds, marked otherBranch.")]
     public Task<List<BuildDto>> ListFailing(Cancel cancel = default) =>
         tools.ListFailing(null, cancel);
 
@@ -60,7 +60,7 @@ sealed class BuildTools(MonitorTools tools)
         tools.DownloadArtifacts(key, cancel);
 
     [McpServerTool(Name = "summary", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Counts of failing and running builds, the tray icon state, and the health of every connection.")]
+    [Description("Counts of pipelines, of those whose own build on their default branch is failing, and of running builds on any branch, the tray icon state, and the health of every connection.")]
     public Task<SummaryDto> Summary(Cancel cancel = default) =>
         tools.Summary(cancel);
 

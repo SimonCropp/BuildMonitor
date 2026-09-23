@@ -23,10 +23,17 @@ sealed class MonitorTools(IProtocolClient client)
         build.Connection.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
         (build.Branch?.Contains(filter, StringComparison.OrdinalIgnoreCase) ?? false);
 
+    /// <summary>
+    /// The pipelines whose own run failed, as the tray and the summary count them. A pull request
+    /// failing is in the list of builds, marked as another branch, but not here: the triage prompt
+    /// works through these a pipeline at a time, and one repository's main and its pull request
+    /// would read as two repositories broken by one pipeline.
+    /// </summary>
     public async Task<List<BuildDto>> ListFailing(string? filter, Cancel cancel)
     {
         var builds = await Read(new(Verb.List), DtoContext.Default.ListBuildDto, cancel);
-        var failed = builds.Where(_ => _.Status == nameof(BuildStatus.Failed));
+        var failed = builds.Where(_ => _.Status == nameof(BuildStatus.Failed) &&
+                                       _.OtherBranch != true);
         if (string.IsNullOrWhiteSpace(filter))
         {
             return failed.ToList();

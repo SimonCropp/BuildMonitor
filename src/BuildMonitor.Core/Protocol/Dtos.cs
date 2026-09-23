@@ -30,7 +30,12 @@ record BuildDto(
     // Where this repository is checked out under the code directory, or absent when it is not one
     // the tray found. An assistant reading a failure can open the code it broke without being told
     // where it lives.
-    string? Directory = null);
+    string? Directory = null,
+    // True on a run on another branch than its pipeline's own, a pull request's or a pushed
+    // branch's, listed after the pipeline's own run while it is running, queued or failed. Absent
+    // on the pipeline's own run. Its failure is not its pipeline failing: an assistant told the
+    // pipeline was red would go looking for a break on main that is not there.
+    bool? OtherBranch = null);
 
 /// <summary>
 /// One monitored pipeline, including one that has produced no build inside the history window

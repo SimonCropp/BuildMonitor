@@ -63,7 +63,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
             case Verb.Cancel:
             case Verb.RunNext:
             {
-                var build = state.Builds.FirstOrDefault(_ => _.HasKey(message.Key));
+                var build = Resolve(state, message.Key);
                 if (build is null)
                 {
                     return Response.Error($"No build with key {message.Key}");
@@ -112,7 +112,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 return Response.Success(JsonSerializer.Serialize(Snapshot.Summary(state, now), context.SummaryDto));
             case Verb.Open:
             {
-                var build = state.Builds.FirstOrDefault(_ => _.HasKey(message.Key));
+                var build = Resolve(state, message.Key);
                 if (build is null)
                 {
                     return Response.Error($"No build with key {message.Key}");
@@ -134,7 +134,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
             }
             case Verb.Log:
             {
-                var build = state.Builds.FirstOrDefault(_ => _.HasKey(message.Key));
+                var build = Resolve(state, message.Key);
                 if (build is null)
                 {
                     return Response.Error($"No build with key {message.Key}");
@@ -150,7 +150,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
             }
             case Verb.Triage:
             {
-                var build = state.Builds.FirstOrDefault(_ => _.HasKey(message.Key));
+                var build = Resolve(state, message.Key);
                 if (build is null)
                 {
                     return Response.Error($"No build with key {message.Key}");
@@ -172,6 +172,15 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 return Response.Error($"Unknown verb {message.Verb}");
         }
     }
+
+    /// <summary>
+    /// The build a key names as its row has it, and otherwise the first run the tray holds on that
+    /// key. A lane carries the pull request an older run of its branch named, which its own run may
+    /// not, so opening the pull request of a build list_builds showed with one would find none.
+    /// </summary>
+    static Build? Resolve(SessionState state, string? key) =>
+        RowProjection.Builds(state).FirstOrDefault(_ => _.HasKey(key)) ??
+        state.Builds.FirstOrDefault(_ => _.HasKey(key));
 
     /// <summary>
     /// How much of the log was asked for. A body that is missing or not a size, as one from a

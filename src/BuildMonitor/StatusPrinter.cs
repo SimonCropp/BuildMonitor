@@ -27,8 +27,11 @@ static class StatusPrinter
         foreach (var build in builds)
         {
             var run = build.Run.Length == 0 ? "" : $"#{build.Run}";
-            var repo = Fit(BuildExtensions.ShortRepoName(build.Repo), repoWidth);
-            var pipeline = Fit(build.Pipeline, pipelineWidth);
+            // Another branch's run follows its pipeline's own line, which already names both, as
+            // the window leaves them to the row above.
+            var lane = build.OtherBranch == true;
+            var repo = Fit(lane ? "" : BuildExtensions.ShortRepoName(build.Repo), repoWidth);
+            var pipeline = Fit(lane ? "" : build.Pipeline, pipelineWidth);
             var branch = Fit(BuildExtensions.ShortBranchName(build.Branch), branchWidth);
             builder.AppendLine($"  {repo}  {pipeline}  {branch}  {run,-8} {build.Status,-10} {build.Timing,-12} {build.BuildUrl}");
         }

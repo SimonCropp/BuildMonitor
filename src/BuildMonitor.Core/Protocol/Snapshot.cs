@@ -5,21 +5,44 @@ static class Snapshot
 {
     /// <summary>
     /// The builds, not the rows: an open group lists its members twice, once behind its own row and
-    /// once as member rows, and a closed one hides them.
+    /// once as member rows, and a closed one hides them. Each pipeline's own run, then its other
+    /// branches, as the rows put them.
     /// </summary>
     public static List<BuildDto> Builds(SessionState state, DateTimeOffset now) =>
-        RowProjection.Builds(state)
-            .Select(_ => Build(state, state.Connection(_.ConnectionId)!.Connection, _, now))
+        Shown(state)
+            .Select(_ => Build(state, state.Connection(_.Build.ConnectionId)!.Connection, _.Build, now, _.OtherBranch))
             .ToList();
 
     public static BuildDto? Find(SessionState state, string key, DateTimeOffset now)
     {
-        if (RowProjection.Builds(state).FirstOrDefault(_ => _.HasKey(key)) is { } build)
+        foreach (var (build, otherBranch) in Shown(state))
         {
-            return Build(state, state.Connection(build.ConnectionId)!.Connection, build, now);
+            if (build.HasKey(key))
+            {
+                return Build(state, state.Connection(build.ConnectionId)!.Connection, build, now, otherBranch);
+            }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Every run with a row, and whether it is on another branch than its pipeline's own.
+    /// </summary>
+    static IEnumerable<(Build Build, bool OtherBranch)> Shown(SessionState state)
+    {
+        foreach (var pipeline in RowProjection.Pipelines(state))
+        {
+            if (pipeline.Head is { } head)
+            {
+                yield return (head, false);
+            }
+
+            foreach (var lane in pipeline.Lanes)
+            {
+                yield return (lane, true);
+            }
+        }
     }
 
     /// <summary>
@@ -45,7 +68,7 @@ static class Snapshot
             // A stable sort, so runs that started at the same moment keep the order the provider
             // listed them in, which is newest first.
             .OrderByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)
-            .Select(_ => Build(state, state.Connection(_.ConnectionId)!.Connection, _, now))
+            .Select(_ => Build(state, state.Connection(_.ConnectionId)!.Connection, _, now, false))
             .ToList();
     }
 
@@ -78,7 +101,9 @@ static class Snapshot
                               _.PipelineId == pipeline.Id),
             LocalRepos.Find(localRepos, pipeline.RepoName));
 
-    static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now)
+    /// <param name="otherBranch">Whether the run is on another branch than its pipeline's own, which
+    /// only a list of the rows can say: a history of one pipeline's runs leaves it out.</param>
+    static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now, bool otherBranch)
     {
         var estimate = Estimator.Estimate(build, state.Medians);
         var (fraction, timing) = Progress.Compute(build, estimate, now);
@@ -105,7 +130,8 @@ static class Snapshot
             build.Retryable(),
             build.CanCancel,
             build.CanRunNext(ProviderDescriptors.Get(connection.ProviderId)),
-            LocalRepos.Find(state.LocalRepos, build));
+            LocalRepos.Find(state.LocalRepos, build),
+            otherBranch ? true : null);
     }
 
     public static List<ConnectionDto> Connections(SessionState state) =>
