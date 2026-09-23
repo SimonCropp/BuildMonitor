@@ -69,7 +69,7 @@
     {
         var failed = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "main", "78", BuildStatus.Failed, started: Fixtures.Now, finished: Fixtures.Now);
         var next = MonitorSession.ApplyFetch(Fixtures.WithBuilds(), Fixtures.GitHub.Id, Outcome(pipelines, ["Verify/test.yml"], [failed]), Fixtures.Now);
-        await Assert.That(next.Notification).IsEqualTo(new("test.yml failed", "VerifyTests/Verify main #78", failed.Key));
+        await Assert.That(next.Notification).IsEqualTo(new("test.yml failed", "VerifyTests/Verify @main #78", failed.Key));
     }
 
     [Test]

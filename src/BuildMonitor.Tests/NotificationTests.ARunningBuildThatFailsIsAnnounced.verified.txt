@@ -38,4 +38,4 @@ tray: Failed "BuildMonitor: DiffEngine and Verify failing, 3 running"
   Raise issue
   Update
   Exit
-notify: Error "test.yml failed" "VerifyTests/DiffEngine main #1234"
+notify: Error "test.yml failed" "VerifyTests/DiffEngine @main #1234"

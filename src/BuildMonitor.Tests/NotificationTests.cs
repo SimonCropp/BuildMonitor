@@ -15,7 +15,7 @@
                 : _)
             .ToImmutableArray();
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, state.Connection(Fixtures.GitHub.Id)!.Pipelines, failed, Fixtures.Now);
-        await Assert.That(next.Notification).IsEqualTo(new("test.yml failed", "VerifyTests/DiffEngine main #1234", failed.Single(_ => _.RunNumber == "1234").Key));
+        await Assert.That(next.Notification).IsEqualTo(new("test.yml failed", "VerifyTests/DiffEngine @main #1234", failed.Single(_ => _.RunNumber == "1234").Key));
         await Verify(Fixtures.Render(next));
     }
 
@@ -24,7 +24,7 @@
         await Assert.That(Fixtures.WithDependabotFailure().Notification)
             .IsEqualTo(new(
                 "build.yml failed",
-                "VerifyTests/Reports 🤖 Polyfill-9.1.0 #9",
+                "VerifyTests/Reports @🤖 Polyfill-9.1.0 #9",
                 "gh/Reports/build.yml/dependabot/nuget/src/Polyfill-9.1.0"));
 
     [Test]

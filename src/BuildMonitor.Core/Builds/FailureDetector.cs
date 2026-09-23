@@ -32,7 +32,9 @@ static class FailureDetector
         if (failures.Length == 1)
         {
             var build = failures[0];
-            var branch = build.Branch is null ? "" : $" {build.ShortBranchName()}";
+            // Behind the text standing in for the row's branch mark, as in the row's hover: a
+            // repository name can have spaces in it on Azure DevOps, and so can a branch.
+            var branch = build.Branch is null ? "" : $" {DetailSpan.BranchIconText}{build.ShortBranchName()}";
             return new($"{build.PipelineName} failed", $"{build.RepoName}{branch} {build.RunNumberLabel()}".Trim(), build.Key);
         }
 

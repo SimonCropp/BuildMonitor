@@ -179,7 +179,7 @@ public class ScreenTests
                   Raise issue
                   Update
                   Exit
-                notify: Error "release.yml failed" "VerifyTests/Verify main #9"
+                notify: Error "release.yml failed" "VerifyTests/Verify @main #9"
                 """);
 
     [Test]
