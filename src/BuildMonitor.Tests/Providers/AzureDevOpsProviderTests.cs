@@ -35,6 +35,49 @@
         });
     }
 
+    const string mainBuilds = $"{organization}/Web/_apis/build/builds?definitions=1&branchName=refs%2Fheads%2Fmain&maxBuildsPerDefinition=1&queryOrder=queueTimeDescending&properties=TriggeredBy&api-version=7.1";
+
+    /// <summary>
+    /// CI's window is all pull requests, which target main, so its newest build of main is asked
+    /// for by that ref, which leaves out the pull request builds targeting it.
+    /// </summary>
+    [Test]
+    public async Task PullRequestsFillingTheWindowFetchTheDefaultBranchsNewestBuild()
+    {
+        var handler = PullRequestsOnly()
+            .Get(
+                mainBuilds,
+                """{"count":1,"value":[{"id":280,"buildNumber":"20251230.1","status":"completed","result":"succeeded","queueTime":"2025-12-30T10:00:00Z","startTime":"2025-12-30T10:01:00Z","finishTime":"2025-12-30T10:09:00Z","sourceBranch":"refs/heads/main","sourceVersion":"999","definition":{"id":1,"name":"CI"},"repository":{"id":"VerifyTests/DiffEngine","type":"GitHub","name":"VerifyTests/DiffEngine"}}]}""");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso")));
+        await Assert.That(builds.Where(_ => _.PipelineId == "Web/1").Select(_ => $"{_.RunNumber} {_.Branch} (default {_.DefaultBranch})"))
+            .IsEquivalentTo(["20260101.2 feature (default main)", "20251230.1 main (default main)"]);
+    }
+
+    /// <summary>
+    /// A default branch with no build on it answers empty, and the fetches within the hour do not
+    /// ask again.
+    /// </summary>
+    [Test]
+    public async Task ADefinitionWithNoBuildOnItsDefaultBranchIsAskedOnceAnHour()
+    {
+        var handler = PullRequestsOnly()
+            .Get(mainBuilds, """{"count":0,"value":[]}""");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        await Assert.That(handler.Requests.Count(_ => _ == $"GET {mainBuilds}")).IsEqualTo(1);
+    }
+
+    static FakeHttpHandler PullRequestsOnly() =>
+        Handler()
+            .Get(
+                builds,
+                """
+                {"count":1,"value":[
+                  {"id":300,"buildNumber":"20260101.2","status":"completed","result":"failed","queueTime":"2026-01-01T10:50:00Z","startTime":"2026-01-01T10:51:00Z","finishTime":"2026-01-01T10:59:00Z","sourceBranch":"refs/pull/55/merge","sourceVersion":"def456","reason":"pullRequest","definition":{"id":1,"name":"CI"},"repository":{"id":"VerifyTests/DiffEngine","type":"GitHub","name":"VerifyTests/DiffEngine"},"parameters":"{\"system.pullRequest.sourceBranch\":\"feature\",\"system.pullRequest.targetBranch\":\"main\",\"system.pullRequest.isFork\":\"False\"}"}
+                ]}
+                """);
+
     [Test]
     public async Task AnExcludedProjectIsNeverListed()
     {

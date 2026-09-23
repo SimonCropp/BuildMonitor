@@ -68,6 +68,7 @@ sealed class AzureDevOpsProvider : ProviderBase
                 AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsBuild,
                 cancel);
             var taken = new Dictionary<long, int>();
+            var fetched = byDefinition.Keys.ToDictionary(_ => _, _ => new List<(AzureDevOpsBuild Raw, Build Build)>());
             foreach (var build in response.Value)
             {
                 if (build.Definition is null ||
@@ -87,11 +88,113 @@ sealed class AzureDevOpsProvider : ProviderBase
                 // place a name for that id is free. Another service handed the same id and no name,
                 // as an Octopus release created by a pipeline is, reads it back from here.
                 context.Identities.Add(build.RequestedFor?.Id, build.RequestedFor?.DisplayName);
-                builds.Add(Convert(context, project.Key, pipeline, build));
+                fetched[build.Definition.Id].Add((build, Convert(context, project.Key, pipeline, build)));
+            }
+
+            // By default branch, so the definitions missing a build on the same one share a request.
+            var missing = new Dictionary<string, List<long>>();
+            var now = DateTimeOffset.UtcNow;
+            foreach (var (id, runs) in fetched)
+            {
+                var pipeline = byDefinition[id];
+                var defaultBranch = DefaultBranch(context, pipeline, runs);
+                builds.AddRange(runs.Select(_ => _.Build with { DefaultBranch = defaultBranch }));
+                if (defaultBranch is null ||
+                    runs.Any(_ => _.Build.Branch == defaultBranch) ||
+                    DefaultRunMemory.KnownNone(context.Memory, pipeline.Id, defaultBranch, now))
+                {
+                    continue;
+                }
+
+                if (!missing.TryGetValue(defaultBranch, out var definitions))
+                {
+                    definitions = [];
+                    missing[defaultBranch] = definitions;
+                }
+
+                definitions.Add(id);
+            }
+
+            foreach (var (branch, definitions) in missing)
+            {
+                builds.AddRange(await DefaultRuns(context, project.Key, byDefinition, definitions, branch, cancel));
             }
         }
 
         return builds;
+    }
+
+    /// <summary>
+    /// The branch a definition's own builds are on. The definition's repository names a default
+    /// branch, but a GitHub-backed one keeps the name it had when the pipeline was made, and says
+    /// master where the repository moved to main. The window is the witness: the branch its pull
+    /// request builds target, or its other builds ran on, remembered from the last window that had
+    /// pull requests in it for the windows that have none.
+    /// </summary>
+    static string? DefaultBranch(ProviderContext context, Pipeline pipeline, List<(AzureDevOpsBuild Raw, Build Build)> runs)
+    {
+        var key = $"default-branch|{pipeline.Id}";
+        context.Memory.TryGet<string>(key, out var remembered);
+        var targets = runs
+            .Select(_ => _.Raw.Parameter("system.pullRequest.targetBranch"))
+            .OfType<string>()
+            .Select(HeadName)
+            .ToList();
+        var built = runs
+            .Where(_ => _.Build.PullRequestNumber is null)
+            .Select(_ => _.Build.Branch)
+            .OfType<string>()
+            .ToHashSet();
+        var chosen = DefaultBranches.Choose([remembered], targets, built);
+        if (targets.Count > 0 &&
+            chosen is not null)
+        {
+            context.Memory.Set(key, chosen);
+        }
+
+        return chosen;
+    }
+
+    /// <summary>
+    /// The newest build on the default branch of each definition the window left it out of: a
+    /// burst of pull requests fills a definition's share. One request for the definitions sharing
+    /// that branch, filtered on its ref, which leaves out the pull request builds targeting it. A
+    /// definition with none since the history cutoff is not asked again for an hour.
+    /// </summary>
+    static async Task<List<Build>> DefaultRuns(ProviderContext context, string project, Dictionary<long, Pipeline> byDefinition, List<long> definitions, string branch, Cancel cancel)
+    {
+        var response = await context.Http.Get(
+            $"{Encode(project)}/_apis/build/builds?definitions={string.Join(',', definitions)}&branchName={Encode($"refs/heads/{branch}")}&maxBuildsPerDefinition=1&queryOrder=queueTimeDescending&properties={TriggeredBy.Property}&{apiVersion}",
+            AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsBuild,
+            cancel);
+        var now = DateTimeOffset.UtcNow;
+        var found = new List<Build>();
+        foreach (var id in definitions)
+        {
+            var pipeline = byDefinition[id];
+            if (response.Value.FirstOrDefault(_ => _.Definition?.Id == id) is not { } raw)
+            {
+                DefaultRunMemory.None(context.Memory, pipeline.Id, branch, now);
+                continue;
+            }
+
+            var build = Convert(context, project, pipeline, raw) with
+            {
+                DefaultBranch = branch
+            };
+            if (build.Branch != branch ||
+                (context.Since is { } since && !HistoryCutoff.Keeps(build, since)))
+            {
+                DefaultRunMemory.None(context.Memory, pipeline.Id, branch, now);
+                continue;
+            }
+
+            context.Identities.Add(raw.RequestedFor?.Id, raw.RequestedFor?.DisplayName);
+            DefaultRunMemory.Found(context.Memory, pipeline.Id, branch);
+            found.Add(build);
+        }
+
+        return found;
     }
 
     /// <summary>

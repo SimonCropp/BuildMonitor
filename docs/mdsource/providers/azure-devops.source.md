@@ -59,6 +59,8 @@ Builds are fetched a project at a time, each on its own schedule (see [Poll inte
 
 Each project asks for the last five builds of every definition, so a busy definition cannot push a quiet one out of the list. Each poll interval, each project is also asked only for builds queued since the newest one seen, which costs a small fraction of a fetch, so a new build on a quiet project shows within about thirty seconds. A retry started outside the tray reuses its build, and may wait for the schedule, which on a quiet project is up to thirty minutes.
 
+A definition's default branch is the one its pull request builds target, from their `system.pullRequest.targetBranch` parameter, or its other builds ran on, and is remembered for the windows without a pull request in them. The repository's own default branch is not used: a pipeline on a GitHub repository keeps the one the repository had when the pipeline was made. A definition with no pull request builds seen yet has none, and its row is its latest build on any branch. Where a burst of pull requests leaves a definition's last five without a build on its default branch, the definitions missing one on the same branch are asked for their newest there in one request, filtered on the branch's ref, which leaves out the pull request builds targeting it. A definition with none since the [history cutoff](../options.md#show-builds-from-the-last-days) is not asked again for an hour.
+
 ```mermaid
 ---
 config:
@@ -89,7 +91,10 @@ flowchart TD
     stretch --> due{"Due, and within 100<br/>throughput units<br/>in 5 minutes?"}
     due -- "no" --> sleep(["Sleep until a project,<br/>the probe or the<br/>listing is due"])
     due -- "yes, most urgent first" --> fetch["GET {project}/_apis/build/builds,<br/>the last 5 builds<br/>of each definition"]
-    fetch -- "200" --> rows["Update its rows"]
+    fetch -- "200" --> held{"Each definition has a build<br/>on its default branch, or<br/>had none in the last hour?"}
+    held -- "yes" --> rows["Update its rows"]
+    held -- "no" --> branch["GET {project}/_apis/build/builds<br/>?branchName=refs/heads/{default},<br/>the newest build of each<br/>definition missing one"]
+    branch --> rows
     rows -- "Retry-After on the answer" --> pause["Pause the connection<br/>for Retry-After"]
     fetch -- "429" --> pause
     fetch -- "other failure" --> backoff["Back off that project,<br/>doubling up to 10 minutes"]
