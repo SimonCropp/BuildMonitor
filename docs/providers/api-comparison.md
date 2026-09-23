@@ -42,3 +42,23 @@ Whether a build already waiting in the service's queue can be moved to the front
 | [Travis CI](travis.md#api-notes) | No |
 
 Only the two with a call of their own offer the button. A plugin cannot be relied on to be installed, and cancelling other people's work to make room is not something a button should do unasked.
+
+
+## Gone branches
+
+Whether a failed branch's pull request was merged or closed, or the branch deleted, which takes its row away ([the window](../tray.md#the-window)). No CI service says so of its own builds: each keeps a build after its branch is gone. Only the service holding the repository can, through a connection to it, so each provider's failed branches are asked of whichever connection holds their repository. Researched 2026-09-23.
+
+| Provider | Asked of |
+|---|---|
+| [AppVeyor](appveyor.md#rows) | A GitHub connection, for a project on GitHub |
+| [Azure DevOps](azure-devops.md#branches-and-pull-requests) | Itself for Azure Repos: `pullrequests/{id}` and `refs?filter=heads/{branch}`; a GitHub connection for a repository on GitHub |
+| [Bitbucket Pipelines](bitbucket.md#branches-and-pull-requests) | Itself: `pullrequests/{id}`, and `refs/branches/{name}` then `refs/tags/{name}` |
+| [GitHub Actions](github.md#branches-and-pull-requests) | Itself, for its own repositories and every other service's builds of one: `pulls/{number}`, `pulls?head={owner}:{branch}` for a fork's branch, and `branches/{branch}` then `git/matching-refs/tags/{name}` |
+| [GitLab CI](gitlab.md#branches-and-merge-requests) | Itself: `merge_requests/{iid}`, and `repository/branches/{branch}` then `repository/tags/{name}` |
+| [GoCD](gocd.md#api-notes) | A GitHub connection, for a git material on GitHub |
+| [Jenkins](jenkins.md#api-notes) | Nothing: Jenkins reports no repository |
+| [Octopus Deploy](octopus.md#api-notes) | Nothing: an environment is not a branch |
+| [TeamCity](teamcity.md#rows) | Nothing: the VCS root's address is not read |
+| [Travis CI](travis.md#rows) | A GitHub connection |
+
+Where nothing can be asked, or the connection asked may not see the repository, a failed branch goes once the pipeline's default branch has built since it failed; a service that knows no default branch, Jenkins, GoCD and Octopus, keeps it.

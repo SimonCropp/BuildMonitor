@@ -162,4 +162,56 @@ public class BitbucketProviderTests
             "GET https://api.bitbucket.org/2.0/repositories/verify/diffengine/pipelines/{u2}/steps/{s2}/log"
         ]);
     }
+
+    const string repository = "https://api.bitbucket.org/2.0/repositories/verify/diffengine";
+
+    static Task<BranchFate> FateOf(FakeHttpHandler handler, string branch, string? pullRequest = null, string repositoryUrl = "https://bitbucket.org/verify/diffengine") =>
+        ProviderTestHelpers.Provider("bitbucket").FateOf(ProviderTestHelpers.Context("bitbucket", handler, user: "simon@example.com"), new(repositoryUrl, branch, pullRequest), Cancel.None);
+
+    /// <summary>
+    /// A pull request is asked for its state; declined and superseded are both closed.
+    /// </summary>
+    [Test]
+    [Arguments("OPEN", BranchFate.Open)]
+    [Arguments("MERGED", BranchFate.Merged)]
+    [Arguments("DECLINED", BranchFate.Closed)]
+    [Arguments("SUPERSEDED", BranchFate.Closed)]
+    public async Task APullRequestIsAskedForItsState(string state, BranchFate fate)
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{repository}/pullrequests/12", $$"""{"id":12,"state":"{{state}}"}""");
+        await Assert.That(await FateOf(handler, "feature/x", "12")).IsEqualTo(fate);
+    }
+
+    /// <summary>
+    /// A branch is asked for with its slashes as they are, which the route takes as the name.
+    /// </summary>
+    [Test]
+    public async Task ABranchStillThereIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{repository}/refs/branches/feature/x", """{"name":"feature/x"}""");
+        await Assert.That(await FateOf(handler, "feature/x")).IsEqualTo(BranchFate.Open);
+    }
+
+    [Test]
+    public async Task ATagOfTheNameIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{repository}/refs/tags/v1.0", """{"name":"v1.0"}""");
+        await Assert.That(await FateOf(handler, "v1.0")).IsEqualTo(BranchFate.Open);
+    }
+
+    /// <summary>
+    /// A repository the token cannot see is a 404 as a missing branch is, so the repository is
+    /// asked for before the branch is taken as deleted.
+    /// </summary>
+    [Test]
+    public async Task NeitherBranchNorTagInARepositoryItCanSeeIsDeleted()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(repository, """{"slug":"diffengine","full_name":"verify/diffengine"}""");
+        await Assert.That(await FateOf(handler, "feature/x")).IsEqualTo(BranchFate.Deleted);
+        await Assert.That(await FateOf(new(), "feature/x")).IsEqualTo(BranchFate.Unknown);
+    }
 }

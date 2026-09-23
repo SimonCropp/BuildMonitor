@@ -52,7 +52,7 @@ static class RowProjection
         var builds = Sorted(state).Sorted.Where(_ => Matches(_, search)).ToImmutableArray();
         // What each pipeline's own run folds away, for its hover. By reference, since two runs can
         // be equal as records.
-        var folded = new Dictionary<Build, ImmutableArray<Build>>(ReferenceEqualityComparer.Instance);
+        var folded = new Dictionary<Build, ImmutableArray<FoldedBranch>>(ReferenceEqualityComparer.Instance);
         foreach (var pipeline in pipelines)
         {
             if (pipeline.Head is { } head)
@@ -115,7 +115,7 @@ static class RowProjection
         return rows.ToImmutable();
     }
 
-    static ImmutableArray<Build> FoldedOf(Dictionary<Build, ImmutableArray<Build>> folded, Build build)
+    static ImmutableArray<FoldedBranch> FoldedOf(Dictionary<Build, ImmutableArray<FoldedBranch>> folded, Build build)
     {
         if (folded.TryGetValue(build, out var branches))
         {
@@ -179,7 +179,7 @@ static class RowProjection
                 .ThenBy(_ => _.PipelineName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(_ => _.Key, StringComparer.Ordinal)
         ];
-        var sorted = new SortedBuilds(state.Settings, state.Connections, state.Builds, pipelines, builds);
+        var sorted = new SortedBuilds(state.Settings, state.Connections, state.Builds, state.Verdicts, pipelines, builds);
         lastBuilds = sorted;
         return sorted;
     }
@@ -187,17 +187,21 @@ static class RowProjection
     /// <summary>
     /// By each pipeline's own run, for the readers that walk pipelines rather than rows.
     /// </summary>
-    static ImmutableArray<PipelineBuilds> Sort(SessionState state) =>
-    [
-        ..state.Connections
-            .SelectMany(_ => Selected(state, _.Connection.Id))
-            .Select(_ => (Pipeline: _, Lead: Lead(_)))
-            .OrderBy(_ => _.Lead.Rank())
-            .ThenByDescending(_ => _.Lead.Ordering ?? DateTimeOffset.MinValue)
-            .ThenBy(_ => _.Lead.PipelineName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(_ => _.Lead.Key, StringComparer.Ordinal)
-            .Select(_ => _.Pipeline)
-    ];
+    static ImmutableArray<PipelineBuilds> Sort(SessionState state)
+    {
+        var askable = BranchHosts.Askable(state.Connections.Select(_ => _.Connection));
+        return
+        [
+            ..state.Connections
+                .SelectMany(_ => Selected(state, _.Connection.Id, askable))
+                .Select(_ => (Pipeline: _, Lead: Lead(_)))
+                .OrderBy(_ => _.Lead.Rank())
+                .ThenByDescending(_ => _.Lead.Ordering ?? DateTimeOffset.MinValue)
+                .ThenBy(_ => _.Lead.PipelineName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(_ => _.Lead.Key, StringComparer.Ordinal)
+                .Select(_ => _.Pipeline)
+        ];
+    }
 
     /// <summary>
     /// The row a pipeline sorts by: its own run, or, where a deferral hid that, the first lane,
@@ -211,11 +215,13 @@ static class RowProjection
     /// before the failure would take the row, and a green row would say the pipeline passed. A
     /// deferred lane goes on its own, and a pipeline goes only once nothing of it is left.
     /// </summary>
-    static IEnumerable<PipelineBuilds> Selected(SessionState state, string connectionId)
+    static IEnumerable<PipelineBuilds> Selected(SessionState state, string connectionId, Func<Build, bool> askable)
     {
         var selected = BuildSelection.Select(
             Filters.Apply(state.Settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
-            state.Settings.ShowOtherBranches);
+            state.Settings.ShowOtherBranches,
+            state.Verdicts,
+            askable);
         var deferrals = state.Settings.Deferrals;
         if (deferrals.Length == 0)
         {

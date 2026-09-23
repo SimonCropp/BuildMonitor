@@ -42,6 +42,10 @@
 /// <param name="SignInNote">Which accounts the browser and device flows turn away, shown only while
 /// one of them is the chosen method. Said here because the provider's own sign in page says it as a
 /// rejected address rather than as a reason, which reads as the address being wrong.</param>
+/// <param name="HostsRepositories">Whether the service holds the source repositories as well as
+/// building them, so a connection to it can be asked what became of a failed branch in one: its pull
+/// request merged or closed, or the branch deleted. Asked for any service's builds of a repository on
+/// its host; see <see cref="BranchHosts"/>.</param>
 record ProviderDescriptor(
     string Id,
     string Name,
@@ -71,7 +75,8 @@ record ProviderDescriptor(
     string? ActionPermission = null,
     string? QueuePermission = null,
     AuthScheme? SignInScheme = null,
-    string? SignInNote = null)
+    string? SignInNote = null,
+    bool HostsRepositories = false)
 {
     /// <summary>
     /// The provider's page in the docs, which the connection editor links so the server and scope

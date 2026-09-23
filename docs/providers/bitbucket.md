@@ -14,10 +14,14 @@ Watches every repository the user is a member of in one workspace.
 
 An Atlassian [API token](https://id.atlassian.com/manage-profile/security/api-tokens) with the scopes `read:pipeline:bitbucket`, `write:pipeline:bitbucket`, `read:repository:bitbucket` and `read:workspace:bitbucket`, together with the Atlassian account email. App passwords stopped working in June 2026.
 
+`read:pullrequest:bitbucket` as well lets it say what became of a failed pull request, under [Rows](#rows); without it a failed pull request goes only once the main branch has built since.
+
 
 ## Rows
 
 One per repository, showing its latest pipeline on the repository's main branch, which the repository listing names. Pull request pipelines link to the pull request. A pull request pipeline names the branch it came from as its source rather than as a ref, and is shown on that branch; Bitbucket builds no pull request from a fork.
+
+A failed branch whose pull request has been merged, declined or superseded, or which has been deleted, loses its row (see [the window](../tray.md#the-window)). The connection asks Bitbucket: a pull request for its state, and any other branch whether it, or a tag of its name, is still there, and then whether the repository is, since Bitbucket answers a repository the token cannot see with the same 404 as a missing branch. A pull request found open or a branch found there is asked about again after ten minutes. Merged, closed or deleted is not asked again, unless the branch builds again.
 
 
 ## Actions
@@ -39,6 +43,8 @@ Bitbucket allows a thousand requests an hour, or the larger limit a workspace re
 Once a minute the ten most recently updated repositories are read, which a push moves to the top within seconds, so a pushed repository is fetched at once rather than when its schedule comes round. Pipelines started without a push, such as scheduled and manual runs, wait for the schedule.
 
 A repository whose last five pipelines hold none on its main branch, as a burst of pull requests leaves them, is asked for its newest pipeline on that branch, which leaves out the pull request pipelines targeting it. A repository with none since the [history cutoff](../options.md#show-builds-from-the-last-days) is not asked again for an hour.
+
+After each cycle the failed branches due an answer are asked about, one question a branch however many pipelines failed on it, up to twenty a cycle and eight at a time, each counting against the hourly limit, and none while that is spent. A question that fails is asked again after a minute, doubling, and leaves the connection's health alone.
 
 ```mermaid
 ---
@@ -73,7 +79,10 @@ flowchart TD
     fetch -- "200 or 304" --> rows["Update its rows"]
     fetch -- "429" --> pause["Pause the connection<br/>until the limit resets, or<br/>from a minute, doubling"]
     fetch -- "other failure" --> backoff["Back off that repository,<br/>doubling up to 10 minutes"]
-    rows --> sleep
+    rows --> branches{"A failed branch not<br/>answered for good?"}
+    branches -- "yes, up to 20" --> ask["GET its pull request, or<br/>the branch, then a tag of its<br/>name, then the repository"]
+    branches -- "no" --> sleep
+    ask --> sleep
     pause --> sleep
     backoff --> sleep
 ```
@@ -116,6 +125,14 @@ None. Pipelines exist only per repository, and no workspace endpoint lists pipel
  * `pagelen` is at most 100. Filters include `status`, `trigger_type` (PUSH, MANUAL, SCHEDULED, PARENT_STEP) and `target.*` [docs].
 
 
+### Branches and pull requests
+
+Checked 2026-09-23.
+
+ * A pull request's `state` is `OPEN`, `MERGED`, `DECLINED` or `SUPERSEDED` [docs, live]. Reading one needs `read:pullrequest:bitbucket` [docs].
+ * `refs/branches/{name}` and `refs/tags/{name}` take a name with slashes as it is, or escaped, and answer 404 for one that is not there, as the repository routes do for a repository the token cannot see [live].
+
+
 ### Sources
 
  * [API request limits](https://support.atlassian.com/bitbucket-cloud/docs/api-request-limits/)
@@ -123,3 +140,4 @@ None. Pipelines exist only per repository, and no workspace endpoint lists pipel
  * [Scaled rate limits](https://www.atlassian.com/bitbucket/blog/introducing-scaled-rate-limits-for-bitbucket-cloud-api)
  * [OpenAPI specification](https://dac-static.atlassian.com/cloud/bitbucket/swagger.v3.json)
  * [Pipelines API](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pipelines/)
+ * [Pull requests API](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/) and [Refs API](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/)

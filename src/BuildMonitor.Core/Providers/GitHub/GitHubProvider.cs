@@ -38,6 +38,21 @@ sealed class GitHubProvider : ProviderBase
     }
 
     /// <summary>
+    /// github.com for api.github.com, and an enterprise server's own root, under which it serves the
+    /// API as well as the repositories.
+    /// </summary>
+    public override Uri RepositoryRoot(Connection connection)
+    {
+        var address = BaseAddress(connection);
+        if (address.Host == "api.github.com")
+        {
+            return new("https://github.com/");
+        }
+
+        return new(address, "/");
+    }
+
+    /// <summary>
     /// How often every active repository's workflows are listed, however long since it was pushed
     /// to: enabling or disabling a workflow probably does not move pushed_at.
     /// </summary>
@@ -384,18 +399,21 @@ sealed class GitHubProvider : ProviderBase
             _ => BuildStatus.Unknown
         };
         var pullRequest = run.PullRequests.FirstOrDefault();
-        var web = $"https://github.com/{repository}";
-        // The branch's page is in the repository it lives in, a fork for a pull request from one,
-        // on the host the API names, which is not github.com for GitHub Enterprise.
+        // The repository's page as its listing gave it, on the host the API names, which is not
+        // github.com for GitHub Enterprise. Composed on github.com only for a pipeline without one.
+        var web = pipeline.RepoUrl ?? $"https://github.com/{repository}";
+        // The branch's page is in the repository it lives in, a fork for a pull request from one.
         var headRepository = run.HeadRepository;
         var branchWeb = web;
         if (headRepository is {HtmlUrl.Length: > 0})
         {
             branchWeb = headRepository.HtmlUrl;
         }
-        else if (headRepository is {FullName.Length: > 0})
+        else if (headRepository is {FullName.Length: > 0} &&
+                 Uri.TryCreate(web, UriKind.Absolute, out var page))
         {
-            branchWeb = $"https://github.com/{headRepository.FullName}";
+            // Named without its page, it is on the repository's host.
+            branchWeb = $"{page.GetLeftPart(UriPartial.Authority)}/{headRepository.FullName}";
         }
 
         // A fork's branch behind its owner, since a fork's main is not this repository's main.
@@ -429,7 +447,7 @@ sealed class GitHubProvider : ProviderBase
             CanCancel: change && run.Status != "completed",
             Join(repository, run.Id.ToString(), run.Conclusion),
             pipeline.Url,
-            pipeline.RepoUrl ?? web,
+            web,
             DefaultBranch: pipeline.DefaultBranch);
     }
 
@@ -520,6 +538,80 @@ sealed class GitHubProvider : ProviderBase
     {
         var parts = Split(build);
         return context.Http.Download($"repos/{parts[0]}/actions/artifacts/{artifact.Id}/zip", destination, maxBytes, cancel);
+    }
+
+    /// <summary>
+    /// What became of a failed branch of a repository on this connection's host, whichever service
+    /// built it. A pull request is asked for its own state. A fork's branch is asked for the newest
+    /// pull request from it, since a fork's branch builds here only through one. Any other branch is
+    /// asked whether it is still there, and then whether a tag of its name is, as a release
+    /// workflow's run is named for its tag. The tags answer the question a missing branch's 404
+    /// leaves open, whether the credential can see the repository at all: a repository it cannot see
+    /// is a 404 there too, where one it can lists none.
+    /// <para>
+    /// A pull request the credential cannot see is a 404, and says nothing. A fine grained token
+    /// without Pull requests or Contents read is refused with a 403, which the poller takes the same
+    /// way rather than as a credential gone bad.
+    /// </para>
+    /// </summary>
+    public override async Task<BranchFate> FateOf(ProviderContext context, BranchQuestion question, Cancel cancel)
+    {
+        if (RepositoryPath(context, question.Repository) is not { } repository ||
+            repository.Count(_ => _ == '/') != 1)
+        {
+            return BranchFate.Unknown;
+        }
+
+        if (question.PullRequest is { } number)
+        {
+            var pullRequest = await GetOrNone(context, $"repos/{repository}/pulls/{Encode(number)}", GitHubContext.Default.GitHubPullRequest, cancel);
+            return FateOf(pullRequest);
+        }
+
+        if (question.Branch.Contains(':'))
+        {
+            var fromFork = await GetOrNone(context, $"repos/{repository}/pulls?head={Encode(question.Branch)}&state=all&per_page=1", GitHubContext.Default.ListGitHubPullRequest, cancel);
+            return FateOf(fromFork?.FirstOrDefault());
+        }
+
+        if (await GetOrNone(context, $"repos/{repository}/branches/{EncodePath(question.Branch)}", GitHubContext.Default.GitHubBranch, cancel) is not null)
+        {
+            return BranchFate.Open;
+        }
+
+        var tags = await GetOrNone(context, $"repos/{repository}/git/matching-refs/tags/{EncodePath(question.Branch)}", GitHubContext.Default.ListGitHubRef, cancel);
+        if (tags is null)
+        {
+            return BranchFate.Unknown;
+        }
+
+        // Matching refs are every ref that starts with the name, so v1 lists v1.1 too.
+        if (tags.Any(_ => _.Ref == $"refs/tags/{question.Branch}"))
+        {
+            return BranchFate.Open;
+        }
+
+        return BranchFate.Deleted;
+    }
+
+    static BranchFate FateOf(GitHubPullRequest? pullRequest)
+    {
+        if (pullRequest is null)
+        {
+            return BranchFate.Unknown;
+        }
+
+        if (pullRequest.State == "open")
+        {
+            return BranchFate.Open;
+        }
+
+        if (pullRequest.MergedAt is not null)
+        {
+            return BranchFate.Merged;
+        }
+
+        return BranchFate.Closed;
     }
 
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)

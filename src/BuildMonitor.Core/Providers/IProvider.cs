@@ -80,6 +80,22 @@ interface IProvider
     Task<BuildAccess> Access(ProviderContext context, Cancel cancel);
 
     /// <summary>
+    /// The address the repositories this connection can see sit under on the web, as the rows link
+    /// them: https://github.com/ for api.github.com. Null for a service that holds none. See
+    /// <see cref="BranchHosts"/>.
+    /// </summary>
+    Uri? RepositoryRoot(Connection connection);
+
+    /// <summary>
+    /// What became of a failed branch of a repository this service holds, whichever service built
+    /// it: its pull request merged or closed, or the branch deleted. Only for a service whose
+    /// <see cref="ProviderDescriptor.HostsRepositories"/> says it holds repositories, and only for a
+    /// repository under this connection's <see cref="RepositoryRoot"/>: nothing asks the rest.
+    /// <see cref="BranchFate.Unknown"/> where the credential cannot see enough to say.
+    /// </summary>
+    Task<BranchFate> FateOf(ProviderContext context, BranchQuestion question, Cancel cancel);
+
+    /// <summary>
     /// A cheap signal of recent activity: group key to a token that changes when the group has
     /// news, from one call or a few. A quiet group waits minutes between fetches; without a signal a
     /// push to it would too. Null when the provider has no such call. <paramref name="previous"/>

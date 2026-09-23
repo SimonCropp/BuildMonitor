@@ -65,6 +65,22 @@ public class ProviderCatalogTests
         await Assert.That(missing).IsEmpty();
     }
 
+    /// <summary>
+    /// A service said to hold repositories is asked about failed branches, and the base class
+    /// throws for one that never learnt to answer; one that answers without saying so is never asked.
+    /// </summary>
+    [Test]
+    public async Task ExactlyTheServicesHoldingRepositoriesAnswerForBranches()
+    {
+        var answering = Providers.All
+            .Where(_ => _.GetType().GetMethod(nameof(IProvider.FateOf))!.DeclaringType != typeof(ProviderBase))
+            .Select(_ => _.Descriptor.Id);
+        var holding = ProviderDescriptors.All
+            .Where(_ => _.HostsRepositories)
+            .Select(_ => _.Id);
+        await Assert.That(answering).IsEquivalentTo(holding);
+    }
+
     [Test]
     [Arguments(AuthScheme.Bearer, "Bearer secret")]
     [Arguments(AuthScheme.Token, "token secret")]

@@ -107,12 +107,13 @@ static class ProviderDescriptors
         HasPullRequests: true,
         HasArtifacts: true,
         OrgNoun: "org",
-        TokenNote: "A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.",
+        TokenNote: "A fine grained token needs Actions read and write and Metadata read, and Pull requests and Contents read to tell when a failed branch is gone; a classic token needs the repo scope.",
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
         // Half the secondary limit of 900 points a minute, which counts a 304 like any GET.
         Quota: new(450, TimeSpan.FromMinutes(1), 450),
-        ActionPermission: "Actions read and write, or the repo scope on a classic token");
+        ActionPermission: "Actions read and write, or the repo scope on a classic token",
+        HostsRepositories: true);
 
     public static readonly ProviderDescriptor AzureDevOps = new(
         Id: "azure-devops",
@@ -136,7 +137,7 @@ static class ProviderDescriptors
         HasPullRequests: true,
         HasArtifacts: true,
         HasQueuePriority: true,
-        TokenNote: "The token needs Build (Read & execute).",
+        TokenNote: "The token needs Build (Read & execute), and Code (Read) to tell when a failed branch is gone.",
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
         // Half the 200 throughput units a user may spend in any five minutes.
@@ -150,7 +151,8 @@ static class ProviderDescriptors
         // Microsoft's REST samples send a Microsoft Entra token as a Bearer token, and describe Basic
         // for a personal access token.
         SignInScheme: AuthScheme.Bearer,
-        SignInNote: "Work or school accounts only. Microsoft refuses a personal account's address; use a token.");
+        SignInNote: "Work or school accounts only. Microsoft refuses a personal account's address; use a token.",
+        HostsRepositories: true);
 
     public static readonly ProviderDescriptor TeamCity = new(
         Id: "teamcity",
@@ -210,7 +212,8 @@ static class ProviderDescriptors
         FetchUnit: FetchUnit.Connection,
         ActionPermission: "the api scope",
         // GitLab finds an OAuth token only in the Authorization header or a query parameter.
-        SignInScheme: AuthScheme.Bearer);
+        SignInScheme: AuthScheme.Bearer,
+        HostsRepositories: true);
 
     public static readonly ProviderDescriptor GoCd = new(
         Id: "gocd",
@@ -260,13 +263,14 @@ static class ProviderDescriptors
         // with no link back to the run that made it, so a file there cannot be attributed to a build.
         HasArtifacts: false,
         OrgNoun: "workspace",
-        TokenNote: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket.",
+        TokenNote: "The token needs read:pipeline:bitbucket, write:pipeline:bitbucket, read:repository:bitbucket and read:workspace:bitbucket, and read:pullrequest:bitbucket to tell when a failed branch is gone.",
         FetchConcurrency: Concurrently.Limit,
         // A thousand requests an hour, or the scaled limit the workspace reports.
         Quota: new(1000, TimeSpan.FromHours(1), 250, LearnLimit: true),
         IdleCap: TimeSpan.FromMinutes(30),
         ProbeInterval: TimeSpan.FromMinutes(1),
-        ActionPermission: "write:pipeline:bitbucket");
+        ActionPermission: "write:pipeline:bitbucket",
+        HostsRepositories: true);
 
     public static readonly ProviderDescriptor Octopus = new(
         Id: "octopus",

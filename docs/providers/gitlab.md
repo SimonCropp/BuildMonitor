@@ -19,6 +19,8 @@ A [personal access token](https://gitlab.com/-/user_settings/personal_access_tok
 
 One per project, showing its latest pipeline on the project's default branch, which the project listing names. Merge request pipelines show the merge request number and link to it. A merge request pipeline's ref is the merge request's, so it is shown on the branch it came from instead, which GraphQL names, as `namespace:branch` when that is in a fork; over REST, which names neither, it is shown as `merge-requests/n`.
 
+A failed branch whose merge request has been merged or closed, or which has been deleted, loses its row (see [the window](../tray.md#the-window)). The connection asks its server: a merge request for its state, and any other branch whether it, or a tag of its name, is still there, and then whether the project is, since GitLab answers a project the token cannot see with the same 404 as a missing branch. A merge request found open or a branch found there is asked about again after ten minutes. Merged, closed or deleted is not asked again, unless the branch builds again.
+
 
 ## Actions
 
@@ -39,6 +41,8 @@ The countdown comes from the median of the project's last ten successful pipelin
 The pipelines of fifty projects at a time come from one GraphQL request, instead of a request per project and another per running pipeline, so the whole connection is fetched on one schedule (see [Poll intervals](../options.md#poll-intervals)). A project GraphQL leaves out of its answer is fetched over REST, eight projects at a time. A server whose GraphQL fails is fetched over REST for an hour before GraphQL is asked again. GitLab.com allows 2,000 authenticated requests a minute, and counts a 304 as one.
 
 Each project's last five pipelines can all be merge requests'. A project left without one on its default branch is asked over REST for its newest pipeline on that ref, which leaves out the merge request pipelines; one with none since the [history cutoff](../options.md#show-builds-from-the-last-days) is not asked again for an hour.
+
+After each cycle the failed branches due an answer are asked about, one question a branch however many pipelines failed on it, up to twenty a cycle and eight at a time. A question that fails is asked again after a minute, doubling, and leaves the connection's health alone.
 
 ```mermaid
 ---
@@ -70,7 +74,10 @@ flowchart TD
     query -- "429" --> pause["Pause the connection<br/>for Retry-After"]
     query -- "other failure" --> backoff["Back off the connection,<br/>doubling up to 10 minutes"]
     rest -- "failure" --> backoff
-    rows --> sleep
+    rows --> branches{"A failed branch not<br/>answered for good?"}
+    branches -- "yes, up to 20" --> ask["GET its merge request, or<br/>the branch, then a tag of<br/>its name, then the project"]
+    branches -- "no" --> sleep
+    ask --> sleep
     pause --> sleep
     backoff --> sleep
 ```
@@ -118,6 +125,15 @@ A page holds at most 100 nodes, a query at most 10,000 characters, and a request
  * `membership=true` includes projects where the user is only a Guest. Their pipelines need `read_pipeline` and answer 403; `min_access_level=20`, Reporter, leaves them out [docs, source].
 
 
+### Branches and merge requests
+
+Checked 2026-09-23.
+
+ * A project is found by its whole path in place of its id, escaped as one segment: `projects/group%2Fproject` [docs, live].
+ * A merge request's `state` is `opened`, `closed`, `locked` or `merged`; locked is one in the middle of being merged [docs, live].
+ * `repository/branches/{branch}` and `repository/tags/{tag}` take the name escaped, slashes too, and answer `404 Branch Not Found` or `404 Tag Not Found`. A project the token cannot see is `404 Project Not Found` on the same routes, so only the message tells the two apart [live].
+
+
 ### Permissions
 
 Checked 2026-09-16.
@@ -134,6 +150,7 @@ Checked 2026-09-16.
  * [GitLab.com rate limits](https://docs.gitlab.com/user/gitlab_com/)
  * [User and IP rate limits](https://docs.gitlab.com/administration/settings/user_and_ip_rate_limits/)
  * [Pipelines API](https://docs.gitlab.com/api/pipelines/), [Projects API](https://docs.gitlab.com/api/projects/), [Events API](https://docs.gitlab.com/api/events/) and [GraphQL API](https://docs.gitlab.com/api/graphql/)
+ * [Merge requests API](https://docs.gitlab.com/api/merge_requests/), [Branches API](https://docs.gitlab.com/api/branches/) and [Tags API](https://docs.gitlab.com/api/tags/)
  * [Permissions](https://docs.gitlab.com/user/permissions/)
  * [Personal access tokens API](https://docs.gitlab.com/api/personal_access_tokens/) and [OAuth 2.0 identity provider API](https://docs.gitlab.com/api/oauth2/)
  * Source: [event.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/models/event.rb), [events_finder.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/finders/events_finder.rb), [pipeline_type.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/graphql/types/ci/pipeline_type.rb), [projects_resolver.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/graphql/resolvers/projects_resolver.rb), [pipelines.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/api/ci/pipelines.rb), [auth_finders.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/gitlab/auth/auth_finders.rb), [self_information.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/api/personal_access_tokens/self_information.rb), [personal_access_token.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/api/entities/personal_access_token.rb), [users.rb](https://github.com/gitlabhq/gitlabhq/blob/master/lib/api/users.rb), [projects_finder.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/finders/projects_finder.rb) and [token_info_controller.rb](https://github.com/gitlabhq/gitlabhq/blob/master/app/controllers/oauth/token_info_controller.rb)

@@ -380,6 +380,61 @@ sealed class GitLabProvider : ProviderBase
         return (PullRequestBranches.Head(source, owner), $"{project.WebUrl ?? pipeline.RepoUrl}/-/tree/{source}");
     }
 
+    /// <summary>
+    /// The server's own root, under which it serves the projects as well as the API.
+    /// </summary>
+    public override Uri RepositoryRoot(Connection connection) =>
+        base.BaseAddress(connection);
+
+    /// <summary>
+    /// What became of a failed branch of a project on this server. A merge request is asked for its
+    /// state. Any other branch is asked whether it, or a tag of its name, is still there, and then
+    /// whether the project is, since GitLab answers a project the token cannot see with the same 404
+    /// as a branch that is gone. A fork's branch builds here only through its merge request, which
+    /// its pipeline names, so one without is not asked about.
+    /// </summary>
+    public override async Task<BranchFate> FateOf(ProviderContext context, BranchQuestion question, Cancel cancel)
+    {
+        if (RepositoryPath(context, question.Repository) is not { } path)
+        {
+            return BranchFate.Unknown;
+        }
+
+        // The whole path as one segment, which the API takes in place of the numeric id.
+        var project = $"projects/{Encode(path)}";
+        if (question.PullRequest is { } number)
+        {
+            var request = await GetOrNone(context, $"{project}/merge_requests/{Encode(number)}", GitLabContext.Default.GitLabMergeRequest, cancel);
+            return request?.State switch
+            {
+                // Locked is a merge request in the middle of being merged.
+                "opened" or "locked" => BranchFate.Open,
+                "merged" => BranchFate.Merged,
+                "closed" => BranchFate.Closed,
+                _ => BranchFate.Unknown
+            };
+        }
+
+        if (question.Branch.Contains(':'))
+        {
+            return BranchFate.Unknown;
+        }
+
+        var name = Encode(question.Branch);
+        if (await GetOrNone(context, $"{project}/repository/branches/{name}", GitLabContext.Default.GitLabRef, cancel) is not null ||
+            await GetOrNone(context, $"{project}/repository/tags/{name}", GitLabContext.Default.GitLabRef, cancel) is not null)
+        {
+            return BranchFate.Open;
+        }
+
+        if (await GetOrNone(context, project, GitLabContext.Default.GitLabProject, cancel) is null)
+        {
+            return BranchFate.Unknown;
+        }
+
+        return BranchFate.Deleted;
+    }
+
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)
     {
         var parts = Split(build);

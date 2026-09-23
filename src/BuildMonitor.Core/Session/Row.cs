@@ -10,11 +10,12 @@
 /// <param name="Expanded">Whether a group's members follow its row.</param>
 /// <param name="Members">The builds a group stands for, a repository's together, the most recently
 /// active repository first. Empty otherwise.</param>
-/// <param name="Folded">The pipeline's other branches whose newest run settled without failing,
-/// which get no row, for the hover of the row that names the pipeline. Empty on every other row.</param>
+/// <param name="Folded">The pipeline's other branches that get no row, because their newest run
+/// settled without failing or failed on a branch that is gone, for the hover of the row that names
+/// the pipeline. Empty on every other row.</param>
 /// <param name="NamedAbove">Whether a member's repository is the one the member row above it
 /// names, so its own first cell is left empty.</param>
-record Row(RowKind Kind, ConnectionState? Connection, Build? Build, GroupKey? Group, bool Expanded, ImmutableArray<Build> Members, ImmutableArray<Build> Folded, bool NamedAbove = false)
+record Row(RowKind Kind, ConnectionState? Connection, Build? Build, GroupKey? Group, bool Expanded, ImmutableArray<Build> Members, ImmutableArray<FoldedBranch> Folded, bool NamedAbove = false)
 {
     /// <summary>
     /// Every build the row stands for, so a search does not lose the ones a closed group hides.

@@ -23,6 +23,8 @@ AppVeyor reports a pull request build's branch as the one it targets, so it is s
 
 The project's default branch is the one its pull request builds target, or its other builds are on, before AppVeyor's own setting for it: that setting is the repository's default branch when the project was added, and a repository that has since moved from master to main is still master there.
 
+AppVeyor keeps a build after its branch is deleted, and says nothing of it. A failed branch of a project on GitHub is asked of a [GitHub connection](github.md#rows), where there is one, whether its pull request was merged or closed or the branch deleted, and loses its row if so. Any other failed branch loses it once the default branch has built since it failed.
+
 
 ## Actions
 

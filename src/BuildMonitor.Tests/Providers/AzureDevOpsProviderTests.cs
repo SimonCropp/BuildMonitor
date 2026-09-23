@@ -439,4 +439,76 @@
         await ProviderTestHelpers.Provider("azure-devops").Test(context, Cancel.None);
         await Assert.That(handler.RequestHeaders.Single().Authorization!.ToString()).IsEqualTo("Bearer secret");
     }
+
+    // With spaces, as the handler records a request: its Uri written out, which unescapes them.
+    const string gitRepository = "https://dev.azure.com/contoso/Verify Tests/_apis/git/repositories/Diff Engine";
+
+    /// <summary>
+    /// An Azure Repos repository's address as the rows link it, with a space in each name.
+    /// </summary>
+    static Task<BranchFate> FateOf(FakeHttpHandler handler, string branch, string? pullRequest = null, string repository = "https://dev.azure.com/contoso/Verify%20Tests/_git/Diff%20Engine") =>
+        ProviderTestHelpers.Provider("azure-devops").FateOf(ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso")), new(repository, branch, pullRequest), Cancel.None);
+
+    /// <summary>
+    /// A pull request is asked for its status: completed is merged, abandoned closed.
+    /// </summary>
+    [Test]
+    [Arguments("active", BranchFate.Open)]
+    [Arguments("completed", BranchFate.Merged)]
+    [Arguments("abandoned", BranchFate.Closed)]
+    public async Task APullRequestIsAskedForItsStatus(string status, BranchFate fate)
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{gitRepository}/pullrequests/31?api-version=7.1", $$"""{"pullRequestId":31,"status":"{{status}}"}""");
+        await Assert.That(await FateOf(handler, "feature/x", "31")).IsEqualTo(fate);
+    }
+
+    /// <summary>
+    /// The refs filter matches every ref that starts with it, so only the branch's own ref says it
+    /// is still there.
+    /// </summary>
+    [Test]
+    public async Task ABranchStillThereIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{gitRepository}/refs?filter=heads/feature/x&api-version=7.1", """{"value":[{"name":"refs/heads/feature/x"},{"name":"refs/heads/feature/x-2"}],"count":2}""");
+        await Assert.That(await FateOf(handler, "feature/x")).IsEqualTo(BranchFate.Open);
+    }
+
+    [Test]
+    public async Task ATagOfTheNameIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{gitRepository}/refs?filter=heads/v1.0&api-version=7.1", """{"value":[],"count":0}""")
+            .Get($"{gitRepository}/refs?filter=tags/v1.0&api-version=7.1", """{"value":[{"name":"refs/tags/v1.0"}],"count":1}""");
+        await Assert.That(await FateOf(handler, "v1.0")).IsEqualTo(BranchFate.Open);
+    }
+
+    /// <summary>
+    /// No ref of the name, where another only starts with it, is a branch deleted; a repository the
+    /// token cannot see is a 404, which says nothing.
+    /// </summary>
+    [Test]
+    public async Task NoRefOfTheNameIsDeleted()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{gitRepository}/refs?filter=heads/fix&api-version=7.1", """{"value":[{"name":"refs/heads/fix-2"}],"count":1}""")
+            .Get($"{gitRepository}/refs?filter=tags/fix&api-version=7.1", """{"value":[],"count":0}""");
+        await Assert.That(await FateOf(handler, "fix")).IsEqualTo(BranchFate.Deleted);
+        await Assert.That(await FateOf(new(), "fix")).IsEqualTo(BranchFate.Unknown);
+    }
+
+    /// <summary>
+    /// A repository of another organization is not under this connection, and a GitHub repository
+    /// is not asked here at all.
+    /// </summary>
+    [Test]
+    [Arguments("https://dev.azure.com/fabrikam/Verify/_git/DiffEngine")]
+    [Arguments("https://github.com/VerifyTests/DiffEngine")]
+    public async Task ARepositoryElsewhereIsNotAsked(string repository)
+    {
+        var handler = new FakeHttpHandler();
+        await Assert.That(await FateOf(handler, "fix", repository: repository)).IsEqualTo(BranchFate.Unknown);
+        await Assert.That(handler.Requests).IsEmpty();
+    }
 }

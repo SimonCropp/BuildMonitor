@@ -5,11 +5,12 @@ static class Logging
     /// </summary>
     public const string Variable = "BuildMonitor_LogLevel";
 
+    static string currentDirectory { get; } = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
     /// <summary>
     /// Beside the installed tool, so it moves with the version and the "Open logs" menu item
     /// always finds the logs of the build that is running.
     /// </summary>
-    public static string LogsDirectory { get; } = Path.Combine(AssemblyLocation.CurrentDirectory, "logs");
+    public static string LogsDirectory { get; } = Path.Combine(currentDirectory, "logs");
 
     public static void Init()
     {

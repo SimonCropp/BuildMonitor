@@ -595,6 +595,116 @@
         await Assert.That(handler.RequestHeaders.Select(_ => _.Authorization?.ToString() ?? "none").Distinct()).IsEquivalentTo(["Bearer signed-in"]);
     }
 
+    static readonly Connection appVeyor = new()
+    {
+        Id = "av",
+        ProviderId = "appveyor",
+        Name = "AppVeyor",
+        Auth = AuthMethod.Token
+    };
+
+    const string markingsPullRequest = "https://api.github.com/repos/pmcau/AustralianProtectiveMarkings/pulls/205";
+
+    /// <summary>
+    /// A GitHub connection beside an AppVeyor one whose project on GitHub has a Dependabot pull
+    /// request failing, and main built since.
+    /// </summary>
+    static (SessionHost Host, MemorySecretStore Secrets) WithAppVeyorPullRequest()
+    {
+        var settings = new Settings
+        {
+            Connections = [Fixtures.GitHub, appVeyor]
+        };
+        var state = SessionState.Start(settings);
+        const string branch = "dependabot/nuget/src/DiffEngine-20.4.0";
+        var builds = ImmutableArray.Create(
+            Fixtures.Build(appVeyor.Id, "pmcau/markings", "markings", "pmcau/AustralianProtectiveMarkings", branch, "40", BuildStatus.Failed, started: Fixtures.Now - TimeSpan.FromHours(3), finished: Fixtures.Now - TimeSpan.FromHours(2), pullRequest: "205"),
+            Fixtures.Build(appVeyor.Id, "pmcau/markings", "markings", "pmcau/AustralianProtectiveMarkings", "main", "41", BuildStatus.Succeeded, started: Fixtures.Now - TimeSpan.FromHours(1), finished: Fixtures.Now - TimeSpan.FromMinutes(50)));
+        state = MonitorSession.ApplyPoll(state, appVeyor.Id, [], [..builds.Select(_ => _ with { DefaultBranch = "main" })], Fixtures.Now);
+        var secrets = new MemorySecretStore();
+        secrets.Write(SecretKeys.Token(Fixtures.GitHub.Id), "token");
+        return (new(state), secrets);
+    }
+
+    static bool Shows(SessionHost host, string branch) =>
+        RowProjection.Builds(host.State).Any(_ => _.Branch?.EndsWith(branch, StringComparison.Ordinal) == true);
+
+    /// <summary>
+    /// GitHub is asked about a pull request another service built, on the GitHub connection's own
+    /// credential, and a merged one leaves the rows.
+    /// </summary>
+    [Test]
+    public async Task AGitHubConnectionFoldsAnotherServicesMergedPullRequest()
+    {
+        var (host, secrets) = WithAppVeyorPullRequest();
+        await Assert.That(Shows(host, "DiffEngine-20.4.0")).IsTrue();
+        var handler = GitHubHandler()
+            .Get(markingsPullRequest, """{"number":205,"state":"closed","merged_at":"2026-01-01T10:00:00Z"}""");
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, new(), handler, null, () => Fixtures.Now);
+
+        await poller.PollOnce(Cancel.None);
+
+        await Assert.That(Shows(host, "DiffEngine-20.4.0")).IsFalse();
+        await Assert.That(host.State.Verdicts.Values.Single().Fate).IsEqualTo(BranchFate.Merged);
+
+        // Merged is final for that run, so the next cycle asks nothing.
+        await poller.PollOnce(Cancel.None);
+        await Assert.That(handler.Requests.Count(_ => _ == $"GET {markingsPullRequest}")).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// A token refused the pull request, as a fine grained one without Pull requests read is, cannot
+    /// say, which is neither a merge nor a credential gone bad: the connection stays healthy, the
+    /// question waits an hour, and the branch folds because main has built since.
+    /// </summary>
+    [Test]
+    public async Task ARefusedQuestionCannotSay()
+    {
+        var (host, secrets) = WithAppVeyorPullRequest();
+        var now = Fixtures.Now;
+        var handler = GitHubHandler()
+            .Map("GET", markingsPullRequest, """{"message":"Resource not accessible by personal access token"}""", HttpStatusCode.Forbidden);
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, new(), handler, null, () => now);
+
+        var health = await poller.PollOnce(Cancel.None);
+
+        await Assert.That(health).IsEqualTo(ConnectionHealth.Ok);
+        await Assert.That(host.State.Verdicts.Values.Single().Fate).IsEqualTo(BranchFate.Unknown);
+        await Assert.That(Shows(host, "DiffEngine-20.4.0")).IsFalse();
+
+        now += TimeSpan.FromMinutes(30);
+        await poller.PollOnce(Cancel.None);
+        await Assert.That(handler.Requests.Count(_ => _ == $"GET {markingsPullRequest}")).IsEqualTo(1);
+
+        now += TimeSpan.FromMinutes(31);
+        await poller.PollOnce(Cancel.None);
+        await Assert.That(handler.Requests.Count(_ => _ == $"GET {markingsPullRequest}")).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// A question that fails otherwise leaves the branch as it was and the connection healthy, and
+    /// backs the questions off rather than asking again every cycle.
+    /// </summary>
+    [Test]
+    public async Task AFailedQuestionLeavesTheRowAndTheConnection()
+    {
+        var (host, secrets) = WithAppVeyorPullRequest();
+        var now = Fixtures.Now;
+        var handler = GitHubHandler()
+            .Map("GET", markingsPullRequest, "boom", HttpStatusCode.InternalServerError);
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, new(), handler, null, () => now);
+
+        var health = await poller.PollOnce(Cancel.None);
+
+        await Assert.That(health).IsEqualTo(ConnectionHealth.Ok);
+        await Assert.That(host.State.Verdicts).IsEmpty();
+        await Assert.That(Shows(host, "DiffEngine-20.4.0")).IsTrue();
+
+        now += TimeSpan.FromSeconds(30);
+        await poller.PollOnce(Cancel.None);
+        await Assert.That(handler.Requests.Count(_ => _ == $"GET {markingsPullRequest}")).IsEqualTo(1);
+    }
+
     static async Task WaitFor(Func<bool> condition)
     {
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(20);

@@ -24,6 +24,96 @@ public class TravisProviderTests
         await Verify(new { builds, handler.Requests });
     }
 
+    /// <summary>
+    /// Travis CI Enterprise builds from a GitHub Enterprise server, and the only address on it that
+    /// Travis gives is each commit's compare_url. Composed on github.com, a build's repository,
+    /// branch and pull request links opened repositories github.com does not have.
+    /// </summary>
+    [Test]
+    public async Task EnterpriseLinksAreOnTheHostTheCommitNames()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://travis.example.com/api/repos?repository.active=true&limit=100&sort_by=default_branch.last_build:desc",
+                """{"repositories":[{"id":1,"slug":"team/app","default_branch":{"name":"main"}}]}""")
+            .Get(
+                "https://travis.example.com/api/repo/team%2Fapp/builds?limit=5&sort_by=id:desc&include=build.commit",
+                """
+                {"builds":[
+                  {"id":900,"number":"120","state":"passed","event_type":"push","branch":{"name":"main"},"commit":{"sha":"abc","compare_url":"https://github.example.com/team/app/compare/123...abc"}},
+                  {"id":899,"number":"119","state":"failed","event_type":"pull_request","pull_request_number":7,"branch":{"name":"main"},"commit":{"sha":"def","compare_url":"https://github.example.com/team/app/pull/7"}},
+                  {"id":898,"number":"118","state":"failed","event_type":"push","branch":{"name":"fix"},"commit":{"sha":"fed"}}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("travis", handler, "https://travis.example.com/api");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("travis", context);
+        await Assert.That(builds.Select(_ => $"{_.RunNumber} {_.RepoUrl} {_.BranchUrl} {_.PullRequestUrl}")).IsEquivalentTo(
+        [
+            "120 https://github.example.com/team/app https://github.example.com/team/app/tree/main ",
+            "119 https://github.example.com/team/app  https://github.example.com/team/app/pull/7",
+            // No commit address says where an Enterprise server's repository is, and a guess of
+            // github.com would open another repository of the name, or none.
+            "118   "
+        ]);
+    }
+
+    /// <summary>
+    /// travis-ci.com builds Bitbucket, GitLab and Assembla repositories too. Composed as GitHub's,
+    /// their links opened another repository of the name on github.com, or none.
+    /// </summary>
+    [Test]
+    public async Task BitbucketAndGitLabLinksAreInTheirOwnForm()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://api.travis-ci.com/repos?repository.active=true&limit=100&sort_by=default_branch.last_build:desc",
+                """
+                {"repositories":[
+                  {"id":1,"slug":"team/bucket","vcs_type":"BitbucketRepository"},
+                  {"id":2,"slug":"team/lab","vcs_type":"GitlabRepository"},
+                  {"id":3,"slug":"team/space","vcs_type":"AssemblaRepository"}
+                ]}
+                """)
+            .Get(
+                "https://api.travis-ci.com/repo/team%2Fbucket/builds?limit=5&sort_by=id:desc&include=build.commit",
+                """
+                {"builds":[
+                  {"id":10,"number":"10","state":"passed","event_type":"push","branch":{"name":"main"},"commit":{"sha":"a"}},
+                  {"id":11,"number":"11","state":"failed","event_type":"pull_request","pull_request_number":4,"branch":{"name":"main"},"commit":{"sha":"b","compare_url":"https://bitbucket.org/team/bucket/pull-requests/4"}}
+                ]}
+                """)
+            .Get(
+                "https://api.travis-ci.com/repo/team%2Flab/builds?limit=5&sort_by=id:desc&include=build.commit",
+                """
+                {"builds":[
+                  {"id":20,"number":"20","state":"passed","event_type":"push","branch":{"name":"main"},"commit":{"sha":"c"}},
+                  {"id":21,"number":"21","state":"failed","event_type":"pull_request","pull_request_number":5,"branch":{"name":"main"},"commit":{"sha":"d"}}
+                ]}
+                """)
+            .Get(
+                "https://api.travis-ci.com/repo/team%2Fspace/builds?limit=5&sort_by=id:desc&include=build.commit",
+                """{"builds":[{"id":30,"number":"30","state":"passed","event_type":"push","branch":{"name":"main"},"commit":{"sha":"e","compare_url":"https://app.assembla.com/spaces/team/git/compare/1...2"}}]}""");
+        var context = ProviderTestHelpers.Context("travis", handler);
+        var provider = ProviderTestHelpers.Provider("travis");
+        var pipelines = await provider.DiscoverPipelines(context, Cancel.None);
+        await Assert.That(pipelines.Select(_ => _.Url)).IsEquivalentTo(
+        [
+            "https://app.travis-ci.com/bitbucket/team/bucket",
+            "https://app.travis-ci.com/gitlab/team/lab",
+            "https://app.travis-ci.com/assembla/team/space"
+        ]);
+        var builds = await provider.FetchBuilds(context, pipelines, 5, Cancel.None);
+        await Assert.That(builds.Select(_ => $"{_.RunNumber} {_.RepoUrl} {_.BranchUrl} {_.PullRequestUrl}")).IsEquivalentTo(
+        [
+            "10 https://bitbucket.org/team/bucket https://bitbucket.org/team/bucket/branch/main ",
+            "11 https://bitbucket.org/team/bucket  https://bitbucket.org/team/bucket/pull-requests/4",
+            "20 https://gitlab.com/team/lab https://gitlab.com/team/lab/-/tree/main ",
+            "21 https://gitlab.com/team/lab  https://gitlab.com/team/lab/-/merge_requests/5",
+            // Assembla's pages are under an id Travis does not list.
+            "30   "
+        ]);
+    }
+
     const string mainBuilds = "https://api.travis-ci.com/repo/VerifyTests%2FDiffEngine/builds?limit=1&sort_by=id:desc&branch.name=main&event_type=push,api,cron&include=build.commit";
 
     /// <summary>

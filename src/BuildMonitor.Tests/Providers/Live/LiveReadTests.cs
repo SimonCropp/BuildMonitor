@@ -223,6 +223,44 @@ public class LiveReadTests
     }
 
     /// <summary>
+    /// What became of each failed branch among the builds fetched, asked as the poller asks, of a
+    /// service that holds repositories. Which answer is right depends on what happened to the
+    /// branches, so they are logged rather than checked; none may throw, since a question that
+    /// throws backs every question after it off.
+    /// </summary>
+    [Test]
+    [MethodDataSource(typeof(LiveSettings), nameof(LiveSettings.ProviderIds))]
+    [Timeout(LiveSettings.ReadTimeout)]
+    public async Task BranchFates(string providerId, Cancel cancel)
+    {
+        var live = LiveConnection.Require(providerId);
+        if (!live.Descriptor.HostsRepositories)
+        {
+            Skip.Test($"{providerId}: the service holds no repositories to ask about.");
+        }
+
+        var session = await LiveSessions.Get(live, cancel);
+        var context = session.Context();
+        var builds = await session.Fetch(context, session.Groups(6), cancel);
+        var questions = BranchVerdicts.Failed(BuildSelection.Select(builds, true, [], _ => true))
+            .Where(_ => _.RepoUrl is not null && _.Branch is not null)
+            .Select(_ => new BranchQuestion(_.RepoUrl!, _.Branch!, _.PullRequestNumber))
+            .DistinctBy(_ => _.Key)
+            .Take(10)
+            .ToList();
+        if (questions.Count == 0)
+        {
+            Skip.Test($"{providerId}: no failed branch to ask about ({LiveLog.Counts(builds)})");
+        }
+
+        foreach (var question in questions)
+        {
+            var fate = await live.Provider.FateOf(context, question, cancel);
+            LiveLog.Line($"{providerId}: {question.Repository} {question.Branch} {question.PullRequest} is {fate}");
+        }
+    }
+
+    /// <summary>
     /// The files the sandbox's failed build published, listed and then downloaded. Nothing else
     /// here asks a service for an artifact, so this is the only check that the ids a listing gives
     /// are ones the download route accepts.

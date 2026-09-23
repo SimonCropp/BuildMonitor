@@ -419,6 +419,173 @@ public class GitHubProviderTests
         await Assert.That(address.ToString()).IsEqualTo("https://github.example.com/api/v3/");
     }
 
+    const string verifyRepository = "https://github.com/VerifyTests/Verify";
+
+    static Task<BranchFate> FateOf(FakeHttpHandler handler, string branch, string? pullRequest = null, string repository = verifyRepository, string? server = null) =>
+        ProviderTestHelpers.Provider("github").FateOf(ProviderTestHelpers.Context("github", handler, server), new(repository, branch, pullRequest), Cancel.None);
+
+    /// <summary>
+    /// A pull request is asked for its own state, whatever built it.
+    /// </summary>
+    [Test]
+    [Arguments("""{"number":42,"state":"open","merged_at":null}""", BranchFate.Open)]
+    [Arguments("""{"number":42,"state":"closed","merged_at":"2026-01-01T10:00:00Z"}""", BranchFate.Merged)]
+    [Arguments("""{"number":42,"state":"closed","merged_at":null}""", BranchFate.Closed)]
+    public async Task APullRequestIsAskedForItsState(string body, BranchFate fate)
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/pulls/42", body);
+        await Assert.That(await FateOf(handler, "feature/inline", "42")).IsEqualTo(fate);
+        await Assert.That(handler.Requests).IsEquivalentTo(["GET https://api.github.com/repos/VerifyTests/Verify/pulls/42"]);
+    }
+
+    /// <summary>
+    /// A pull request the credential cannot see is a 404, which says nothing about it.
+    /// </summary>
+    [Test]
+    public async Task APullRequestItCannotSeeCannotSay() =>
+        await Assert.That(await FateOf(new(), "feature/inline", "42")).IsEqualTo(BranchFate.Unknown);
+
+    /// <summary>
+    /// A fork's branch builds here only through a pull request, and a run from one names none, so
+    /// the newest pull request from that branch says what became of it.
+    /// </summary>
+    [Test]
+    public async Task AForksBranchIsAskedForTheNewestPullRequestFromIt()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://api.github.com/repos/VerifyTests/Verify/pulls?head=someone%3Afix-1834&state=all&per_page=1",
+                """[{"number":1910,"state":"closed","merged_at":"2026-01-01T10:00:00Z"}]""");
+        await Assert.That(await FateOf(handler, "someone:fix-1834")).IsEqualTo(BranchFate.Merged);
+    }
+
+    [Test]
+    public async Task AForksBranchNoPullRequestNamesCannotSay()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/pulls?head=someone%3Afix-1834&state=all&per_page=1", "[]");
+        await Assert.That(await FateOf(handler, "someone:fix-1834")).IsEqualTo(BranchFate.Unknown);
+    }
+
+    /// <summary>
+    /// A branch with no pull request is asked whether it is still there, slashes and all.
+    /// </summary>
+    [Test]
+    public async Task ABranchStillThereIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/branches/dependabot/nuget/Polyfill-9.1.0", """{"name":"dependabot/nuget/Polyfill-9.1.0"}""");
+        await Assert.That(await FateOf(handler, "dependabot/nuget/Polyfill-9.1.0")).IsEqualTo(BranchFate.Open);
+        await Assert.That(handler.Requests.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// A release workflow's run is named for its tag, which is no branch but is still there. The
+    /// listing matches every tag the name starts, so v1 lists v1.1 too.
+    /// </summary>
+    [Test]
+    public async Task ATagOfTheNameIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/git/matching-refs/tags/v1", """[{"ref":"refs/tags/v1"},{"ref":"refs/tags/v1.1"}]""");
+        await Assert.That(await FateOf(handler, "v1")).IsEqualTo(BranchFate.Open);
+    }
+
+    /// <summary>
+    /// Neither a branch nor a tag of the name, in a repository the credential can see, is a branch
+    /// deleted. A tag that only starts with the name is another tag.
+    /// </summary>
+    [Test]
+    public async Task NeitherBranchNorTagIsDeleted()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/git/matching-refs/tags/v1", """[{"ref":"refs/tags/v1.1"}]""");
+        await Assert.That(await FateOf(handler, "v1")).IsEqualTo(BranchFate.Deleted);
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://api.github.com/repos/VerifyTests/Verify/branches/v1",
+            "GET https://api.github.com/repos/VerifyTests/Verify/git/matching-refs/tags/v1"
+        ]);
+    }
+
+    /// <summary>
+    /// A repository the credential cannot see answers the branch and the tags alike with a 404, which
+    /// must not read as the branch being deleted.
+    /// </summary>
+    [Test]
+    public async Task ARepositoryItCannotSeeCannotSay() =>
+        await Assert.That(await FateOf(new(), "feature/x")).IsEqualTo(BranchFate.Unknown);
+
+    /// <summary>
+    /// An address that names no repository is not asked about at all.
+    /// </summary>
+    [Test]
+    public async Task AnAddressThatIsNoRepositoryIsNotAsked()
+    {
+        var handler = new FakeHttpHandler();
+        await Assert.That(await FateOf(handler, "main", repository: "https://github.com/VerifyTests")).IsEqualTo(BranchFate.Unknown);
+        await Assert.That(handler.Requests).IsEmpty();
+    }
+
+    /// <summary>
+    /// GoCD names a repository by the address its git material clones, .git and all.
+    /// </summary>
+    [Test]
+    public async Task ACloneAddressIsAskedAboutItsRepository()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/pulls/42", """{"number":42,"state":"open"}""");
+        await Assert.That(await FateOf(handler, "fix", "42", "https://github.com/VerifyTests/Verify.git")).IsEqualTo(BranchFate.Open);
+    }
+
+    /// <summary>
+    /// An enterprise server's repository is asked of that server's API.
+    /// </summary>
+    [Test]
+    public async Task AnEnterpriseRepositoryIsAskedOfItsServer()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://github.example.com/api/v3/repos/team/app/pulls/3", """{"number":3,"state":"open"}""");
+        await Assert.That(await FateOf(handler, "fix", "3", "https://github.example.com/team/app", "https://github.example.com")).IsEqualTo(BranchFate.Open);
+    }
+
+    /// <summary>
+    /// GitHub Enterprise serves its pages on its own host, which the repository listing names.
+    /// Composed on github.com, a pull request's link opened a repository github.com does not have,
+    /// as did a branch's wherever the run gave no head repository page to open it in.
+    /// </summary>
+    [Test]
+    public async Task EnterpriseServerLinksAreOnItsOwnHost()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://github.example.com/api/v3/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
+                """[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.example.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z","default_branch":"main"}]""")
+            .Get(
+                "https://github.example.com/api/v3/repos/VerifyTests/DiffEngine/actions/workflows?per_page=100",
+                """{"workflows":[{"id":10,"name":"Test","path":".github/workflows/test.yml","state":"active"}]}""")
+            .Get(
+                "https://github.example.com/api/v3/repos/VerifyTests/DiffEngine/actions/runs?per_page=5",
+                """
+                {"workflow_runs":[
+                  {"id":499,"workflow_id":10,"run_number":1233,"status":"completed","conclusion":"failure","head_branch":"feature","html_url":"https://github.example.com/VerifyTests/DiffEngine/actions/runs/499","head_repository":{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.example.com/VerifyTests/DiffEngine"},"pull_requests":[{"number":42}]},
+                  {"id":498,"workflow_id":10,"run_number":1232,"status":"completed","conclusion":"success","head_branch":"main","html_url":"https://github.example.com/VerifyTests/DiffEngine/actions/runs/498","head_repository":{"full_name":"someone/DiffEngine"},"pull_requests":[]},
+                  {"id":497,"workflow_id":10,"run_number":1231,"status":"completed","conclusion":"success","head_branch":"main","html_url":"https://github.example.com/VerifyTests/DiffEngine/actions/runs/497","pull_requests":[]}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("github", handler, "https://github.example.com");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        await Assert.That(builds.Single(_ => _.RunNumber == "1233").PullRequestUrl).IsEqualTo("https://github.example.com/VerifyTests/DiffEngine/pull/42");
+        await Assert.That(builds.Select(_ => $"{_.Branch} {_.BranchUrl}")).IsEquivalentTo(
+        [
+            "feature https://github.example.com/VerifyTests/DiffEngine/tree/feature",
+            "someone:main https://github.example.com/someone/DiffEngine/tree/main",
+            "main https://github.example.com/VerifyTests/DiffEngine/tree/main"
+        ]);
+        await Assert.That(builds.Select(_ => _.RepoUrl).Distinct().Single()).IsEqualTo("https://github.example.com/VerifyTests/DiffEngine");
+    }
+
     [Test]
     public async Task UnauthorizedIsAnAuthException()
     {

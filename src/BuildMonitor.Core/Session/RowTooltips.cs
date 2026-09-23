@@ -13,13 +13,13 @@ static class RowTooltips
     /// </summary>
     /// <param name="folded">The pipeline's other branches its row folds away, listed after the
     /// summary.</param>
-    public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, ImmutableArray<Build> folded, string providerName, DateTimeOffset now)
+    public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, ImmutableArray<FoldedBranch> folded, string providerName, DateTimeOffset now)
     {
         var run = OpensRun(build);
         var pipeline = $"Open {providerName} history: {build.PipelineName}";
         List<RowTooltip> tooltips =
         [
-            new(RowPart.Row, string.Join("\n", [Summary(build, now), ..Folded(folded, now)])),
+            new(RowPart.Row, string.Join("\n", [Summary(build, now), ..Folded(build, folded, now)])),
             new(RowPart.Status, run)
         ];
         // Which cell holds which is decided by the row, so each part says what that row's part
@@ -163,13 +163,15 @@ static class RowTooltips
     const int foldedShown = 5;
 
     /// <summary>
-    /// The branches a pipeline's row folds away: those whose newest run settled without failing,
-    /// which get no row. The hover is where a pull request that passed an hour ago is still found,
-    /// rather than nowhere, each with its number where it has one, since a pull request is known by
-    /// it. Past a handful the rest are counted, so a repository with a batch of Dependabot updates
-    /// does not fill the screen with its hover.
+    /// The branches a pipeline's row folds away, which get no row: those whose newest run settled
+    /// without failing, and those that failed on a branch that is gone. The hover is where a pull
+    /// request that passed an hour ago is still found, rather than nowhere, each with its number
+    /// where it has one, since a pull request is known by it, and where one that failed says what
+    /// became of it, so a failure that vanished from the rows is accounted for. Past a handful the
+    /// rest are counted, so a repository with a batch of Dependabot updates does not fill the screen
+    /// with its hover.
     /// </summary>
-    static IEnumerable<string> Folded(ImmutableArray<Build> folded, DateTimeOffset now)
+    static IEnumerable<string> Folded(Build head, ImmutableArray<FoldedBranch> folded, DateTimeOffset now)
     {
         if (folded.IsEmpty)
         {
@@ -177,10 +179,10 @@ static class RowTooltips
         }
 
         yield return "Other branches:";
-        foreach (var build in folded.Take(foldedShown))
+        foreach (var (build, reason) in folded.Take(foldedShown))
         {
             var pullRequest = build.PullRequestNumber is null ? "" : $" PR {build.PullRequestNumber}";
-            yield return $"{DetailSpan.BranchIconText}{build.ShortBranchName()}{pullRequest} {Outcome(build)} {Age(build, now)}";
+            yield return $"{DetailSpan.BranchIconText}{build.ShortBranchName()}{pullRequest} {Outcome(build)} {Age(build, now)}{Since(head, reason)}";
         }
 
         if (folded.Length > foldedShown)
@@ -190,14 +192,29 @@ static class RowTooltips
     }
 
     /// <summary>
-    /// How a folded run ended, in a word. Never failed or still going: those are rows.
+    /// How a folded run ended, in a word. Never still going: that is a row.
     /// </summary>
     static string Outcome(Build build) =>
         build.Status switch
         {
             BuildStatus.Succeeded => "passed",
+            BuildStatus.Failed => "failed",
             BuildStatus.Cancelled => "cancelled",
             _ => build.StatusText ?? "ended"
+        };
+
+    /// <summary>
+    /// Why a failed branch has no row, after when it failed, since the age beside it is the failure's
+    /// and this came after. Nothing for one that settled: how it ended says why.
+    /// </summary>
+    static string Since(Build head, FoldReason reason) =>
+        reason switch
+        {
+            FoldReason.Merged => ", merged",
+            FoldReason.Closed => ", closed",
+            FoldReason.Deleted => ", deleted",
+            FoldReason.Superseded => $", {head.ShortBranchName()} built since",
+            _ => ""
         };
 
     /// <summary>

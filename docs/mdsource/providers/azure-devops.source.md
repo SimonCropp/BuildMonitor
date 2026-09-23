@@ -5,7 +5,7 @@ Watches the pipelines of one organization, across every project or one named pro
 
 ## Credential
 
-A [personal access token](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) with Build: Read & execute, sent as Basic authentication with an empty user name. Or sign in through Microsoft Entra ID, once an application is registered; see [Authentication](../auth.md). Personal Microsoft accounts cannot sign in that way: Microsoft's page turns the address away, so a personal account needs the token. A sign in's token is sent as `Authorization: Bearer`, as Microsoft's REST samples send one.
+A [personal access token](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate) with Build: Read & execute, and Code: Read to say what became of a failed branch of an Azure Repos repository (under [Rows](#rows)), sent as Basic authentication with an empty user name. Or sign in through Microsoft Entra ID, once an application is registered; see [Authentication](../auth.md). Personal Microsoft accounts cannot sign in that way: Microsoft's page turns the address away, so a personal account needs the token. A sign in's token is sent as `Authorization: Bearer`, as Microsoft's REST samples send one.
 
 For Azure DevOps Server enter the server URL and the collection as the organization.
 
@@ -15,6 +15,8 @@ For Azure DevOps Server enter the server URL and the collection as the organizat
 One per pipeline definition. Pull request builds show the pull request number and link to it, on Azure Repos and on GitHub repositories, which are also the two kinds whose name links to the repository. The logo opens the pipeline definition.
 
 A pull request build's source branch is the pull request's merge ref, so it is shown on the branch it came from instead, from the build's `system.pullRequest.sourceBranch` parameter or its `pr.sourceBranch` trigger info. Azure DevOps names neither a fork nor its owner, so a pull request from a fork is shown as `pull/n` rather than on a branch name that would read as one of the repository's own.
+
+A failed branch whose pull request has been completed or abandoned, or which has been deleted, loses its row (see [the window](../tray.md#the-window)). A branch of an Azure Repos repository in the organization is asked of this connection: a pull request for its status, and any other branch for the refs of its name, a branch's and then a tag's, which answer with none for a repository the token can see and a 404 for one it cannot. A branch of a GitHub repository is asked of a [GitHub connection](github.md#rows), where there is one. Any other failed branch loses its row once the default branch has built since it failed.
 
 
 ## Authors
@@ -61,6 +63,8 @@ Each project asks for the last five builds of every definition, so a busy defini
 
 A definition's default branch is the one its pull request builds target, from their `system.pullRequest.targetBranch` parameter, or its other builds ran on, and is remembered for the windows without a pull request in them. The repository's own default branch is not used: a pipeline on a GitHub repository keeps the one the repository had when the pipeline was made. A definition with no pull request builds seen yet has none, and its row is its latest build on any branch. Where a burst of pull requests leaves a definition's last five without a build on its default branch, the definitions missing one on the same branch are asked for their newest there in one request, filtered on the branch's ref, which leaves out the pull request builds targeting it. A definition with none since the [history cutoff](../options.md#show-builds-from-the-last-days) is not asked again for an hour.
 
+After each cycle the failed branches of Azure Repos repositories due an answer are asked about, one question a branch however many pipelines failed on it, up to twenty a cycle and eight at a time, and none while the throughput budget is spent. A pull request or a branch found still there is asked about again after ten minutes. A question that fails is asked again after a minute, doubling, and leaves the connection's health alone.
+
 ```mermaid
 ---
 config:
@@ -98,7 +102,10 @@ flowchart TD
     rows -- "Retry-After on the answer" --> pause["Pause the connection<br/>for Retry-After"]
     fetch -- "429" --> pause
     fetch -- "other failure" --> backoff["Back off that project,<br/>doubling up to 10 minutes"]
-    rows --> sleep
+    rows --> branches{"A failed branch of an<br/>Azure Repos repository<br/>not answered for good?"}
+    branches -- "yes, up to 20" --> ask["GET its pull request, or<br/>the refs of its name, heads<br/>and then tags"]
+    branches -- "no" --> sleep
+    ask --> sleep
     pause --> sleep
     backoff --> sleep
 ```
@@ -152,6 +159,15 @@ None. Builds, definitions and pipelines lists send no ETag or Last-Modified, and
  * The builds list needs a project in the path [docs].
 
 
+### Branches and pull requests
+
+Checked 2026-09-23.
+
+ * `{project}/_apis/git/repositories/{repository}/pullrequests/{id}` takes the repository's name as well as its id, and answers a pull request's `status`: `active`, `abandoned` or `completed`, which is merged [docs, live].
+ * `refs?filter=heads/{branch}` lists every ref starting with the filter, so `heads/fix` lists `heads/fix-2` too. None is `{"value":[],"count":0}` for a repository the token can see, and a missing repository is a 404 [live].
+ * Reading either needs the Code (Read) scope on a personal access token [docs].
+
+
 ### Queue order
 
 `PATCH build/builds/{id}` with `{"queuePosition":1}`. Azure DevOps documents no verb for this: the run's own page has a Run next button, and `queuePosition` is one of the fields Update Build takes [docs]. `priority`, which is set when a build is queued, is the other candidate and is not what the button is described as changing.
@@ -178,5 +194,6 @@ Checked 2026-09-16.
  * [Definitions - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/definitions/list?view=azure-devops-rest-7.1)
  * [Pushes - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pushes/list?view=azure-devops-rest-7.1)
  * [Runs - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/pipelines/runs/list?view=azure-devops-rest-7.1)
+ * [Pull Requests - Get Pull Request](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-requests/get-pull-request?view=azure-devops-rest-7.1) and [Refs - List](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/refs/list?view=azure-devops-rest-7.1)
  * [BuildHttpClientBase.GetBuildsAsync](https://learn.microsoft.com/en-us/dotnet/api/microsoft.teamfoundation.build.webapi.buildhttpclientbase.getbuildsasync?view=azure-devops-dotnet)
  * [HTTP 203 from the REST API](https://learn.microsoft.com/en-us/answers/questions/559772/azure-devops-rest-api-keep-getting-http-203)

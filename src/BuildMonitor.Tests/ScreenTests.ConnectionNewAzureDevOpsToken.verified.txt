@@ -9,7 +9,7 @@
 | Sign in with: <Token>                                                                                                |
 | Personal access token: [                                        ]                                                    |
 | How to get a Personal access token -> https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-per> |
-| The token needs Build (Read & execute).                                                                              |
+| The token needs Build (Read & execute), and Code (Read) to tell when a failed branch is gone.                        |
 | Azure DevOps documentation -> https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md    |
 |                                                                                                                      |
 |                                                                                                                      |

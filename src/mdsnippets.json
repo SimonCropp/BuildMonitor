@@ -5,5 +5,8 @@
     "Icons"
   ],
   "MaxWidth": 90,
-  "ValidateContent": true
+  "ValidateContent": true,
+  "ExcludeDirectories": [
+    ".claude"
+  ]
 }

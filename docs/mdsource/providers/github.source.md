@@ -7,12 +7,16 @@ Watches the workflows of every repository the token can see, or of one organizat
 
 A fine grained [personal access token](https://github.com/settings/personal-access-tokens/new) with Actions read and write and Metadata read on the repositories to watch, or a classic token with the `repo` scope. Or sign in: the device flow, or the browser flow once an OAuth App is registered. See [Authentication](../auth.md).
 
+A fine grained token also needs Pull requests read and Contents read to say what became of a failed branch, under [Rows](#rows); without them a failed branch goes only once the default branch has built since.
+
 For GitHub Enterprise Server enter the server URL; the API is reached under `/api/v3`.
 
 
 ## Rows
 
 One per workflow, showing its latest run on the repository's default branch, which the repository listing names. A run on another branch that is running, queued or failed gets a row of its own. Pull request runs link to the pull request. A run from a fork is shown on the fork's branch behind its owner, `someone:main`, so a fork's main is never taken for the repository's, and its branch opens in the fork. GitHub leaves the pull request off a run from a fork, so that row has no pull request button.
+
+A failed branch whose pull request has been merged or closed, or which has been deleted, loses its row (see [the window](../tray.md#the-window)). The connection asks GitHub, for every failed branch of a repository on its host, whichever service built it: an AppVeyor, Travis CI or Azure Pipelines build of a GitHub repository is asked about here too. A pull request is asked for its state; a fork's branch, whose run names no pull request, for the newest pull request from it; any other branch whether it, or a tag of its name, is still there, since a release workflow's run is named for its tag. A pull request found open or a branch found there is asked about again after ten minutes, and one the token may not see after an hour. Merged, closed or deleted is not asked again, unless the branch builds again.
 
 
 ## Actions
@@ -38,6 +42,8 @@ Each poll interval, page 1 of the repository list is read again, most recently p
 A repository's page of runs holds five a workflow, and a batch of pull requests can fill a workflow's five. Its latest run on the default branch is kept past the five where the page holds it, and where it does not, that workflow's runs on the default branch are asked for, with the same conditional request. A workflow with none since the [history cutoff](../options.md#show-builds-from-the-last-days), such as one only pull requests trigger, is not asked again for an hour.
 
 Discovery lists a repository's workflows again only once it has been pushed to since they were last listed, and every repository's once an hour, so a workflow enabled or disabled without a push can take up to an hour to show or go.
+
+After each cycle the connection asks about the failed branches due an answer, one question a branch however many workflows failed on it, up to twenty a cycle and eight at a time. They are conditional requests too, count towards the same 450 a minute, and wait while that is spent. A question that fails is asked again after a minute, doubling, and leaves the connection's health alone.
 
 ```mermaid
 ---
@@ -75,7 +81,10 @@ flowchart TD
     workflow --> rows
     fetch -- "429, or 403 from<br/>a secondary limit" --> pause["Pause the connection<br/>as long as GitHub asks,<br/>or from a minute, doubling"]
     fetch -- "other failure" --> backoff["Back off that repository,<br/>doubling up to 10 minutes"]
-    rows --> sleep
+    rows --> branches{"A failed branch of a<br/>repository on this host,<br/>from any service, not<br/>answered for good?"}
+    branches -- "yes, up to 20" --> ask["GET its pull request, the newest<br/>pull request from a fork's branch,<br/>or the branch, then tags of its name"]
+    branches -- "no" --> sleep
+    ask --> sleep
     pause --> sleep
     backoff --> sleep
 ```
@@ -126,6 +135,17 @@ Checked 2026-09-16.
  * Re-running a run, re-running its failed jobs and cancelling it need the `repo` scope on those tokens, and Actions write on a fine grained one [docs]. With no repository scope a token reads public information only [docs]. Whether `public_repo` alone is enough is not documented.
  * The repository lists carry `permissions`, with `push` for write access [docs], which re-running and cancelling need. Whether a fine grained token's are its user's or its own is not documented.
  * `X-Accepted-GitHub-Permissions` names the permissions an endpoint requires, not those a token holds [docs].
+ * `GET repos/{owner}/{repo}/pulls/{number}` and the pull request list need Pull requests read on a fine grained token; `branches/{branch}` and `git/matching-refs/{ref}` need Contents read [docs].
+
+
+### Branches and pull requests
+
+Checked 2026-09-23.
+
+ * A pull request carries `state`, `open` or `closed`, and `merged_at`, set once merged [docs, live].
+ * The pull request list filters on `head=owner:branch`, a fork's too, and `state=all` keeps the closed ones; the newest comes first [docs, live]. A fork's run names no pull request, so this is how one is found.
+ * `branches/{branch}` takes a branch with slashes in it unescaped, and answers 404 for a branch that is not there and for a repository the token cannot see alike [live].
+ * `git/matching-refs/tags/{name}` lists every tag starting with the name, so `v1` lists `v1.1`; it answers `[]` for a repository the token can see with no such tag, and 404 for one it cannot [live].
 
 
 ### Alternatives considered
@@ -145,3 +165,4 @@ Checked 2026-09-16.
  * [Repositories](https://docs.github.com/en/rest/repos/repos)
  * [Scopes for OAuth apps](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps)
  * [Permissions required for fine-grained personal access tokens](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens)
+ * [Pull requests](https://docs.github.com/en/rest/pulls/pulls), [Branches](https://docs.github.com/en/rest/branches/branches) and [Git references](https://docs.github.com/en/rest/git/refs)

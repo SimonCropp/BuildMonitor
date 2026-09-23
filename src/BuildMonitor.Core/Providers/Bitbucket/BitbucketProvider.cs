@@ -188,6 +188,61 @@ sealed class BitbucketProvider : ProviderBase
     }
 
     /// <summary>
+    /// bitbucket.org, where every repository the API serves is.
+    /// </summary>
+    public override Uri RepositoryRoot(Connection connection) =>
+        new("https://bitbucket.org/");
+
+    /// <summary>
+    /// What became of a failed branch of a repository on bitbucket.org. A pull request is asked for
+    /// its state, declined and superseded both being closed. Any other branch is asked whether it,
+    /// or a tag of its name, is still there, and then whether the repository is, since Bitbucket
+    /// answers a repository the token cannot see with the same 404 as a missing branch. Bitbucket
+    /// builds no pull request from a fork, so a fork's branch never reaches here.
+    /// </summary>
+    public override async Task<BranchFate> FateOf(ProviderContext context, BranchQuestion question, Cancel cancel)
+    {
+        if (RepositoryPath(context, question.Repository) is not { } path ||
+            path.Count(_ => _ == '/') != 1)
+        {
+            return BranchFate.Unknown;
+        }
+
+        var repository = $"repositories/{EncodePath(path)}";
+        if (question.PullRequest is { } number)
+        {
+            var pullRequest = await GetOrNone(context, $"{repository}/pullrequests/{Encode(number)}", BitbucketContext.Default.BitbucketPullRequest, cancel);
+            return pullRequest?.State switch
+            {
+                "OPEN" => BranchFate.Open,
+                "MERGED" => BranchFate.Merged,
+                "DECLINED" or "SUPERSEDED" => BranchFate.Closed,
+                _ => BranchFate.Unknown
+            };
+        }
+
+        if (question.Branch.Contains(':'))
+        {
+            return BranchFate.Unknown;
+        }
+
+        // A branch's slashes as they are: the route takes the rest of the path as the name.
+        var name = EncodePath(question.Branch);
+        if (await GetOrNone(context, $"{repository}/refs/branches/{name}", BitbucketContext.Default.BitbucketBranch, cancel) is not null ||
+            await GetOrNone(context, $"{repository}/refs/tags/{name}", BitbucketContext.Default.BitbucketBranch, cancel) is not null)
+        {
+            return BranchFate.Open;
+        }
+
+        if (await GetOrNone(context, repository, BitbucketContext.Default.BitbucketRepository, cancel) is null)
+        {
+            return BranchFate.Unknown;
+        }
+
+        return BranchFate.Deleted;
+    }
+
+    /// <summary>
     /// A pull request pipeline names no ref, and sent back as its commit alone it ran that commit's
     /// default pipeline, outside the pull request. So it goes back as a pull request target, with
     /// both branches and both commits, since Bitbucket refuses one missing any of them.

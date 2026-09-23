@@ -4,4 +4,6 @@
 [JsonSerializable(typeof(AzureDevOpsList<AzureDevOpsBuild>))]
 [JsonSerializable(typeof(AzureDevOpsList<AzureDevOpsArtifact>))]
 [JsonSerializable(typeof(AzureDevOpsTimeline))]
+[JsonSerializable(typeof(AzureDevOpsPullRequest))]
+[JsonSerializable(typeof(AzureDevOpsList<AzureDevOpsRef>))]
 partial class AzureDevOpsContext : JsonSerializerContext;

@@ -8,8 +8,9 @@
 /// branch where the default is not known or no run on it is held. Null only where a deferral hid it.</param>
 /// <param name="Lanes">The other branches whose newest run is running, queued or failed, most urgent
 /// first.</param>
-/// <param name="Folded">The other branches whose newest run settled any other way, newest first.</param>
-record PipelineBuilds(Build? Head, ImmutableArray<Build> Lanes, ImmutableArray<Build> Folded)
+/// <param name="Folded">The other branches whose newest run settled any other way, or failed on a
+/// branch that is gone, newest first, each with why.</param>
+record PipelineBuilds(Build? Head, ImmutableArray<Build> Lanes, ImmutableArray<FoldedBranch> Folded)
 {
     /// <summary>
     /// The runs that get a row, the head first. Built on every read rather than held, since a copy

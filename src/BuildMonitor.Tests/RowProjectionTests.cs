@@ -5,7 +5,7 @@ public class RowProjectionTests
     {
         var state = Fixtures.WithGreenProject();
         var pipelines = RowProjection.Pipelines(state);
-        var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, pipelines, RowProjection.Builds(state));
+        var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, state.Verdicts, pipelines, RowProjection.Builds(state));
         var rows = new ProjectedRows(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, []);
         var moved = MonitorSession.SelectRow(state, 1);
         await Assert.That(builds.IsFor(moved)).IsTrue();
@@ -17,7 +17,7 @@ public class RowProjectionTests
     {
         var state = Fixtures.WithGreenProject();
         var sorted = RowProjection.Pipelines(state);
-        var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, sorted, RowProjection.Builds(state));
+        var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, state.Verdicts, sorted, RowProjection.Builds(state));
         var rows = new ProjectedRows(sorted, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, []);
         await Assert.That(
                 rows.IsFor(MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing), sorted))
@@ -65,6 +65,15 @@ public class RowProjectionTests
                                 {
                                     ShowOtherBranches = !state.Settings.ShowOtherBranches
                                 }
+                        }))
+            .IsFalse();
+        // An answer about a branch can fold its row, so the rows are sorted again.
+        await Assert.That(
+                builds.IsFor(
+                    state
+                        with
+                        {
+                            Verdicts = state.Verdicts.Add("key", new(BranchFate.Merged, Fixtures.Now))
                         }))
             .IsFalse();
     }
