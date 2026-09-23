@@ -1,6 +1,6 @@
 /// <summary>
 /// The ids of every form field, shared by the transitions that fill them, the applier that
-/// reads them and the heads that key controls by them.
+/// reads them and the heads that report a click or an edit by them.
 /// </summary>
 static class FormFields
 {
@@ -33,8 +33,9 @@ static class FormFields
     public const string ConnectionPrefix = "connection:";
     public const string NoConnections = "noConnections";
 
-    // Update. Labels rather than widgets, so every server shares one id: nothing is keyed by it
-    // because nothing on this page can be clicked or typed in.
+    // Update. Labels rather than widgets, so every server shares one id: the heads match a control
+    // to its field by position, and nothing on this page can be clicked or typed in, so no input
+    // has to say which line it came from.
     public const string UpdateSummary = "updateSummary";
     public const string UpdateServers = "updateServers";
     public const string McpServer = "mcpServer";
