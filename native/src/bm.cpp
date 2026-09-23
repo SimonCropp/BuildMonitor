@@ -47,6 +47,11 @@ struct State {
     bool menuOverflow = false;
     /* Where each visible row's overflow chip was drawn this frame, bottom left, or x -1 for none. */
     std::vector<ImVec2> overflowAnchors;
+    /* What the pointer was on in the last frame drawn, as BmInput.hoveredChipRow and hoveredChip.
+       Kept out of input, which is cleared after every poll: a hover lasts until the pointer moves,
+       and a still pointer draws no frames to report it again. */
+    int32_t hoveredChipRow = -1;
+    int32_t hoveredChip = BM_CHIP_NONE;
     int bodyRows = 1;
     bool keyDown[ImGuiKey_NamedKey_END]{};
     /* The filter box's text. The screen's replaces it on every frame the box is not being typed in. */
@@ -207,6 +212,10 @@ void ResetInput() {
     g.input.clickedChip = BM_CHIP_NONE;
     g.input.clickedOverflowRow = -1;
     g.input.overflowFrom = BM_CHIP_NONE;
+    // Filled at every poll from the last frame drawn, like placement and rows, rather than left as
+    // whatever the frame that read it happened to see.
+    g.input.hoveredChipRow = -1;
+    g.input.hoveredChip = BM_CHIP_NONE;
     g.input.rightClickedRow = -1;
     g.input.clickedMenuItem = -1;
     g.input.menuClosed = 0;
@@ -500,6 +509,16 @@ bool Chip(const char* icon, const char* label, const ImVec4& colour, const ImVec
     return clicked;
 }
 
+// The item just submitted is a row's button, and the pointer is on it. Reported for as long as it
+// stays there, unlike a click: the managed side holds the rows still while a pointer is on its way
+// to a chip, so a poll cannot re-sort them out from under it.
+void Hovering(int32_t row, int32_t kind) {
+    if (kind != BM_CHIP_NONE && ImGui::IsItemHovered()) {
+        g.hoveredChipRow = row;
+        g.hoveredChip = kind;
+    }
+}
+
 // A hover text on the item just submitted. Delayed: a row's cells touch, and without a wait a
 // pointer crossing one row pops four tooltips on its way past.
 void Tip(const std::string& text) {
@@ -537,6 +556,8 @@ void LinkText(const char* begin, const char* end, int32_t row, int32_t kind, con
         g.input.clickedChipRow = row;
         g.input.clickedChip = kind;
     }
+
+    Hovering(row, kind);
 
     Tip(tip);
     ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -822,6 +843,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                     g.input.clickedChip = row.statusLink;
                 }
 
+                Hovering(i, row.statusLink);
                 if (ImGui::IsItemHovered()) {
                     ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
                 }
@@ -883,6 +905,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                             g.input.clickedChip = row.nameLink;
                         }
 
+                        Hovering(i, row.nameLink);
                         if (ImGui::IsItemHovered()) {
                             ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
                         }
@@ -923,6 +946,8 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                         g.input.clickedChipRow = i;
                         g.input.clickedChip = row.detailIconLink;
                     }
+
+                    Hovering(i, row.detailIconLink);
 
                     Tip(TipOf(screen, row, BM_PART_DETAIL_ICON));
                     ImGui::PopID();
@@ -988,6 +1013,8 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                         g.input.overflowFrom = item.kind;
                     }
 
+                    Hovering(i, item.kind);
+
                     Tip("More actions");
 
                     g.overflowAnchors[static_cast<size_t>(i)] = ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y);
@@ -1000,6 +1027,8 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                     g.input.clickedChipRow = i;
                     g.input.clickedChip = item.kind;
                 }
+
+                Hovering(i, item.kind);
 
                 Tip(Str(screen, item.tooltip));
 
@@ -1305,6 +1334,10 @@ void Frame(const BmScreen& screen, int width, int height, bool feed) {
         io.DeltaTime = static_cast<float>(std::clamp(now - g.fedAt, 0.001, 2.0));
         g.fedAt = now;
         FeedInput(io);
+        // What the pointer is on is decided again by this frame's items. Only on a frame with input
+        // fed to it: a capture draws the screen with no pointer in it.
+        g.hoveredChipRow = -1;
+        g.hoveredChip = BM_CHIP_NONE;
     }
 
     ImGui::NewFrame();
@@ -1558,6 +1591,8 @@ BM_API void bm_poll_input(BmInput* input) {
     }
 
     g.input.rows = g.bodyRows;
+    g.input.hoveredChipRow = g.hoveredChipRow;
+    g.input.hoveredChip = g.hoveredChip;
     Sample();
     *input = g.input;
     ResetInput();

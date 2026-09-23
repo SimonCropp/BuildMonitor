@@ -283,6 +283,26 @@ final class Runtime {
         input.placement = WindowPlacement.placement(of: window.frame, primaryHeight: primary.frame.height)
     }
 
+    /// What the pointer is on, into the input every poll. Sampled rather than tracked through
+    /// mouseMoved, because it is a state and not an event: the managed side holds the rows still
+    /// while a pointer is on its way to a chip, and a pointer resting on one sends nothing to say
+    /// it is still there. The hits are those of the last frame drawn, as a click's are.
+    func sampleHover() {
+        input.hoveredChipRow = -1
+        input.hoveredChip = Int32(BM_CHIP_NONE.rawValue)
+        guard let window, window.isVisible, !window.isMiniaturized, let view, let renderer else {
+            return
+        }
+
+        let point = view.convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        guard view.bounds.contains(point), let hit = renderer.chips.first(where: { $0.rect.contains(point) }) else {
+            return
+        }
+
+        input.hoveredChipRow = Int32(hit.row)
+        input.hoveredChip = hit.chip
+    }
+
     func show() {
         makeWindow()
         presentedGeneration = nil
@@ -365,6 +385,10 @@ final class Runtime {
         input.clickedChip = Int32(BM_CHIP_NONE.rawValue)
         input.clickedOverflowRow = -1
         input.overflowFrom = Int32(BM_CHIP_NONE.rawValue)
+        // Filled again at every poll by sampleHover, like the placement, rather than left as
+        // whatever the frame that read it happened to see.
+        input.hoveredChipRow = -1
+        input.hoveredChip = Int32(BM_CHIP_NONE.rawValue)
         input.rightClickedRow = -1
         input.clickedMenuItem = -1
         input.menuClosed = 0

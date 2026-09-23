@@ -104,6 +104,11 @@ sealed class RowsCanvas : Control
     int clickedMenuItem = -1;
     bool menuClosed;
     int scrollDelta;
+    // Where the pointer is rather than something it did, so it is reported every frame and not
+    // cleared by the drain. Polling holds the rows still while it is on a button. See
+    // SessionState.HoldsRows.
+    int hoverChipRow = -1;
+    ChipKind hoverChip = ChipKind.None;
 
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -253,6 +258,8 @@ sealed class RowsCanvas : Control
             ClickedChip: clickedChip,
             ClickedOverflowRow: clickedOverflowRow,
             OverflowFrom: overflowFrom,
+            HoveredChipRow: hoverChipRow,
+            HoveredChip: hoverChip,
             RightClickedRow: rightClickedRow,
             ClickedMenuItem: clickedMenuItem,
             MenuClosed: menuClosed,
@@ -819,6 +826,7 @@ sealed class RowsCanvas : Control
         var row = RowAt(args.Y);
         var hit = chips.FirstOrDefault(_ => _.Bounds.Contains(args.Location));
         Cursor = hit.Bounds == Rectangle.Empty ? Cursors.Default : Cursors.Hand;
+        Hovering(hit);
         var link = IsTextLink(hit) ? hit.Bounds : Rectangle.Empty;
         ShowTip(args.Location);
         if (row != hoverRow ||
@@ -830,6 +838,24 @@ sealed class RowsCanvas : Control
         }
 
         base.OnMouseMove(args);
+    }
+
+    /// <summary>
+    /// What the pointer is on, for the hold that keeps the rows still while it is on its way to a
+    /// button. The overflow chip counts: it opens a drop down where that row is, and a poll landing
+    /// between the press and the release would put another row's chips in it.
+    /// </summary>
+    void Hovering((int Row, ChipKind Chip, bool Overflow, Rectangle Bounds) hit)
+    {
+        if (hit.Bounds == Rectangle.Empty)
+        {
+            hoverChipRow = -1;
+            hoverChip = ChipKind.None;
+            return;
+        }
+
+        hoverChipRow = hit.Row;
+        hoverChip = hit.Chip;
     }
 
     /// <summary>
@@ -921,10 +947,25 @@ sealed class RowsCanvas : Control
         return "";
     }
 
+    /// <summary>
+    /// A form page hides the canvas with the pointer still over it, and nothing else would report
+    /// the hover ending, so the rows behind the form would stay held until the hold timed out.
+    /// </summary>
+    protected override void OnVisibleChanged(EventArgs args)
+    {
+        if (!Visible)
+        {
+            Hovering(default);
+        }
+
+        base.OnVisibleChanged(args);
+    }
+
     protected override void OnMouseLeave(EventArgs args)
     {
         hoverRow = -1;
         hoverLink = Rectangle.Empty;
+        Hovering(default);
         ShowTip(new(-1, -1));
         Invalidate();
         base.OnMouseLeave(args);

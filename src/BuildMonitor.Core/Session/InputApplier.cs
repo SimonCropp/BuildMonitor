@@ -51,6 +51,13 @@ static class InputApplier
             }
         }
 
+        // Before the clicks, so the click that lets the rows go is measured against the button the
+        // pointer is on now rather than the one it was on last frame.
+        state = MonitorSession.Hover(
+            state,
+            input.HoveredChipRow < 0 ? -1 : state.ScrollTop + input.HoveredChipRow,
+            input.HoveredChip);
+
         if (input.MenuClosed)
         {
             state = MonitorSession.CloseMenu(state);
@@ -72,12 +79,14 @@ static class InputApplier
 
         if (input.ClickedChipRow >= 0)
         {
-            state = ClickChip(state, state.ScrollTop + input.ClickedChipRow, input.ClickedChip, input.At, actions, window);
+            state = MonitorSession.HoverClicked(ClickChip(state, state.ScrollTop + input.ClickedChipRow, input.ClickedChip, input.At, actions, window));
         }
 
         if (input.ClickedOverflowRow >= 0)
         {
-            state = MonitorSession.OpenOverflow(state, state.ScrollTop + input.ClickedOverflowRow, input.OverflowFrom);
+            // The drop down it opens is a menu, which holds the rows still on its own until the
+            // user chooses from it or dismisses it.
+            state = MonitorSession.HoverClicked(MonitorSession.OpenOverflow(state, state.ScrollTop + input.ClickedOverflowRow, input.OverflowFrom));
         }
 
         if (input.RightClickedRow >= 0)

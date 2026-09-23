@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// The loop for one connection. Each cycle discovers pipelines when due, groups them by what one
 /// fetch covers, asks <see cref="PollSchedule"/> which groups are due, fetches those, and applies
 /// the result. It never throws out; every failure becomes a health on the connection or on the
@@ -41,9 +41,9 @@ sealed class ConnectionPoller
     ConcurrentDictionary<string, byte> nudges = new();
     int refreshRequested;
     DateTimeOffset? pausedUntil;
-    // When an open context menu first held a cycle back, so one left open cannot stop the polling
-    // for good. Null whenever no menu is holding it.
-    DateTimeOffset? menuHeldFrom;
+    // When the rows were first held still, so a menu or a pointer left on one cannot stop the
+    // polling for good. Null whenever nothing is holding them.
+    DateTimeOffset? heldFrom;
     DateTimeOffset? wakeAt;
     int failures;
     int rateLimits;
@@ -63,18 +63,18 @@ sealed class ConnectionPoller
     public static readonly TimeSpan SummaryEvery = TimeSpan.FromMinutes(10);
 
     /// <summary>
-    /// How long the loop sleeps between looks while a context menu holds it back. Short, so the
-    /// cycle the menu held runs as soon as it closes rather than after the next due group.
+    /// How long the loop sleeps between looks while the rows are held still. Short, so the cycle
+    /// the hold kept back runs as soon as it ends rather than after the next due group.
     /// </summary>
-    public static readonly TimeSpan MenuHoldPoll = TimeSpan.FromMilliseconds(250);
+    public static readonly TimeSpan HoldPoll = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
-    /// The longest an open context menu holds polling off. A menu is closed by the click that
-    /// chooses from it or by the next one anywhere else, but one the user opened and walked away
-    /// from stays open, and without a limit the rows, the tray icon and the failure notifications
-    /// would all stop with it.
+    /// The longest <see cref="SessionState.HoldsRows"/> holds polling off. A menu is closed by the
+    /// click that chooses from it or by the next one anywhere else, and a pointer moves off a chip,
+    /// but a window left with either sitting there would otherwise stop the rows, the tray icon and
+    /// the failure notifications for as long as the user was away.
     /// </summary>
-    public static readonly TimeSpan MenuHoldLimit = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan HoldLimit = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// How often the pipeline list is re-read. New pipelines are rare and discovery is the
@@ -140,8 +140,8 @@ sealed class ConnectionPoller
         loop ?? Task.CompletedTask;
 
     /// <summary>
-    /// A refresh and one cycle, whatever the schedule or a rate limit pause says. An open context
-    /// menu still holds it: see <see cref="HeldByMenu"/>.
+    /// A refresh and one cycle, whatever the schedule or a rate limit pause says. A held row still
+    /// holds it back: see <see cref="Held"/>.
     /// </summary>
     public Task<ConnectionHealth> PollOnce(Cancel cancel)
     {
@@ -191,9 +191,9 @@ sealed class ConnectionPoller
             return remaining;
         }
 
-        if (HeldByMenu(now))
+        if (Held(now))
         {
-            return MenuHoldPoll;
+            return HoldPoll;
         }
 
         if (host.State.Connection(connectionId)?.Health == ConnectionHealth.NeedsAuth &&
@@ -268,7 +268,7 @@ sealed class ConnectionPoller
             return Health();
         }
 
-        if (HeldByMenu(clock()))
+        if (Held(clock()))
         {
             return Health();
         }
@@ -896,27 +896,28 @@ sealed class ConnectionPoller
     }
 
     /// <summary>
-    /// Whether the open context menu holds this cycle back. A poll re-sorts the rows, and a menu
-    /// whose row moved closes rather than let the next click land on another build, so the rows
-    /// are left alone while one is open. Nothing is lost by waiting: every group stays due and the
-    /// refresh flag is still set, so the cycle runs as soon as the menu closes. Held no longer
-    /// than <see cref="MenuHoldLimit"/>, after which a poll lands and closes the menu as before.
+    /// Whether <see cref="SessionState.HoldsRows"/> holds this cycle back: an open context menu, or
+    /// a pointer on a row's button. A poll re-sorts the rows, which would move the one the user is
+    /// reading or aiming at, and a menu whose row moved closes rather than let the next click land
+    /// on another build. Nothing is lost by waiting: every group stays due and the refresh flag is
+    /// still set, so the cycle runs as soon as the hold ends. Held no longer than
+    /// <see cref="HoldLimit"/>, after which a poll lands as it did before.
     /// </summary>
-    bool HeldByMenu(DateTimeOffset now)
+    bool Held(DateTimeOffset now)
     {
-        if (host.State.Menu is null)
+        if (!host.State.HoldsRows)
         {
-            menuHeldFrom = null;
+            heldFrom = null;
             return false;
         }
 
-        if (menuHeldFrom is not { } from)
+        if (heldFrom is not { } from)
         {
-            menuHeldFrom = now;
+            heldFrom = now;
             return true;
         }
 
-        return now - from < MenuHoldLimit;
+        return now - from < HoldLimit;
     }
 
     TimeSpan? Paused(DateTimeOffset now)

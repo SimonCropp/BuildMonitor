@@ -84,6 +84,8 @@ A running build gets the shorter interval from the fastest of its pipeline's las
 
 A repository that keeps failing backs off on its own without holding up the rest. When a provider's rate limit runs low, every interval stretches until the limit recovers. Every provider but GitHub Actions, GitLab CI and Octopus Deploy lets a quiet repository, project or pipeline wait up to thirty minutes, because a cheaper request in between notices a new build sooner.
 
+Polling waits while a row's right click menu is open, or the pointer is on one of a row's buttons, because a poll re-sorts the rows and would move what is being read, or aimed at, out from under the pointer. It carries on as soon as the menu closes or the button is clicked, and after half a minute whatever is still there.
+
 
 ## Local
 

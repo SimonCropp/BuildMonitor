@@ -439,6 +439,15 @@ typedef struct BmInput {
     /* The overflow chip of a visible row, and the BmChipKind of the first chip it stands in for. */
     int32_t clickedOverflowRow;
     int32_t overflowFrom;
+    /*
+     * What the pointer is on rather than what it did: the same row and BmChipKind a click there
+     * would report, the overflow chip included, or -1 and BM_CHIP_NONE. Reported on every poll for
+     * as long as the pointer stays, because it is a state and not an event: the managed side holds
+     * the rows still while it is set, so a poll cannot re-sort them out from under a pointer on its
+     * way to a chip.
+     */
+    int32_t hoveredChipRow;
+    int32_t hoveredChip;
     int32_t rightClickedRow;
     /* Index into BmScreen.menu, or -1. */
     int32_t clickedMenuItem;
@@ -476,7 +485,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 16
+#define BM_VERSION 17
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

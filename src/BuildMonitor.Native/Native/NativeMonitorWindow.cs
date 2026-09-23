@@ -182,6 +182,8 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             ClickedChip: (ChipKind) input.ClickedChip,
             ClickedOverflowRow: input.ClickedOverflowRow,
             OverflowFrom: (ChipKind) input.OverflowFrom,
+            HoveredChipRow: input.HoveredChipRow,
+            HoveredChip: (ChipKind) input.HoveredChip,
             RightClickedRow: input.RightClickedRow,
             ClickedMenuItem: input.ClickedMenuItem,
             MenuClosed: input.MenuClosed != 0,

@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// The exports of libbuildmonitor_ui, one per entry in bm.h.
 /// </summary>
 static partial class Bm
@@ -8,7 +8,7 @@ static partial class Bm
     /// <summary>
     /// Keep in sync with BM_VERSION in bm.h.
     /// </summary>
-    public const int ExpectedVersion = 16;
+    public const int ExpectedVersion = 17;
 
     /// <summary>
     /// BmInput.ChangedField for an edit of the filter box, which is not one of BmScreen.Fields.

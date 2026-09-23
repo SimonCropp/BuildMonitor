@@ -46,7 +46,9 @@ record SessionState(
     ExcludeUndo? Undo = null,
     // The positions the last poll changed, and when, so a click on one of them that came too soon
     // after is not taken as meant for the build now there.
-    MovedRows? Moved = null)
+    MovedRows? Moved = null,
+    // The button of a row the pointer is on, which holds the rows still until it is clicked.
+    HoverState? Hover = null)
 {
     public static SessionState Start(Settings settings) =>
         new(
@@ -70,4 +72,20 @@ record SessionState(
 
     public ConnectionState? Connection(string id) =>
         Connections.FirstOrDefault(_ => _.Connection.Id == id);
+
+    /// <summary>
+    /// Whether the rows must not move: a context menu is open on one, or the pointer is on a button
+    /// of one and has not clicked it yet. A poll re-sorts the list, so <see cref="ConnectionPoller"/>
+    /// holds its cycle back while this is true, rather than take the row the user is aiming at out
+    /// from under the pointer. <see cref="ConnectionPoller.HoldLimit"/> caps how long.
+    /// <para>
+    /// Never while hidden: nothing is on screen to be aimed at, and a window hidden with the
+    /// pointer on a chip reports no move off it, so the last hover would hold every poll back
+    /// until it timed out.
+    /// </para>
+    /// </summary>
+    public bool HoldsRows =>
+        !Hidden &&
+        (Menu is not null ||
+         Hover is {Clicked: false});
 }

@@ -78,6 +78,7 @@ public func bmPollInput(_ input: UnsafeMutablePointer<BmInput>?) {
         runtime.measure()
         runtime.drainEdit()
         runtime.samplePlacement()
+        runtime.sampleHover()
     }
 
     input.pointee = runtime.input

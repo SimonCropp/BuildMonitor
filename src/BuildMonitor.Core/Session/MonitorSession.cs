@@ -1,4 +1,4 @@
-using RowIdentity = (string? ConnectionId, string? PipelineId, string? Branch, string? Group);
+﻿using RowIdentity = (string? ConnectionId, string? PipelineId, string? Branch, string? Group);
 
 /// <summary>
 /// Every transition, as a pure function from one <see cref="SessionState"/> to the next. No IO:
@@ -139,7 +139,7 @@ static class MonitorSession
     /// The menu does not follow. Moved, it would put a different item under the pointer; left in
     /// place, it would sit beside another build. Unless its row is still where it was drawn, it
     /// closes. Polling holds off while a menu is open, so this is the rare change that is not a
-    /// poll's, or a menu left open past <see cref="ConnectionPoller.MenuHoldLimit"/>.
+    /// poll's, or a menu left open past <see cref="ConnectionPoller.HoldLimit"/>.
     /// </para>
     /// </summary>
     /// <param name="polled">When the change is a poll's, which also records the positions it moved,
@@ -585,6 +585,67 @@ static class MonitorSession
 
         var item = state.Menu.Items[index];
         return (CloseMenu(state), item.Command, item.Target);
+    }
+
+    // Hover
+
+    /// <summary>
+    /// The button of a row the pointer is on, or <paramref name="row"/> below zero for none. Held
+    /// as state rather than left to the head because it is the poller that has to know: the rows
+    /// stay still while a pointer is on its way to a chip. See <see cref="SessionState.HoldsRows"/>.
+    /// <para>
+    /// The same state comes back while the pointer stays on the same button, as it does for most of
+    /// the frames a hover lasts. A new one every frame would rebuild the screen, and on Windows
+    /// repaint every row, sixty times a second. See <see cref="ScreenCache"/>.
+    /// </para>
+    /// </summary>
+    public static SessionState Hover(SessionState state, int row, ChipKind chip)
+    {
+        if (row < 0 ||
+            chip == ChipKind.None)
+        {
+            if (state.Hover is null)
+            {
+                return state;
+            }
+
+            return state with
+            {
+                Hover = null
+            };
+        }
+
+        if (state.Hover is { } hover &&
+            hover.Row == row &&
+            hover.Chip == chip)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            Hover = new(row, chip)
+        };
+    }
+
+    /// <summary>
+    /// The click the hover was holding the rows still for has happened, so they are let go. See
+    /// <see cref="HoverState.Clicked"/>.
+    /// </summary>
+    public static SessionState HoverClicked(SessionState state)
+    {
+        if (state.Hover is not {Clicked: false} hover)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            Hover = hover with
+            {
+                Clicked = true
+            }
+        };
     }
 
     // Pages

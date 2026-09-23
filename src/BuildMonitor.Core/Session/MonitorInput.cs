@@ -12,6 +12,11 @@ readonly record struct MonitorInput(
     // A click on the overflow chip of a visible row, and the first of the chips it stands in for.
     int ClickedOverflowRow = -1,
     ChipKind OverflowFrom = ChipKind.None,
+    // The chip, link or icon of a visible row the pointer is on: which row and which chip, or -1.
+    // Reported every frame rather than when it changes, so a head that misses a move out of the
+    // window is corrected by the next frame. Not counted in Any: hovering has read nothing.
+    int HoveredChipRow = -1,
+    ChipKind HoveredChip = ChipKind.None,
     // A right-click on a visible row, or -1. Opens the context menu.
     int RightClickedRow = -1,
     // A click on an item of the open context menu, or -1.

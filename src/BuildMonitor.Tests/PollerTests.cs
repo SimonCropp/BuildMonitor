@@ -1,4 +1,4 @@
-public class PollerTests
+﻿public class PollerTests
 {
     const string runsUrl = "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5";
 
@@ -357,6 +357,31 @@ public class PollerTests
     }
 
     [Test]
+    public async Task NothingIsRequestedWhileThePointerIsOnARowsButton()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = GitHubHandler();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Requests.Clear();
+        host.Mutate(_ => MonitorSession.Hover(_, 0, ChipKind.Retry));
+
+        now = now.AddSeconds(3);
+        poller.Refresh();
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(handler.Requests).IsEmpty();
+
+        // The click the hold was for: a retry wants the poll it nudges, so the rows are let go at
+        // once rather than waiting for the pointer to move off the chip.
+        host.Mutate(MonitorSession.HoverClicked);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(handler.Requests).IsNotEmpty();
+    }
+
+    [Test]
     public async Task AContextMenuLeftOpenStopsHoldingPollingOff()
     {
         var (host, secrets, history) = Setup();
@@ -370,7 +395,7 @@ public class PollerTests
         await poller.PollDue(Cancel.None);
         await Assert.That(handler.Requests).IsEmpty();
 
-        now += ConnectionPoller.MenuHoldLimit + TimeSpan.FromSeconds(1);
+        now += ConnectionPoller.HoldLimit + TimeSpan.FromSeconds(1);
         await poller.PollDue(Cancel.None);
 
         await Assert.That(handler.Requests).IsNotEmpty();

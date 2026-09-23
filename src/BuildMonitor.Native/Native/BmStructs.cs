@@ -173,6 +173,8 @@ struct BmInput
     public int ClickedChip;
     public int ClickedOverflowRow;
     public int OverflowFrom;
+    public int HoveredChipRow;
+    public int HoveredChip;
     public int RightClickedRow;
     public int ClickedMenuItem;
     public int MenuClosed;
