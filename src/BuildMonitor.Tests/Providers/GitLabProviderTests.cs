@@ -459,6 +459,69 @@ public class GitLabProviderTests
         await Assert.That(handler.Requests).DoesNotContain($"GET {developerListing}");
     }
 
+    static Task<BranchFate> FateOf(FakeHttpHandler handler, string branch, string? mergeRequest = null, string repository = "https://gitlab.com/group/sub/project", string? server = null) =>
+        ProviderTestHelpers.Provider("gitlab").FateOf(ProviderTestHelpers.Context("gitlab", handler, server), new(repository, branch, mergeRequest), Cancel.None);
+
+    const string project = "https://gitlab.com/api/v4/projects/group%2Fsub%2Fproject";
+
+    /// <summary>
+    /// A merge request is asked for its state, by the project's whole path.
+    /// </summary>
+    [Test]
+    [Arguments("opened", BranchFate.Open)]
+    [Arguments("locked", BranchFate.Open)]
+    [Arguments("merged", BranchFate.Merged)]
+    [Arguments("closed", BranchFate.Closed)]
+    public async Task AMergeRequestIsAskedForItsState(string state, BranchFate fate)
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{project}/merge_requests/7", $$"""{"iid":7,"state":"{{state}}"}""");
+        await Assert.That(await FateOf(handler, "someone:fix", "7")).IsEqualTo(fate);
+    }
+
+    /// <summary>
+    /// A branch is asked for with its slashes escaped, which GitLab wants of a branch name.
+    /// </summary>
+    [Test]
+    public async Task ABranchStillThereIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{project}/repository/branches/feature%2Fx", """{"name":"feature/x"}""");
+        await Assert.That(await FateOf(handler, "feature/x")).IsEqualTo(BranchFate.Open);
+    }
+
+    [Test]
+    public async Task ATagOfTheNameIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get($"{project}/repository/tags/v1.0", """{"name":"v1.0"}""");
+        await Assert.That(await FateOf(handler, "v1.0")).IsEqualTo(BranchFate.Open);
+    }
+
+    /// <summary>
+    /// GitLab answers a project the token cannot see with the same 404 as a missing branch, so the
+    /// project is asked for before the branch is taken as deleted.
+    /// </summary>
+    [Test]
+    public async Task NeitherBranchNorTagInAProjectItCanSeeIsDeleted()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(project, """{"id":3,"path_with_namespace":"group/sub/project"}""");
+        await Assert.That(await FateOf(handler, "feature/x")).IsEqualTo(BranchFate.Deleted);
+        await Assert.That(await FateOf(new(), "feature/x")).IsEqualTo(BranchFate.Unknown);
+    }
+
+    /// <summary>
+    /// A server in a subdirectory has its projects there too, and is asked by the path under it.
+    /// </summary>
+    [Test]
+    public async Task AServerInASubdirectoryIsAskedByThePathUnderIt()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://example.com/gitlab/api/v4/projects/group%2Fproject/merge_requests/3", """{"iid":3,"state":"merged"}""");
+        await Assert.That(await FateOf(handler, "fix", "3", "https://example.com/gitlab/group/project", "https://example.com/gitlab")).IsEqualTo(BranchFate.Merged);
+    }
+
     [Test]
     public async Task AFailedListingAtDeveloperKeepsWhatTheLastOneFound()
     {

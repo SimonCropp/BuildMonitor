@@ -7,4 +7,7 @@
 [JsonSerializable(typeof(GitLabUser))]
 [JsonSerializable(typeof(GitLabToken))]
 [JsonSerializable(typeof(GitLabTokenInfo))]
+[JsonSerializable(typeof(GitLabProject))]
+[JsonSerializable(typeof(GitLabMergeRequest))]
+[JsonSerializable(typeof(GitLabRef))]
 partial class GitLabContext : JsonSerializerContext;

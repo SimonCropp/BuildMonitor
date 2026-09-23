@@ -211,7 +211,8 @@ static class ProviderDescriptors
         FetchUnit: FetchUnit.Connection,
         ActionPermission: "the api scope",
         // GitLab finds an OAuth token only in the Authorization header or a query parameter.
-        SignInScheme: AuthScheme.Bearer);
+        SignInScheme: AuthScheme.Bearer,
+        HostsRepositories: true);
 
     public static readonly ProviderDescriptor GoCd = new(
         Id: "gocd",

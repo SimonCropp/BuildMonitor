@@ -13,6 +13,11 @@ public class BranchHostsTests
     // A host that only has the service's name in it is someone else's.
     [Arguments("github", null, "https://notgithub.com/VerifyTests/Verify", false)]
     [Arguments("github", null, "https://github.com.example.net/VerifyTests/Verify", false)]
+    [Arguments("gitlab", null, "https://gitlab.com/group/sub/project", true)]
+    [Arguments("gitlab", "https://example.com/gitlab", "https://example.com/gitlab/group/project", true)]
+    // A path that only starts with the server's is another server's.
+    [Arguments("gitlab", "https://example.com/gitlab", "https://example.com/gitlabs/group/project", false)]
+    [Arguments("gitlab", null, "https://github.com/VerifyTests/Verify", false)]
     // A service that only builds holds no repositories to ask about.
     [Arguments("appveyor", null, "https://github.com/VerifyTests/Verify", false)]
     [Arguments("travis", null, "https://github.com/VerifyTests/Verify", false)]

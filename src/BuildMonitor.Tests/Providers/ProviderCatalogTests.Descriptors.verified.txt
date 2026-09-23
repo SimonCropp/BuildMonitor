@@ -189,7 +189,7 @@
     FetchConcurrency: 1,
     ActionPermission: the api scope,
     SignInScheme: Bearer,
-    HostsRepositories: false,
+    HostsRepositories: true,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/gitlab.md
   },
   {
