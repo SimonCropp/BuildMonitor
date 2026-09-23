@@ -24,7 +24,40 @@ public class TravisProviderTests
         await Verify(new { builds, handler.Requests });
     }
 
-    const string mainBuilds = "https://api.travis-ci.com/repo/VerifyTests%2FDiffEngine/builds?limit=1&sort_by=id:desc&branch.name=main&event_type=push,api,cron&include=build.commit";
+    /// <summary>
+    /// Travis CI Enterprise builds from a GitHub Enterprise server, and the only address on it that
+    /// Travis gives is each commit's compare_url. Composed on github.com, a build's repository,
+    /// branch and pull request links opened repositories github.com does not have.
+    /// </summary>
+    [Test]
+    public async Task EnterpriseLinksAreOnTheHostTheCommitNames()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://travis.example.com/api/repos?repository.active=true&limit=100&sort_by=default_branch.last_build:desc",
+                """{"repositories":[{"id":1,"slug":"team/app","default_branch":{"name":"main"}}]}""")
+            .Get(
+                "https://travis.example.com/api/repo/team%2Fapp/builds?limit=5&sort_by=id:desc&include=build.commit",
+                """
+                {"builds":[
+                  {"id":900,"number":"120","state":"passed","event_type":"push","branch":{"name":"main"},"commit":{"sha":"abc","compare_url":"https://github.example.com/team/app/compare/123...abc"}},
+                  {"id":899,"number":"119","state":"failed","event_type":"pull_request","pull_request_number":7,"branch":{"name":"main"},"commit":{"sha":"def","compare_url":"https://github.example.com/team/app/pull/7"}},
+                  {"id":898,"number":"118","state":"failed","event_type":"push","branch":{"name":"fix"},"commit":{"sha":"fed"}}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("travis", handler, "https://travis.example.com/api");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("travis", context);
+        await Assert.That(builds.Select(_ => $"{_.RunNumber} {_.RepoUrl} {_.BranchUrl} {_.PullRequestUrl}")).IsEquivalentTo(
+        [
+            "120 https://github.example.com/team/app https://github.example.com/team/app/tree/main ",
+            "119 https://github.example.com/team/app  https://github.example.com/team/app/pull/7",
+            // No commit address says where an Enterprise server's repository is, and a guess of
+            // github.com would open another repository of the name, or none.
+            "118   "
+        ]);
+    }
+
+    const string mainBuilds ="https://api.travis-ci.com/repo/VerifyTests%2FDiffEngine/builds?limit=1&sort_by=id:desc&branch.name=main&event_type=push,api,cron&include=build.commit";
 
     /// <summary>
     /// A window of pull requests asks for the newest build of main by branch and by every event

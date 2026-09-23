@@ -14,9 +14,12 @@ sealed class TravisProvider : ProviderBase
     {
         var repositories = await context.Http.Get("repos?repository.active=true&limit=100&sort_by=default_branch.last_build:desc", TravisContext.Default.TravisRepositories, cancel);
         return repositories.Repositories
-            .Select(_ => new Pipeline(_.Slug, _.Slug, _.Slug, null, $"{Web(context)}/{_.Slug}", $"https://github.com/{_.Slug}", DefaultBranch: _.DefaultBranch?.Name))
+            .Select(_ => new Pipeline(_.Slug, _.Slug, _.Slug, null, $"{Web(context)}/{_.Slug}", RepoUrl(context, _.Slug), DefaultBranch: _.DefaultBranch?.Name))
             .ToList();
     }
+
+    static bool Hosted(ProviderContext context) =>
+        context.Http.BaseAddress.Host == "api.travis-ci.com";
 
     /// <summary>
     /// The web app for the API in use: app.travis-ci.com for the hosted service, the server
@@ -24,13 +27,45 @@ sealed class TravisProvider : ProviderBase
     /// </summary>
     static string Web(ProviderContext context)
     {
-        var host = context.Http.BaseAddress.Host;
-        if (host == "api.travis-ci.com")
+        if (Hosted(context))
         {
             return "https://app.travis-ci.com/github";
         }
 
-        return $"{context.Http.BaseAddress.Scheme}://{host}/github";
+        return $"{context.Http.BaseAddress.Scheme}://{context.Http.BaseAddress.Host}/github";
+    }
+
+    /// <summary>
+    /// The repository's page for a build whose commit names none, as <see cref="RepositoryPage"/>
+    /// reads it: github.com for the hosted service. An Enterprise server may build from a GitHub
+    /// Enterprise server of any name, which the listing does not give, and a guess of github.com
+    /// would open another repository of the name, or none.
+    /// </summary>
+    static string? RepoUrl(ProviderContext context, string slug)
+    {
+        if (Hosted(context))
+        {
+            return $"https://github.com/{slug}";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The repository's page on the host its commit's compare_url is on, the one address Travis
+    /// gives on the repository's host: GitHub Enterprise's for a Travis CI Enterprise server built
+    /// from one. Composed on github.com, such a build's repository, branch and pull request links
+    /// opened repositories github.com does not have.
+    /// </summary>
+    static string? RepositoryPage(Pipeline pipeline, TravisBuild build)
+    {
+        if (build.Commit?.CompareUrl is { } compare &&
+            Uri.TryCreate(compare, UriKind.Absolute, out var address))
+        {
+            return $"{address.GetLeftPart(UriPartial.Authority)}/{pipeline.RepoName}";
+        }
+
+        return pipeline.RepoUrl;
     }
 
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
@@ -122,11 +157,12 @@ sealed class TravisProvider : ProviderBase
             _ => BuildStatus.Unknown
         };
         var pullRequest = build.PullRequestNumber?.ToString();
+        var web = RepositoryPage(pipeline, build);
         // A pull request build's branch is the one it targets, which filed every pull request as a
         // build of main, and Travis names the branch it came from nowhere: the pull request's own
         // ref is what it has.
         var branch = build.Branch?.Name;
-        var branchUrl = branch is null ? null : $"https://github.com/{pipeline.RepoName}/tree/{branch}";
+        var branchUrl = branch is null || web is null ? null : $"{web}/tree/{branch}";
         if (pullRequest is not null)
         {
             branch = PullRequestBranches.Unnamed(pullRequest);
@@ -149,7 +185,7 @@ sealed class TravisProvider : ProviderBase
             $"{pipeline.Url}/builds/{build.Id}",
             branchUrl,
             pullRequest,
-            pullRequest is null ? null : $"https://github.com/{pipeline.RepoName}/pull/{pullRequest}",
+            pullRequest is null || web is null ? null : $"{web}/pull/{pullRequest}",
             build.Commit?.Sha,
             build.Commit?.Message,
             build.Commit?.Author?.Name,
@@ -161,7 +197,7 @@ sealed class TravisProvider : ProviderBase
                        status is BuildStatus.Queued or BuildStatus.Running,
             build.Id.ToString(),
             pipeline.Url,
-            pipeline.RepoUrl,
+            web,
             DefaultBranch: pipeline.DefaultBranch);
     }
 
