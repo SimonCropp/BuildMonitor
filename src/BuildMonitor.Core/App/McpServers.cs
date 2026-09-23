@@ -8,7 +8,7 @@
 /// connects again.</param>
 record McpServers(ImmutableArray<McpServer> Running, bool StoppedByUpdate)
 {
-    public static McpServers None = new([], false);
+    public static readonly McpServers None = new([], false);
 
     /// <summary>
     /// Matched on the shim's path, which is one of the two things the update script matches on, so
@@ -59,7 +59,11 @@ record McpServers(ImmutableArray<McpServer> Running, bool StoppedByUpdate)
 
             return new(process.Id, process.StartTime.ToUniversalTime());
         }
-        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception or NotSupportedException)
+        catch (Exception exception)
+            when (exception is
+                      InvalidOperationException or
+                      Win32Exception or
+                      NotSupportedException)
         {
             return null;
         }
