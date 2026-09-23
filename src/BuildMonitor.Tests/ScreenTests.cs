@@ -118,6 +118,37 @@ public class ScreenTests
         Verify(Fixtures.Render(MonitorSession.ToggleGroup(Fixtures.WithPrefixGroup(), Fixtures.VerifyPassing)));
 
     /// <summary>
+    /// A repository with two pipelines in a prefix group has them together, and names itself on
+    /// the first: repeated down the column, the name read as two repositories. The one that ran
+    /// between them, in the group named after it, moves after them.
+    /// </summary>
+    [Test]
+    public Task ARepositoryIsNamedOnceInAPrefixGroup()
+    {
+        var state = Fixtures.WithPrefixGroup();
+        state = MonitorSession.ApplyPoll(
+            state,
+            Fixtures.GitHub.Id,
+            [],
+            [
+                ..state.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id),
+                Fixtures.Build(
+                    Fixtures.GitHub.Id,
+                    "VerifyXunit/docs.yml",
+                    "docs.yml",
+                    "VerifyTests/VerifyXunit",
+                    "main",
+                    "8",
+                    BuildStatus.Succeeded,
+                    started: Fixtures.Now - TimeSpan.FromHours(6),
+                    finished: Fixtures.Now - TimeSpan.FromHours(6) + TimeSpan.FromMinutes(1),
+                    branchUrl: "https://github.com/VerifyTests/VerifyXunit/tree/main")
+            ],
+            Fixtures.Now - TimeSpan.FromSeconds(12));
+        return Verify(Fixtures.Render(MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing)));
+    }
+
+    /// <summary>
     /// The right click menu of a row whose project shares a prefix with another: what it could be
     /// grouped by, above what it could be excluded from.
     /// </summary>

@@ -223,12 +223,15 @@ static class ScreenBuilder
     /// <summary>
     /// A member's first cell is blank under a group named for its repository, since the row above
     /// already says it. Under a prefix group the members are repositories of their own, so each
-    /// names itself: a column of pipeline names said nothing about which repository ran which.
+    /// names itself: a column of pipeline names said nothing about which repository ran which. Once:
+    /// a repository's pipelines follow each other, and the name repeated down the column read as
+    /// that many repositories.
     /// </summary>
     static string MemberName(Row row)
     {
         var project = row.Build!.ShortRepoName();
-        if (string.Equals(project, row.Group!.Project, StringComparison.OrdinalIgnoreCase))
+        if (row.NamedAbove ||
+            string.Equals(project, row.Group!.Project, StringComparison.OrdinalIgnoreCase))
         {
             return "";
         }

@@ -113,16 +113,25 @@ static class RowProjection
 
             var key = GroupKey.Of(builds[0], prefixes)!;
             var expanded = IsExpanded(state, key);
-            rows.Add(new(RowKind.Group, null, null, key, expanded, [..members.Select(_ => _.Builds[0])], []));
+            // A repository's pipelines together, in the order its most recent one came, so under a
+            // prefix group each repository is named once, on the first of its rows.
+            var byRepository = members
+                .GroupBy(_ => _.Builds[0].RepoName, StringComparer.OrdinalIgnoreCase)
+                .SelectMany(_ => _)
+                .ToList();
+            rows.Add(new(RowKind.Group, null, null, key, expanded, [..byRepository.Select(_ => _.Builds[0])], []));
             if (!expanded)
             {
                 continue;
             }
 
-            foreach (var member in members)
+            string? above = null;
+            foreach (var member in byRepository)
             {
                 var build = member.Builds[0];
-                rows.Add(new(RowKind.Member, connections[build.ConnectionId], build, key, false, [], member.Folded));
+                var namedAbove = string.Equals(above, build.RepoName, StringComparison.OrdinalIgnoreCase);
+                rows.Add(new(RowKind.Member, connections[build.ConnectionId], build, key, false, [], member.Folded, namedAbove));
+                above = build.RepoName;
             }
         }
 

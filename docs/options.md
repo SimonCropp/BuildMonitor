@@ -73,7 +73,7 @@ Project name prefixes, comma separated, that group passing builds ahead of the r
 
 Matched against the name the row's first column shows, ignoring case, so the owner is no part of it. Where two prefixes both match, the longer one wins, which is how `TheProject` and `TheProjectManager` can both be listed. A build matching none is grouped by whatever the service files it under — an [Octopus project group](providers/octopus.md#rows) — and otherwise by its repository as before. Nothing but a passing build is grouped, whichever of the three named it.
 
-A member of such a group names its own repository, since the group's row no longer does.
+A member of such a group names its own repository, since the group's row no longer does. A repository's pipelines follow each other in the group, and only the first names it.
 
 Prefixes are added from here or from the [row's own menu](tray.md#the-window), which offers the ones its project shares with another and takes one back off from the group it made.
 
