@@ -101,12 +101,13 @@ sealed class AppVeyorProvider : ProviderBase
             _ => BuildStatus.Unknown
         };
         var repo = pipeline.RepoUrl;
+        var (branch, branchUrl) = BranchOf(pipeline, build);
         return new(
             connectionId,
             pipeline.Id,
             pipeline.Name,
             pipeline.RepoName,
-            build.Branch,
+            branch,
             build.BuildNumber.ToString(),
             status,
             build.Status,
@@ -115,7 +116,7 @@ sealed class AppVeyorProvider : ProviderBase
             build.Finished,
             null,
             $"{pipeline.Url}/builds/{build.BuildId}",
-            repo is not null && build.Branch is not null ? $"{repo}/tree/{build.Branch}" : null,
+            branchUrl,
             build.PullRequestId,
             repo is not null && build.PullRequestId is not null ? $"{repo}/pull/{build.PullRequestId}" : null,
             build.CommitId,
@@ -126,6 +127,41 @@ sealed class AppVeyorProvider : ProviderBase
             Join(build.BuildId.ToString(), build.Version),
             pipeline.Url,
             pipeline.RepoUrl);
+    }
+
+    /// <summary>
+    /// The branch a build ran on, and its page where the project is on GitHub. A pull request
+    /// build's branch field is the branch it targets, which filed every pull request's build as a
+    /// build of main, so its own comes from the head fields, behind the fork's owner where it came
+    /// from one, and its page is in the repository it lives in.
+    /// </summary>
+    static (string? Branch, string? Url) BranchOf(Pipeline pipeline, AppVeyorBuild build)
+    {
+        var repo = pipeline.RepoUrl;
+        if (build.PullRequestId is not { } number)
+        {
+            if (repo is null ||
+                build.Branch is null)
+            {
+                return (build.Branch, null);
+            }
+
+            return (build.Branch, $"{repo}/tree/{build.Branch}");
+        }
+
+        if (build.PullRequestHeadBranch is not { Length: > 0 } head)
+        {
+            return (PullRequestBranches.Unnamed(number), null);
+        }
+
+        var branch = PullRequestBranches.Head(head, PullRequestBranches.ForkOwner(build.PullRequestHeadRepository, pipeline.RepoName));
+        if (repo is null)
+        {
+            return (branch, null);
+        }
+
+        var headRepo = build.PullRequestHeadRepository is { Length: > 0 } headRepository ? $"https://github.com/{headRepository}" : repo;
+        return (branch, $"{headRepo}/tree/{head}");
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

@@ -19,6 +19,8 @@ An [API token](https://ci.appveyor.com/api-keys). A v2 token, which spans every 
 
 One per project. The logo opens the project on AppVeyor and the name opens the repository behind it. AppVeyor reports the repository as a type and an `owner/name` pair rather than an address, so only GitHub projects get a name that links, and their branches and pull requests link there too.
 
+AppVeyor reports a pull request build's branch as the one it targets, so it is shown on the branch it came from instead, from the build's `pullRequestHeadBranch`, as `owner:branch` when that is in a fork, and its branch opens in the fork.
+
 
 ## Actions
 

@@ -8,6 +8,9 @@ class AppVeyorBuild
     public string? Message { get; set; }
     public string? AuthorName { get; set; }
     public string? PullRequestId { get; set; }
+    // A pull request build's Branch is the branch it targets; these say where it came from.
+    public string? PullRequestHeadBranch { get; set; }
+    public string? PullRequestHeadRepository { get; set; }
     public string Status { get; set; } = "";
     public DateTimeOffset? Created { get; set; }
     public DateTimeOffset? Started { get; set; }

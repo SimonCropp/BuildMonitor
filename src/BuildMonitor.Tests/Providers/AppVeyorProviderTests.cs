@@ -11,8 +11,9 @@ public class AppVeyorProviderTests
                 "https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5",
                 """
                 {"project":{"slug":"diffengine"},"builds":[
+                  {"buildId":101,"buildNumber":46,"version":"1.0.46","branch":"main","commitId":"413544f","message":"Use main","authorName":"Someone","pullRequestId":"13","pullRequestHeadBranch":"main","pullRequestHeadRepository":"someone/DiffEngine","status":"queued","created":"2026-01-01T11:55:00+00:00"},
                   {"buildId":100,"buildNumber":45,"version":"1.0.45","branch":"main","commitId":"abc123","message":"Fix","authorName":"Simon","status":"running","created":"2026-01-01T11:50:00+00:00","started":"2026-01-01T11:51:00+00:00"},
-                  {"buildId":99,"buildNumber":44,"version":"1.0.44","branch":"feature","commitId":"def456","message":"Feature","authorName":"Simon","pullRequestId":"12","status":"failed","created":"2026-01-01T10:50:00+00:00","started":"2026-01-01T10:51:00+00:00","finished":"2026-01-01T10:55:00+00:00"}
+                  {"buildId":99,"buildNumber":44,"version":"1.0.44","branch":"main","commitId":"def456","message":"Feature","authorName":"Simon","pullRequestId":"12","pullRequestHeadBranch":"feature","pullRequestHeadRepository":"VerifyTests/DiffEngine","status":"failed","created":"2026-01-01T10:50:00+00:00","started":"2026-01-01T10:51:00+00:00","finished":"2026-01-01T10:55:00+00:00"}
                 ]}
                 """);
 
