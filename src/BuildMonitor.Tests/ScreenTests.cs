@@ -485,6 +485,56 @@ public class ScreenTests
     }
 
     /// <summary>
+    /// A failed pull request that has been merged since has no row, and the pipeline's hover says
+    /// what became of it, so a failure that left the rows is still accounted for.
+    /// </summary>
+    [Test]
+    public async Task AMergedPullRequestIsInItsPipelinesHover()
+    {
+        var state = Fixtures.WithLanes();
+        var inline = state.Builds.Single(_ => _.Branch == "feature/inline");
+        state = MonitorSession.ApplyVerdicts(state, [new(BranchVerdicts.KeyOf(inline)!, new(BranchFate.Merged, Fixtures.Now))], Fixtures.Now);
+        await Assert.That(RowProjection.Builds(state).Any(_ => _.Branch == "feature/inline")).IsFalse();
+        var row = ScreenBuilder.Build(state, Fixtures.Now).Builds!.Rows[Fixtures.RowOf(state, _ => _.Build?.Key == "gh/Verify/test.yml/main")];
+        await Assert.That(row.Tooltip(RowPart.Row)).IsEqualTo(
+            """
+            VerifyTests/Verify @main
+            started 2h ago
+            Other branches:
+            @feature/inline PR 42 failed 25m ago, merged
+            @feature/cleanup PR 43 passed 45m ago
+            @feature/old passed 2d ago
+            """.ReplaceLineEndings("\n"));
+    }
+
+    /// <summary>
+    /// Where nothing could say what became of a failed branch, it folds once the pipeline's default
+    /// branch has built since, and the hover says that is why.
+    /// </summary>
+    [Test]
+    public async Task AFailedBranchNothingCouldAnswerForIsInTheHoverOnceMainBuilds()
+    {
+        var builds = Fixtures.GitHubBuildsOnMain();
+        var main = builds[2] with
+        {
+            RunNumber = "78",
+            Started = Fixtures.Now - TimeSpan.FromMinutes(10),
+            Finished = Fixtures.Now - TimeSpan.FromMinutes(5)
+        };
+        var state = MonitorSession.ApplyPoll(Fixtures.WithDefaultBranches(), Fixtures.GitHub.Id, [], [.. builds, main], Fixtures.Now);
+        state = MonitorSession.ApplyVerdicts(state, [new(BranchVerdicts.KeyOf(builds[1])!, new(BranchFate.Unknown, Fixtures.Now))], Fixtures.Now);
+        var row = ScreenBuilder.Build(state, Fixtures.Now).Builds!.Rows[Fixtures.RowOf(state, _ => _.Build?.Key == "gh/Verify/test.yml/main")];
+        await Assert.That(row.Tooltip(RowPart.Row)).IsEqualTo(
+            """
+            VerifyTests/Verify @main
+            started 10m ago
+            Other branches:
+            @feature/inline PR 42 failed 25m ago, main built
+            since
+            """.ReplaceLineEndings("\n"));
+    }
+
+    /// <summary>
     /// Past a handful the rest are counted, so a batch of Dependabot updates does not fill the
     /// screen with one hover.
     /// </summary>

@@ -197,6 +197,60 @@ public class SessionTests
         await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/test.yml/main");
     }
 
+    /// <summary>
+    /// A failed pull request found merged folds the same way, and the selection on it goes to its
+    /// pipeline's row.
+    /// </summary>
+    [Test]
+    public async Task AMergedPullRequestHandsTheSelectionToItsPipeline()
+    {
+        var builds = Fixtures.WithDefaultBranches();
+        var state = MonitorSession.SelectRow(builds, Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline"));
+        var next = MonitorSession.ApplyVerdicts(state, [Answer(state, "feature/inline", BranchFate.Merged)], Fixtures.Now);
+        await Assert.That(MonitorSession.SelectedBuild(next)?.Key).IsEqualTo("gh/Verify/test.yml/main");
+        await Assert.That(RowProjection.Builds(next).Any(_ => _.Branch == "feature/inline")).IsFalse();
+    }
+
+    /// <summary>
+    /// A second connection that cannot see the repository says it cannot tell, and that must not
+    /// undo what the first found.
+    /// </summary>
+    [Test]
+    public async Task AnAnswerThatCannotTellLeavesOneThatCould()
+    {
+        var state = Fixtures.WithDefaultBranches();
+        state = MonitorSession.ApplyVerdicts(state, [Answer(state, "feature/inline", BranchFate.Closed)], Fixtures.Now);
+        state = MonitorSession.ApplyVerdicts(state, [Answer(state, "feature/inline", BranchFate.Unknown)], Fixtures.Now);
+        await Assert.That(state.Verdicts.Values.Single().Fate).IsEqualTo(BranchFate.Closed);
+
+        state = MonitorSession.ApplyVerdicts(state, [Answer(state, "feature/inline", BranchFate.Open)], Fixtures.Now);
+        await Assert.That(state.Verdicts.Values.Single().Fate).IsEqualTo(BranchFate.Open);
+    }
+
+    /// <summary>
+    /// Only the answers about branches still failing are kept, so a session left running does not
+    /// collect every branch it ever asked about.
+    /// </summary>
+    [Test]
+    public async Task AnswersAboutBranchesNoLongerFailingGo()
+    {
+        var state = Fixtures.WithDefaultBranches();
+        state = MonitorSession.ApplyVerdicts(state, [Answer(state, "feature/inline", BranchFate.Open)], Fixtures.Now);
+        var runs = Fixtures.GitHubBuildsOnMain().ToList();
+        var index = runs.FindIndex(_ => _.Branch == "feature/inline");
+        runs[index] = runs[index] with
+        {
+            Status = BuildStatus.Succeeded
+        };
+        state = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, [], [.. runs], Fixtures.Now);
+        var stale = new KeyValuePair<string, BranchVerdict>(BranchVerdicts.KeyOf("https://github.com/VerifyTests/Gone", "feature/x", null), new(BranchFate.Open, Fixtures.Now));
+        state = MonitorSession.ApplyVerdicts(state, [stale], Fixtures.Now);
+        await Assert.That(state.Verdicts).IsEmpty();
+    }
+
+    static KeyValuePair<string, BranchVerdict> Answer(SessionState state, string branch, BranchFate fate) =>
+        new(BranchVerdicts.KeyOf(state.Builds.Single(_ => _.Branch == branch))!, new(fate, Fixtures.Now));
+
 
     [Test]
     public async Task SelectionMovesUpWhenItsPipelineIsExcluded()

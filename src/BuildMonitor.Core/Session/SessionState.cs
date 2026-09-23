@@ -70,6 +70,13 @@ record SessionState(
             Exit: false,
             Triaging: []);
 
+    /// <summary>
+    /// What the services holding repositories said about failed branches, by
+    /// <see cref="BranchVerdicts.KeyOf(Build)"/>: a branch whose pull request was merged or closed,
+    /// or that was deleted, has no row. Only ever in memory, since a restart asks again in a poll.
+    /// </summary>
+    public ImmutableDictionary<string, BranchVerdict> Verdicts { get; init; } = ImmutableDictionary<string, BranchVerdict>.Empty;
+
     public ConnectionState? Connection(string id) =>
         Connections.FirstOrDefault(_ => _.Connection.Id == id);
 

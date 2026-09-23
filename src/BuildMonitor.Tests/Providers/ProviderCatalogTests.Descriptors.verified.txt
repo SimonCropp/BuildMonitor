@@ -27,6 +27,7 @@
     FetchConcurrency: 8,
     IdleCap: 00:30:00,
     ProbeInterval: 00:01:00,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/appveyor.md
   },
   {
@@ -74,6 +75,7 @@
     QueuePermission: the Manage build queue permission on the pipeline,
     SignInScheme: Bearer,
     SignInNote: Work or school accounts only. Microsoft refuses a personal account's address; use a token.,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/azure-devops.md
   },
   {
@@ -114,6 +116,7 @@
     IdleCap: 00:30:00,
     ProbeInterval: 00:01:00,
     ActionPermission: write:pipeline:bitbucket,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/bitbucket.md
   },
   {
@@ -152,6 +155,7 @@
       ChargeByCost: false
     },
     ActionPermission: Actions read and write, or the repo scope on a classic token,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/github.md
   },
   {
@@ -185,6 +189,7 @@
     FetchConcurrency: 1,
     ActionPermission: the api scope,
     SignInScheme: Bearer,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/gitlab.md
   },
   {
@@ -205,6 +210,7 @@
     TokenNote: Create the token at {server}/go/access_tokens.,
     FetchConcurrency: 4,
     IdleCap: 00:30:00,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/gocd.md
   },
   {
@@ -227,6 +233,7 @@
     TokenNote: Create the token at {server}/me/security.,
     FetchConcurrency: 4,
     IdleCap: 00:30:00,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/jenkins.md
   },
   {
@@ -256,6 +263,7 @@
     FetchUnit: Connection,
     FetchConcurrency: 1,
     ActionPermission: the TaskCancel permission in the space,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/octopus.md
   },
   {
@@ -285,6 +293,7 @@
     FetchUnit: Group,
     FetchConcurrency: 4,
     IdleCap: 00:30:00,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/teamcity.md
   },
   {
@@ -308,6 +317,7 @@
     FetchConcurrency: 8,
     IdleCap: 00:30:00,
     ProbeInterval: 00:01:00,
+    HostsRepositories: false,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/travis.md
   }
 ]

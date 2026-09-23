@@ -1674,6 +1674,47 @@ static class MonitorSession
     }
 
     /// <summary>
+    /// What a service holding repositories said about failed branches. One found merged, closed or
+    /// deleted folds into its pipeline's hover, which moves the rows as a poll does, so the selection
+    /// follows them the same way. An answer that the service could not tell never replaces one another
+    /// connection gave: a second connection whose credential cannot see the repository would otherwise
+    /// undo what the first found. Only the answers about branches still failing are kept, so a session
+    /// left running does not collect every branch it ever asked about.
+    /// </summary>
+    public static SessionState ApplyVerdicts(SessionState state, IReadOnlyList<KeyValuePair<string, BranchVerdict>> verdicts, DateTimeOffset now)
+    {
+        var failing = BranchVerdicts.Failed(RowProjection.Pipelines(state))
+            .Select(BranchVerdicts.KeyOf)
+            .OfType<string>()
+            .ToHashSet();
+        var next = state.Verdicts.ToBuilder();
+        foreach (var (key, verdict) in verdicts)
+        {
+            if (verdict.Fate == BranchFate.Unknown &&
+                next.TryGetValue(key, out var known) &&
+                known.Fate != BranchFate.Unknown)
+            {
+                continue;
+            }
+
+            next[key] = verdict;
+        }
+
+        foreach (var key in next.Keys.Where(_ => !failing.Contains(_)).ToList())
+        {
+            next.Remove(key);
+        }
+
+        return Follow(
+            state,
+            state with
+            {
+                Verdicts = next.ToImmutable()
+            },
+            now);
+    }
+
+    /// <summary>
     /// A deferred pipeline failing again is the failure the user put off, not news.
     /// </summary>
     static ImmutableArray<Build> Undeferred(SessionState state, ImmutableArray<Build> failures) =>
