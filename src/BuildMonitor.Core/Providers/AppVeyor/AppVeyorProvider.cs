@@ -32,7 +32,8 @@ sealed class AppVeyorProvider : ProviderBase
                 _.RepositoryName ?? _.Name,
                 _.RepositoryType,
                 $"https://ci.appveyor.com/project/{_.AccountName}/{_.Slug}",
-                RepoUrl(_)))
+                RepoUrl(_),
+                DefaultBranch: _.RepositoryBranch))
             .ToList();
     }
 
@@ -45,10 +46,92 @@ sealed class AppVeyorProvider : ProviderBase
                 $"api/projects/{pipeline.Id}/history?recordsNumber={perPipeline}",
                 AppVeyorContext.Default.AppVeyorHistory,
                 cancel);
-            builds.AddRange(history.Builds.Select(_ => Convert(context.Connection.Id, pipeline, _)));
+            var runs = history.Builds;
+            var defaultBranch = DefaultBranch(context, pipeline, runs);
+            if (defaultBranch is not null &&
+                await DefaultRun(context, pipeline, runs, defaultBranch, cancel) is { } run)
+            {
+                runs = [.. runs, run];
+            }
+
+            builds.AddRange(runs.Select(_ => Convert(context.Connection.Id, pipeline, _) with { DefaultBranch = defaultBranch }));
         }
 
         return builds;
+    }
+
+    /// <summary>
+    /// The branch the project's own builds are on. AppVeyor's setting for it is what the repository's
+    /// default branch was when the project was added: VerifyTests projects that moved to main still
+    /// say master. So the history is the witness: the branch its pull request builds target, which is
+    /// what a pull request build's branch is, or any other build ran on, remembered from the last
+    /// history that had pull requests in it for the histories that have none. The setting is passed
+    /// over for an hour once it has been asked for its newest build and had none.
+    /// </summary>
+    static string? DefaultBranch(ProviderContext context, Pipeline pipeline, List<AppVeyorBuild> runs)
+    {
+        var memory = context.Memory;
+        var key = $"default-branch|{pipeline.Id}";
+        memory.TryGet<string>(key, out var remembered);
+        var configured = pipeline.DefaultBranch;
+        if (configured is not null &&
+            DefaultRunMemory.KnownNone(memory, pipeline.Id, configured, DateTimeOffset.UtcNow))
+        {
+            configured = null;
+        }
+
+        var targets = runs
+            .Where(_ => _.PullRequestId is not null)
+            .Select(_ => _.Branch)
+            .OfType<string>()
+            .ToList();
+        var built = runs
+            .Where(_ => _.PullRequestId is null)
+            .Select(_ => _.Branch)
+            .OfType<string>()
+            .ToHashSet();
+        var chosen = DefaultBranches.Choose([configured, remembered], targets, built);
+        if (targets.Count > 0 &&
+            chosen is not null)
+        {
+            memory.Set(key, chosen);
+        }
+
+        return chosen;
+    }
+
+    /// <summary>
+    /// The newest build pushed to the default branch, where the history left it out. The history is
+    /// the last few builds of any kind, and a batch of pull requests fills it: each one builds its
+    /// branch and then the pull request, so six pull requests pushed Verify.EntityFramework's last
+    /// build of main out of the five, and the pipeline had no main to show. The branch route answers
+    /// with the newest build that is not a pull request's, or a 404 where there is none.
+    /// </summary>
+    static async Task<AppVeyorBuild?> DefaultRun(ProviderContext context, Pipeline pipeline, List<AppVeyorBuild> runs, string branch, Cancel cancel)
+    {
+        var memory = context.Memory;
+        if (runs.Any(_ => _.PullRequestId is null && _.Branch == branch))
+        {
+            DefaultRunMemory.Found(memory, pipeline.Id, branch);
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (DefaultRunMemory.KnownNone(memory, pipeline.Id, branch, now))
+        {
+            return null;
+        }
+
+        var detail = await GetOrNone(context, $"api/projects/{pipeline.Id}/branch/{Encode(branch)}", AppVeyorContext.Default.AppVeyorBuildDetail, cancel);
+        if (detail?.Build is not { } run ||
+            (context.Since is { } since && !HistoryCutoff.Keeps(Convert(context.Connection.Id, pipeline, run), since)))
+        {
+            DefaultRunMemory.None(memory, pipeline.Id, branch, now);
+            return null;
+        }
+
+        DefaultRunMemory.Found(memory, pipeline.Id, branch);
+        return run;
     }
 
     /// <summary>

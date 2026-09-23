@@ -73,6 +73,24 @@ abstract class ProviderBase : IProvider
         Uri.EscapeDataString(value);
 
     /// <summary>
+    /// A GET whose 404 means there is nothing there rather than that something broke, such as the
+    /// newest run on a branch nothing has built. Thrown, it would fail the whole fetch it was part
+    /// of and back the pipeline off.
+    /// </summary>
+    protected static async Task<T?> GetOrNone<T>(ProviderContext context, string path, JsonTypeInfo<T> info, Cancel cancel)
+        where T : class
+    {
+        try
+        {
+            return await context.Http.Get(path, info, cancel);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// A path escaped a segment at a time, so a space or a hash in an artifact's name survives
     /// while the separators that make it a path stay separators. Escaping the whole string would
     /// turn a nested artifact's path into one segment with slashes in its name, which no server

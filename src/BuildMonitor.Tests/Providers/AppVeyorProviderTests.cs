@@ -5,7 +5,7 @@ public class AppVeyorProviderTests
             .Get(
                 projectsUrl,
                 """
-                [{"projectId":1,"accountName":"simon","slug":"diffengine","name":"DiffEngine","repositoryType":"gitHub","repositoryName":"VerifyTests/DiffEngine"}]
+                [{"projectId":1,"accountName":"simon","slug":"diffengine","name":"DiffEngine","repositoryType":"gitHub","repositoryName":"VerifyTests/DiffEngine","repositoryBranch":"main"}]
                 """)
             .Get(
                 "https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5",
@@ -24,6 +24,151 @@ public class AppVeyorProviderTests
         var builds = await ProviderTestHelpers.DiscoverAndFetch("appveyor", ProviderTestHelpers.Context("appveyor", handler));
         await Verify(new { builds, handler.Requests });
     }
+
+    /// <summary>
+    /// A project whose setting still says master, as one added before its repository moved to main
+    /// does, and whose history is all pull requests: each builds its branch and then the pull request,
+    /// which targets main. The pull requests say which branch is the project's, and its newest
+    /// build is asked for by branch, since the history left it out.
+    /// </summary>
+    [Test]
+    public async Task PullRequestsFillingTheHistoryFetchTheDefaultBranchsNewestBuild()
+    {
+        var handler = StaleSetting()
+            .Get(
+                "https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5",
+                """
+                {"project":{"slug":"diffengine"},"builds":[
+                  {"buildId":103,"buildNumber":48,"version":"1.0.48","branch":"main","pullRequestId":"15","pullRequestHeadBranch":"fix-b","pullRequestHeadRepository":"VerifyTests/DiffEngine","status":"success","created":"2026-01-01T11:55:00+00:00","started":"2026-01-01T11:55:30+00:00","finished":"2026-01-01T11:58:00+00:00"},
+                  {"buildId":102,"buildNumber":47,"version":"1.0.47","branch":"main","pullRequestId":"14","pullRequestHeadBranch":"fix-a","pullRequestHeadRepository":"VerifyTests/DiffEngine","status":"success","created":"2026-01-01T11:50:00+00:00","started":"2026-01-01T11:50:30+00:00","finished":"2026-01-01T11:53:00+00:00"},
+                  {"buildId":101,"buildNumber":46,"version":"1.0.46","branch":"fix-a","status":"success","created":"2026-01-01T11:45:00+00:00","started":"2026-01-01T11:45:30+00:00","finished":"2026-01-01T11:48:00+00:00"}
+                ]}
+                """)
+            .Get(
+                "https://ci.appveyor.com/api/projects/simon/diffengine/branch/main",
+                """
+                {"project":{"slug":"diffengine"},"build":{"buildId":100,"buildNumber":45,"version":"1.0.45","branch":"main","status":"success","created":"2026-01-01T11:00:00+00:00","started":"2026-01-01T11:00:30+00:00","finished":"2026-01-01T11:05:00+00:00"}}
+                """);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("appveyor", ProviderTestHelpers.Context("appveyor", handler));
+        await Verify(
+                new
+                {
+                    builds = builds.Select(_ => $"#{_.RunNumber} {_.Branch} (default {_.DefaultBranch})"),
+                    handler.Requests
+                })
+            .Snapshot(
+                """
+                {
+                  builds: [
+                    #48 fix-b (default main),
+                    #47 fix-a (default main),
+                    #46 fix-a (default main),
+                    #45 main (default main)
+                  ],
+                  Requests: [
+                    GET https://ci.appveyor.com/api/projects,
+                    GET https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5,
+                    GET https://ci.appveyor.com/api/projects/simon/diffengine/branch/main
+                  ]
+                }
+                """);
+    }
+
+    /// <summary>
+    /// With no pull requests to say otherwise the setting is tried, and master's newest build is
+    /// from before the history cutoff: the branch nothing builds any more. It is not the pipeline's
+    /// for the next hour, so the fetches in it ask for nothing but the history.
+    /// </summary>
+    [Test]
+    public async Task ASettingWithNothingBuiltOnItLatelyIsPassedOver()
+    {
+        var handler = StaleSetting()
+            .Get(
+                "https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5",
+                """
+                {"project":{"slug":"diffengine"},"builds":[
+                  {"buildId":101,"buildNumber":46,"version":"1.0.46","branch":"main","status":"success","created":"2026-01-01T11:45:00+00:00","started":"2026-01-01T11:45:30+00:00","finished":"2026-01-01T11:48:00+00:00"}
+                ]}
+                """)
+            .Get(
+                "https://ci.appveyor.com/api/projects/simon/diffengine/branch/master",
+                """
+                {"project":{"slug":"diffengine"},"build":{"buildId":7,"buildNumber":3,"version":"1.0.3","branch":"master","status":"success","created":"2023-05-01T11:00:00+00:00","started":"2023-05-01T11:00:30+00:00","finished":"2023-05-01T11:05:00+00:00"}}
+                """);
+        var context = ProviderTestHelpers.Context("appveyor", handler) with
+        {
+            Since = new DateTimeOffset(2025, 12, 1, 0, 0, 0, TimeSpan.Zero)
+        };
+        var first = await ProviderTestHelpers.DiscoverAndFetch("appveyor", context);
+        var second = await ProviderTestHelpers.DiscoverAndFetch("appveyor", context);
+        await Verify(
+                new
+                {
+                    first = first.Select(_ => $"#{_.RunNumber} {_.Branch} (default {_.DefaultBranch})"),
+                    second = second.Select(_ => $"#{_.RunNumber} {_.Branch} (default {_.DefaultBranch})"),
+                    handler.Requests
+                })
+            .Snapshot(
+                """
+                {
+                  first: [
+                    #46 main (default master)
+                  ],
+                  second: [
+                    #46 main (default )
+                  ],
+                  Requests: [
+                    GET https://ci.appveyor.com/api/projects,
+                    GET https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5,
+                    GET https://ci.appveyor.com/api/projects/simon/diffengine/branch/master,
+                    GET https://ci.appveyor.com/api/projects,
+                    GET https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5
+                  ]
+                }
+                """);
+    }
+
+    /// <summary>
+    /// A default branch with no build at all answers 404, which is an answer rather than a failure:
+    /// the fetch keeps its builds, and the next one within the hour does not ask again.
+    /// </summary>
+    [Test]
+    public async Task ADefaultBranchWithNoBuildIsNotAskedAgainForAnHour()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://ci.appveyor.com/api/projects",
+                """
+                [{"projectId":1,"accountName":"simon","slug":"diffengine","name":"DiffEngine","repositoryType":"gitHub","repositoryName":"VerifyTests/DiffEngine","repositoryBranch":"main"}]
+                """)
+            .Get(
+                "https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5",
+                """
+                {"project":{"slug":"diffengine"},"builds":[
+                  {"buildId":102,"buildNumber":47,"version":"1.0.47","branch":"main","pullRequestId":"14","pullRequestHeadBranch":"fix-a","pullRequestHeadRepository":"VerifyTests/DiffEngine","status":"running","created":"2026-01-01T11:50:00+00:00","started":"2026-01-01T11:50:30+00:00"}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("appveyor", handler);
+        var first = await ProviderTestHelpers.DiscoverAndFetch("appveyor", context);
+        await ProviderTestHelpers.DiscoverAndFetch("appveyor", context);
+        await Assert.That(first.Single().DefaultBranch).IsEqualTo("main");
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://ci.appveyor.com/api/projects",
+            "GET https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5",
+            "GET https://ci.appveyor.com/api/projects/simon/diffengine/branch/main",
+            "GET https://ci.appveyor.com/api/projects",
+            "GET https://ci.appveyor.com/api/projects/simon/diffengine/history?recordsNumber=5"
+        ]);
+    }
+
+    static FakeHttpHandler StaleSetting() =>
+        new FakeHttpHandler()
+            .Get(
+                "https://ci.appveyor.com/api/projects",
+                """
+                [{"projectId":1,"accountName":"simon","slug":"diffengine","name":"DiffEngine","repositoryType":"gitHub","repositoryName":"VerifyTests/DiffEngine","repositoryBranch":"master"}]
+                """);
 
     [Test]
     public async Task RecentActivityTakesEachProjectsLatestBuild()

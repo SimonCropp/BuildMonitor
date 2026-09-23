@@ -5,6 +5,8 @@ class AppVeyorProject
     public string Name { get; set; } = "";
     public string? RepositoryType { get; set; }
     public string? RepositoryName { get; set; }
+    // The default branch as it was when the project was added, which a repository may since have renamed.
+    public string? RepositoryBranch { get; set; }
     // The projects list carries each project's latest build.
     public List<AppVeyorBuild> Builds { get; set; } = [];
 }

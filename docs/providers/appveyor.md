@@ -21,6 +21,8 @@ One per project. The logo opens the project on AppVeyor and the name opens the r
 
 AppVeyor reports a pull request build's branch as the one it targets, so it is shown on the branch it came from instead, from the build's `pullRequestHeadBranch`, as `owner:branch` when that is in a fork, and its branch opens in the fork.
 
+The project's default branch is the one its pull request builds target, or its other builds are on, before AppVeyor's own setting for it: that setting is the repository's default branch when the project was added, and a repository that has since moved from master to main is still master there.
+
 
 ## Actions
 
@@ -37,6 +39,8 @@ The countdown comes from the median of the project's last ten successful builds.
 ## Polling
 
 Each project is fetched on its own schedule (see [Poll intervals](../options.md#poll-intervals)). AppVeyor sends no ETags, so every request returns a full response. Once a minute the projects list is read, which carries each project's latest build, and a project whose latest build changed is fetched at once rather than when its schedule comes round. A build that starts on another branch while a newer one exists waits for the schedule, which on a quiet project is up to thirty minutes.
+
+The history is the last five builds of any kind, and a burst of pull requests fills it: each builds its branch and then the pull request. When none of the five is on the default branch, its newest build is asked for on its own. A default branch with nothing built on it since the [history cutoff](../options.md#show-builds-from-the-last-days) is not asked about again for an hour.
 
 ```mermaid
 ---
@@ -67,7 +71,10 @@ flowchart TD
     failed --> due
     due -- "no" --> sleep(["Sleep until a project,<br/>the probe or the<br/>listing is due"])
     due -- "yes, most urgent first" --> fetch["GET api/projects/<br/>{account}/{slug}/history,<br/>the last 5 builds"]
-    fetch -- "200" --> rows["Update its rows"]
+    fetch -- "200" --> held{"One of them on the<br/>default branch, or it<br/>had none in the last hour?"}
+    held -- "yes" --> rows["Update its rows"]
+    held -- "no" --> branch["GET api/projects/<br/>{account}/{slug}/branch/{branch},<br/>its newest build that<br/>is not a pull request's"]
+    branch --> rows
     fetch -- "failure" --> backoff["Back off that project,<br/>doubling up to 10 minutes"]
     rows --> sleep
     backoff --> sleep
@@ -97,6 +104,11 @@ None. Responses send `Cache-Control: no-cache`, `Pragma: no-cache` and `Expires:
 ### Batching
 
 Only the latest build per project, through the projects list. History is per project.
+
+
+### Branches and pull requests
+
+A pull request build's `branch` is the branch it targets; `pullRequestHeadBranch`, `pullRequestHeadRepository` and `pullRequestHeadCommitId` say where it came from, and `commitId` is the merge commit that was built [live]. The project's `repositoryBranch` is the repository's default branch when the project was added and is not updated when the repository renames it: Verify.EntityFramework's says master while the repository's is main [live]. `history?branch={branch}` still includes the pull request builds that target that branch [live]. `GET api/projects/{account}/{slug}/branch/{branch}` answers with the newest build on the branch that is not a pull request's, with the branch escaped or not, or a JSON 404 `Build not found or access denied.` where there is none [live].
 
 
 ### Accounts

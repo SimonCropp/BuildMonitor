@@ -20,7 +20,9 @@ interface IProvider
 
     /// <summary>
     /// Recent builds of the given pipelines, newest first per pipeline, at most
-    /// <paramref name="perPipeline"/> each.
+    /// <paramref name="perPipeline"/> each, plus the newest run on a pipeline's default branch
+    /// where those leave it out, after the rest and possibly older than all of them: a burst of pull
+    /// requests fills the window, and the pipeline would have no run of its own to show.
     /// </summary>
     Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel);
 

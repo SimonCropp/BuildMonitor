@@ -16,6 +16,6 @@
 /// <param name="DefaultBranch">The branch the pipeline's own runs are on, where discovery can say:
 /// the repository's default branch, in the form the provider writes <see cref="Build.Branch"/>.
 /// Without it a pull request's run was as much the pipeline as a push to main was. Null where the
-/// service does not say at discovery, or says something stale, and the provider then works it out
-/// from the runs it fetches.</param>
+/// service does not say at discovery. Where what it says can be stale, as AppVeyor's setting is,
+/// the provider checks it against the runs it fetches before any build carries it.</param>
 record Pipeline(string Id, string Name, string RepoName, string? Group, string Url, string? RepoUrl = null, string? ProjectGroup = null, string? DefaultBranch = null);
