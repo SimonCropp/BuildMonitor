@@ -42,10 +42,18 @@ sealed class AppVeyorProvider : ProviderBase
         var builds = new List<Build>();
         foreach (var pipeline in pipelines)
         {
-            var history = await context.Http.Get(
+            // A project deleted since discovery answers with a 404, which would fail the whole
+            // fetch; it has no builds until the next discovery drops it.
+            var history = await GetOrNone(
+                context,
                 $"api/projects/{pipeline.Id}/history?recordsNumber={perPipeline}",
                 AppVeyorContext.Default.AppVeyorHistory,
                 cancel);
+            if (history is null)
+            {
+                continue;
+            }
+
             var runs = history.Builds;
             var defaultBranch = DefaultBranch(context, pipeline, runs);
             if (defaultBranch is not null &&

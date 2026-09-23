@@ -26,6 +26,27 @@ public class AppVeyorProviderTests
     }
 
     /// <summary>
+    /// A project deleted since discovery answers its history with a 404. It has no builds, and the
+    /// projects that are still there keep theirs rather than the whole fetch failing.
+    /// </summary>
+    [Test]
+    public async Task DeletedProjectHasNoBuilds()
+    {
+        var handler = Handler()
+            .Map(
+                "GET",
+                "https://ci.appveyor.com/api/projects/simon/emptyfiles/history?recordsNumber=5",
+                """{"message":"Project not found or access denied."}""",
+                HttpStatusCode.NotFound);
+        var context = ProviderTestHelpers.Context("appveyor", handler);
+        var provider = ProviderTestHelpers.Provider("appveyor");
+        var pipelines = await provider.DiscoverPipelines(context, Cancel.None);
+        Pipeline deleted = new("simon/emptyfiles", "EmptyFiles", "EmptyFiles", null, "https://ci.appveyor.com/project/simon/emptyfiles", null);
+        var builds = await provider.FetchBuilds(context, [deleted, .. pipelines], 5, Cancel.None);
+        await Assert.That(builds.Select(_ => _.PipelineId).Distinct()).IsEquivalentTo(["simon/diffengine"]);
+    }
+
+    /// <summary>
     /// A project whose setting still says master, as one added before its repository moved to main
     /// does, and whose history is all pull requests: each builds its branch and then the pull request,
     /// which targets main. The pull requests say which branch is the project's, and its newest
