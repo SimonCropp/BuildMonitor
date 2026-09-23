@@ -5,4 +5,8 @@
 [JsonSerializable(typeof(GitHubJobs))]
 [JsonSerializable(typeof(GitHubArtifacts))]
 [JsonSerializable(typeof(GitHubUser))]
+[JsonSerializable(typeof(GitHubPullRequest))]
+[JsonSerializable(typeof(List<GitHubPullRequest>))]
+[JsonSerializable(typeof(GitHubBranch))]
+[JsonSerializable(typeof(List<GitHubRef>))]
 partial class GitHubContext : JsonSerializerContext;

@@ -69,6 +69,43 @@ abstract class ProviderBase : IProvider
     public virtual Task<ImmutableDictionary<string, string>?> RecentActivity(ProviderContext context, ImmutableArray<PollGroup> groups, ImmutableDictionary<string, string> previous, Cancel cancel) =>
         Task.FromResult<ImmutableDictionary<string, string>?>(null);
 
+    /// <summary>
+    /// Null, as <see cref="FateOf"/> is unsupported: most of the services only build.
+    /// </summary>
+    public virtual Uri? RepositoryRoot(Connection connection) =>
+        null;
+
+    /// <summary>
+    /// Virtual rather than abstract, as <see cref="RunNext"/> is: most of the services only build,
+    /// and keep no record of the branches of the repositories they build. Their descriptors say so
+    /// with <see cref="ProviderDescriptor.HostsRepositories"/>, and nothing asks them.
+    /// </summary>
+    public virtual Task<BranchFate> FateOf(ProviderContext context, BranchQuestion question, Cancel cancel) =>
+        throw new NotSupportedException($"{Descriptor.Name} holds no repositories");
+
+    /// <summary>
+    /// A repository's path under this connection's <see cref="RepositoryRoot"/>, "owner/name" or a
+    /// group's longer one, or null for an address that is not under it.
+    /// </summary>
+    protected string? RepositoryPath(ProviderContext context, string repository)
+    {
+        if (RepositoryRoot(context.Connection) is not { } root ||
+            !Uri.TryCreate(repository, UriKind.Absolute, out var url) ||
+            !BranchHosts.Under(url, root))
+        {
+            return null;
+        }
+
+        var path = url.AbsolutePath[root.AbsolutePath.Length..].Trim('/');
+        if (path.Length == 0 ||
+            path.Split('/').Any(_ => _.Length == 0))
+        {
+            return null;
+        }
+
+        return path;
+    }
+
     protected static string Encode(string value) =>
         Uri.EscapeDataString(value);
 

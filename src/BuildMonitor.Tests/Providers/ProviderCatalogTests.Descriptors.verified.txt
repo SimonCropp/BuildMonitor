@@ -144,7 +144,7 @@
     HasQueuePriority: false,
     OrgNoun: org,
     CustomClientId: false,
-    TokenNote: A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.,
+    TokenNote: A fine grained token needs Actions read and write and Metadata read, and Pull requests and Contents read to tell when a failed branch is gone; a classic token needs the repo scope.,
     FetchUnit: Repository,
     FetchConcurrency: 8,
     Quota: {
@@ -155,7 +155,7 @@
       ChargeByCost: false
     },
     ActionPermission: Actions read and write, or the repo scope on a classic token,
-    HostsRepositories: false,
+    HostsRepositories: true,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/github.md
   },
   {

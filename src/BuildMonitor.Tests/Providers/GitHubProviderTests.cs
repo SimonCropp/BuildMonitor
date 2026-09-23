@@ -419,6 +419,126 @@ public class GitHubProviderTests
         await Assert.That(address.ToString()).IsEqualTo("https://github.example.com/api/v3/");
     }
 
+    const string verifyRepository = "https://github.com/VerifyTests/Verify";
+
+    static Task<BranchFate> FateOf(FakeHttpHandler handler, string branch, string? pullRequest = null, string repository = verifyRepository, string? server = null) =>
+        ProviderTestHelpers.Provider("github").FateOf(ProviderTestHelpers.Context("github", handler, server), new(repository, branch, pullRequest), Cancel.None);
+
+    /// <summary>
+    /// A pull request is asked for its own state, whatever built it.
+    /// </summary>
+    [Test]
+    [Arguments("""{"number":42,"state":"open","merged_at":null}""", BranchFate.Open)]
+    [Arguments("""{"number":42,"state":"closed","merged_at":"2026-01-01T10:00:00Z"}""", BranchFate.Merged)]
+    [Arguments("""{"number":42,"state":"closed","merged_at":null}""", BranchFate.Closed)]
+    public async Task APullRequestIsAskedForItsState(string body, BranchFate fate)
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/pulls/42", body);
+        await Assert.That(await FateOf(handler, "feature/inline", "42")).IsEqualTo(fate);
+        await Assert.That(handler.Requests).IsEquivalentTo(["GET https://api.github.com/repos/VerifyTests/Verify/pulls/42"]);
+    }
+
+    /// <summary>
+    /// A pull request the credential cannot see is a 404, which says nothing about it.
+    /// </summary>
+    [Test]
+    public async Task APullRequestItCannotSeeCannotSay() =>
+        await Assert.That(await FateOf(new(), "feature/inline", "42")).IsEqualTo(BranchFate.Unknown);
+
+    /// <summary>
+    /// A fork's branch builds here only through a pull request, and a run from one names none, so
+    /// the newest pull request from that branch says what became of it.
+    /// </summary>
+    [Test]
+    public async Task AForksBranchIsAskedForTheNewestPullRequestFromIt()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://api.github.com/repos/VerifyTests/Verify/pulls?head=someone%3Afix-1834&state=all&per_page=1",
+                """[{"number":1910,"state":"closed","merged_at":"2026-01-01T10:00:00Z"}]""");
+        await Assert.That(await FateOf(handler, "someone:fix-1834")).IsEqualTo(BranchFate.Merged);
+    }
+
+    [Test]
+    public async Task AForksBranchNoPullRequestNamesCannotSay()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/pulls?head=someone%3Afix-1834&state=all&per_page=1", "[]");
+        await Assert.That(await FateOf(handler, "someone:fix-1834")).IsEqualTo(BranchFate.Unknown);
+    }
+
+    /// <summary>
+    /// A branch with no pull request is asked whether it is still there, slashes and all.
+    /// </summary>
+    [Test]
+    public async Task ABranchStillThereIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/branches/dependabot/nuget/Polyfill-9.1.0", """{"name":"dependabot/nuget/Polyfill-9.1.0"}""");
+        await Assert.That(await FateOf(handler, "dependabot/nuget/Polyfill-9.1.0")).IsEqualTo(BranchFate.Open);
+        await Assert.That(handler.Requests.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// A release workflow's run is named for its tag, which is no branch but is still there. The
+    /// listing matches every tag the name starts, so v1 lists v1.1 too.
+    /// </summary>
+    [Test]
+    public async Task ATagOfTheNameIsOpen()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/git/matching-refs/tags/v1", """[{"ref":"refs/tags/v1"},{"ref":"refs/tags/v1.1"}]""");
+        await Assert.That(await FateOf(handler, "v1")).IsEqualTo(BranchFate.Open);
+    }
+
+    /// <summary>
+    /// Neither a branch nor a tag of the name, in a repository the credential can see, is a branch
+    /// deleted. A tag that only starts with the name is another tag.
+    /// </summary>
+    [Test]
+    public async Task NeitherBranchNorTagIsDeleted()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/git/matching-refs/tags/v1", """[{"ref":"refs/tags/v1.1"}]""");
+        await Assert.That(await FateOf(handler, "v1")).IsEqualTo(BranchFate.Deleted);
+        await Assert.That(handler.Requests).IsEquivalentTo(
+        [
+            "GET https://api.github.com/repos/VerifyTests/Verify/branches/v1",
+            "GET https://api.github.com/repos/VerifyTests/Verify/git/matching-refs/tags/v1"
+        ]);
+    }
+
+    /// <summary>
+    /// A repository the credential cannot see answers the branch and the tags alike with a 404, which
+    /// must not read as the branch being deleted.
+    /// </summary>
+    [Test]
+    public async Task ARepositoryItCannotSeeCannotSay() =>
+        await Assert.That(await FateOf(new(), "feature/x")).IsEqualTo(BranchFate.Unknown);
+
+    /// <summary>
+    /// An address that names no repository is not asked about at all.
+    /// </summary>
+    [Test]
+    public async Task AnAddressThatIsNoRepositoryIsNotAsked()
+    {
+        var handler = new FakeHttpHandler();
+        await Assert.That(await FateOf(handler, "main", repository: "https://github.com/VerifyTests")).IsEqualTo(BranchFate.Unknown);
+        await Assert.That(handler.Requests).IsEmpty();
+    }
+
+    /// <summary>
+    /// An enterprise server's repository is asked of that server's API.
+    /// </summary>
+    [Test]
+    public async Task AnEnterpriseRepositoryIsAskedOfItsServer()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://github.example.com/api/v3/repos/team/app/pulls/3", """{"number":3,"state":"open"}""");
+        await Assert.That(await FateOf(handler, "fix", "3", "https://github.example.com/team/app", "https://github.example.com")).IsEqualTo(BranchFate.Open);
+    }
+
     [Test]
     public async Task UnauthorizedIsAnAuthException()
     {

@@ -16,6 +16,8 @@ One per pipeline definition. Pull request builds show the pull request number an
 
 A pull request build's source branch is the pull request's merge ref, so it is shown on the branch it came from instead, from the build's `system.pullRequest.sourceBranch` parameter or its `pr.sourceBranch` trigger info. Azure DevOps names neither a fork nor its owner, so a pull request from a fork is shown as `pull/n` rather than on a branch name that would read as one of the repository's own.
 
+A failed branch of a GitHub repository is asked of a [GitHub connection](github.md#rows), where there is one, whether its pull request was merged or closed or the branch deleted, and loses its row if so. Any other failed branch loses it once the default branch has built since it failed.
+
 
 ## Authors
 

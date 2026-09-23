@@ -56,6 +56,18 @@ sealed class ConnectionPoller
     int summaryCycles;
     int summaryGroups;
     long summarySent;
+    // The failed branches this connection could not say anything about, and when it tried, so it
+    // asks again only after BranchQuestions.UnknownFor. Its own rather than the session's: another
+    // connection's credential may see what this one cannot.
+    Dictionary<string, DateTimeOffset> unanswered = [];
+    int branchFailures;
+    DateTimeOffset branchesDue = DateTimeOffset.MinValue;
+
+    /// <summary>
+    /// The most failed branches a cycle asks about, so a first poll of an account with many of them
+    /// spreads its questions over a few cycles rather than spending a burst of the quota at once.
+    /// </summary>
+    public const int BranchesPerCycle = 20;
 
     /// <summary>
     /// How often the information log summarises a connection's fetch cycles.
@@ -485,6 +497,12 @@ sealed class ConnectionPoller
             }
         }
 
+        // Not while the credential is refused or the quota is spent, where every question would be too.
+        if (health is ConnectionHealth.Ok or ConnectionHealth.Error)
+        {
+            await AskBranches(provider, quiet, connection, cancel);
+        }
+
         Spend(descriptor);
         var after = clock();
         var next = PollSchedule.Plan(Input(descriptor, groups, host.State, false, false, after)).WakeAt;
@@ -624,6 +642,84 @@ sealed class ConnectionPoller
         }
 
         probedOnce = true;
+    }
+
+    /// <summary>
+    /// Asks the service, where it holds repositories, what became of the failed branches it can
+    /// answer for, whichever connection built them: an AppVeyor build of a GitHub repository is
+    /// asked of the GitHub connection. Its own requests, on its own credential and quota, so the
+    /// token is only ever sent where it is already sent. Nothing is asked while the quota is spent.
+    /// <para>
+    /// An answer it cannot give, a pull request it cannot see or a 403 from a token without the
+    /// rights, is an answer that it cannot say rather than a failure, and is not asked again for a
+    /// while. Anything else backs the questions off without touching the connection's health: the
+    /// rows are still right, only a failure that could have folded stays up.
+    /// </para>
+    /// </summary>
+    async Task AskBranches(IProvider provider, ProviderContext context, Connection connection, Cancel cancel)
+    {
+        var now = clock();
+        if (!provider.Descriptor.HostsRepositories ||
+            bucket is { Tokens: < 0 } ||
+            now < branchesDue)
+        {
+            return;
+        }
+
+        foreach (var key in unanswered.Where(_ => now - _.Value >= BranchQuestions.UnknownFor).Select(_ => _.Key).ToList())
+        {
+            unanswered.Remove(key);
+        }
+
+        var state = host.State;
+        var questions = BranchQuestions.Of(RowProjection.Pipelines(state), state.Verdicts, connection, unanswered, now)
+            .Take(BranchesPerCycle)
+            .ToList();
+        if (questions.Count == 0)
+        {
+            return;
+        }
+
+        var answers = await Concurrently.Settle(questions, Concurrently.Limit, (question, token) => provider.FateOf(context, question, token), cancel);
+        var verdicts = new List<KeyValuePair<string, BranchVerdict>>();
+        Exception? failure = null;
+        for (var index = 0; index < questions.Count; index++)
+        {
+            var (fate, exception) = answers[index];
+            if (exception is AuthException { Status: HttpStatusCode.Forbidden })
+            {
+                fate = BranchFate.Unknown;
+            }
+            else if (exception is not null)
+            {
+                failure ??= exception;
+                continue;
+            }
+
+            var key = questions[index].Key;
+            if (fate == BranchFate.Unknown)
+            {
+                unanswered[key] = now;
+            }
+
+            verdicts.Add(new(key, new(fate, now)));
+        }
+
+        if (failure is null)
+        {
+            branchFailures = 0;
+        }
+        else
+        {
+            branchFailures++;
+            branchesDue = now + Backoff.Next(TimeSpan.FromMinutes(1), branchFailures);
+            Log.Warning(failure, "Asking {Connection} what became of failed branches failed", connection.Name);
+        }
+
+        if (verdicts.Count > 0)
+        {
+            host.Mutate(_ => MonitorSession.ApplyVerdicts(_, verdicts, clock()));
+        }
     }
 
     DateTimeOffset? NextProbe(ProviderDescriptor descriptor)

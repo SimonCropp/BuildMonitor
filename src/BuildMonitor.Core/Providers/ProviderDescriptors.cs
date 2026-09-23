@@ -107,12 +107,13 @@ static class ProviderDescriptors
         HasPullRequests: true,
         HasArtifacts: true,
         OrgNoun: "org",
-        TokenNote: "A fine grained token needs Actions read and write and Metadata read; a classic token needs the repo scope.",
+        TokenNote: "A fine grained token needs Actions read and write and Metadata read, and Pull requests and Contents read to tell when a failed branch is gone; a classic token needs the repo scope.",
         FetchUnit: FetchUnit.Repository,
         FetchConcurrency: Concurrently.Limit,
         // Half the secondary limit of 900 points a minute, which counts a 304 like any GET.
         Quota: new(450, TimeSpan.FromMinutes(1), 450),
-        ActionPermission: "Actions read and write, or the repo scope on a classic token");
+        ActionPermission: "Actions read and write, or the repo scope on a classic token",
+        HostsRepositories: true);
 
     public static readonly ProviderDescriptor AzureDevOps = new(
         Id: "azure-devops",
