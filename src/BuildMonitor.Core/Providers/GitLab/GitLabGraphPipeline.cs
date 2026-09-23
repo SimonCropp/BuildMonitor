@@ -12,4 +12,6 @@ class GitLabGraphPipeline
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
     public GitLabGraphUser? User { get; set; }
+    // A merge request pipeline's merge request, which names the branch its ref does not.
+    public GitLabGraphMergeRequest? MergeRequest { get; set; }
 }

@@ -10,7 +10,7 @@ A [personal access token](https://gitlab.com/-/user_settings/personal_access_tok
 
 ## Rows
 
-One per project. Merge request pipelines show the merge request number and link to it.
+One per project, showing its latest pipeline on the project's default branch, which the project listing names. Merge request pipelines show the merge request number and link to it. A merge request pipeline's ref is the merge request's, so it is shown on the branch it came from instead, which GraphQL names, as `namespace:branch` when that is in a fork; over REST, which names neither, it is shown as `merge-requests/n`.
 
 
 ## Actions
@@ -30,6 +30,8 @@ The countdown comes from the median of the project's last ten successful pipelin
 ## Polling
 
 The pipelines of fifty projects at a time come from one GraphQL request, instead of a request per project and another per running pipeline, so the whole connection is fetched on one schedule (see [Poll intervals](../options.md#poll-intervals)). A project GraphQL leaves out of its answer is fetched over REST, eight projects at a time. A server whose GraphQL fails is fetched over REST for an hour before GraphQL is asked again. GitLab.com allows 2,000 authenticated requests a minute, and counts a 304 as one.
+
+Each project's last five pipelines can all be merge requests'. A project left without one on its default branch is asked over REST for its newest pipeline on that ref, which leaves out the merge request pipelines; one with none since the [history cutoff](../options.md#show-builds-from-the-last-days) is not asked again for an hour.
 
 ```mermaid
 ---

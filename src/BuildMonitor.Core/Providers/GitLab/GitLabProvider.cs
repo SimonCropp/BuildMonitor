@@ -30,7 +30,7 @@ sealed class GitLabProvider : ProviderBase
     /// </summary>
     const int chunkSize = 50;
 
-    const string pipelineFields = "id iid status ref sha createdAt updatedAt startedAt finishedAt user{name}";
+    const string pipelineFields = "id iid status ref sha createdAt updatedAt startedAt finishedAt user{name} mergeRequest{iid sourceBranch sourceProject{fullPath webUrl}}";
 
     public override Uri BaseAddress(Connection connection) =>
         new(base.BaseAddress(connection), "api/v4/");
@@ -40,7 +40,7 @@ sealed class GitLabProvider : ProviderBase
         var projects = await context.Http.Get(Listing(context, readsPipelines), GitLabContext.Default.ListGitLabProject, cancel);
         context.Memory.Set(readOnly, await ReadOnly(context, projects, cancel));
         return projects
-            .Select(_ => new Pipeline(_.Id.ToString(), _.PathWithNamespace, _.PathWithNamespace, null, $"{_.WebUrl}/-/pipelines", _.WebUrl))
+            .Select(_ => new Pipeline(_.Id.ToString(), _.PathWithNamespace, _.PathWithNamespace, null, $"{_.WebUrl}/-/pipelines", _.WebUrl, DefaultBranch: _.DefaultBranch))
             .ToList();
     }
 
@@ -123,10 +123,54 @@ sealed class GitLabProvider : ProviderBase
                 (pipeline, token) => Rest(context, pipeline, perPipeline, token),
                 cancel);
             builds.AddRange(perProject.SelectMany(_ => _));
+            var defaults = await Concurrently.Map(
+                chunk.Where(_ => MissesDefaultRun(context, _, builds)).ToList(),
+                (pipeline, token) => DefaultRun(context, pipeline, token),
+                cancel);
+            builds.AddRange(defaults.OfType<Build>());
         }
 
         var readOnlyProjects = ReadOnly(context);
         return [..builds.Select(_ => Offered(_, readOnlyProjects))];
+    }
+
+    /// <summary>
+    /// Whether a project's window left out its default branch, as a burst of merge requests does to
+    /// its last five pipelines, and it was not asked for that lately and found none.
+    /// </summary>
+    static bool MissesDefaultRun(ProviderContext context, Pipeline pipeline, List<Build> builds) =>
+        pipeline.DefaultBranch is { } branch &&
+        !builds.Any(_ => _.PipelineId == pipeline.Id && _.Branch == branch) &&
+        !DefaultRunMemory.KnownNone(context.Memory, pipeline.Id, branch, DateTimeOffset.UtcNow);
+
+    /// <summary>
+    /// The project's newest pipeline on its default branch, asked for by ref, which leaves out the
+    /// merge request pipelines whose ref is the merge request's. One with none since the history
+    /// cutoff is not asked again for an hour.
+    /// </summary>
+    static async Task<Build?> DefaultRun(ProviderContext context, Pipeline pipeline, Cancel cancel)
+    {
+        var branch = pipeline.DefaultBranch!;
+        List<Build> runs;
+        try
+        {
+            runs = await Rest(context, pipeline, 1, cancel, branch);
+        }
+        // Nothing there rather than a failure, which would back the project off.
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            runs = [];
+        }
+
+        var run = runs.FirstOrDefault(_ => _.Branch == branch);
+        if (run is null)
+        {
+            DefaultRunMemory.None(context.Memory, pipeline.Id, branch, DateTimeOffset.UtcNow);
+            return null;
+        }
+
+        DefaultRunMemory.Found(context.Memory, pipeline.Id, branch);
+        return run;
     }
 
     static Build Offered(Build build, ImmutableHashSet<string> readOnlyProjects)
@@ -197,7 +241,7 @@ sealed class GitLabProvider : ProviderBase
             covered.Add(pipeline.Id);
             foreach (var node in project.Pipelines?.Nodes ?? [])
             {
-                builds.Add(Convert(context.Connection.Id, pipeline, Run(node, pipeline), node.User?.Name));
+                builds.Add(Convert(context.Connection.Id, pipeline, Run(node, pipeline), node.User?.Name, node.MergeRequest));
             }
         }
 
@@ -211,11 +255,13 @@ sealed class GitLabProvider : ProviderBase
     static string Iso(DateTimeOffset since) =>
         since.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
-    static async Task<List<Build>> Rest(ProviderContext context, Pipeline pipeline, int perPipeline, Cancel cancel)
+    /// <param name="branch">The one ref to list the pipelines of, or null for every ref.</param>
+    static async Task<List<Build>> Rest(ProviderContext context, Pipeline pipeline, int perPipeline, Cancel cancel, string? branch = null)
     {
         var builds = new List<Build>();
         var updated = context.Since is { } since ? $"&updated_after={Encode(Iso(since))}" : "";
-        var runs = await context.Http.Get($"projects/{pipeline.Id}/pipelines?per_page={perPipeline}{updated}", GitLabContext.Default.ListGitLabPipeline, cancel);
+        var onBranch = branch is null ? "" : $"&ref={Encode(branch)}";
+        var runs = await context.Http.Get($"projects/{pipeline.Id}/pipelines?per_page={perPipeline}{onBranch}{updated}", GitLabContext.Default.ListGitLabPipeline, cancel);
         foreach (var run in runs)
         {
             // The listing carries no timings; only a live run is worth the second call. They go on a
@@ -231,7 +277,7 @@ sealed class GitLabProvider : ProviderBase
                 };
             }
 
-            builds.Add(Convert(context.Connection.Id, pipeline, timed, null));
+            builds.Add(Convert(context.Connection.Id, pipeline, timed, null, null));
         }
 
         return builds;
@@ -256,7 +302,9 @@ sealed class GitLabProvider : ProviderBase
         };
     }
 
-    static Build Convert(string connectionId, Pipeline pipeline, GitLabPipeline run, string? author)
+    /// <param name="request">The merge request GraphQL names for a merge request pipeline, or null,
+    /// which REST always is.</param>
+    static Build Convert(string connectionId, Pipeline pipeline, GitLabPipeline run, string? author, GitLabGraphMergeRequest? request)
     {
         var status = run.Status switch
         {
@@ -270,11 +318,12 @@ sealed class GitLabProvider : ProviderBase
         var web = pipeline.RepoUrl!;
         string? mergeRequest = null;
         var branch = run.Ref;
+        var branchUrl = branch is null ? null : $"{web}/-/tree/{branch}";
         if (run.Ref is not null &&
             run.Ref.StartsWith("refs/merge-requests/", StringComparison.Ordinal))
         {
             mergeRequest = run.Ref.Split('/')[2];
-            branch = null;
+            (branch, branchUrl) = MergeRequestBranch(pipeline, mergeRequest, request);
         }
 
         var finished = status is BuildStatus.Succeeded or BuildStatus.Failed or BuildStatus.Cancelled ? run.FinishedAt ?? run.UpdatedAt : null;
@@ -292,7 +341,7 @@ sealed class GitLabProvider : ProviderBase
             finished,
             null,
             run.WebUrl,
-            branch is null ? null : $"{web}/-/tree/{branch}",
+            branchUrl,
             mergeRequest,
             mergeRequest is null ? null : $"{web}/-/merge_requests/{mergeRequest}",
             run.Sha,
@@ -302,7 +351,33 @@ sealed class GitLabProvider : ProviderBase
             CanCancel: status is BuildStatus.Queued or BuildStatus.Running,
             Join(pipeline.Id, run.Id.ToString()),
             pipeline.Url,
-            web);
+            web,
+            DefaultBranch: pipeline.DefaultBranch);
+    }
+
+    /// <summary>
+    /// The branch a merge request pipeline ran for, and its page. Its ref is the merge request's,
+    /// which filed every merge request of a project under one empty branch. GraphQL names the source
+    /// branch and the project it is in, a fork's behind the fork's namespace, since a fork's main is
+    /// not this project's. REST names neither, so there it is the merge request's own ref.
+    /// </summary>
+    static (string Branch, string? Url) MergeRequestBranch(Pipeline pipeline, string number, GitLabGraphMergeRequest? request)
+    {
+        if (request?.SourceBranch is not { Length: > 0 } source ||
+            request.SourceProject is not { FullPath: { } path } project)
+        {
+            return ($"merge-requests/{number}", null);
+        }
+
+        string? owner = null;
+        var slash = path.LastIndexOf('/');
+        if (!string.Equals(path, pipeline.RepoName, StringComparison.OrdinalIgnoreCase) &&
+            slash > 0)
+        {
+            owner = path[..slash];
+        }
+
+        return (PullRequestBranches.Head(source, owner), $"{project.WebUrl ?? pipeline.RepoUrl}/-/tree/{source}");
     }
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)

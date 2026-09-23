@@ -8,7 +8,7 @@ public class GitLabProviderTests
         new FakeHttpHandler()
             .Get(
                 "https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100",
-                """[{"id":77,"path_with_namespace":"verify/diffengine","web_url":"https://gitlab.com/verify/diffengine"}]""")
+                """[{"id":77,"path_with_namespace":"verify/diffengine","web_url":"https://gitlab.com/verify/diffengine","default_branch":"main"}]""")
             .Get(
                 developerListing,
                 """[{"id":77,"path_with_namespace":"verify/diffengine","web_url":"https://gitlab.com/verify/diffengine"}]""")
@@ -17,7 +17,8 @@ public class GitLabProviderTests
                 """
                 {"data":{"projects":{"nodes":[{"id":"gid://gitlab/Project/77","pipelines":{"nodes":[
                   {"id":"gid://gitlab/Ci::Pipeline/5001","iid":"120","status":"RUNNING","ref":"main","sha":"abc123","createdAt":"2026-01-01T11:55:00Z","updatedAt":"2026-01-01T11:56:00Z","startedAt":"2026-01-01T11:55:30Z","finishedAt":null,"user":{"name":"Simon"}},
-                  {"id":"gid://gitlab/Ci::Pipeline/5000","iid":"119","status":"FAILED","ref":"refs/merge-requests/9/head","sha":"def456","createdAt":"2026-01-01T10:00:00Z","updatedAt":"2026-01-01T10:08:00Z","startedAt":"2026-01-01T10:00:20Z","finishedAt":"2026-01-01T10:08:00Z","user":{"name":"Simon"}}
+                  {"id":"gid://gitlab/Ci::Pipeline/5000","iid":"119","status":"FAILED","ref":"refs/merge-requests/9/head","sha":"def456","createdAt":"2026-01-01T10:00:00Z","updatedAt":"2026-01-01T10:08:00Z","startedAt":"2026-01-01T10:00:20Z","finishedAt":"2026-01-01T10:08:00Z","user":{"name":"Simon"},"mergeRequest":{"iid":"9","sourceBranch":"feature","sourceProject":{"fullPath":"verify/diffengine","webUrl":"https://gitlab.com/verify/diffengine"}}},
+                  {"id":"gid://gitlab/Ci::Pipeline/4999","iid":"118","status":"SUCCESS","ref":"refs/merge-requests/11/head","sha":"a7fe96d","createdAt":"2026-01-01T09:00:00Z","updatedAt":"2026-01-01T09:08:00Z","startedAt":"2026-01-01T09:00:20Z","finishedAt":"2026-01-01T09:08:00Z","user":{"name":"Someone"},"mergeRequest":{"iid":"11","sourceBranch":"main","sourceProject":{"fullPath":"someone/diffengine","webUrl":"https://gitlab.com/someone/diffengine"}}}
                 ]}}]}}}
                 """);
 
@@ -46,6 +47,48 @@ public class GitLabProviderTests
             handler.Requests
         });
     }
+
+    const string mainPipelines = "https://gitlab.com/api/v4/projects/77/pipelines?per_page=1&ref=main";
+
+    /// <summary>
+    /// A window of merge requests only asks for the newest pipeline on main by its ref, which leaves
+    /// out the merge request pipelines, whose ref is the merge request's.
+    /// </summary>
+    [Test]
+    public async Task MergeRequestsFillingTheWindowFetchTheDefaultBranchsNewestPipeline()
+    {
+        var handler = MergeRequestsOnly()
+            .Get(
+                mainPipelines,
+                """[{"id":4990,"iid":110,"project_id":77,"status":"success","source":"push","ref":"main","sha":"999","web_url":"https://gitlab.com/verify/diffengine/-/pipelines/4990","created_at":"2025-12-31T10:00:00Z","updated_at":"2025-12-31T10:08:00Z","name":"Release"}]""");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
+        await Assert.That(builds.Select(_ => $"{_.RunNumber} {_.Branch}")).IsEquivalentTo(["119 feature", "110 main"]);
+    }
+
+    /// <summary>
+    /// A default branch with no pipeline on it answers empty, and the fetches within the hour do not
+    /// ask again.
+    /// </summary>
+    [Test]
+    public async Task AProjectWithNoPipelineOnItsDefaultBranchIsAskedOnceAnHour()
+    {
+        var handler = MergeRequestsOnly()
+            .Get(mainPipelines, "[]");
+        var context = ProviderTestHelpers.Context("gitlab", handler);
+        await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        await ProviderTestHelpers.DiscoverAndFetch("gitlab", context);
+        await Assert.That(handler.Requests.Count(_ => _ == $"GET {mainPipelines}")).IsEqualTo(1);
+    }
+
+    static FakeHttpHandler MergeRequestsOnly() =>
+        Handler()
+            .Get(
+                graph,
+                """
+                {"data":{"projects":{"nodes":[{"id":"gid://gitlab/Project/77","pipelines":{"nodes":[
+                  {"id":"gid://gitlab/Ci::Pipeline/5000","iid":"119","status":"FAILED","ref":"refs/merge-requests/9/head","sha":"def456","createdAt":"2026-01-01T10:00:00Z","updatedAt":"2026-01-01T10:08:00Z","startedAt":"2026-01-01T10:00:20Z","finishedAt":"2026-01-01T10:08:00Z","user":{"name":"Simon"},"mergeRequest":{"iid":"9","sourceBranch":"feature","sourceProject":{"fullPath":"verify/diffengine","webUrl":"https://gitlab.com/verify/diffengine"}}}
+                ]}}]}}}
+                """);
 
     [Test]
     public async Task HistoryLimitIsSentAsUpdatedAfter()
@@ -375,7 +418,7 @@ public class GitLabProviderTests
     {
         var handler = Handler().Get(developerListing, "[]");
         var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
-        await Assert.That(builds.Count).IsEqualTo(2);
+        await Assert.That(builds.Count).IsEqualTo(3);
         await Assert.That(builds.Any(_ => _.CanRetry || _.CanCancel)).IsFalse();
     }
 
