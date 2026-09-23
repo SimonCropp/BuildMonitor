@@ -550,6 +550,42 @@ public class GitHubProviderTests
         await Assert.That(await FateOf(handler, "fix", "3", "https://github.example.com/team/app", "https://github.example.com")).IsEqualTo(BranchFate.Open);
     }
 
+    /// <summary>
+    /// GitHub Enterprise serves its pages on its own host, which the repository listing names.
+    /// Composed on github.com, a pull request's link opened a repository github.com does not have,
+    /// as did a branch's wherever the run gave no head repository page to open it in.
+    /// </summary>
+    [Test]
+    public async Task EnterpriseServerLinksAreOnItsOwnHost()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                "https://github.example.com/api/v3/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1",
+                """[{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.example.com/VerifyTests/DiffEngine","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z","default_branch":"main"}]""")
+            .Get(
+                "https://github.example.com/api/v3/repos/VerifyTests/DiffEngine/actions/workflows?per_page=100",
+                """{"workflows":[{"id":10,"name":"Test","path":".github/workflows/test.yml","state":"active"}]}""")
+            .Get(
+                "https://github.example.com/api/v3/repos/VerifyTests/DiffEngine/actions/runs?per_page=5",
+                """
+                {"workflow_runs":[
+                  {"id":499,"workflow_id":10,"run_number":1233,"status":"completed","conclusion":"failure","head_branch":"feature","html_url":"https://github.example.com/VerifyTests/DiffEngine/actions/runs/499","head_repository":{"full_name":"VerifyTests/DiffEngine","html_url":"https://github.example.com/VerifyTests/DiffEngine"},"pull_requests":[{"number":42}]},
+                  {"id":498,"workflow_id":10,"run_number":1232,"status":"completed","conclusion":"success","head_branch":"main","html_url":"https://github.example.com/VerifyTests/DiffEngine/actions/runs/498","head_repository":{"full_name":"someone/DiffEngine"},"pull_requests":[]},
+                  {"id":497,"workflow_id":10,"run_number":1231,"status":"completed","conclusion":"success","head_branch":"main","html_url":"https://github.example.com/VerifyTests/DiffEngine/actions/runs/497","pull_requests":[]}
+                ]}
+                """);
+        var context = ProviderTestHelpers.Context("github", handler, "https://github.example.com");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        await Assert.That(builds.Single(_ => _.RunNumber == "1233").PullRequestUrl).IsEqualTo("https://github.example.com/VerifyTests/DiffEngine/pull/42");
+        await Assert.That(builds.Select(_ => $"{_.Branch} {_.BranchUrl}")).IsEquivalentTo(
+        [
+            "feature https://github.example.com/VerifyTests/DiffEngine/tree/feature",
+            "someone:main https://github.example.com/someone/DiffEngine/tree/main",
+            "main https://github.example.com/VerifyTests/DiffEngine/tree/main"
+        ]);
+        await Assert.That(builds.Select(_ => _.RepoUrl).Distinct().Single()).IsEqualTo("https://github.example.com/VerifyTests/DiffEngine");
+    }
+
     [Test]
     public async Task UnauthorizedIsAnAuthException()
     {

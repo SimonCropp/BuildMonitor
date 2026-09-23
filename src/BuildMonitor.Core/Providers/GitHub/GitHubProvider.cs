@@ -399,18 +399,21 @@ sealed class GitHubProvider : ProviderBase
             _ => BuildStatus.Unknown
         };
         var pullRequest = run.PullRequests.FirstOrDefault();
-        var web = $"https://github.com/{repository}";
-        // The branch's page is in the repository it lives in, a fork for a pull request from one,
-        // on the host the API names, which is not github.com for GitHub Enterprise.
+        // The repository's page as its listing gave it, on the host the API names, which is not
+        // github.com for GitHub Enterprise. Composed on github.com only for a pipeline without one.
+        var web = pipeline.RepoUrl ?? $"https://github.com/{repository}";
+        // The branch's page is in the repository it lives in, a fork for a pull request from one.
         var headRepository = run.HeadRepository;
         var branchWeb = web;
         if (headRepository is {HtmlUrl.Length: > 0})
         {
             branchWeb = headRepository.HtmlUrl;
         }
-        else if (headRepository is {FullName.Length: > 0})
+        else if (headRepository is {FullName.Length: > 0} &&
+                 Uri.TryCreate(web, UriKind.Absolute, out var page))
         {
-            branchWeb = $"https://github.com/{headRepository.FullName}";
+            // Named without its page, it is on the repository's host.
+            branchWeb = $"{page.GetLeftPart(UriPartial.Authority)}/{headRepository.FullName}";
         }
 
         // A fork's branch behind its owner, since a fork's main is not this repository's main.
@@ -444,7 +447,7 @@ sealed class GitHubProvider : ProviderBase
             CanCancel: change && run.Status != "completed",
             Join(repository, run.Id.ToString(), run.Conclusion),
             pipeline.Url,
-            pipeline.RepoUrl ?? web,
+            web,
             DefaultBranch: pipeline.DefaultBranch);
     }
 
