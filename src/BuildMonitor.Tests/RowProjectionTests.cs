@@ -6,7 +6,7 @@ public class RowProjectionTests
         var state = Fixtures.WithGreenProject();
         var pipelines = RowProjection.Pipelines(state);
         var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, state.Verdicts, pipelines, RowProjection.Builds(state));
-        var rows = new ProjectedRows(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, []);
+        var rows = new ProjectedRows(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, state.Settings.GroupByOrg, []);
         var moved = MonitorSession.SelectRow(state, 1);
         await Assert.That(builds.IsFor(moved)).IsTrue();
         await Assert.That(rows.IsFor(moved, pipelines)).IsTrue();
@@ -18,7 +18,7 @@ public class RowProjectionTests
         var state = Fixtures.WithGreenProject();
         var sorted = RowProjection.Pipelines(state);
         var builds = new SortedBuilds(state.Settings, state.Connections, state.Builds, state.Verdicts, sorted, RowProjection.Builds(state));
-        var rows = new ProjectedRows(sorted, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, []);
+        var rows = new ProjectedRows(sorted, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, state.Settings.GroupByOrg, []);
         await Assert.That(
                 rows.IsFor(MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing), sorted))
             .IsFalse();

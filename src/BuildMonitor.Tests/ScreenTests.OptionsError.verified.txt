@@ -11,6 +11,7 @@
 | [ ] Show forks and collaborator repositories                                                                         |
 | Show builds from the last (days): [30    ] (Running and queued builds always show.)                                  |
 | Group passing builds by prefix: [                                        ] (Comma separated, eg TheProject)          |
+| [ ] Group passing builds by organisation                                                                             |
 | Polling                                                                                                              |
 | Poll interval (seconds): [1     ]                                                                                    |
 | Error: The poll interval must be between 5 and 3600 seconds.                                                         |
@@ -18,7 +19,6 @@
 | Local                                                                                                                |
 | Code directory: [                                        ] [ Browse ] (Where your checkouts live)                    |
 | Local port: [3796  ] (Used by the launcher and the MCP server. Takes effect after a restart.)                        |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

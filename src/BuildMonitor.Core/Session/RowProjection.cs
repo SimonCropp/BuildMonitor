@@ -40,7 +40,7 @@ static class RowProjection
         }
 
         var rows = Project(state, pipelines);
-        lastRows = new(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, rows);
+        lastRows = new(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, state.Settings.GroupByOrg, rows);
         return rows;
     }
 
@@ -65,7 +65,8 @@ static class RowProjection
         // Each build's group id once, and a key only for a group's row. Making a key for every
         // passing build at every step cost each of them a handful of strings a projection.
         var prefixes = state.Settings.GroupPrefixes;
-        var ids = builds.Select(_ => GroupKey.IdOf(_, prefixes)).ToArray();
+        var byOrg = state.Settings.GroupByOrg;
+        var ids = builds.Select(_ => GroupKey.IdOf(_, prefixes, byOrg)).ToArray();
         // A repository's pipelines together, in the order its most recent one came, so under a
         // prefix group each repository is named once, on the first of its rows.
         var groups = Enumerable.Range(0, builds.Length)
@@ -95,7 +96,7 @@ static class RowProjection
                 continue;
             }
 
-            var key = GroupKey.Of(build, prefixes)!;
+            var key = GroupKey.Of(build, prefixes, byOrg)!;
             var expanded = IsExpanded(state, key);
             rows.Add(new(RowKind.Group, null, null, key, expanded, members, []));
             if (!expanded)

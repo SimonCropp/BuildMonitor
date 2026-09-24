@@ -95,4 +95,41 @@ public class GroupKeyTests
 
     static Build Build(string repo, BuildStatus status) =>
         Fixtures.Build(Fixtures.GitHub.Id, "test.yml", "test.yml", repo, "main", "1", status);
+
+    /// <summary>
+    /// Grouping by owner puts every repository of one organisation in one group, off by default.
+    /// </summary>
+    [Test]
+    public async Task TheOwnerKeysAheadOfTheRepositoryWhenAskedFor()
+    {
+        var build = Build("VerifyTests/Verify.Http", BuildStatus.Succeeded);
+        await Assert.That(GroupKey.Of(build, [], byOrg: true)!.Project).IsEqualTo("VerifyTests");
+        await Assert.That(GroupKey.IdOf(build, [], byOrg: true)).IsEqualTo("verifytests");
+        await Assert.That(GroupKey.IdOf(build, [])).IsEqualTo("verify.http");
+    }
+
+    /// <summary>
+    /// The owner loses to both a prefix and the service's own group.
+    /// </summary>
+    [Test]
+    public async Task APrefixAndTheServicesOwnGroupBeatTheOwner()
+    {
+        var prefixed = Build("VerifyTests/TheProjectApi", BuildStatus.Succeeded);
+        await Assert.That(GroupKey.IdOf(prefixed, ["TheProject"], byOrg: true)).IsEqualTo("theproject");
+        var grouped = Build("VerifyTests/Deploy", BuildStatus.Succeeded) with
+        {
+            ProjectGroup = "Storefront"
+        };
+        await Assert.That(GroupKey.IdOf(grouped, [], byOrg: true)).IsEqualTo("storefront");
+    }
+
+    /// <summary>
+    /// A name with no owner in it keeps the repository's group.
+    /// </summary>
+    [Test]
+    public async Task ANameWithNoOwnerKeysByTheRepository()
+    {
+        var build = Build("Verify", BuildStatus.Succeeded);
+        await Assert.That(GroupKey.IdOf(build, [], byOrg: true)).IsEqualTo("verify");
+    }
 }

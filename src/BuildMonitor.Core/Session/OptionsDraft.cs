@@ -41,6 +41,7 @@ static class OptionsDraft
             ShowForksAndCollaborations = form.Flag(FormFields.ShowForks),
             NotifyOnFailure = form.Flag(FormFields.NotifyOnFailure),
             GroupPrefixes = Prefixes(form.Value(FormFields.GroupPrefixes)),
+            GroupByOrg = form.Flag(FormFields.GroupByOrg),
             Theme = Enum.TryParse<Theme>(form.Value(FormFields.Theme), out var theme) ? theme : current.Theme,
             PollIntervalSeconds = poll,
             RunningPollIntervalSeconds = running,

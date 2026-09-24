@@ -10,6 +10,7 @@
   Port: 3796,
   CodeDirectory: /code,
   GroupPrefixes: null,
+  GroupByOrg: false,
   OpenGroups: [
     verify
   ],

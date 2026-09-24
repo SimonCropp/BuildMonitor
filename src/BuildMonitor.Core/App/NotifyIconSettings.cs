@@ -100,7 +100,16 @@ static partial class NotifyIconSettings
                 continue;
             }
 
-            bool? promoted = entry.GetValue(promotedName) is int value ? value != 0 : null;
+            bool? promoted;
+            if (entry.GetValue(promotedName) is int value)
+            {
+                promoted = value != 0;
+            }
+            else
+            {
+                promoted = null;
+            }
+
             entries.Add(new(name, Expand(path), promoted));
         }
 

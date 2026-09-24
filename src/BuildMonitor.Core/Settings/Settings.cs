@@ -40,6 +40,13 @@ record Settings
     public ImmutableArray<string> GroupPrefixes { get; init; } = [];
 
     /// <summary>
+    /// Groups passing builds by the repository's owner, such as a GitHub organisation, where no
+    /// prefix and no group of the service's own claims them. Off by default: someone watching one
+    /// organisation would see every green row fold into one. See <see cref="GroupKey"/>.
+    /// </summary>
+    public bool GroupByOrg { get; init; }
+
+    /// <summary>
     /// The <see cref="GroupKey.Id"/> of each group the user opened. A group is closed until they
     /// do. Saved rather than held for the session, which closed every group on each start of an
     /// app that starts at every login.
