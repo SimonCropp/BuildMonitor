@@ -41,7 +41,7 @@ public class AppVeyorProviderTests
         var context = ProviderTestHelpers.Context("appveyor", handler);
         var provider = ProviderTestHelpers.Provider("appveyor");
         var pipelines = await provider.DiscoverPipelines(context, Cancel.None);
-        Pipeline deleted = new("simon/emptyfiles", "EmptyFiles", "EmptyFiles", null, "https://ci.appveyor.com/project/simon/emptyfiles", null);
+        Pipeline deleted = new("simon/emptyfiles", "EmptyFiles", "EmptyFiles", null, "https://ci.appveyor.com/project/simon/emptyfiles");
         var builds = await provider.FetchBuilds(context, [deleted, .. pipelines], 5, Cancel.None);
         await Assert.That(builds.Select(_ => _.PipelineId).Distinct()).IsEquivalentTo(["simon/diffengine"]);
     }

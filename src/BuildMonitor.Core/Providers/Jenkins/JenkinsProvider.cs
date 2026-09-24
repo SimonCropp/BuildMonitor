@@ -155,8 +155,7 @@ sealed class JenkinsProvider : ProviderBase
                 continue;
             }
 
-            if (job.InQueue &&
-                job.QueueItem is { } queued)
+            if (job is {InQueue: true, QueueItem: { } queued})
             {
                 var since = queued.InQueueSince is { } millis ? DateTimeOffset.FromUnixTimeMilliseconds(millis) : (DateTimeOffset?) null;
                 builds.Add(new(
