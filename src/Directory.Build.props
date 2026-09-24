@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <Version>0.1.0-beta.26</Version>
+    <Version>0.1.0-beta.27</Version>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <PackageTags>CI, Build, Monitor, Tray, MCP</PackageTags>
     <Description>Cross platform build/CI monitor that runs in the system tray.</Description>
