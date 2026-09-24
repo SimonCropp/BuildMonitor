@@ -1,6 +1,6 @@
 ﻿4 failing builds have their code checked out locally. Work through them.
 
-## The failures
+## Failures
 
 ### merge-dependabot: 3 repositories on this one pipeline, so they may share one cause
 
@@ -26,13 +26,13 @@
   key: gh/Verify/test.yml/main
   commit 9f1c2b7 by Simon Cropp: Tighten the converter lookup
 
-## How to work through them
+## Steps
 
 1. Read each build's log with `get_build_log`, taking the key from its entry above. Where a log points at a file the run published, such as a test report, a coverage file or a crash dump, call `download_build_artifacts` for that build and read it from the directory that comes back.
-2. Group the failures by what the logs actually say before investigating any of them. Repositories failing on one shared workflow, action, dependency or template are one fix, not several, and the pipeline groupings above are only a guess at that.
-3. Work each group from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead. Reproduce the failure before deciding what it is.
-4. Report what you found per group, with the fix you would make. Do not change any source files.
+2. Group the failures by what the logs say before investigating any. Repositories failing on one shared workflow, action, dependency or template are one fix, and the pipeline groupings above are only a guess at that.
+3. Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch. Do this per group, before deciding what it is.
+4. Report findings per group and suggested fixes. Change no source files.
 
-Where a group turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+If a group isn't code (expired credential, runner or agent problem, outage), say so instead.
 
-Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
+Then stop and ask what to do next, with suggestions. No further changes, commits or repositories without an answer.

@@ -29,5 +29,7 @@ enum Verb
     Log,
     // Download a build's artifacts and its log to a local directory: key. Answers with the paths,
     // never with the bytes.
-    Triage
+    Triage,
+    // The failed builds the user deferred, which List leaves out.
+    Deferred
 }

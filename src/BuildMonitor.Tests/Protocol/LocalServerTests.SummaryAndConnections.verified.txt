@@ -32,7 +32,8 @@
       "LastPolled": "2026-01-01T11:59:55+00:00",
       "Pipelines": 0
     }
-  ]
+  ],
+  "Deferred": 0
 },
   connections:
 [

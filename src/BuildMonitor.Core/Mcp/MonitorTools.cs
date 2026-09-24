@@ -4,9 +4,38 @@
 /// </summary>
 sealed class MonitorTools(IProtocolClient client)
 {
-    public async Task<List<BuildDto>> ListBuilds(string? filter, Cancel cancel)
+    public Task<List<BuildDto>> ListBuilds(string? filter, Cancel cancel) =>
+        ListBuilds(filter, false, cancel);
+
+    /// <summary>
+    /// With <paramref name="includeDeferred"/>, the failures the user put off follow the rest, each
+    /// carrying when its deferral ends. Left out by default, as the window leaves them out.
+    /// </summary>
+    public async Task<List<BuildDto>> ListBuilds(string? filter, bool includeDeferred, Cancel cancel)
     {
         var builds = await Read(new(Verb.List), DtoContext.Default.ListBuildDto, cancel);
+        if (includeDeferred)
+        {
+            builds.AddRange(await ListDeferred(null, cancel));
+        }
+
+        if (string.IsNullOrWhiteSpace(filter))
+        {
+            return builds;
+        }
+
+        return builds
+            .Where(_ => Matches(_, filter))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The failures the user put off for a few days, which list_builds and the failing counts leave
+    /// out until the deferral ends or the pipeline passes.
+    /// </summary>
+    public async Task<List<BuildDto>> ListDeferred(string? filter, Cancel cancel)
+    {
+        var builds = await Read(new(Verb.Deferred), DtoContext.Default.ListBuildDto, cancel);
         if (string.IsNullOrWhiteSpace(filter))
         {
             return builds;

@@ -26,6 +26,8 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 return Response.Success();
             case Verb.List:
                 return Response.Success(JsonSerializer.Serialize(Snapshot.Builds(state, now), context.ListBuildDto));
+            case Verb.Deferred:
+                return Response.Success(JsonSerializer.Serialize(Snapshot.Deferred(state, now), context.ListBuildDto));
             case Verb.Get:
             {
                 if (message.Key is null ||

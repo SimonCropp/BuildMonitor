@@ -18,24 +18,24 @@ static class TriagePrompt
     /// checkouts belong to whoever installed the tool, and editing one they have work in progress
     /// in is their call to make, not this text's.
     /// </summary>
-    public static string Build(IReadOnlyList<BuildDto> failing, bool fix, string? filter)
+    public static string Build(IReadOnlyList<BuildDto> failing, bool fix, string? filter, int deferred = 0)
     {
         var scope = Scope(filter);
         if (failing.Count == 0)
         {
-            return $"Nothing is failing{scope}. There is no triage to do.";
+            return $"Nothing is failing{scope}. There is no triage to do.{DeferredNote(deferred)}";
         }
 
         var local = failing.Where(_ => _.Directory is { Length: > 0 }).ToList();
         var skipped = failing.Where(_ => _.Directory is not { Length: > 0 }).ToList();
         if (local.Count == 0)
         {
-            return NoneLocal(failing, scope);
+            return NoneLocal(failing, scope) + DeferredNote(deferred);
         }
 
         var builder = new StringBuilder();
         builder.Append($"{Count(local.Count, "failing build")}{scope} {(local.Count == 1 ? "has its" : "have their")} code checked out locally. Work through {(local.Count == 1 ? "it" : "them")}.");
-        builder.Append("\n\n## The failures\n");
+        builder.Append("\n\n## Failures\n");
         foreach (var group in Grouped(local))
         {
             builder.Append('\n').Append(Heading(group)).Append('\n');
@@ -45,13 +45,29 @@ static class TriagePrompt
             }
         }
 
-        builder.Append("\n## How to work through them\n\n").Append(Procedure(fix));
+        builder.Append("\n## Steps\n\n").Append(Procedure(fix));
         if (skipped.Count > 0)
         {
             builder.Append('\n').Append(SkippedNote(skipped));
         }
 
+        builder.Append(DeferredNote(deferred));
         return builder.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Says failures were held back on purpose. Without it a red pipeline missing from the list
+    /// reads as one that was fixed, or never watched, and the user who deferred it is not
+    /// expecting it back in a triage.
+    /// </summary>
+    static string DeferredNote(int deferred)
+    {
+        if (deferred == 0)
+        {
+            return "";
+        }
+
+        return $"\n\n{Count(deferred, "failing build")} deferred by the user {(deferred == 1 ? "is" : "are")} left out on purpose. `list_deferred` names {(deferred == 1 ? "it" : "them")}; don't triage {(deferred == 1 ? "it" : "them")} unless asked.";
     }
 
     /// <summary>
@@ -72,12 +88,12 @@ static class TriagePrompt
         // log nor an artifact still gets a prompt, and one that opened by promising files would
         // have an assistant hunting for a directory that was never written.
         builder.Append(files.Files.Count > 0
-            ? "One failing build, with its files already downloaded. Work through it."
-            : "One failing build. Nothing it produced could be downloaded, so work from its code.");
-        builder.Append("\n\n## The failure\n");
+            ? "Failing build. Files downloaded. Work through it."
+            : "Failing build. Nothing it produced could be downloaded, so work from its code.");
+        builder.Append("\n\n## Failure\n");
         builder.Append(Entry(build));
         builder.Append(Evidence(files));
-        builder.Append("\n## How to work through it\n\n");
+        builder.Append("\n## Steps\n\n");
         builder.Append(Steps(files, fix));
         return builder.ToString().TrimEnd();
     }
@@ -90,17 +106,17 @@ static class TriagePrompt
     static string Evidence(TriageFilesDto files)
     {
         var builder = new StringBuilder();
-        builder.Append("\n## The files\n\n");
+        builder.Append("\n## Files\n\n");
         if (files.Files.Count == 0)
         {
             builder.Append(Nothing(files));
         }
         else
         {
-            builder.Append($"Downloaded for this run and kept for {ArtifactStore.Retention.TotalHours:0} hours, so read them from disk rather than fetching anything.");
+            builder.Append($"Kept {ArtifactStore.Retention.TotalHours:0} hours.");
             if (files.Files.Contains(ArtifactCollector.LogName))
             {
-                builder.Append($" `{ArtifactCollector.LogName}` is the whole log, not the tail `get_build_log` returns.");
+                builder.Append($" `{ArtifactCollector.LogName}` is the whole log.");
             }
 
             builder.Append("\n\n");
@@ -109,7 +125,7 @@ static class TriagePrompt
                 builder.Append($"  {Join(files.Directory, file)}\n");
             }
 
-            builder.Append("\nThat directory is a copy made for this triage. Nothing under `code:` was touched to make it, it is not part of the repository, and nothing in it should be committed. Unpack anything you need inside it rather than in the checkout.\n");
+            builder.Append("\nThis directory is made for triage, outside the repository: never commit it. Unpack inside it, not the checkout.\n");
         }
 
         builder.Append(Left(files));
@@ -165,13 +181,13 @@ static class TriagePrompt
             return builder.ToString();
         }
 
-        builder.Append($"\n{(files.Skipped.Count == 1 ? "One artifact was" : $"{files.Skipped.Count} artifacts were")} left out:\n\n");
+        builder.Append($"\n{files.Skipped.Count} {(files.Skipped.Count == 1 ? "artifact" : "artifacts")} left out:\n\n");
         foreach (var skipped in files.Skipped)
         {
             builder.Append($"- `{skipped.Name}`: {skipped.Reason}\n");
         }
 
-        builder.Append("\nFetch any of those from the run's page if the log points at it.\n");
+        builder.Append("\nFetch from the run's page if the log points at one.\n");
         return builder.ToString();
     }
 
@@ -181,12 +197,12 @@ static class TriagePrompt
         var step = 1;
         if (files.Files.Count > 0)
         {
-            builder.Append($"{step++}. Read the files above, starting with the log, then whatever it points at.\n");
+            builder.Append($"{step++}. Read the log, then whatever it points at.\n");
         }
 
-        builder.Append($"{step++}. Reproduce the failure from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead.\n");
+        builder.Append($"{step++}. {Reproduce}\n");
         builder.Append($"{step}. {Fixing(fix, "it", "")}");
-        builder.Append("\nWhere it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.\n");
+        builder.Append("\nIf it isn't code (expired credential, runner or agent problem, outage), say so instead.\n");
         builder.Append(Next());
         return builder.ToString();
     }
@@ -300,19 +316,20 @@ static class TriagePrompt
     }
 
     /// <summary>
-    /// The checkout under <c>code:</c> is where the user works, not a copy made for this, so the
-    /// steps keep an assistant from reaching the build's branch by switching it, stashing or
-    /// discarding: any of those can lose work in progress that nothing here knows is there. A
-    /// worktree gets the same commit and leaves the checkout exactly as it was found.
+    /// The checkout under <c>code:</c> is where the user works, not a copy made for this, so an
+    /// assistant that finds work in progress in it stops and says so rather than switching the
+    /// branch over it: a switch, a stash or a discard can lose what nothing here knows is there.
     /// </summary>
+    const string Reproduce = "Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch.";
+
     static string Procedure(bool fix)
     {
         var builder = new StringBuilder();
         builder.Append("1. Read each build's log with `get_build_log`, taking the key from its entry above. Where a log points at a file the run published, such as a test report, a coverage file or a crash dump, call `download_build_artifacts` for that build and read it from the directory that comes back.\n");
-        builder.Append("2. Group the failures by what the logs actually say before investigating any of them. Repositories failing on one shared workflow, action, dependency or template are one fix, not several, and the pipeline groupings above are only a guess at that.\n");
-        builder.Append("3. Work each group from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead. Reproduce the failure before deciding what it is.\n");
+        builder.Append("2. Group the failures by what the logs say before investigating any. Repositories failing on one shared workflow, action, dependency or template are one fix, and the pipeline groupings above are only a guess at that.\n");
+        builder.Append($"3. {Reproduce} Do this per group, before deciding what it is.\n");
         builder.Append($"4. {Fixing(fix, "each group", " per group")}");
-        builder.Append("\nWhere a group turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.\n");
+        builder.Append("\nIf a group isn't code (expired credential, runner or agent problem, outage), say so instead.\n");
         builder.Append(Next());
         return builder.ToString();
     }
@@ -324,7 +341,7 @@ static class TriagePrompt
     /// for across repositories it was only given to read.
     /// </summary>
     static string Next() =>
-        "\nThen stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.";
+        "\nThen stop and ask what to do next, with suggestions. No further changes, commits or repositories without an answer.";
 
     /// <summary>
     /// The one step that decides whether an assistant edits the user's files, shared by both
@@ -335,10 +352,10 @@ static class TriagePrompt
     {
         if (fix)
         {
-            return $"Fix {subject} where you reproduced it, and run that project's tests. Leave the changes uncommitted, say where they are so the user can review them, and do not commit, push or open a pull request.\n";
+            return $"Fix {subject} where you reproduced it and run that project's tests. Leave changes uncommitted, say where they are, and don't commit, push or open a PR.\n";
         }
 
-        return $"Report what you found{per}, with the fix you would make. Do not change any source files.\n";
+        return $"Report findings{per} and suggested fixes. Change no source files.\n";
     }
 
     /// <summary>

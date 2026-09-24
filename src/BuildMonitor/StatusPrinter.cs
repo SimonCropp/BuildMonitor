@@ -6,7 +6,8 @@ static class StatusPrinter
     public static string Render(SummaryDto summary, IReadOnlyList<BuildDto> builds)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"{summary.Pipelines} pipelines, {summary.Failing} failing, {summary.Running} running. {summary.Status}");
+        var deferred = summary.Deferred > 0 ? $", {summary.Deferred} deferred" : "";
+        builder.AppendLine($"{summary.Pipelines} pipelines, {summary.Failing} failing{deferred}, {summary.Running} running. {summary.Status}");
         foreach (var connection in summary.ConnectionHealth)
         {
             var error = connection.Error is null ? "" : $" ({connection.Error})";

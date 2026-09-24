@@ -35,7 +35,11 @@ record BuildDto(
     // branch's, listed after the pipeline's own run while it is running, queued or failed. Absent
     // on the pipeline's own run. Its failure is not its pipeline failing: an assistant told the
     // pipeline was red would go looking for a break on main that is not there.
-    bool? OtherBranch = null);
+    bool? OtherBranch = null,
+    // When the user's deferral of this failure ends. Present only on a failed build put off with
+    // Defer: it is left out of list_builds and the failing counts until then, so an assistant told
+    // nothing would take the pipeline for green, or this run for one that never existed.
+    DateTimeOffset? DeferredUntil = null);
 
 /// <summary>
 /// One monitored pipeline, including one that has produced no build inside the history window
@@ -69,7 +73,9 @@ record SummaryDto(
     int Running,
     string TrayIcon,
     string Status,
-    IReadOnlyList<ConnectionDto> ConnectionHealth);
+    IReadOnlyList<ConnectionDto> ConnectionHealth,
+    // Failures the user put off, which Failing leaves out as the tray does.
+    int Deferred = 0);
 
 /// <summary>
 /// What a triage collected for one build: where the files are, and what did not make it.

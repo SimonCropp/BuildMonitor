@@ -15,7 +15,7 @@ public class TriagePromptTests
                 """
                 One failing build has its code checked out locally. Work through it.
 
-                ## The failures
+                ## Failures
 
                 ### test.yml
 
@@ -24,16 +24,16 @@ public class TriagePromptTests
                   key: gh/Verify/test.yml/main
                   commit 9f1c2b7 by Simon Cropp: Tighten the converter lookup
 
-                ## How to work through them
+                ## Steps
 
                 1. Read each build's log with `get_build_log`, taking the key from its entry above. Where a log points at a file the run published, such as a test report, a coverage file or a crash dump, call `download_build_artifacts` for that build and read it from the directory that comes back.
-                2. Group the failures by what the logs actually say before investigating any of them. Repositories failing on one shared workflow, action, dependency or template are one fix, not several, and the pipeline groupings above are only a guess at that.
-                3. Work each group from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead. Reproduce the failure before deciding what it is.
-                4. Report what you found per group, with the fix you would make. Do not change any source files.
+                2. Group the failures by what the logs say before investigating any. Repositories failing on one shared workflow, action, dependency or template are one fix, and the pipeline groupings above are only a guess at that.
+                3. Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch. Do this per group, before deciding what it is.
+                4. Report findings per group and suggested fixes. Change no source files.
 
-                Where a group turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+                If a group isn't code (expired credential, runner or agent problem, outage), say so instead.
 
-                Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
+                Then stop and ask what to do next, with suggestions. No further changes, commits or repositories without an answer.
 
                 2 other failing builds have no checkout under the code directory and are left out above:
 
@@ -74,7 +74,7 @@ public class TriagePromptTests
             .Select(_ => _.Second)
             .ToList();
         await Assert.That(fixing.Length).IsEqualTo(reporting.Length);
-        await Assert.That(changed).IsEquivalentTo(["4. Fix each group where you reproduced it, and run that project's tests. Leave the changes uncommitted, say where they are so the user can review them, and do not commit, push or open a pull request."]);
+        await Assert.That(changed).IsEquivalentTo(["4. Fix each group where you reproduced it and run that project's tests. Leave changes uncommitted, say where they are, and don't commit, push or open a PR."]);
     }
 
     [Test]
@@ -185,33 +185,33 @@ public class TriagePromptTests
             fix: false))
         .Snapshot(
             """
-                One failing build, with its files already downloaded. Work through it.
+                Failing build. Files downloaded. Work through it.
 
-                ## The failure
+                ## Failure
 
                 - VerifyTests/Verify on main, run 412, failed 2h ago
                   code: /code/Verify
                   key: gh/Verify/test.yml/main
                   commit 9f1c2b7 by Simon Cropp: Tighten the converter lookup
 
-                ## The files
+                ## Files
 
-                Downloaded for this run and kept for 24 hours, so read them from disk rather than fetching anything. `log.txt` is the whole log, not the tail `get_build_log` returns.
+                Kept 24 hours. `log.txt` is the whole log.
 
                   D:\BuildMonitor\artifacts\Verify-412-3f9a1c02\log.txt
                   D:\BuildMonitor\artifacts\Verify-412-3f9a1c02\test-results.trx
 
-                That directory is a copy made for this triage. Nothing under `code:` was touched to make it, it is not part of the repository, and nothing in it should be committed. Unpack anything you need inside it rather than in the checkout.
+                This directory is made for triage, outside the repository: never commit it. Unpack inside it, not the checkout.
 
-                ## How to work through it
+                ## Steps
 
-                1. Read the files above, starting with the log, then whatever it points at.
-                2. Reproduce the failure from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead.
-                3. Report what you found, with the fix you would make. Do not change any source files.
+                1. Read the log, then whatever it points at.
+                2. Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch.
+                3. Report findings and suggested fixes. Change no source files.
 
-                Where it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+                If it isn't code (expired credential, runner or agent problem, outage), say so instead.
 
-                Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
+                Then stop and ask what to do next, with suggestions. No further changes, commits or repositories without an answer.
                 """);
 
     /// <summary>
@@ -248,34 +248,34 @@ public class TriagePromptTests
             fix: false))
         .Snapshot(
             """
-                One failing build, with its files already downloaded. Work through it.
+                Failing build. Files downloaded. Work through it.
 
-                ## The failure
+                ## Failure
 
                 - VerifyTests/Verify on main, run 412, failed 2h ago
                   code: /code/Verify
                   key: gh/Verify/test.yml/main
                   commit 9f1c2b7 by Simon Cropp: Tighten the converter lookup
 
-                ## The files
+                ## Files
 
-                Downloaded for this run and kept for 24 hours, so read them from disk rather than fetching anything. `log.txt` is the whole log, not the tail `get_build_log` returns.
+                Kept 24 hours. `log.txt` is the whole log.
 
                   /code/artifacts/Verify-412/log.txt
 
-                That directory is a copy made for this triage. Nothing under `code:` was touched to make it, it is not part of the repository, and nothing in it should be committed. Unpack anything you need inside it rather than in the checkout.
+                This directory is made for triage, outside the repository: never commit it. Unpack inside it, not the checkout.
 
                 BuildMonitor cannot list artifacts for Travis CI, so the list above is the log alone rather than everything the run produced.
 
-                ## How to work through it
+                ## Steps
 
-                1. Read the files above, starting with the log, then whatever it points at.
-                2. Reproduce the failure from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead.
-                3. Report what you found, with the fix you would make. Do not change any source files.
+                1. Read the log, then whatever it points at.
+                2. Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch.
+                3. Report findings and suggested fixes. Change no source files.
 
-                Where it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+                If it isn't code (expired credential, runner or agent problem, outage), say so instead.
 
-                Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
+                Then stop and ask what to do next, with suggestions. No further changes, commits or repositories without an answer.
                 """);
 
     /// <summary>
@@ -288,27 +288,27 @@ public class TriagePromptTests
         Verify(TriagePrompt.One(Solo(), new("", [], []), fix: false))
             .Snapshot(
                 """
-                One failing build. Nothing it produced could be downloaded, so work from its code.
+                Failing build. Nothing it produced could be downloaded, so work from its code.
 
-                ## The failure
+                ## Failure
 
                 - VerifyTests/Verify on main, run 412, failed 2h ago
                   code: /code/Verify
                   key: gh/Verify/test.yml/main
                   commit 9f1c2b7 by Simon Cropp: Tighten the converter lookup
 
-                ## The files
+                ## Files
 
                 This run published no artifacts and has no log, so there is nothing on disk for it. Work from the build's page and the checkout below.
 
-                ## How to work through it
+                ## Steps
 
-                1. Reproduce the failure from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead.
-                2. Report what you found, with the fix you would make. Do not change any source files.
+                1. Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch.
+                2. Report findings and suggested fixes. Change no source files.
 
-                Where it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+                If it isn't code (expired credential, runner or agent problem, outage), say so instead.
 
-                Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
+                Then stop and ask what to do next, with suggestions. No further changes, commits or repositories without an answer.
                 """);
 
     static BuildDto Solo() =>

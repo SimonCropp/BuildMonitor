@@ -22,7 +22,63 @@ static class Snapshot
             }
         }
 
+        foreach (var (build, until) in Held(state, now))
+        {
+            if (build.HasKey(key))
+            {
+                return Build(state, state.Connection(build.ConnectionId)!.Connection, build, now, false, until);
+            }
+        }
+
         return null;
+    }
+
+    /// <summary>
+    /// The failures the user deferred, which <see cref="Builds"/> leaves out as the window does.
+    /// Listed apart rather than mixed in, so the list of what needs attention stays that, and
+    /// marked with when each one comes back.
+    /// </summary>
+    public static List<BuildDto> Deferred(SessionState state, DateTimeOffset now) =>
+        Held(state, now)
+            .Select(_ => Build(state, state.Connection(_.Build.ConnectionId)!.Connection, _.Build, now, false, _.Until))
+            .ToList();
+
+    /// <summary>
+    /// Each standing deferral's latest run, where that is still a failure: the same rule as
+    /// <see cref="Deferrals.Hides"/>, which is what took it off the rows. A deferral that is due
+    /// is not held, though it stays in the settings until the next poll lifts it.
+    /// </summary>
+    static IEnumerable<(Build Build, DateTimeOffset Until)> Held(SessionState state, DateTimeOffset now)
+    {
+        if (state.Settings.Deferrals.Length == 0)
+        {
+            yield break;
+        }
+
+        var builds = Filters.Apply(state.Settings.Filters, state.Builds);
+        foreach (var deferral in state.Settings.Deferrals)
+        {
+            if (deferral.Until <= now)
+            {
+                continue;
+            }
+
+            Build? latest = null;
+            foreach (var build in builds)
+            {
+                if (build.HasKey(deferral.Key) &&
+                    (latest is null ||
+                     (build.Ordering ?? DateTimeOffset.MinValue) > (latest.Ordering ?? DateTimeOffset.MinValue)))
+                {
+                    latest = build;
+                }
+            }
+
+            if (latest is { Status: BuildStatus.Failed })
+            {
+                yield return (latest, deferral.Until);
+            }
+        }
     }
 
     /// <summary>
@@ -98,7 +154,7 @@ static class Snapshot
 
     /// <param name="otherBranch">Whether the run is on another branch than its pipeline's own, which
     /// only a list of the rows can say: a history of one pipeline's runs leaves it out.</param>
-    static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now, bool otherBranch)
+    static BuildDto Build(SessionState state, Connection connection, Build build, DateTimeOffset now, bool otherBranch, DateTimeOffset? deferredUntil = null)
     {
         var estimate = Estimator.Estimate(build, state.Medians);
         var (fraction, timing) = Progress.Compute(build, estimate, now);
@@ -126,7 +182,8 @@ static class Snapshot
             build.CanCancel,
             build.CanRunNext(ProviderDescriptors.Get(connection.ProviderId)),
             LocalRepos.Find(state.LocalRepos, build),
-            otherBranch ? true : null);
+            otherBranch ? true : null,
+            deferredUntil);
     }
 
     public static List<ConnectionDto> Connections(SessionState state) =>
@@ -156,6 +213,7 @@ static class Snapshot
             counts.Running,
             screen.Tray.Icon.ToString(),
             screen.Status,
-            Connections(state));
+            Connections(state),
+            Held(state, now).Count());
     }
 }

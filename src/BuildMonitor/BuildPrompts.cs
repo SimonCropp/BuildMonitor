@@ -23,6 +23,7 @@ sealed class BuildPrompts(MonitorTools tools)
     {
         var scope = TriagePrompt.Filter(filter);
         var failing = await tools.ListFailing(scope, cancel);
-        return TriagePrompt.Build(failing, TriagePrompt.Fixing(fix), scope);
+        var deferred = await tools.ListDeferred(scope, cancel);
+        return TriagePrompt.Build(failing, TriagePrompt.Fixing(fix), scope, deferred.Count);
     }
 }

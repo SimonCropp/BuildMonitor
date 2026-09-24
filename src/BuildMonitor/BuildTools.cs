@@ -8,20 +8,27 @@ using ModelContextProtocol.Server;
 sealed class BuildTools(MonitorTools tools)
 {
     [McpServerTool(Name = "list_builds", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Lists the latest build of every monitored pipeline across every CI connection, on its default branch where the service says which that is, with status, timing, progress and links. A pipeline's other branches, pull requests and pushed branches, whose latest run is running, queued or failed are listed too, each marked otherBranch. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it.")]
+    [Description("Lists the latest build of every monitored pipeline across every CI connection, on its default branch where the service says which that is, with status, timing, progress and links. A pipeline's other branches, pull requests and pushed branches, whose latest run is running, queued or failed are listed too, each marked otherBranch. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it. Failures the user deferred are left out, as the tray leaves them out, so a pipeline missing here may be one they put off: pass includeDeferred to list them too, each carrying deferredUntil, or use list_deferred.")]
     public Task<List<BuildDto>> ListBuilds(
         [Description("Optional substring to filter on pipeline, repository, branch or connection name.")]
         string? filter = null,
+        [Description("Also list the failures the user deferred, each marked with deferredUntil. Defaults to false.")]
+        bool includeDeferred = false,
         Cancel cancel = default) =>
-        tools.ListBuilds(filter, cancel);
+        tools.ListBuilds(filter, includeDeferred, cancel);
+
+    [McpServerTool(Name = "list_deferred", ReadOnly = true, UseStructuredContent = true)]
+    [Description("The failed builds the user chose to put off for a day or more, which list_builds, list_failing and the summary's failing count leave out until the deferral ends or the pipeline next passes. Each carries deferredUntil. They are failures the user has already seen, so do not raise them as news.")]
+    public Task<List<BuildDto>> ListDeferred(Cancel cancel = default) =>
+        tools.ListDeferred(null, cancel);
 
     [McpServerTool(Name = "list_failing", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Lists only the pipelines whose own latest build failed, the one on their default branch. A pull request or other branch failing is not its pipeline failing: those are in list_builds, marked otherBranch.")]
+    [Description("Lists only the pipelines whose own latest build failed, the one on their default branch. A pull request or other branch failing is not its pipeline failing: those are in list_builds, marked otherBranch. Failures the user deferred are not here: see list_deferred.")]
     public Task<List<BuildDto>> ListFailing(Cancel cancel = default) =>
         tools.ListFailing(null, cancel);
 
     [McpServerTool(Name = "get_build", ReadOnly = true, UseStructuredContent = true)]
-    [Description("One build by its key, as returned by list_builds: status text, commit, author, links, whether it can be retried or cancelled.")]
+    [Description("One build by its key, as returned by list_builds or list_deferred: status text, commit, author, links, whether it can be retried or cancelled, and deferredUntil where the user put its failure off.")]
     public Task<BuildDto> GetBuild(
         [Description("The build key from list_builds.")]
         string key,
@@ -60,7 +67,7 @@ sealed class BuildTools(MonitorTools tools)
         tools.DownloadArtifacts(key, cancel);
 
     [McpServerTool(Name = "summary", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Counts of pipelines, of those whose own build on their default branch is failing, and of running builds on any branch, the tray icon state, and the health of every connection.")]
+    [Description("Counts of pipelines, of those whose own build on their default branch is failing, and of running builds on any branch, the tray icon state, and the health of every connection. Deferred counts the failures the user put off, which the failing count leaves out.")]
     public Task<SummaryDto> Summary(Cancel cancel = default) =>
         tools.Summary(cancel);
 

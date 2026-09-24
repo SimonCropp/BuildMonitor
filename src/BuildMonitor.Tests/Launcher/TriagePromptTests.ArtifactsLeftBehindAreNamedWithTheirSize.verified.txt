@@ -1,33 +1,33 @@
-﻿One failing build, with its files already downloaded. Work through it.
+﻿Failing build. Files downloaded. Work through it.
 
-## The failure
+## Failure
 
 - VerifyTests/Verify on main, run 412, failed 2h ago
   code: /code/Verify
   key: gh/Verify/test.yml/main
   commit 9f1c2b7 by Simon Cropp: Tighten the converter lookup
 
-## The files
+## Files
 
-Downloaded for this run and kept for 24 hours, so read them from disk rather than fetching anything. `log.txt` is the whole log, not the tail `get_build_log` returns.
+Kept 24 hours. `log.txt` is the whole log.
 
   /home/simon/.local/share/BuildMonitor/artifacts/Verify-412-3f9a1c02/log.txt
 
-That directory is a copy made for this triage. Nothing under `code:` was touched to make it, it is not part of the repository, and nothing in it should be committed. Unpack anything you need inside it rather than in the checkout.
+This directory is made for triage, outside the repository: never commit it. Unpack inside it, not the checkout.
 
-2 artifacts were left out:
+2 artifacts left out:
 
 - `runner-image.tar`: 2.1 GB, over the 20 MB limit for one file
 - `dumps.zip`: 340 MB, over the 20 MB limit for one file
 
-Fetch any of those from the run's page if the log points at it.
+Fetch from the run's page if the log points at one.
 
-## How to work through it
+## Steps
 
-1. Read the files above, starting with the log, then whatever it points at.
-2. Reproduce the failure from the checkout named under `code:`. That checkout is the user's own and may be on another branch or hold uncommitted work, so never switch its branch, stash or discard anything in it. Where the build ran on a branch other than the one checked out, fetch it and add a `git worktree` for it instead.
-3. Fix it where you reproduced it, and run that project's tests. Leave the changes uncommitted, say where they are so the user can review them, and do not commit, push or open a pull request.
+1. Read the log, then whatever it points at.
+2. Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch.
+3. Fix it where you reproduced it and run that project's tests. Leave changes uncommitted, say where they are, and don't commit, push or open a PR.
 
-Where it turns out not to be code at all, such as an expired credential, a runner or agent problem, or a service outage, report it as exactly that rather than looking for a change to make.
+If it isn't code (expired credential, runner or agent problem, outage), say so instead.
 
-Then stop and ask the user what to do next, listing what you would suggest. Do not go on to further changes, commits or repositories without their answer.
+Then stop and ask what to do next, with suggestions. No further changes, commits or repositories without an answer.
