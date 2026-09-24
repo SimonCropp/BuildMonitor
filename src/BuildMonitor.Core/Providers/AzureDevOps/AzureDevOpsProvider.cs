@@ -1,4 +1,4 @@
-﻿/// <summary>
+/// <summary>
 /// https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/list
 /// </summary>
 sealed class AzureDevOpsProvider : ProviderBase

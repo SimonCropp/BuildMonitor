@@ -125,7 +125,15 @@ sealed class OctopusProvider : ProviderBase
         }
 
         var projects = string.Join(',', pipelines.Select(_ => _.Id));
-        var dashboard = await context.Http.Get($"{spaceId}/dashboard/dynamic?projects={projects}&includePrevious=true", OctopusContext.Default.OctopusDashboard, cancel);
+        // A project deleted since discovery can make the dashboard answer with a 404, which would
+        // fail the whole fetch. The space's deployments name only projects that are still there,
+        // so the rest keep their builds and the deleted one has none until the next discovery.
+        var dashboard = await GetOrNone(context, $"{spaceId}/dashboard/dynamic?projects={projects}&includePrevious=true", OctopusContext.Default.OctopusDashboard, cancel);
+        if (dashboard is null)
+        {
+            return await Separately(context, spaceId, pipelines, perPipeline, cancel);
+        }
+
         if (dashboard.ProjectLimit is { } limit &&
             limit < pipelines.Count)
         {
@@ -287,8 +295,9 @@ sealed class OctopusProvider : ProviderBase
     /// </summary>
     static async Task<ProviderEstimate?> Progress(ProviderContext context, string path, Cancel cancel)
     {
-        var detail = await context.Http.Get(path, OctopusContext.Default.OctopusTaskDetails, cancel);
-        if (detail.Progress is not { } progress)
+        // A task deleted with its project since it was listed has no progress to show.
+        var detail = await GetOrNone(context, path, OctopusContext.Default.OctopusTaskDetails, cancel);
+        if (detail?.Progress is not { } progress)
         {
             return null;
         }
@@ -396,8 +405,9 @@ sealed class OctopusProvider : ProviderBase
             wanted,
             async (releaseId, token) =>
             {
-                var release = await context.Http.Get($"{spaceId}/releases/{Encode(releaseId)}", OctopusContext.Default.OctopusRelease, token);
-                return TriggeredBy(release.ReleaseNotes);
+                // A release deleted with its project since the dashboard was read names no one.
+                var release = await GetOrNone(context, $"{spaceId}/releases/{Encode(releaseId)}", OctopusContext.Default.OctopusRelease, token);
+                return TriggeredBy(release?.ReleaseNotes);
             },
             cancel);
         var found = known.ToBuilder();

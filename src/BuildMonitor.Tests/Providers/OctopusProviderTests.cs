@@ -134,6 +134,27 @@ public class OctopusProviderTests
         await Assert.That(handler.Requests.Any(_ => _.Contains("/releases/"))).IsFalse();
     }
 
+    /// <summary>
+    /// A project deleted since discovery that the dashboard answers with a 404. The space's own
+    /// deployments are read instead, so the projects still there keep their builds.
+    /// </summary>
+    [Test]
+    public async Task ADeletedProjectFallsBackToTheSpacesDeployments()
+    {
+        var handler = Discovery()
+            .Get($"{server}/api/Spaces-1/environments/all", """[{"Id":"Environments-1","Name":"Production"}]""")
+            .Get($"{server}/api/Spaces-1/deployments", """{"Items":[{"Id":"Deployments-10","ProjectId":"Projects-1","EnvironmentId":"Environments-1","TaskId":"ServerTasks-100","Links":{"Web":"/app#/Spaces-1/deployments/Deployments-10"}}]}""")
+            .Get(
+                $"{server}/api/Spaces-1/tasks",
+                """{"Items":[{"Id":"ServerTasks-100","State":"Success","Description":"Deploy Web release 1.2.3 to Production","QueueTime":"2026-01-01T11:57:00Z","StartTime":"2026-01-01T11:58:00Z","CompletedTime":"2026-01-01T11:59:00Z"}]}""");
+        var context = Context(handler);
+        var provider = ProviderTestHelpers.Provider("octopus");
+        var pipelines = await provider.DiscoverPipelines(context, Cancel.None);
+        var deleted = pipelines[0] with { Id = "Projects-9", Name = "Gone" };
+        var builds = await provider.FetchBuilds(context, [deleted, .. pipelines], 5, Cancel.None);
+        await Assert.That(builds.Select(_ => _.PipelineId)).IsEquivalentTo(["Projects-1"]);
+    }
+
     static FakeHttpHandler Limited() =>
         Discovery()
             .Get($"{server}/api/Spaces-1/dashboard/dynamic", """{"Items":[],"Environments":[],"ProjectLimit":0}""")

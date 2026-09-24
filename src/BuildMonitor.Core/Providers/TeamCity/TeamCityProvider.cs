@@ -1,4 +1,4 @@
-﻿/// <summary>
+/// <summary>
 /// https://www.jetbrains.com/help/teamcity/rest/teamcity-rest-api-documentation.html
 /// <para>
 /// One request fetches the latest builds of every configuration in a project, rather than one
