@@ -42,10 +42,18 @@ sealed class BitbucketProvider : ProviderBase
         var builds = new List<Build>();
         foreach (var pipeline in pipelines)
         {
-            var page = await context.Http.Get(
+            // A repository deleted since discovery answers with a 404, which would fail the whole
+            // fetch; it has no builds until the next discovery drops it.
+            var page = await GetOrNone(
+                context,
                 $"repositories/{Encode(workspace)}/{pipeline.Id}/pipelines?sort=-created_on&pagelen={perPipeline}&fields={pipelineFields}",
                 BitbucketContext.Default.BitbucketPipelinePage,
                 cancel);
+            if (page is null)
+            {
+                continue;
+            }
+
             var fetched = new List<Build>();
             foreach (var run in page.Values)
             {

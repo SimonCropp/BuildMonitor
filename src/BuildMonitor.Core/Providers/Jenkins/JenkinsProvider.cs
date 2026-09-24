@@ -147,7 +147,14 @@ sealed class JenkinsProvider : ProviderBase
             // git plugin recorded.
             var actions = pipeline.Group is null ? $"actions[{revisionFields},{parameterFields}]" : $"actions[{parameterFields}]";
             var fields = $"{buildFields},{actions}";
-            var job = await context.Http.Get($"{pipeline.Url}api/json?tree=builds[{fields}]{{0,{perPipeline}}},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince]", JenkinsContext.Default.JenkinsJob, cancel);
+            // A job deleted since discovery answers with a 404, which would fail the whole fetch;
+            // it has no builds until the next discovery drops it.
+            var job = await GetOrNone(context, $"{pipeline.Url}api/json?tree=builds[{fields}]{{0,{perPipeline}}},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince]", JenkinsContext.Default.JenkinsJob, cancel);
+            if (job is null)
+            {
+                continue;
+            }
+
             if (job.InQueue &&
                 job.QueueItem is { } queued)
             {

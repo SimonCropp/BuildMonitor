@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/list
 /// </summary>
 sealed class AzureDevOpsProvider : ProviderBase
@@ -63,10 +63,18 @@ sealed class AzureDevOpsProvider : ProviderBase
             // the quiet ones of a project with more than a few dozen.
             // No minTime for the history limit: under queueTimeDescending it filters on queue time,
             // so a build queued before the cutoff and still running would never be returned.
-            var response = await context.Http.Get(
+            // A project deleted since discovery answers with a 404, which would fail the whole
+            // fetch; its definitions have no builds until the next discovery drops them.
+            var response = await GetOrNone(
+                context,
                 $"{Encode(project.Key)}/_apis/build/builds?definitions={string.Join(',', byDefinition.Keys)}&maxBuildsPerDefinition={perPipeline}&queryOrder=queueTimeDescending&properties={TriggeredBy.Property}&{apiVersion}",
                 AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsBuild,
                 cancel);
+            if (response is null)
+            {
+                continue;
+            }
+
             var taken = new Dictionary<long, int>();
             var fetched = byDefinition.Keys.ToDictionary(_ => _, _ => new List<(AzureDevOpsBuild Raw, Build Build)>());
             foreach (var build in response.Value)

@@ -264,11 +264,19 @@ sealed class GitHubProvider : ProviderBase
                 // No created filter for the history limit: a run keeps its created_at through a re-run,
                 // so one created before the cutoff and still running, or re-run since, would never
                 // be returned. per_page bounds the response instead.
-                var runs = await context.Http.Get(
+                // A repository deleted since discovery answers with a 404, which would fail the
+                // whole fetch; it has no builds until the next discovery drops it.
+                var runs = await GetOrNone(
+                    context,
                     $"repos/{repository.Key}/actions/runs?per_page={count}",
                     GitHubContext.Default.GitHubRuns,
                     token);
                 var builds = new List<Build>();
+                if (runs is null)
+                {
+                    return builds;
+                }
+
                 var taken = new Dictionary<long, int>();
                 // The workflows with a run on their default branch among those kept, which is the
                 // run a workflow's row is.

@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// https://www.jetbrains.com/help/teamcity/rest/teamcity-rest-api-documentation.html
 /// <para>
 /// One request fetches the latest builds of every configuration in a project, rather than one
@@ -62,10 +62,18 @@ sealed class TeamCityProvider : ProviderBase
                 : $"project:(id:{Encode(project.Key)})";
             // No queuedDate for the history limit: a build queued before the cutoff and still queued or
             // running would never be returned. count bounds the response instead.
-            var response = await context.Http.Get(
+            // A project deleted since discovery answers with a 404, which would fail the whole
+            // fetch; its build types have no builds until the next discovery drops them.
+            var response = await GetOrNone(
+                context,
                 $"buildTypes?locator={locator}&fields=buildType(id,builds($locator(branch:default:any,state:any,canceled:any,failedToStart:any,count:{perPipeline}),{buildFields}))",
                 TeamCityContext.Default.TeamCityBuildTypes,
                 cancel);
+            if (response is null)
+            {
+                continue;
+            }
+
             var missing = new List<Pipeline>();
             foreach (var type in response.BuildType)
             {

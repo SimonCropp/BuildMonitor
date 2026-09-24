@@ -107,10 +107,18 @@ sealed class TravisProvider : ProviderBase
         var builds = new List<Build>();
         foreach (var pipeline in pipelines)
         {
-            var response = await context.Http.Get(
+            // A repository deleted since discovery answers with a 404, which would fail the whole
+            // fetch; it has no builds until the next discovery drops it.
+            var response = await GetOrNone(
+                context,
                 $"repo/{Encode(pipeline.Id)}/builds?limit={perPipeline}&sort_by=id:desc&include=build.commit",
                 TravisContext.Default.TravisBuilds,
                 cancel);
+            if (response is null)
+            {
+                continue;
+            }
+
             var fetched = response.Builds.Select(_ => Convert(context, pipeline, _)).ToList();
             builds.AddRange(fetched);
             if (pipeline.DefaultBranch is { } branch &&

@@ -151,17 +151,7 @@ sealed class GitLabProvider : ProviderBase
     static async Task<Build?> DefaultRun(ProviderContext context, Pipeline pipeline, Cancel cancel)
     {
         var branch = pipeline.DefaultBranch!;
-        List<Build> runs;
-        try
-        {
-            runs = await Rest(context, pipeline, 1, cancel, branch);
-        }
-        // Nothing there rather than a failure, which would back the project off.
-        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
-        {
-            runs = [];
-        }
-
+        var runs = await Rest(context, pipeline, 1, cancel, branch);
         var run = runs.FirstOrDefault(_ => _.Branch == branch);
         if (run is null)
         {
@@ -261,7 +251,9 @@ sealed class GitLabProvider : ProviderBase
         var builds = new List<Build>();
         var updated = context.Since is { } since ? $"&updated_after={Encode(Iso(since))}" : "";
         var onBranch = branch is null ? "" : $"&ref={Encode(branch)}";
-        var runs = await context.Http.Get($"projects/{pipeline.Id}/pipelines?per_page={perPipeline}{onBranch}{updated}", GitLabContext.Default.ListGitLabPipeline, cancel);
+        // A project deleted since discovery answers with a 404, which would fail the whole fetch;
+        // it has no builds until the next discovery drops it.
+        var runs = await GetOrNone(context, $"projects/{pipeline.Id}/pipelines?per_page={perPipeline}{onBranch}{updated}", GitLabContext.Default.ListGitLabPipeline, cancel) ?? [];
         foreach (var run in runs)
         {
             // The listing carries no timings; only a live run is worth the second call. They go on a

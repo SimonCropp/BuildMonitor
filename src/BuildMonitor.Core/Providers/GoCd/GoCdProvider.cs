@@ -114,7 +114,14 @@ sealed class GoCdProvider : ProviderBase
         var pageSize = Math.Clamp(perPipeline, minimumPageSize, 100);
         foreach (var pipeline in pipelines)
         {
-            var history = await context.Http.Get($"pipelines/{Encode(pipeline.Id)}/history?page_size={pageSize}", GoCdContext.Default.GoCdHistory, cancel);
+            // A pipeline deleted since discovery answers with a 404, which would fail the whole
+            // fetch; it has no builds until the next discovery drops it.
+            var history = await GetOrNone(context, $"pipelines/{Encode(pipeline.Id)}/history?page_size={pageSize}", GoCdContext.Default.GoCdHistory, cancel);
+            if (history is null)
+            {
+                continue;
+            }
+
             var pipelineRights = Rights(context, pipeline);
             builds.AddRange(history.Pipelines.Take(perPipeline).Select(_ => Convert(context.Connection.Id, server, pipeline, _, pipelineRights)));
         }
