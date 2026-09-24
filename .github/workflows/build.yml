@@ -1,14 +1,19 @@
-name: Test
+name: Build
 
 on:
   push:
     branches: [main]
+    tags: ['*']
   pull_request:
   workflow_dispatch:
 
+# Read only by default. The publish job asks for the OIDC token it needs itself.
+permissions:
+  contents: read
+
 # Cancel in-progress runs if a new push lands on the same branch.
 concurrency:
-  group: test-${{ github.ref }}
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -30,11 +35,28 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Keyed on everything that decides the package graph. restore-keys lets a changed graph start
+      # from the previous cache rather than empty.
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/Directory.Packages.props', '**/Directory.Build.props', '**/*.csproj', '**/*.fsproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # The tag is the version: tag 1.2.3 (or v1.2.3) builds 1.2.3. Other builds use the
+      # Version in Directory.Build.props.
+      - name: Resolve the version from the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: echo "VERSION_ARGUMENT=-p:Version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
       # A plain build is also the pack step: ProjectDefaults sets GeneratePackageOnBuild for every
       # Release package project, so this produces ./nugets as a side effect, with every head
-      # bundled into it.
+      # bundled into it. Windows is the job that packs, because the Windows head is WinForms and
+      # the packaging tests that pin the package contents only run here.
       - name: Build
-        run: dotnet build src --configuration Release
+        run: dotnet build src --configuration Release ${{ env.VERSION_ARGUMENT }}
 
       - name: Test
         run: dotnet test --solution src/BuildMonitor.slnx --configuration Release --no-build --no-restore
@@ -47,6 +69,27 @@ jobs:
           path: '**/*.received.*'
           if-no-files-found: ignore
           retention-days: 14
+
+      # BM0001 warns when a RID has no native renderer. Shipping a package that cannot run on a
+      # platform it claims to support is worse than failing the release.
+      - name: Verify every RID has a native renderer
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          missing=0
+          check() {
+            directory="src/BuildMonitor.Native/runtimes/$1/native"
+            if [ -z "$(ls -A "$directory" 2>/dev/null)" ]; then
+              echo "::error::No native renderer for $1. Run the build-native workflow."
+              missing=1
+            fi
+          }
+          # No Windows RIDs: that head renders with WinForms and loads no native library.
+          check linux-x64
+          check linux-arm64
+          check osx-x64
+          check osx-arm64
+          exit $missing
 
       - name: Upload packages
         if: success()
@@ -228,3 +271,36 @@ jobs:
           path: '**/*.received.*'
           if-no-files-found: ignore
           retention-days: 14
+
+  # Trusted publishing: no stored API key. nuget.org validates GitHub's OIDC token against the
+  # policy naming this repository and this workflow file, and returns a key good for an hour.
+  # Waits on every job, so a package only ships once all platforms and the committed native
+  # binaries have passed.
+  publish:
+    needs: [windows, unix, native]
+    environment: nuget
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          name: nupkgs
+          path: packages
+
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: SimonCropp
+
+      - name: Push to nuget.org
+        run: >
+          dotnet nuget push "packages/**/*.nupkg"
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

@@ -3,7 +3,7 @@ name: Live
 # Runs the live provider tests (src/BuildMonitor.Tests/Providers/Live) against real services.
 # Hosted providers are tested through sandbox accounts, whose credentials are secrets of the live
 # environment. Jenkins, TeamCity and GoCD run in Docker on the runner. docs/live-tests.md covers
-# the setup. This is separate from Test: it needs credentials, spends sandbox build minutes, and
+# the setup. This is separate from Build: it needs credentials, spends sandbox build minutes, and
 # fails whenever a service is down.
 #
 # The repository is public, so this workflow's logs are public too. The runner masks secrets in
