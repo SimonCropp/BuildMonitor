@@ -50,7 +50,7 @@ bash src/BuildMonitor.Tests/Providers/Live/Servers/jenkins/provision.sh down
 
 **Snapshots:** Verify writes `*.received.*` beside the test; accept by renaming to `*.verified.*`. Received files are gitignored.
 
-**Pixel snapshots:** `MonitorFormTests` captures the WinForms head as the machine running it draws it, in its Segoe UI, and compares at SSIM 0.9999. It is `#if DEBUG`, so the Release build CI runs never compiles it: a change to what the Windows head draws, including a form field or footer text composed in Core, passes CI, and nothing notices these baselines going stale until the Debug command above runs. The native heads' `PixelTests` are the other way round. CI runs them on Linux and macOS against pinned rasterisers, anywhere without `BUILDMONITOR_PIXEL_TESTS=true` skips them, and their baselines come from the `received-*` artifacts of a Test run.
+**Pixel snapshots:** `MonitorFormTests` captures the WinForms head as the machine running it draws it, in its Segoe UI, and compares at SSIM 0.9999. It is `#if DEBUG`, so the Release build CI runs never compiles it: a change to what the Windows head draws, including a form field or footer text composed in Core, passes CI, and nothing notices these baselines going stale until the Debug command above runs. The native heads' `PixelTests` are the other way round. CI runs them on Linux and macOS against pinned rasterisers, anywhere without `BUILDMONITOR_PIXEL_TESTS=true` skips them, and their baselines come from the `received-*` artifacts of a Build run.
 
 ## Architecture
 
