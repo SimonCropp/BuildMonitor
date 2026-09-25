@@ -36,6 +36,10 @@ sealed class ConnectionPoller
     // What the credential may do to builds, as asked before the last discovery.
     BuildAccess access;
     int discoveryFailures;
+    // The tokens the last probe saw for keys no discovered pipeline is in, as a repository with no
+    // workflows yet, and whether one of them has moved since, which brings discovery forward.
+    ImmutableDictionary<string, string> outsideActivity = ImmutableDictionary<string, string>.Empty;
+    bool rediscoverSoon;
     ImmutableDictionary<string, GroupMemory> memory = ImmutableDictionary<string, GroupMemory>.Empty;
     // Nudges and refreshes arrive from other threads, and a cycle in flight must not lose them.
     ConcurrentDictionary<string, byte> nudges = new();
@@ -93,6 +97,15 @@ sealed class ConnectionPoller
     /// expensive half of a poll on the providers that need a call per repository.
     /// </summary>
     public static readonly TimeSpan RediscoverAfter = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// How soon after the last discovery the pipeline list is re-read once a probe sees activity
+    /// outside every discovered pipeline. Without it a repository's first workflow waited out
+    /// <see cref="RediscoverAfter"/>, as the probe only nudged groups it already had. The floor
+    /// stops a busy repository with no pipelines, or one a filter excludes, re-reading the list on
+    /// every probe.
+    /// </summary>
+    public static readonly TimeSpan RediscoverOnActivityAfter = TimeSpan.FromMinutes(1);
 
     public const int PerPipeline = 5;
 
@@ -506,13 +519,12 @@ sealed class ConnectionPoller
         Spend(descriptor);
         var after = clock();
         var next = PollSchedule.Plan(Input(descriptor, groups, host.State, false, false, after)).WakeAt;
-        var rediscover = discovered + RediscoverAfter;
         wakeAt = health switch
         {
             ConnectionHealth.NeedsAuth => null,
             ConnectionHealth.RateLimited => retryAfter,
             _ when unauthorized is not null => after,
-            _ => Earliest(Earliest(rediscover, next), NextProbe(descriptor))
+            _ => Earliest(Earliest(RediscoverAt(), next), NextProbe(descriptor))
         };
 
         if (plan.Fetch.Length > 0)
@@ -641,7 +653,39 @@ sealed class ConnectionPoller
             });
         }
 
+        var discoveredKeys = discoveredPipelines
+            .Select(_ => PollGroup.KeyOf(descriptor.FetchUnit, _))
+            .ToHashSet();
+        var outside = activity
+            .Where(_ => !discoveredKeys.Contains(_.Key))
+            .ToImmutableDictionary();
+        var moved = outside
+            .Where(_ => outsideActivity.GetValueOrDefault(_.Key) != _.Value)
+            .Select(_ => _.Key)
+            .ToList();
+        if (probedOnce &&
+            moved.Count > 0)
+        {
+            rediscoverSoon = true;
+            Log.Debug("{Connection}: activity in {Keys}, outside every pipeline, so discovering again", context.Connection.Name, moved);
+        }
+
+        outsideActivity = outside;
         probedOnce = true;
+    }
+
+    /// <summary>
+    /// When the pipeline list is next re-read: <see cref="RediscoverAfter"/> after the last time, or
+    /// <see cref="RediscoverOnActivityAfter"/> once a probe has seen activity outside every pipeline.
+    /// </summary>
+    DateTimeOffset RediscoverAt()
+    {
+        if (rediscoverSoon)
+        {
+            return discovered + RediscoverOnActivityAfter;
+        }
+
+        return discovered + RediscoverAfter;
     }
 
     /// <summary>
@@ -752,7 +796,7 @@ sealed class ConnectionPoller
     async Task<(bool Rediscovered, bool AccessChanged)> Discover(IProvider provider, ProviderContext context, Connection connection, string secret, DateTimeOffset now, Cancel cancel)
     {
         var due = discoveredPipelines.Length == 0 ||
-                  now - discovered > RediscoverAfter ||
+                  now >= RediscoverAt() ||
                   discoveredWithForks != context.ShowForksAndCollaborations ||
                   discoveredWithSecret != secret;
         var inDebt = bucket is { Tokens: < 0 };
@@ -761,6 +805,9 @@ sealed class ConnectionPoller
         {
             return (false, false);
         }
+
+        // Whether this discovery succeeds or not, or a failing one would skip its backoff.
+        rediscoverSoon = false;
 
         var before = access;
         access = await Access(provider, context, connection, secret, cancel);

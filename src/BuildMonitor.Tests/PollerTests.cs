@@ -472,6 +472,76 @@
         await Assert.That(Fetches(handler, quietRuns)).IsEqualTo(1);
     }
 
+    const string newWorkflows = "https://api.github.com/repos/VerifyTests/New/actions/workflows?per_page=100";
+
+    static string WithNew(string pushed) =>
+        $$"""
+          [
+            {"full_name":"VerifyTests/New","html_url":"https://github.com/VerifyTests/New","archived":false,"disabled":false,"pushed_at":"{{pushed}}"},
+            {"full_name":"VerifyTests/Busy","html_url":"https://github.com/VerifyTests/Busy","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"},
+            {"full_name":"VerifyTests/Quiet","html_url":"https://github.com/VerifyTests/Quiet","archived":false,"disabled":false,"pushed_at":"2099-01-01T00:00:00Z"}
+          ]
+          """;
+
+    [Test]
+    public async Task APushToARepositoryWithoutPipelinesDiscoversAgainSoon()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = TwoRepositories()
+            .Get(listing, WithNew("2099-01-01T00:00:00Z"))
+            .Get(newWorkflows, """{"total_count":0,"workflows":[]}""");
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        // The first probe records what it sees.
+        now = now.AddSeconds(31);
+        await poller.PollDue(Cancel.None);
+
+        // Its first workflow is pushed, which the probe sees and the next cycle discovers, where
+        // before it waited out the ten minutes.
+        handler
+            .Get(listing, WithNew("2099-01-02T00:00:00Z"))
+            .Get(newWorkflows, """{"total_count":1,"workflows":[{"id":3,"name":"New","path":".github/workflows/new.yml","state":"active"}]}""");
+        now = now.AddSeconds(31);
+        await poller.PollDue(Cancel.None);
+        await Assert.That(PipelineIds(host)).DoesNotContain("VerifyTests/New/3");
+
+        handler.Requests.Clear();
+        now = now.AddSeconds(1);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(Fetches(handler, newWorkflows)).IsEqualTo(1);
+        await Assert.That(PipelineIds(host)).Contains("VerifyTests/New/3");
+    }
+
+    [Test]
+    public async Task AQuietRepositoryWithoutPipelinesDoesNotDiscoverAgain()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = WithScopes(
+            TwoRepositories()
+                .Get(listing, WithNew("2099-01-01T00:00:00Z"))
+                .Get(newWorkflows, """{"total_count":0,"workflows":[]}"""),
+            "read:org");
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        now = now.AddSeconds(31);
+        await poller.PollDue(Cancel.None);
+        now = now.AddSeconds(31);
+        await poller.PollDue(Cancel.None);
+
+        handler.Requests.Clear();
+        now = now.AddSeconds(1);
+        await poller.PollDue(Cancel.None);
+
+        // Discovery asks what the token may do first.
+        await Assert.That(handler.Requests).DoesNotContain($"GET {user}");
+    }
+
+    static IEnumerable<string> PipelineIds(SessionHost host) =>
+        host.State.Connection(Fixtures.GitHub.Id)!.Pipelines.Select(_ => _.Id);
+
     [Test]
     public async Task AFailingProbeDoesNotFailTheConnection()
     {
