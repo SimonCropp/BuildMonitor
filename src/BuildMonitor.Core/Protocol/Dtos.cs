@@ -1,6 +1,11 @@
 /// <summary>
 /// What the listing verbs return. Composed from the same rows and timings the screen shows, so
 /// an AI assistant reading the list sees what the user sees.
+/// <para>
+/// The MCP tools write nulls, as their output schema requires every member without a default. A
+/// member with one is optional there, and its JsonIgnore keeps it out rather than null on every
+/// build.
+/// </para>
 /// </summary>
 record BuildDto(
     string Key,
@@ -30,15 +35,18 @@ record BuildDto(
     // Where this repository is checked out under the code directory, or absent when it is not one
     // the tray found. An assistant reading a failure can open the code it broke without being told
     // where it lives.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? Directory = null,
     // True on a run on another branch than its pipeline's own, a pull request's or a pushed
     // branch's, listed after the pipeline's own run while it is running, queued or failed. Absent
     // on the pipeline's own run. Its failure is not its pipeline failing: an assistant told the
     // pipeline was red would go looking for a break on main that is not there.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     bool? OtherBranch = null,
     // When the user's deferral of this failure ends. Present only on a failed build put off with
     // Defer: it is left out of list_builds and the failing counts until then, so an assistant told
     // nothing would take the pipeline for green, or this run for one that never existed.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     DateTimeOffset? DeferredUntil = null);
 
 /// <summary>
@@ -55,6 +63,7 @@ record PipelineDto(
     string Url,
     int Runs,
     // As on a build: where this pipeline's repository is checked out, or absent.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? Directory = null);
 
 record ConnectionDto(
@@ -95,6 +104,7 @@ record TriageFilesDto(
     // Why there are no artifacts, where the reason is not that the build published none: absent
     // when the service was asked and answered. An assistant must not read "none" off a service
     // nobody could ask.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? Unsupported = null);
 
 record SkippedArtifactDto(string Name, long? Bytes, string Reason);
