@@ -110,8 +110,16 @@ public class TriageTests
         var failed = MonitorSession.TriageFailed(state, build, status);
         await Assert.That(failed.Triaging).IsEmpty();
         await Assert.That(failed.Status).IsEqualTo(status);
-        await Assert.That(failed.Clipboard).IsNull();
+        await Assert.That(failed.Clipboard).IsSameReferenceAs(state.Clipboard);
         await Assert.That(failed.Notification).IsEqualTo(new("Triage failed", status, build.Key));
+    }
+
+    [Test]
+    public async Task StartingATriageClearsTheClipboard()
+    {
+        var state = Fixtures.Triaging();
+        await Assert.That(state.Clipboard!.Text).IsEmpty();
+        await Assert.That(state.Clipboard.Copied).IsNull();
     }
 
     static RowChip Chip(SessionState state)

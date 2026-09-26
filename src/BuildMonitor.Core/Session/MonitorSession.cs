@@ -1895,6 +1895,11 @@ static class MonitorSession
     /// <summary>
     /// The row's chip turns busy and the footer says what is being collected, until
     /// <see cref="Triaged"/> or <see cref="TriageFailed"/> ends it.
+    /// <para>
+    /// The clipboard is emptied at the click. Collecting takes seconds, and someone who takes the
+    /// click as the copy pastes straight away; with the clipboard left alone that pastes whatever
+    /// was copied before, into an agent that then works on it as if it were the failure.
+    /// </para>
     /// </summary>
     public static SessionState StartTriage(SessionState state, Build build)
     {
@@ -1905,7 +1910,8 @@ static class MonitorSession
 
         return state with
         {
-            Triaging = state.Triaging.Add(build)
+            Triaging = state.Triaging.Add(build),
+            Clipboard = new("")
         };
     }
 
