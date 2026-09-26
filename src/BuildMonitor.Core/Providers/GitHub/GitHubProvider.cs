@@ -391,6 +391,17 @@ sealed class GitHubProvider : ProviderBase
         return null;
     }
 
+    public override async Task<IReadOnlyList<Build>> RecentSuccesses(ProviderContext context, Pipeline pipeline, Cancel cancel)
+    {
+        var workflowId = pipeline.Id[(pipeline.Id.LastIndexOf('/') + 1)..];
+        var runs = await GetOrNone(
+            context,
+            $"repos/{pipeline.RepoName}/actions/workflows/{workflowId}/runs?status=success&per_page=10",
+            GitHubContext.Default.GitHubRuns,
+            cancel);
+        return runs?.WorkflowRuns.Select(_ => Convert(context.Connection.Id, pipeline.RepoName, pipeline, _, false)).ToList() ?? [];
+    }
+
     static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRun run, bool change)
     {
         var status = run.Status switch

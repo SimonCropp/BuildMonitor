@@ -18,6 +18,9 @@ abstract class ProviderBase : IProvider
 
     public abstract Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel);
 
+    public virtual Task<IReadOnlyList<Build>> RecentSuccesses(ProviderContext context, Pipeline pipeline, Cancel cancel) =>
+        Task.FromResult<IReadOnlyList<Build>>([]);
+
     public abstract Task Retry(ProviderContext context, Build build, Cancel cancel);
 
     public abstract Task Cancel(ProviderContext context, Build build, Cancel cancel);

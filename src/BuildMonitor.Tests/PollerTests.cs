@@ -63,6 +63,53 @@
         await Assert.That(history.Median("gh/VerifyTests/DiffEngine/10")).IsEqualTo(TimeSpan.FromMinutes(3));
     }
 
+    const string successesUrl = "https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows/10/runs?status=success&per_page=10";
+
+    static FakeHttpHandler RunningWithoutAPass() =>
+        GitHubHandler()
+            .Map("GET", runsUrl,
+                """
+                {"workflow_runs":[
+                  {"id":500,"workflow_id":10,"run_number":3,"status":"in_progress","head_branch":"main","html_url":"https://github.com/x/500","created_at":"2026-01-01T11:56:00Z","updated_at":"2026-01-01T11:57:00Z","run_started_at":"2026-01-01T11:57:00Z","pull_requests":[]},
+                  {"id":499,"workflow_id":10,"run_number":2,"status":"completed","conclusion":"failure","head_branch":"main","html_url":"https://github.com/x/499","created_at":"2026-01-01T11:00:00Z","updated_at":"2026-01-01T11:05:00Z","run_started_at":"2026-01-01T11:00:00Z","pull_requests":[]}
+                ]}
+                """)
+            .Get(successesUrl,
+                """
+                {"workflow_runs":[
+                  {"id":400,"workflow_id":10,"run_number":1,"status":"completed","conclusion":"success","head_branch":"feature","html_url":"https://github.com/x/400","created_at":"2025-12-01T11:00:00Z","updated_at":"2025-12-01T11:07:00Z","run_started_at":"2025-12-01T11:00:00Z","pull_requests":[]}
+                ]}
+                """);
+
+    /// <summary>
+    /// A running pipeline whose runs on the page have not passed is asked for its passes, so its
+    /// bar has a duration to fill against.
+    /// </summary>
+    [Test]
+    public async Task ARunningPipelineWithNoHistoryIsSeededFromItsPasses()
+    {
+        var (host, secrets, history) = Setup();
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, RunningWithoutAPass(), null, () => Fixtures.Now);
+
+        await poller.PollOnce(Cancel.None);
+
+        await Assert.That(host.State.Medians["gh/VerifyTests/DiffEngine/10"]).IsEqualTo(TimeSpan.FromMinutes(7));
+    }
+
+    [Test]
+    public async Task APipelineIsSeededOnce()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = RunningWithoutAPass()
+            .Get(successesUrl, """{"workflow_runs":[]}""");
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => Fixtures.Now);
+
+        await poller.PollOnce(Cancel.None);
+        await poller.PollOnce(Cancel.None);
+
+        await Assert.That(handler.Requests.Count(_ => _.StartsWith($"GET {successesUrl}"))).IsEqualTo(1);
+    }
+
     [Test]
     public async Task ALaterPollRevalidatesWithTheETag()
     {
