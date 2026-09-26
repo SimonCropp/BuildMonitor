@@ -208,6 +208,23 @@ public class GitHubProviderTests
     }
 
     [Test]
+    public async Task ARerunIsQueuedFromItsRetry()
+    {
+        // A re-run keeps the run's created_at, so counted from that, a run retried in the morning
+        // read as queued since its first run the night before.
+        var handler = Handler()
+            .Get(
+                "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5",
+                """
+                {"total_count":1,"workflow_runs":[
+                  {"id":499,"workflow_id":10,"run_number":1233,"run_attempt":2,"status":"queued","conclusion":null,"head_branch":"main","head_sha":"fedcba9876543210","display_title":"Feature","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/499","created_at":"2026-01-01T01:00:00Z","updated_at":"2026-01-01T11:30:05Z","run_started_at":"2026-01-01T11:30:00Z","pull_requests":[]}
+                ]}
+                """);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", ProviderTestHelpers.Context("github", handler));
+        await Assert.That(builds.Single().Queued).IsEqualTo(new DateTimeOffset(2026, 1, 1, 11, 30, 0, TimeSpan.Zero));
+    }
+
+    [Test]
     public async Task ForksAndCollaborationsAreDiscoveredWhenAskedFor()
     {
         var handler = new FakeHttpHandler()
