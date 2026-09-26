@@ -1321,9 +1321,16 @@ static class MonitorSession
             return state;
         }
 
+        // The project as well as the pipeline: most repositories name theirs "Build" or "CI", so
+        // the filters page listed several "Build failure on main" with nothing to tell them apart.
+        var project = build.ShortRepoName();
+        var pipeline = project.Length == 0 ||
+                       string.Equals(project, build.PipelineName, StringComparison.OrdinalIgnoreCase)
+            ? build.PipelineName
+            : $"{project} {build.PipelineName}";
         var name = build.Branch is null
-            ? $"{build.PipelineName} failure"
-            : $"{build.PipelineName} failure on {build.ShortBranchName()}";
+            ? $"{pipeline} failure"
+            : $"{pipeline} failure on {build.ShortBranchName()}";
         var deferral = new Deferral(build.Key, name, now.AddDays(days));
         var deferred = Follow(
             state,

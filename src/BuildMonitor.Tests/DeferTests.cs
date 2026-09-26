@@ -55,7 +55,7 @@ public class DeferTests
         var actions = new RecordingActions();
         var state = Deferred(actions);
         await Assert.That(Shown(state)).IsFalse();
-        await Assert.That(state.Status).IsEqualTo("Deferred the test.yml failure on feature/inline for 3 days");
+        await Assert.That(state.Status).IsEqualTo("Deferred the Verify test.yml failure on feature/inline for 3 days");
         await Assert.That(actions.Calls).IsEquivalentTo(["SaveSettings"]);
         var deferral = actions.SavedSettings!.Deferrals.Single();
         await Assert.That(deferral.Key).IsEqualTo(failedKey);
@@ -70,7 +70,7 @@ public class DeferTests
         state = Apply(state, new(ClickedButton: ButtonIndex(state, CommandKind.UndoExclude)), actions);
         await Assert.That(state.Settings.Deferrals).IsEmpty();
         await Assert.That(Shown(state)).IsTrue();
-        await Assert.That(state.Status).IsEqualTo("Showing the test.yml failure on feature/inline again");
+        await Assert.That(state.Status).IsEqualTo("Showing the Verify test.yml failure on feature/inline again");
     }
 
     /// <summary>

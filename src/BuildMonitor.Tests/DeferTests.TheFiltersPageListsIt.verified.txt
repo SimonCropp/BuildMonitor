@@ -1,7 +1,7 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
 | BuildMonitor                                                                                                 Filters |
 +----------------------------------------------------------------------------------------------------------------------+
-| - Deferred: test.yml failure on feature/inline, 3 days left [x]                                                      |
+| - Deferred: Verify test.yml failure on feature/inline, 3 days left [x]                                               |
 | Target: <Pipeline>                                                                                                   |
 | Match: <Prefix>                                                                                                      |
 | Text: [                                        ]                                                                     |
