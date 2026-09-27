@@ -3,7 +3,8 @@
 /// <see cref="Settings.GroupPrefixes"/> where the project starts with one, then the group the
 /// service itself files the pipeline under, and otherwise the repository's short name, so one
 /// project watched on two CI services reads as one group. With <see cref="Settings.GroupByOrg"/>
-/// the owner of the repository, such as a GitHub organisation, comes before the repository's name.
+/// the owner of the repository, such as a GitHub organisation or an Azure DevOps project, comes
+/// before the repository's name.
 /// <para>
 /// Only passes are grouped. A failure is what the window is for, and a group is a line that hides
 /// its members: two broken pipelines of one repository read as "2 failing" and said neither which
@@ -56,7 +57,7 @@ record GroupKey(string Project)
         }
 
         if (byOrg &&
-            Org(build.RepoName.AsSpan()) is { Length: > 0 } org)
+            Org(build) is { Length: > 0 } org)
         {
             return new(org.ToString());
         }
@@ -88,7 +89,7 @@ record GroupKey(string Project)
         }
 
         if (byOrg &&
-            Org(build.RepoName.AsSpan()) is { Length: > 0 } org)
+            Org(build) is { Length: > 0 } org)
         {
             return IdOf(org);
         }
@@ -99,10 +100,17 @@ record GroupKey(string Project)
     /// <summary>
     /// The first segment of the repository's full name: the GitHub organisation or user, or the top
     /// GitLab group rather than a subgroup, so one owner is one group however deep its projects sit.
-    /// Empty for a name with no owner in it.
+    /// Empty for a name with no owner in it. An Azure DevOps build's project, which its repository's
+    /// name leaves out, stands in for the owner.
     /// </summary>
-    static CharSpan Org(CharSpan repoName)
+    static CharSpan Org(Build build)
     {
+        if (build.Project is { Length: > 0 } project)
+        {
+            return project;
+        }
+
+        var repoName = build.RepoName.AsSpan();
         var slash = repoName.IndexOf('/');
         if (slash < 0)
         {

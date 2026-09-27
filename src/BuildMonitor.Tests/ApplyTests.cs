@@ -230,6 +230,52 @@ public class ApplyTests
         await Assert.That(state.Settings.GroupByOrg).IsFalse();
     }
 
+    /// <summary>
+    /// An Azure DevOps row offers grouping by its project, and the project's repositories then
+    /// share one group.
+    /// </summary>
+    [Test]
+    public async Task GroupByProjectFromAnAzureDevOpsRow()
+    {
+        var actions = new RecordingActions();
+        var devOps = new Connection
+        {
+            Id = "ado",
+            ProviderId = "azure-devops",
+            Name = "Azure DevOps",
+            Auth = AuthMethod.Token
+        };
+        var state = MonitorSession.Resize(SessionState.Start(new()
+        {
+            Connections = [devOps]
+        }), 120, 30);
+        state = MonitorSession.ApplyPoll(
+            state,
+            devOps.Id,
+            [],
+            [
+                Fixtures.Build(devOps.Id, "Storefront/1", "Api CI", "Api", "main", "1", BuildStatus.Succeeded, finished: Fixtures.Now) with
+                {
+                    Project = "Storefront"
+                },
+                Fixtures.Build(devOps.Id, "Storefront/2", "Web CI", "Web", "main", "2", BuildStatus.Succeeded, finished: Fixtures.Now) with
+                {
+                    Project = "Storefront"
+                }
+            ],
+            Fixtures.Now);
+
+        var row = Fixtures.RowOf(state, _ => _.Build?.RepoName == "Api");
+        state = Apply(state, new(RightClickedRow: row), actions);
+        var index = state.Menu!.Items.ToList().FindIndex(_ => _.Command == CommandKind.ToggleGroupByOrg);
+        await Assert.That(state.Menu.Items[index].Label).IsEqualTo("Group by project: Storefront");
+
+        state = Apply(state, new(ClickedMenuItem: index), actions);
+        await Assert.That(state.Settings.GroupByOrg).IsTrue();
+        var group = RowProjection.Rows(state).Single(_ => _.Kind == RowKind.Group);
+        await Assert.That(group.Group!.Project).IsEqualTo("Storefront");
+    }
+
     [Test]
     public async Task CancelFromTheMenu()
     {

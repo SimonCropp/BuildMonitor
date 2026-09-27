@@ -208,10 +208,10 @@ public class GitHubProviderTests
     }
 
     [Test]
-    public async Task SkippedWorkflowRunRunsReplaceAnEarlierFailure()
+    public async Task ASkippedWorkflowRunRunHidesItsBranch()
     {
         // A workflow_run run is about the run that triggered it, one pull request's, so a failure
-        // merging one closed since is not main broken, and the skipped runs after it moved on.
+        // merging one closed since is not main broken, and the skipped run after it hides the row.
         var handler = Handler()
             .Get(
                 "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5",
@@ -222,9 +222,7 @@ public class GitHubProviderTests
                 ]}
                 """);
         var builds = await ProviderTestHelpers.DiscoverAndFetch("github", ProviderTestHelpers.Context("github", handler));
-        var latest = builds.OrderByDescending(_ => _.Started).First();
-        await Assert.That(latest.RunNumber).IsEqualTo("1235");
-        await Assert.That(latest.Status).IsEqualTo(BuildStatus.Unknown);
+        await Assert.That(builds).IsEmpty();
     }
 
     [Test]

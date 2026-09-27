@@ -124,6 +124,21 @@ public class GroupKeyTests
     }
 
     /// <summary>
+    /// An Azure DevOps repository's name has no owner in it, so its project stands in for one.
+    /// </summary>
+    [Test]
+    public async Task TheProjectKeysAnAzureDevOpsBuildWhenGroupingByOwner()
+    {
+        var build = Build("Api", BuildStatus.Succeeded) with
+        {
+            Project = "Storefront"
+        };
+        await Assert.That(GroupKey.Of(build, [], byOrg: true)!.Project).IsEqualTo("Storefront");
+        await Assert.That(GroupKey.IdOf(build, [], byOrg: true)).IsEqualTo("storefront");
+        await Assert.That(GroupKey.IdOf(build, [])).IsEqualTo("api");
+    }
+
+    /// <summary>
     /// A name with no owner in it keeps the repository's group.
     /// </summary>
     [Test]

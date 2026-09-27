@@ -1086,13 +1086,13 @@ static class MonitorSession
 
     /// <summary>
     /// "Group by org" or, once it is on, "Stop grouping by org", named with the row's owner and in
-    /// the word its service uses for one. Only on a row whose builds share an owner: on one with
-    /// none, such as an Azure DevOps pipeline, the setting would change nothing that row shows, and
+    /// the word its service uses for one, an Azure DevOps project standing in for the owner. Only on a
+    /// row whose builds share an owner: on one with none, such as a Jenkins job, the setting would change nothing that row shows, and
     /// the options page was the only place to find a setting that only shows its effect on rows.
     /// </summary>
     static void AddOrgGrouping(ImmutableArray<MenuItem>.Builder items, SessionState state, ImmutableArray<Build> builds)
     {
-        if (SharedOrg(state, builds) is not { } org)
+        if (SharedGroupingOrg(state, builds) is not { } org)
         {
             return;
         }
@@ -1284,6 +1284,28 @@ static class MonitorSession
     /// service has no level above the repository. Both parts or neither: a name with no noun would
     /// read as excluding the repository, and a noun with no name has nothing to exclude.
     /// </summary>
+    /// <summary>
+    /// What grouping by org groups the builds under, as <see cref="GroupKey"/> does: the Azure
+    /// DevOps project where a build carries one, otherwise <see cref="SharedOrg"/>. Kept apart from
+    /// that one because excluding an org filters on the repository's name, which an Azure DevOps
+    /// project is no part of, so "Exclude project" would have dropped nothing.
+    /// </summary>
+    static (string Noun, string Name)? SharedGroupingOrg(SessionState state, ImmutableArray<Build> builds)
+    {
+        if (builds.IsEmpty ||
+            builds[0].Project is null)
+        {
+            return SharedOrg(state, builds);
+        }
+
+        if (Shared(builds, _ => _.Project) is not { } project)
+        {
+            return null;
+        }
+
+        return ("project", project);
+    }
+
     static (string Noun, string Name)? Org(SessionState state, Build build)
     {
         if (ProviderDescriptors.OrgNoun(state.Connection(build.ConnectionId)?.Connection.ProviderId) is not { } noun ||

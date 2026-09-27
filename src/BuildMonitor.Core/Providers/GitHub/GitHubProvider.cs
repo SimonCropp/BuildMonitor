@@ -281,6 +281,10 @@ sealed class GitHubProvider : ProviderBase
                 // The workflows with a run on their default branch among those kept, which is the
                 // run a workflow's row is.
                 var own = new HashSet<long>();
+                // The branches of a workflow whose newest run is a skipped workflow_run run, hidden
+                // with every older run on them.
+                var hidden = new HashSet<(long, string?)>();
+                var seen = new HashSet<(long, string?)>();
                 foreach (var run in runs.WorkflowRuns)
                 {
                     if (!byWorkflow.TryGetValue(run.WorkflowId, out var pipeline))
@@ -296,6 +300,21 @@ sealed class GitHubProvider : ProviderBase
                     var build = Convert(context.Connection.Id, repository.Key, pipeline, run, change);
                     var onDefault = build.Branch is not null &&
                                     build.Branch == pipeline.DefaultBranch;
+                    var branch = (run.WorkflowId, build.Branch);
+                    if (seen.Add(branch) &&
+                        IsHiddenSkip(run))
+                    {
+                        hidden.Add(branch);
+                        if (onDefault)
+                        {
+                            own.Add(run.WorkflowId);
+                        }
+                    }
+
+                    if (hidden.Contains(branch))
+                    {
+                        continue;
+                    }
                     taken.TryGetValue(run.WorkflowId, out var soFar);
                     // Past the cap only for the workflow's first run on its default branch: a batch
                     // of pull requests fills a workflow's share of the page, and its own run, in the
@@ -382,6 +401,11 @@ sealed class GitHubProvider : ProviderBase
             }
 
             DefaultRunMemory.Found(memory, pipeline.Id, branch);
+            if (IsHiddenSkip(run))
+            {
+                return null;
+            }
+
             return build;
         }
 
@@ -393,13 +417,25 @@ sealed class GitHubProvider : ProviderBase
     /// A run whose every job was skipped by an `if` did nothing, and showing it as the pipeline's
     /// latest would hide the last run that actually built something: a push skipped for touching
     /// only docs says nothing about main. Not so a run triggered by workflow_run, which is about
-    /// the run that triggered it, a Dependabot pull request's say, not about its branch. Left out,
-    /// a failure merging one pull request held the row red for good after that pull request was
-    /// closed, with every run since skipped for being about something else.
+    /// the run that triggered it, a Dependabot pull request's say, not about its branch; see
+    /// <see cref="IsHiddenSkip"/>.
     /// </summary>
     static bool IsIgnoredSkip(GitHubRun run) =>
         run.Conclusion == "skipped" &&
         run.Event != "workflow_run";
+
+    /// <summary>
+    /// A skipped run triggered by workflow_run hides its branch's row, older runs and all. Passed
+    /// over, a failure merging one pull request held the row red for good after that pull request
+    /// was closed, with every run since skipped for being about something else. Shown, it was a
+    /// grey row that said nothing.
+    /// </summary>
+    static bool IsHiddenSkip(GitHubRun run) =>
+        run is
+        {
+            Conclusion: "skipped",
+            Event: "workflow_run"
+        };
 
     public override async Task<IReadOnlyList<Build>> RecentSuccesses(ProviderContext context, Pipeline pipeline, Cancel cancel)
     {

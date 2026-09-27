@@ -316,7 +316,8 @@ sealed class AzureDevOpsProvider : ProviderBase
             CanCancel: build.Status is "inProgress" or "notStarted" or "postponed",
             Join(project, build.Id.ToString()),
             pipeline.Url,
-            repositoryWeb);
+            repositoryWeb,
+            Project: project);
     }
 
     /// <summary>

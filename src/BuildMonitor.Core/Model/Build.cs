@@ -36,6 +36,12 @@
 /// on it when the two are equal. Every build of one pipeline in one fetch carries the same one.
 /// Null where the service has no such thing: GoCD, Octopus Deploy and Jenkins.
 /// </param>
+/// <param name="Project">
+/// The level above the repository where the service keeps it out of the repository's name: the
+/// Azure DevOps project, whose repositories are named on their own. Without it grouping by org
+/// found no owner in an Azure DevOps name and left every repository in a group of its own. Null
+/// for every other provider, whose repository name already carries its owner.
+/// </param>
 record Build(
     string ConnectionId,
     string PipelineId,
@@ -62,7 +68,8 @@ record Build(
     string PipelineUrl,
     string? RepoUrl = null,
     string? ProjectGroup = null,
-    string? DefaultBranch = null)
+    string? DefaultBranch = null,
+    string? Project = null)
 {
     /// <summary>
     /// What a row is: a pipeline on a branch. Stable across polls so the selection survives a
