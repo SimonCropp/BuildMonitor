@@ -500,6 +500,17 @@ static class InputApplier
                 actions.SaveSettings(ungrouped.Settings);
                 return MonitorSession.SetStatus(ungrouped, $"Stopped grouping by {removed}");
             }
+            case CommandKind.ToggleGroupByOrg:
+            {
+                var byOrg = MonitorSession.ToggleGroupByOrg(state);
+                actions.SaveSettings(byOrg.Settings);
+                if (byOrg.Settings.GroupByOrg)
+                {
+                    return MonitorSession.SetStatus(byOrg, "Grouping by org");
+                }
+
+                return MonitorSession.SetStatus(byOrg, "Stopped grouping by org");
+            }
             case CommandKind.ExcludePipeline:
             {
                 if (MonitorSession.SelectedRow(state) is not { } row)

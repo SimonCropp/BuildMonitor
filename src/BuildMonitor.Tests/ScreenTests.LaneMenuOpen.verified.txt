@@ -18,16 +18,16 @@
 |   | Retry                            |                                                                               |
 |   |----------------------------------|                                                                               |
 |   | Refresh                          |                                                                               |
+|   | Group by org: VerifyTests        |                                                                               |
 |   |----------------------------------|                                                                               |
 |   | Defer 1 day                      |                                                                               |
 |   | Defer 3 days                     |                                                                               |
 |   | Defer 7 days                     |                                                                               |
 |   |----------------------------------|                                                                               |
 |   | Exclude action: test.yml         |                                                                               |
-|   | Exclude branch: feature/inline   |                                                                               |
-+---| Exclude repo: VerifyTests/Verify |-------------------------------------------------------------------------------+
-| [R| Exclude org: VerifyTests         |ters] [Hide]                                                     Polled 5s ago |
-+---+----------------------------------+-------------------------------------------------------------------------------+
++---| Exclude branch: feature/inline   |-------------------------------------------------------------------------------+
+| [R| Exclude repo: VerifyTests/Verify |ters] [Hide]                                                     Polled 5s ago |
++---| Exclude org: VerifyTests         |-------------------------------------------------------------------------------+
 tray: Running "BuildMonitor: 0 failing, 6 running"
   Open
   Refresh

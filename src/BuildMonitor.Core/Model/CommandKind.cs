@@ -38,6 +38,8 @@ public enum CommandKind
     // Adds the menu item's prefix to the ones passing builds are grouped by, or takes it back off.
     GroupByPrefix,
     RemoveGroupPrefix,
+    // Turns grouping passing builds by their repository's owner on, or off again.
+    ToggleGroupByOrg,
     ExcludePipeline,
     ExcludeBranch,
     ExcludeRepo,

@@ -12,13 +12,13 @@
 |   | Cancel build                         |                                                                           |
 |   |--------------------------------------|                                                                           |
 |   | Refresh                              |                                                                           |
+|   | Group by org: VerifyTests            |                                                                           |
 |   |--------------------------------------|                                                                           |
 |   | Exclude action: test.yml             |                                                                           |
 |   | Exclude branch: main                 |                                                                           |
 |   | Exclude repo: VerifyTests/DiffEngine |                                                                           |
 |   | Exclude org: VerifyTests             |                                                                           |
 |   +--------------------------------------+                                                                           |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

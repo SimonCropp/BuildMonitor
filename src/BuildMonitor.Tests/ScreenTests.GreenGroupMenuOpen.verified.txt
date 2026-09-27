@@ -10,12 +10,12 @@
 |   +----------------------------------+main                      23h ago                                              |
 |   | Expand                           |                                                                               |
 |   | Refresh                          |                                                                               |
+|   | Group by org: VerifyTests        |                                                                               |
 |   |----------------------------------|                                                                               |
 |   | Exclude branch: main             |                                                                               |
 |   | Exclude repo: VerifyTests/Verify |                                                                               |
 |   | Exclude org: VerifyTests         |                                                                               |
 |   +----------------------------------+                                                                               |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

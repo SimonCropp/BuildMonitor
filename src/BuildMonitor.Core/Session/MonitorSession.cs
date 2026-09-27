@@ -370,6 +370,8 @@ static class MonitorSession
             {
                 items.Add(new($"Stop grouping: {named}", CommandKind.RemoveGroupPrefix, named));
             }
+
+            AddOrgGrouping(items, state, target.Builds);
         }
         else if (target.Build is { } build)
         {
@@ -425,6 +427,7 @@ static class MonitorSession
 
             items.Add(new("Refresh", CommandKind.Refresh));
             AddGrouping(items, state, build.ShortRepoName());
+            AddOrgGrouping(items, state, target.Builds);
             if (build.Status == BuildStatus.Failed)
             {
                 foreach (var days in Deferrals.Days)
@@ -516,7 +519,8 @@ static class MonitorSession
                 CommandKind.ToggleGroup or
                 CommandKind.Refresh or
                 CommandKind.GroupByPrefix or
-                CommandKind.RemoveGroupPrefix => 2,
+                CommandKind.RemoveGroupPrefix or
+                CommandKind.ToggleGroupByOrg => 2,
             CommandKind.Defer => 3,
             CommandKind.ExcludePipeline or
                 CommandKind.ExcludeBranch or
@@ -1079,6 +1083,38 @@ static class MonitorSession
             items.Add(new($"Group by prefix: {prefix}", CommandKind.GroupByPrefix, prefix));
         }
     }
+
+    /// <summary>
+    /// "Group by org" or, once it is on, "Stop grouping by org", named with the row's owner and in
+    /// the word its service uses for one. Only on a row whose builds share an owner: on one with
+    /// none, such as an Azure DevOps pipeline, the setting would change nothing that row shows, and
+    /// the options page was the only place to find a setting that only shows its effect on rows.
+    /// </summary>
+    static void AddOrgGrouping(ImmutableArray<MenuItem>.Builder items, SessionState state, ImmutableArray<Build> builds)
+    {
+        if (SharedOrg(state, builds) is not { } org)
+        {
+            return;
+        }
+
+        if (state.Settings.GroupByOrg)
+        {
+            items.Add(new($"Stop grouping by {org.Noun}", CommandKind.ToggleGroupByOrg));
+            return;
+        }
+
+        items.Add(new($"Group by {org.Noun}: {org.Name}", CommandKind.ToggleGroupByOrg));
+    }
+
+    /// <summary>
+    /// The context menu's "Group by org" and "Stop grouping by org", which flip
+    /// <see cref="Settings.GroupByOrg"/> for every owner at once, as the options page's checkbox does.
+    /// </summary>
+    public static SessionState ToggleGroupByOrg(SessionState state) =>
+        ApplySettings(state, state.Settings with
+        {
+            GroupByOrg = !state.Settings.GroupByOrg
+        });
 
     /// <summary>
     /// Every project a row names, which the menu's prefixes are drawn from. Not narrowed by the

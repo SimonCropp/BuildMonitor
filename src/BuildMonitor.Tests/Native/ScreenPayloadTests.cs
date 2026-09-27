@@ -83,6 +83,7 @@ public class ScreenPayloadTests
             menu flags=0 'Copy build URL'
             menu flags=1 'Cancel build'
             menu flags=1 'Refresh'
+            menu flags=0 'Group by org: VerifyTests'
             menu flags=1 'Exclude action: test.yml'
             menu flags=0 'Exclude branch: main'
             menu flags=0 'Exclude repo: VerifyTests/DiffEngine'

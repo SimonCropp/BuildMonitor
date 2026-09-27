@@ -203,6 +203,33 @@ public class ApplyTests
         await Assert.That(RowProjection.Rows(state).Any(_ => _.Kind == RowKind.Build && _.Build!.RepoName == "VerifyTests/VerifyXunit")).IsTrue();
     }
 
+    /// <summary>
+    /// Group by org from a row's menu, saved, and offered back as "Stop grouping by org" on the
+    /// group it made.
+    /// </summary>
+    [Test]
+    public async Task GroupByOrgFromTheMenu()
+    {
+        var actions = new RecordingActions();
+        var builds = MonitorSession.ApplySettings(Fixtures.WithPrefixGroup(), Fixtures.Settings());
+        var row = Fixtures.RowOf(builds, _ => _.Build?.RepoName == "VerifyTests/VerifyXunit");
+        var state = Apply(builds, new(RightClickedRow: row), actions);
+        var index = state.Menu!.Items.ToList().FindIndex(_ => _.Command == CommandKind.ToggleGroupByOrg);
+        await Assert.That(state.Menu.Items[index].Label).IsEqualTo("Group by org: VerifyTests");
+
+        state = Apply(state, new(ClickedMenuItem: index), actions);
+        await Assert.That(state.Settings.GroupByOrg).IsTrue();
+        await Assert.That(actions.Calls).IsEquivalentTo(["SaveSettings"]);
+
+        var group = Fixtures.RowOf(state, _ => _.Kind == RowKind.Group && _.Group!.Project == "VerifyTests");
+        state = Apply(state, new(RightClickedRow: group), actions);
+        index = state.Menu!.Items.ToList().FindIndex(_ => _.Command == CommandKind.ToggleGroupByOrg);
+        await Assert.That(state.Menu.Items[index].Label).IsEqualTo("Stop grouping by org");
+
+        state = Apply(state, new(ClickedMenuItem: index), actions);
+        await Assert.That(state.Settings.GroupByOrg).IsFalse();
+    }
+
     [Test]
     public async Task CancelFromTheMenu()
     {
