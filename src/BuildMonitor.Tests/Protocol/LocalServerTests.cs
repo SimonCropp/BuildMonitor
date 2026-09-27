@@ -217,6 +217,34 @@ public class LocalServerTests
     }
 
     [Test]
+    public async Task CancelThenDisposeStopsListeningQuietly()
+    {
+        // The accept races the dispose, so one pass rarely hits the abort; many passes make it likely.
+        for (var i = 0; i < 50; i++)
+        {
+            await Assert.That(LocalServer.TryBind(0, out var server)).IsTrue();
+            using var cancel = new CancelSource();
+            var listening = server!.Listen(_ => Task.FromResult(Response.Success("")), cancel.Token);
+            await cancel.CancelAsync();
+            server.Dispose();
+            await listening;
+        }
+    }
+
+    [Test]
+    public async Task CancelAloneStopsListening()
+    {
+        await Assert.That(LocalServer.TryBind(0, out var server)).IsTrue();
+        using (server)
+        {
+            using var cancel = new CancelSource();
+            var listening = server!.Listen(_ => Task.FromResult(Response.Success("")), cancel.Token);
+            await cancel.CancelAsync();
+            await listening;
+        }
+    }
+
+    [Test]
     public async Task NothingListeningIsUnreachable()
     {
         await Assert.That(LocalServer.TryBind(0, out var server)).IsTrue();

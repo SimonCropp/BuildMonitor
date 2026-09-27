@@ -57,6 +57,11 @@ sealed class LocalServer : IDisposable
         catch (ObjectDisposedException)
         {
         }
+        // On Linux, disposing the listener while an accept is pending can abort the accept with
+        // a SocketException before the cancellation reaches it, so shutdown would throw.
+        catch (SocketException) when (cancel.IsCancellationRequested)
+        {
+        }
     }
 
     static async Task Serve(TcpClient client, Func<Message, Task<Response>> handle, Cancel cancel)
