@@ -26,6 +26,14 @@ interface IProvider
     /// </summary>
     Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel);
 
+    /// <summary>
+    /// The pipeline's recent successful runs on any branch, newest first, to seed the duration
+    /// history of a pipeline running with none recorded. Without them a new pipeline that mostly
+    /// fails drew no bar until the poller happened to see one of its runs pass. Empty for a service
+    /// with no call that filters runs by result.
+    /// </summary>
+    Task<IReadOnlyList<Build>> RecentSuccesses(ProviderContext context, Pipeline pipeline, Cancel cancel);
+
     Task Retry(ProviderContext context, Build build, Cancel cancel);
 
     Task Cancel(ProviderContext context, Build build, Cancel cancel);

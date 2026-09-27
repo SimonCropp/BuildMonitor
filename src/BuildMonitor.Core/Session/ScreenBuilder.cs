@@ -479,7 +479,7 @@ static class ScreenBuilder
             timing,
             selected,
             false,
-            RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build)),
+            RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build), now.ToUnixTimeSeconds()),
             RowTooltips.Of(state, build, row.Folded, descriptor.Name, now),
             author);
     }

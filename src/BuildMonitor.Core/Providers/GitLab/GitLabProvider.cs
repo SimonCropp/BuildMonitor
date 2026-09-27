@@ -319,6 +319,22 @@ sealed class GitLabProvider : ProviderBase
         }
 
         var finished = status is BuildStatus.Succeeded or BuildStatus.Failed or BuildStatus.Cancelled ? run.FinishedAt ?? run.UpdatedAt : null;
+        var queued = run.CreatedAt;
+        var started = run.StartedAt ?? run.CreatedAt;
+        // A pipeline going again after it finished, from a retry or a job played since, keeps its
+        // first run's created_at and started_at, and its finish: GitLab moves a finished pipeline
+        // straight back to running and sets started_at only once. Counted from those, a pipeline
+        // retried in the morning read as running since the night before, which past six hours the
+        // poller took for a stale run and stopped fetching often. Its updated_at is when it went
+        // back, that being its last change of status, which a job retried while it runs leaves alone.
+        if (status is BuildStatus.Queued or BuildStatus.Running &&
+            run.FinishedAt is not null &&
+            run.UpdatedAt is { } again)
+        {
+            queued = again;
+            started = again;
+        }
+
         return new(
             connectionId,
             pipeline.Id,
@@ -328,8 +344,8 @@ sealed class GitLabProvider : ProviderBase
             run.Iid.ToString(),
             status,
             run.Status,
-            run.CreatedAt,
-            run.StartedAt ?? run.CreatedAt,
+            queued,
+            started,
             finished,
             null,
             run.WebUrl,

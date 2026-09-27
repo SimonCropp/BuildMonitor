@@ -391,6 +391,17 @@ sealed class GitHubProvider : ProviderBase
         return null;
     }
 
+    public override async Task<IReadOnlyList<Build>> RecentSuccesses(ProviderContext context, Pipeline pipeline, Cancel cancel)
+    {
+        var workflowId = pipeline.Id[(pipeline.Id.LastIndexOf('/') + 1)..];
+        var runs = await GetOrNone(
+            context,
+            $"repos/{pipeline.RepoName}/actions/workflows/{workflowId}/runs?status=success&per_page=10",
+            GitHubContext.Default.GitHubRuns,
+            cancel);
+        return runs?.WorkflowRuns.Select(_ => Convert(context.Connection.Id, pipeline.RepoName, pipeline, _, false)).ToList() ?? [];
+    }
+
     static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRun run, bool change)
     {
         var status = run.Status switch
@@ -431,6 +442,11 @@ sealed class GitHubProvider : ProviderBase
             branch = PullRequestBranches.Head(head, PullRequestBranches.ForkOwner(headRepository?.FullName, repository));
         }
 
+        // When this attempt was raised. created_at is the first attempt's and a re-run keeps it, so a
+        // run retried in the morning read "queued 10h", counted from its first run the night before.
+        // run_started_at is reset by each attempt and is created_at on the first. The run gives no
+        // time a runner picked it up, so the attempt is its start as well.
+        var attempt = run.RunStartedAt ?? run.CreatedAt;
         return new(
             connectionId,
             pipeline.Id,
@@ -440,8 +456,8 @@ sealed class GitHubProvider : ProviderBase
             run.RunNumber.ToString(),
             status,
             run.Status == "completed" ? run.Conclusion : run.Status,
-            run.CreatedAt,
-            run.RunStartedAt ?? run.CreatedAt,
+            attempt,
+            attempt,
             run.Status == "completed" ? run.UpdatedAt : null,
             null,
             run.HtmlUrl,

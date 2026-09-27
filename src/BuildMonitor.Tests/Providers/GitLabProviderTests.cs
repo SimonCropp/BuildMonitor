@@ -121,6 +121,50 @@ public class GitLabProviderTests
         await Assert.That(handler.Requests.Count(_ => _.Contains("/pipelines?per_page=5"))).IsEqualTo(1);
     }
 
+    static DateTimeOffset retried = new(2026, 1, 1, 11, 30, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// A pipeline going again after it finished keeps its first run's created_at and started_at, so
+    /// counted from those, one retried in the morning read as running since the night before.
+    /// </summary>
+    [Test]
+    [Arguments("RUNNING")]
+    [Arguments("WAITING_FOR_RESOURCE")]
+    public async Task APipelineRetriedAfterItFinishedCountsFromTheRetry(string status)
+    {
+        var handler = Handler()
+            .Get(
+                graph,
+                """
+                {"data":{"projects":{"nodes":[{"id":"gid://gitlab/Project/77","pipelines":{"nodes":[
+                  {"id":"gid://gitlab/Ci::Pipeline/5002","iid":"121","status":"STATUS","ref":"main","sha":"abc123","createdAt":"2026-01-01T01:00:00Z","updatedAt":"2026-01-01T11:30:00Z","startedAt":"2026-01-01T01:00:20Z","finishedAt":"2026-01-01T01:08:00Z","user":{"name":"Simon"}}
+                ]}}]}}}
+                """.Replace("STATUS", status));
+        var build = (await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler))).Single();
+        await Assert.That(build.Queued).IsEqualTo(retried);
+        await Assert.That(build.Started).IsEqualTo(retried);
+    }
+
+    /// <summary>
+    /// Over REST the finish that gives a retried pipeline away is only on its detail, which a live
+    /// pipeline is asked for anyway.
+    /// </summary>
+    [Test]
+    public async Task APipelineRetriedAfterItFinishedCountsFromTheRetryOverRest()
+    {
+        var handler = Handler()
+            .Get(graph, """{"errors":[{"message":"Field 'startedAt' doesn't exist on type 'Pipeline'"}]}""")
+            .Get(
+                "https://gitlab.com/api/v4/projects/77/pipelines?per_page=5",
+                """[{"id":5002,"iid":121,"project_id":77,"status":"running","source":"push","ref":"main","sha":"abc123","web_url":"https://gitlab.com/verify/diffengine/-/pipelines/5002","created_at":"2026-01-01T01:00:00Z","updated_at":"2026-01-01T11:30:00Z","name":"Fix"}]""")
+            .Get(
+                "https://gitlab.com/api/v4/projects/77/pipelines/5002",
+                """{"id":5002,"iid":121,"status":"running","ref":"main","sha":"abc123","web_url":"https://gitlab.com/verify/diffengine/-/pipelines/5002","created_at":"2026-01-01T01:00:00Z","updated_at":"2026-01-01T11:30:00Z","started_at":"2026-01-01T01:00:20Z","finished_at":"2026-01-01T01:08:00Z","duration":480}""");
+        var build = (await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler))).Single();
+        await Assert.That(build.Queued).IsEqualTo(retried);
+        await Assert.That(build.Started).IsEqualTo(retried);
+    }
+
     [Test]
     public async Task AProjectLeftOutOfTheGraphQLAnswerIsFetchedOverRest()
     {

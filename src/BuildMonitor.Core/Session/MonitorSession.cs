@@ -1321,9 +1321,16 @@ static class MonitorSession
             return state;
         }
 
+        // The project as well as the pipeline: most repositories name theirs "Build" or "CI", so
+        // the filters page listed several "Build failure on main" with nothing to tell them apart.
+        var project = build.ShortRepoName();
+        var pipeline = project.Length == 0 ||
+                       string.Equals(project, build.PipelineName, StringComparison.OrdinalIgnoreCase)
+            ? build.PipelineName
+            : $"{project} {build.PipelineName}";
         var name = build.Branch is null
-            ? $"{build.PipelineName} failure"
-            : $"{build.PipelineName} failure on {build.ShortBranchName()}";
+            ? $"{pipeline} failure"
+            : $"{pipeline} failure on {build.ShortBranchName()}";
         var deferral = new Deferral(build.Key, name, now.AddDays(days));
         var deferred = Follow(
             state,
@@ -1888,6 +1895,11 @@ static class MonitorSession
     /// <summary>
     /// The row's chip turns busy and the footer says what is being collected, until
     /// <see cref="Triaged"/> or <see cref="TriageFailed"/> ends it.
+    /// <para>
+    /// The clipboard is emptied at the click. Collecting takes seconds, and someone who takes the
+    /// click as the copy pastes straight away; with the clipboard left alone that pastes whatever
+    /// was copied before, into an agent that then works on it as if it were the failure.
+    /// </para>
     /// </summary>
     public static SessionState StartTriage(SessionState state, Build build)
     {
@@ -1898,7 +1910,8 @@ static class MonitorSession
 
         return state with
         {
-            Triaging = state.Triaging.Add(build)
+            Triaging = state.Triaging.Add(build),
+            Clipboard = new("")
         };
     }
 

@@ -13,14 +13,25 @@ static class RowChips
     /// below and not here draws an empty button, which is what happened when Cancel stopped being
     /// a word.
     /// </summary>
-    public static readonly string[] Icons = ["pull-request", "retry", "cancel", "log", "folder", "triage", "busy", "run-next"];
+    public static readonly string[] Icons = ["pull-request", "retry", "cancel", "log", "folder", "triage", ..Enumerable.Range(0, BusyFrames).Select(_ => $"busy-{_}"), "run-next"];
+
+    /// <summary>
+    /// The pictures of a triage chip still collecting: a clock whose hand steps round once a second.
+    /// A still hourglass was taken for a copy already made, and pasted before the prompt was there.
+    /// </summary>
+    public const int BusyFrames = 12;
 
     /// <summary>
     /// In <see cref="ChipKind"/> order, which is the order a head draws them in.
     /// </summary>
     /// <param name="triaging">Whether a triage of this run is still collecting, as
     /// <see cref="MonitorSession.IsTriaging"/> says.</param>
-    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging)
+    /// <param name="tick">The clock in whole seconds, which picks the busy chip's frame. The clock
+    /// rather than the time since the click: <see cref="ScreenCache"/> rebuilds on the clock's whole
+    /// seconds, so a frame taken from the same second steps exactly once a rebuild, where one counted
+    /// from the click skipped or repeated a frame whenever a rebuild landed either side of a second.
+    /// The drop down leaves it out, since it draws only the labels.</param>
+    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging, long tick = 0)
     {
         List<RowChip> chips = [];
         // The number is the one thing about a pull request worth a row's width: which one it is.
@@ -69,11 +80,13 @@ static class RowChips
             directory is not null)
         {
             // The same kind while it collects, so it stays in its place on the row, but a
-            // different picture: the prompt is only copied at the end, and a chip that looked the
-            // same throughout had people pasting whatever they had copied before clicking it. A
-            // click on it does nothing, which the applier decides, not this.
+            // different picture, and one that moves: the prompt is only copied at the end, and a
+            // chip that looked the same throughout had people pasting whatever they had copied
+            // before clicking it. A picture rather than a count of seconds, which would widen the
+            // chip past the column sized for it and send it into the drop down. A click on it does
+            // nothing, which the applier decides, not this.
             chips.Add(triaging
-                ? new(ChipKind.Triage, "Triaging", "Collecting artifacts and log. A notification says when the prompt is on the clipboard.", "busy")
+                ? new(ChipKind.Triage, "Triaging", "Collecting artifacts and log. A notification says when the prompt is on the clipboard.", $"busy-{tick % BusyFrames}")
                 : new(ChipKind.Triage, "Triage", $"Download artifacts and log, and copy a prompt\n{directory}", "triage"));
         }
 

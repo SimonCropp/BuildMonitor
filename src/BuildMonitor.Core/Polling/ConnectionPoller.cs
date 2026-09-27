@@ -16,6 +16,8 @@ sealed class ConnectionPoller
     Channel<bool> wake = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
     CancelSource stop = new();
     HashSet<string> recorded = [];
+    // The pipelines already asked for their recent passes, by pipeline key.
+    HashSet<string> seeded = [];
     ETagCache etags = new();
     ProviderMemory providerMemory = new();
     IdentityNames identities;
@@ -481,6 +483,7 @@ sealed class ConnectionPoller
         }
 
         RecordDurations(builds);
+        await SeedDurations(provider, quiet, builds, cancel);
         failures = 0;
         var (health, error, retryAfter) = await Health(connection, groups, rateLimit, unauthorized, attempted, forbidden, fetched.Count, cancel);
         var outcome = new FetchOutcome(pipelines, fetched.ToImmutable(), firstFetch.ToImmutable(), [..builds], health, error, retryAfter, access);
@@ -1115,6 +1118,41 @@ sealed class ConnectionPoller
             if (AddRecorded(lookup, build))
             {
                 history.Record(build.PipelineKey, build.Finished.Value - build.Started.Value);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Asks the service for the recent passes of each running pipeline with no recorded duration,
+    /// once a session per pipeline. The history only learns from passes the poller sees finish, so
+    /// a new pipeline that had not yet passed while watched ran with no bar. Asked once whatever the
+    /// answer: a pipeline that has never passed would otherwise cost a request every poll.
+    /// </summary>
+    async Task SeedDurations(IProvider provider, ProviderContext context, List<Build> builds, Cancel cancel)
+    {
+        var keys = builds
+            .Where(_ => _.Status == BuildStatus.Running)
+            .Select(_ => _.PipelineKey)
+            .Distinct()
+            .Where(_ => history.Median(_) is null && seeded.Add(_))
+            .ToList();
+        foreach (var key in keys)
+        {
+            var pipeline = discoveredPipelines.FirstOrDefault(_ => $"{connectionId}/{_.Id}" == key);
+            if (pipeline is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                var successes = await provider.RecentSuccesses(context, pipeline, cancel);
+                // Oldest first, as the history keeps the last it was given.
+                RecordDurations(successes.Reverse().ToList());
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                Log.Warning(exception, "Seeding the durations of {Pipeline} failed", key);
             }
         }
     }

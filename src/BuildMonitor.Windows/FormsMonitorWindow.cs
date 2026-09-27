@@ -86,6 +86,13 @@ sealed class FormsMonitorWindow : IMonitorWindow
         {
             // SetText and not SetDataObject: the toolkit's own ten attempts over a second are most
             // of what a clipboard another process has open needs, and ClipboardPump has the rest.
+            // SetText refuses empty text, and empty is how a triage clears the clipboard.
+            if (text.Length == 0)
+            {
+                Clipboard.Clear();
+                return true;
+            }
+
             Clipboard.SetText(text);
             return true;
         }

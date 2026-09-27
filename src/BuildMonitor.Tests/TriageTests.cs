@@ -10,7 +10,7 @@ public class TriageTests
     {
         var state = Fixtures.Triaging();
         var chip = Chip(state);
-        await Assert.That(chip.Icon).IsEqualTo("busy");
+        await Assert.That(chip.Icon).IsEqualTo("busy-0");
         await Assert.That(chip.Label).IsEqualTo("Triaging");
         // The same kind, so it keeps its place on the row and a click on it still reaches the
         // applier, which is what turns the click down.
@@ -110,14 +110,41 @@ public class TriageTests
         var failed = MonitorSession.TriageFailed(state, build, status);
         await Assert.That(failed.Triaging).IsEmpty();
         await Assert.That(failed.Status).IsEqualTo(status);
-        await Assert.That(failed.Clipboard).IsNull();
+        await Assert.That(failed.Clipboard).IsSameReferenceAs(state.Clipboard);
         await Assert.That(failed.Notification).IsEqualTo(new("Triage failed", status, build.Key));
     }
 
-    static RowChip Chip(SessionState state)
+    [Test]
+    public async Task StartingATriageClearsTheClipboard()
+    {
+        var state = Fixtures.Triaging();
+        await Assert.That(state.Clipboard!.Text).IsEmpty();
+        await Assert.That(state.Clipboard.Copied).IsNull();
+    }
+
+    /// <summary>
+    /// A still picture was taken for a copy already made, so the hand steps with each rebuild the
+    /// clock makes, and goes round again after the last frame. Fixtures.Now is on a whole twelve
+    /// seconds, so it starts at the top.
+    /// </summary>
+    [Test]
+    [Arguments(0, "busy-0")]
+    [Arguments(1, "busy-1")]
+    [Arguments(11, "busy-11")]
+    [Arguments(12, "busy-0")]
+    public async Task TheBusyChipsHandStepsWithTheClock(int seconds, string icon)
+    {
+        var chip = Chip(Fixtures.Triaging(), Fixtures.Now.AddSeconds(seconds));
+        await Assert.That(chip.Icon).IsEqualTo(icon);
+    }
+
+    static RowChip Chip(SessionState state) =>
+        Chip(state, Fixtures.Now);
+
+    static RowChip Chip(SessionState state, DateTimeOffset now)
     {
         var row = Fixtures.RowOf(state, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
-        return ScreenBuilder.Build(state, Fixtures.Now)
+        return ScreenBuilder.Build(state, now)
             .Builds!
             .Rows[row]
             .Chips
