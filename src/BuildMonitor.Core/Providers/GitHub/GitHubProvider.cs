@@ -288,9 +288,7 @@ sealed class GitHubProvider : ProviderBase
                         continue;
                     }
 
-                    // A run whose every job was skipped by an `if` did nothing, and showing it as the
-                    // pipeline's latest hides the last run that actually built something.
-                    if (run.Conclusion == "skipped")
+                    if (IsIgnoredSkip(run))
                     {
                         continue;
                     }
@@ -366,7 +364,7 @@ sealed class GitHubProvider : ProviderBase
             cancel);
         foreach (var run in runs?.WorkflowRuns ?? [])
         {
-            if (run.Conclusion == "skipped")
+            if (IsIgnoredSkip(run))
             {
                 continue;
             }
@@ -390,6 +388,18 @@ sealed class GitHubProvider : ProviderBase
         DefaultRunMemory.None(memory, pipeline.Id, branch, now);
         return null;
     }
+
+    /// <summary>
+    /// A run whose every job was skipped by an `if` did nothing, and showing it as the pipeline's
+    /// latest would hide the last run that actually built something: a push skipped for touching
+    /// only docs says nothing about main. Not so a run triggered by workflow_run, which is about
+    /// the run that triggered it, a Dependabot pull request's say, not about its branch. Left out,
+    /// a failure merging one pull request held the row red for good after that pull request was
+    /// closed, with every run since skipped for being about something else.
+    /// </summary>
+    static bool IsIgnoredSkip(GitHubRun run) =>
+        run.Conclusion == "skipped" &&
+        run.Event != "workflow_run";
 
     public override async Task<IReadOnlyList<Build>> RecentSuccesses(ProviderContext context, Pipeline pipeline, Cancel cancel)
     {

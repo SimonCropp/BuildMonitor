@@ -5,6 +5,8 @@
     public long RunNumber { get; set; }
     public string Status { get; set; } = "";
     public string? Conclusion { get; set; }
+    // What triggered the run: push, pull_request, schedule, workflow_run and so on.
+    public string? Event { get; set; }
     public string? HeadBranch { get; set; }
     public string? HeadSha { get; set; }
     public string? DisplayTitle { get; set; }
