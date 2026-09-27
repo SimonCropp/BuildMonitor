@@ -57,10 +57,6 @@ static class Program
         ("cancel", Lucide.X),
         ("log", Lucide.ScrollText),
         ("triage", Lucide.Stethoscope),
-        // What the triage chip carries while its download is still going. The prompt only reaches
-        // the clipboard at the end, so a chip that looked the same throughout had people pasting
-        // whatever they copied before the click.
-        ("busy", Lucide.Hourglass),
         // An arrow into a bar: the queue's front is a place a build is moved to, which a plain up
         // arrow reads as one step up rather than all the way.
         ("run-next", Lucide.ArrowUpToLine),
@@ -69,6 +65,38 @@ static class Program
         // split anywhere.
         ("branch", Lucide.GitBranch)
     ];
+
+    /// <summary>
+    /// What the triage chip carries while its download is still going: a clock whose hand steps
+    /// round a frame a second, as RowChips picks them from the clock. The prompt only reaches the
+    /// clipboard at the end, and a still grey hourglass read as a copy already made, so people
+    /// pasted whatever they had copied before the click. White hands on a red disc, as the tray
+    /// draws its marks, so the chip reads as a red button rather than a small drawing on a grey
+    /// pill.
+    /// </summary>
+    static (string Name, Icon Icon)[] busy =
+    [
+        ("busy-0", Lucide.Clock12),
+        ("busy-1", Lucide.Clock1),
+        ("busy-2", Lucide.Clock2),
+        ("busy-3", Lucide.Clock3),
+        ("busy-4", Lucide.Clock4),
+        ("busy-5", Lucide.Clock5),
+        ("busy-6", Lucide.Clock6),
+        ("busy-7", Lucide.Clock7),
+        ("busy-8", Lucide.Clock8),
+        ("busy-9", Lucide.Clock9),
+        ("busy-10", Lucide.Clock10),
+        ("busy-11", Lucide.Clock11)
+    ];
+
+    /// <summary>
+    /// The square the busy frames' hands turn in: the minute hand's length either side of the
+    /// clock's centre. Each frame is sized and centred by this rather than by what it paints, as
+    /// a tray mark is: the hands paint a different shape every frame, so centred on that the
+    /// pivot would move from one second to the next.
+    /// </summary>
+    static SKRect dial = new(6, 6, 18, 18);
 
     static SKColor glyphColour = new(0x8A, 0x8A, 0x8A);
 
@@ -177,6 +205,17 @@ static class Program
             foreach (var size in glyphSizes)
             {
                 using var bitmap = Glyph(icon, glyphColour, size);
+                File.WriteAllBytes(Path.Combine(images, $"glyph-{name}-{size}.png"), Png(bitmap));
+            }
+        }
+
+        foreach (var (name, icon) in busy)
+        {
+            // The clock's own face is the disc, as a tray mark's circle would be.
+            using var hands = Load(Heavier(WithoutCircle(icon.Svg)), SKColors.White, name);
+            foreach (var size in glyphSizes)
+            {
+                using var bitmap = Disc(hands.Picture!, dial, failedColour, size);
                 File.WriteAllBytes(Path.Combine(images, $"glyph-{name}-{size}.png"), Png(bitmap));
             }
         }
