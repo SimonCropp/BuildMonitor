@@ -11,6 +11,19 @@ public class GroupKeyTests
         await Assert.That(new GroupKey(project).Id).IsEqualTo(project.ToLowerInvariant());
 
     [Test]
+    public async Task TheIdIgnoresSpaces() =>
+        await Assert.That(new GroupKey("Order Entry Service").Id).IsEqualTo(new GroupKey("OrderEntryService").Id);
+
+    [Test]
+    [Arguments(new[] { "OrderEntryService", "Order Entry Service" }, "Order Entry Service")]
+    [Arguments(new[] { "Order Entry Service", "OrderEntryService" }, "Order Entry Service")]
+    // Equally long, so the first alphabetically, whichever came first.
+    [Arguments(new[] { "OrderEntry Service", "Order EntryService" }, "Order EntryService")]
+    [Arguments(new[] { "Order EntryService", "OrderEntry Service" }, "Order EntryService")]
+    public async Task AGroupIsNamedByItsLongestThenFirstKey(string[] projects, string expected) =>
+        await Assert.That(GroupKey.Name(projects.Select(_ => new GroupKey(_))).Project).IsEqualTo(expected);
+
+    [Test]
     public async Task AProjectTooLongForTheStackIsLowerCasedToo()
     {
         var project = new string('A', 300);

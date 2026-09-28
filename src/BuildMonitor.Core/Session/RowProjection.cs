@@ -96,7 +96,7 @@ static class RowProjection
                 continue;
             }
 
-            var key = GroupKey.Of(build, prefixes, byOrg)!;
+            var key = GroupKey.Name(members.Select(_ => GroupKey.Of(_, prefixes, byOrg)!));
             var expanded = IsExpanded(state, key);
             rows.Add(new(RowKind.Group, null, null, key, expanded, members, []));
             if (!expanded)

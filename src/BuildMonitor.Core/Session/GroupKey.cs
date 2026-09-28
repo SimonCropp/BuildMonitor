@@ -146,10 +146,36 @@ record GroupKey(string Project)
         return found;
     }
 
+    /// <summary>
+    /// Lower case and without spaces, so "Order Entry Service" on one service and
+    /// OrderEntryService on another, one project named two ways, read as one group rather than two.
+    /// </summary>
     static string IdOf(CharSpan project)
     {
         var lower = project.Length <= 256 ? stackalloc char[project.Length] : new char[project.Length];
-        project.ToLowerInvariant(lower);
-        return new(lower);
+        var length = 0;
+        foreach (var character in project)
+        {
+            if (character == ' ')
+            {
+                continue;
+            }
+
+            lower[length] = char.ToLowerInvariant(character);
+            length++;
+        }
+
+        return new(lower[..length]);
     }
+
+    /// <summary>
+    /// The key a group's row is named by, of the keys its members would each make. The longest,
+    /// since members that differ only by spaces are one project and the spaced name reads better
+    /// than the run together one; then the first alphabetically, so which name a group shows does not
+    /// depend on which of its members built most recently.
+    /// </summary>
+    public static GroupKey Name(IEnumerable<GroupKey> keys) =>
+        keys.OrderByDescending(_ => _.Project.Length)
+            .ThenBy(_ => _.Project, StringComparer.Ordinal)
+            .First();
 }
