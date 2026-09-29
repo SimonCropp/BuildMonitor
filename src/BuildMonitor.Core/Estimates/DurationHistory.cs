@@ -8,6 +8,11 @@ sealed class DurationHistory
     const int keep = 10;
     Lock gate = new();
     Dictionary<string, List<double>> seconds;
+    // What Medians and Ranges last made, until a run is recorded. A connection's loop reads the
+    // ranges twice a cycle and the medians with every fetch it applies, and made each again from
+    // every pipeline's runs, though a run is only recorded when a build is first seen to pass.
+    ImmutableDictionary<string, TimeSpan>? medians;
+    ImmutableDictionary<string, DurationRange>? ranges;
 
     public DurationHistory() :
         this(new())
@@ -37,6 +42,9 @@ sealed class DurationHistory
             {
                 list.RemoveRange(0, list.Count - keep);
             }
+
+            medians = null;
+            ranges = null;
         }
     }
 
@@ -57,6 +65,11 @@ sealed class DurationHistory
     {
         lock (gate)
         {
+            if (medians is not null)
+            {
+                return medians;
+            }
+
             var builder = ImmutableDictionary.CreateBuilder<string, TimeSpan>();
             foreach (var (key, list) in seconds)
             {
@@ -66,7 +79,8 @@ sealed class DurationHistory
                 }
             }
 
-            return builder.ToImmutable();
+            medians = builder.ToImmutable();
+            return medians;
         }
     }
 
@@ -78,6 +92,11 @@ sealed class DurationHistory
     {
         lock (gate)
         {
+            if (ranges is not null)
+            {
+                return ranges;
+            }
+
             var builder = ImmutableDictionary.CreateBuilder<string, DurationRange>();
             foreach (var (key, list) in seconds)
             {
@@ -89,7 +108,8 @@ sealed class DurationHistory
                 }
             }
 
-            return builder.ToImmutable();
+            ranges = builder.ToImmutable();
+            return ranges;
         }
     }
 

@@ -246,10 +246,25 @@ static class PollSchedule
     public static (ScheduleReason Reason, TimeSpan Interval) PipelineInterval(ScheduleInput input, IEnumerable<Build> builds)
     {
         var now = input.Now;
-        var list = builds.ToList();
         (ScheduleReason Reason, TimeSpan Interval)? active = null;
-        foreach (var build in list)
+        // In the one pass, rather than from a list of the pipeline's builds made to walk three
+        // times: a plan is made twice a cycle, of every pipeline the connection has.
+        Build? latest = null;
+        DateTimeOffset? last = null;
+        foreach (var build in builds)
         {
+            if (latest is null ||
+                (build.Ordering ?? DateTimeOffset.MinValue) > (latest.Ordering ?? DateTimeOffset.MinValue))
+            {
+                latest = build;
+            }
+
+            if (Activity(build) is { } activity &&
+                (last is null || activity > last))
+            {
+                last = activity;
+            }
+
             if (!build.IsActive ||
                 now - (build.Started ?? build.Queued ?? now) > staleActive)
             {
@@ -273,8 +288,6 @@ static class PollSchedule
         }
 
         var cap = IdleCap(input);
-        var latest = list.MaxBy(_ => _.Ordering ?? DateTimeOffset.MinValue);
-        var last = list.Select(Activity).Max();
         if (latest is null ||
             last is null)
         {
@@ -356,21 +369,24 @@ static class PollSchedule
     static DateTimeOffset? WindowOpens(ScheduleInput input, PollGroup group, ILookup<string, Build> byPipeline)
     {
         DateTimeOffset? soonest = null;
-        foreach (var build in group.Pipelines.SelectMany(_ => byPipeline[_.Id]))
+        foreach (var pipeline in group.Pipelines)
         {
-            if (build.Status != BuildStatus.Running ||
-                build.Started is not { } started ||
-                build.Estimate?.Remaining is not null ||
-                input.Now - started > staleActive ||
-                Estimator.Window(build, input.Durations) is not { } window)
+            foreach (var build in byPipeline[pipeline.Id])
             {
-                continue;
-            }
+                if (build.Status != BuildStatus.Running ||
+                    build.Started is not { } started ||
+                    build.Estimate?.Remaining is not null ||
+                    input.Now - started > staleActive ||
+                    Estimator.Window(build, input.Durations) is not { } window)
+                {
+                    continue;
+                }
 
-            var opens = started + window.Fastest;
-            if (opens > input.Now)
-            {
-                soonest = Earliest(soonest, opens);
+                var opens = started + window.Fastest;
+                if (opens > input.Now)
+                {
+                    soonest = Earliest(soonest, opens);
+                }
             }
         }
 
@@ -379,14 +395,17 @@ static class PollSchedule
 
     static DateTimeOffset? Activity(Build build)
     {
-        DateTimeOffset? latest = null;
-        foreach (var at in new[] { build.Queued, build.Started, build.Finished })
+        var latest = build.Queued;
+        if (build.Started is { } started &&
+            (latest is null || started > latest))
         {
-            if (at is { } value &&
-                (latest is null || value > latest))
-            {
-                latest = value;
-            }
+            latest = started;
+        }
+
+        if (build.Finished is { } finished &&
+            (latest is null || finished > latest))
+        {
+            latest = finished;
         }
 
         return latest;
@@ -425,17 +444,23 @@ static class PollSchedule
     /// <summary>
     /// Up to a tenth either side of the interval, fixed per group. Three hundred groups discovered
     /// together would otherwise fall due in the same second, every time. string.GetHashCode is
-    /// randomised per process, so the hash is FNV-1a.
+    /// randomised per process, so the hash is FNV-1a, of the connection, a slash and the key, taken
+    /// a part at a time rather than from a string of the three made for every group of every plan.
     /// </summary>
     public static double Spread(string connectionId, string key)
     {
-        var hash = 2166136261u;
-        foreach (var character in $"{connectionId}/{key}")
+        var hash = Hash(Hash(Hash(2166136261u, connectionId), "/"), key);
+        return hash % 20001 / 100000d - 0.1;
+    }
+
+    static uint Hash(uint hash, string text)
+    {
+        foreach (var character in text)
         {
             hash = unchecked((hash ^ character) * 16777619u);
         }
 
-        return hash % 20001 / 100000d - 0.1;
+        return hash;
     }
 
     /// <summary>
