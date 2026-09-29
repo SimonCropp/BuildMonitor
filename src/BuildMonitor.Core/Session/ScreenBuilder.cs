@@ -1356,5 +1356,4 @@ static class ScreenBuilder
 
         return $"{count} {noun}s";
     }
-
 }
