@@ -18,5 +18,5 @@
         (Actions ?? [])
         .SelectMany(_ => _.Parameters ?? [])
         .FirstOrDefault(_ => string.Equals(_.Name, name, StringComparison.OrdinalIgnoreCase))
-        ?.Text();
+        ?.Value;
 }

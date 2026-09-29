@@ -434,29 +434,7 @@ sealed class OctopusProvider : ProviderBase
             return null;
         }
 
-        try
-        {
-            using var document = JsonDocument.Parse(notes);
-            if (document.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-
-            foreach (var property in document.RootElement.EnumerateObject())
-            {
-                if (string.Equals(property.Name, requestedForId, StringComparison.OrdinalIgnoreCase) &&
-                    property.Value.ValueKind == JsonValueKind.String)
-                {
-                    return property.Value.GetString();
-                }
-            }
-
-            return null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return JsonStrings.Find(notes, requestedForId, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

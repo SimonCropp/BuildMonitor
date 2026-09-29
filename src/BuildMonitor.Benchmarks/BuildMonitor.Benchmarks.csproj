@@ -16,6 +16,9 @@
     <Using Include="BenchmarkDotNet.Attributes" />
     <Using Include="System.Collections.Immutable" />
     <Using Include="System.Drawing" />
+    <Using Include="System.Globalization" />
+    <Using Include="System.Text" />
+    <Using Include="System.Text.Json" />
     <Using Include="System.Windows.Forms" />
     <PackageReference Include="BenchmarkDotNet" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />

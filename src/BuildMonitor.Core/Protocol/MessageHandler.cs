@@ -25,9 +25,9 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 host.Mutate(MonitorSession.Quit);
                 return Response.Success();
             case Verb.List:
-                return Response.Success(JsonSerializer.Serialize(Snapshot.Builds(state, now), context.ListBuildDto));
+                return Response.Success(Snapshot.Builds(state, now), context.ListBuildDto);
             case Verb.Deferred:
-                return Response.Success(JsonSerializer.Serialize(Snapshot.Deferred(state, now), context.ListBuildDto));
+                return Response.Success(Snapshot.Deferred(state, now), context.ListBuildDto);
             case Verb.Get:
             {
                 if (message.Key is null ||
@@ -36,7 +36,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                     return Response.Error($"No build with key {message.Key}");
                 }
 
-                return Response.Success(JsonSerializer.Serialize(build, context.BuildDto));
+                return Response.Success(build, context.BuildDto);
             }
             case Verb.Runs:
             {
@@ -46,10 +46,10 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                     return Response.Error($"No pipeline with key {message.Key}");
                 }
 
-                return Response.Success(JsonSerializer.Serialize(runs, context.ListBuildDto));
+                return Response.Success(runs, context.ListBuildDto);
             }
             case Verb.Pipelines:
-                return Response.Success(JsonSerializer.Serialize(Snapshot.Pipelines(state), context.ListPipelineDto));
+                return Response.Success(Snapshot.Pipelines(state), context.ListPipelineDto);
             case Verb.Refresh:
                 // Refused rather than answered as though a poll had started: a mistyped id would
                 // otherwise leave whoever asked waiting on a refresh that never happens.
@@ -109,9 +109,9 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 return Response.Success("Cancelled");
             }
             case Verb.Connections:
-                return Response.Success(JsonSerializer.Serialize(Snapshot.Connections(state), context.ListConnectionDto));
+                return Response.Success(Snapshot.Connections(state), context.ListConnectionDto);
             case Verb.Summary:
-                return Response.Success(JsonSerializer.Serialize(Snapshot.Summary(state, now), context.SummaryDto));
+                return Response.Success(Snapshot.Summary(state, now), context.SummaryDto);
             case Verb.Open:
             {
                 var build = Resolve(state, message.Key);
@@ -168,7 +168,7 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 // build nobody has cloned, and the prompt already handles a build with no directory.
                 artifacts.Sweep();
                 var files = await ArtifactCollector.Collect(artifacts, poller, build, Cancel.None);
-                return Response.Success(JsonSerializer.Serialize(files, context.TriageFilesDto));
+                return Response.Success(files, context.TriageFilesDto);
             }
             default:
                 return Response.Error($"Unknown verb {message.Verb}");

@@ -108,7 +108,8 @@ static class LargeAccount
             $"author{workflow % 40}",
             status != BuildStatus.Running,
             status == BuildStatus.Running,
-            $"{workflow}/{run}");
+            $"{workflow}/{run}",
+            $"https://github.com/{repository}/actions/workflows/workflow{workflow}.yml");
     }
 
     static BuildStatus Status(int workflow, int run)

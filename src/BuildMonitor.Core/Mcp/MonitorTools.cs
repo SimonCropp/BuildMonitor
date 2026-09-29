@@ -138,7 +138,7 @@ sealed class MonitorTools(IProtocolClient client)
             throw new InvalidOperationException(response.Body);
         }
 
-        var read = JsonSerializer.Deserialize(response.Body, info);
+        var read = response.Read(info);
         if (read == null)
         {
             throw new InvalidOperationException("Empty response");

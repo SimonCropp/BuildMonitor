@@ -10,7 +10,10 @@ static class ProtocolLines
     /// sized up front rather than one that grows, and copies, as it fills.
     /// </summary>
     public static int FieldLength(ReadOnlySpan<byte> name, string value) =>
-        name.Length + 2 + Base64.GetMaxEncodedToUtf8Length(Encoding.UTF8.GetByteCount(value)) + 1;
+        FieldLength(name, Encoding.UTF8.GetByteCount(value));
+
+    public static int FieldLength(ReadOnlySpan<byte> name, int valueBytes) =>
+        name.Length + 2 + Base64.GetMaxEncodedToUtf8Length(valueBytes) + 1;
 
     /// <summary>
     /// The value's UTF-8 lands where its base64 is to go and is encoded in place, so no array of
@@ -22,10 +25,25 @@ static class ProtocolLines
         position += Write(destination[position..], ": "u8);
         var target = destination[position..];
         var count = Encoding.UTF8.GetBytes(value, target);
+        return position + EndField(target, count);
+    }
+
+    /// <summary>
+    /// The same for a value that is UTF-8 already, as JSON the serializer wrote is.
+    /// </summary>
+    public static int WriteField(Span<byte> destination, ReadOnlySpan<byte> name, ReadOnlySpan<byte> value)
+    {
+        var position = Write(destination, name);
+        position += Write(destination[position..], ": "u8);
+        var target = destination[position..];
+        value.CopyTo(target);
+        return position + EndField(target, value.Length);
+    }
+
+    static int EndField(Span<byte> target, int count)
+    {
         Base64.EncodeToUtf8InPlace(target, count, out var written);
-        position += written;
-        position += Write(destination[position..], "\n"u8);
-        return position;
+        return written + Write(target[written..], "\n"u8);
     }
 
     public static int Write(Span<byte> destination, ReadOnlySpan<byte> text)
@@ -96,5 +114,21 @@ static class ProtocolLines
         {
             ArrayPool<byte>.Shared.Return(buffer);
         }
+    }
+
+    /// <summary>
+    /// The value's bytes rather than a string of them, for a body that is parsed as JSON: a string
+    /// would be decoded from UTF-8 only for the serializer to encode it back. Empty where the value
+    /// is not base64, as <see cref="Decode"/> is.
+    /// </summary>
+    public static ReadOnlyMemory<byte> DecodeBytes(ReadOnlySpan<byte> value)
+    {
+        var bytes = new byte[Base64.GetMaxDecodedFromUtf8Length(value.Length)];
+        if (Base64.DecodeFromUtf8(value, bytes, out _, out var written) != OperationStatus.Done)
+        {
+            return ReadOnlyMemory<byte>.Empty;
+        }
+
+        return bytes.AsMemory(0, written);
     }
 }

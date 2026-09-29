@@ -27,6 +27,25 @@ public class ProtocolTests
         await Assert.That(parsed).IsEqualTo(response);
     }
 
+    /// <summary>
+    /// JSON goes out as the UTF-8 the serializer wrote and is read back from the UTF-8 that
+    /// arrived, and reads the same as text either side: a sent listing and one received are equal.
+    /// </summary>
+    [Test]
+    public async Task JsonResponseRoundTrip()
+    {
+        var connections = new List<ConnectionDto>
+        {
+            new("github", "GitHub, née \"Actions\"", "github", "Connected", null, null, 3)
+        };
+        var response = Response.Success(connections, DtoContext.Default.ListConnectionDto);
+        await Assert.That(Response.TryParse(response.Build(), out var parsed)).IsTrue();
+        await Assert.That(parsed).IsEqualTo(response);
+        var read = parsed!.Read(DtoContext.Default.ListConnectionDto)!;
+        await Assert.That(read.Single().Name).IsEqualTo("GitHub, née \"Actions\"");
+        await Assert.That(parsed.Body).IsEqualTo(JsonSerializer.Serialize(connections, DtoContext.Default.ListConnectionDto));
+    }
+
     [Test]
     public async Task UnknownLinesAreIgnoredAndUnknownVerbsRejected()
     {

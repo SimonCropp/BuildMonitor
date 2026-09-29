@@ -199,6 +199,35 @@
         await Assert.That(fetched.Single().Author).IsEqualTo("Build Service");
     }
 
+    /// <summary>
+    /// The variables a build was queued with are JSON a pipeline wrote into a string, so nothing
+    /// says they parse, or that the one wanted is text. Such a build is still fetched, and its
+    /// branch comes from the trigger instead.
+    /// </summary>
+    [Test]
+    [Arguments("\"\"")]
+    [Arguments("\"not json\"")]
+    [Arguments("\"[]\"")]
+    [Arguments("\"{\\\"system.pullRequest.sourceBranch\\\":5}\"")]
+    [Arguments("\"{\\\"system.pullRequest.sourceBranch\\\":\"")]
+    [Arguments("null")]
+    [Arguments("12")]
+    [Arguments("""{"system.pullRequest.sourceBranch":"other"}""")]
+    public async Task ParametersOfAnyShapeLeaveTheBranchToTheTrigger(string parameters)
+    {
+        var handler = Handler()
+            .Get(
+                builds,
+                $$$"""
+                  {"count":1,"value":[
+                    {"id":300,"buildNumber":"20260101.2","status":"completed","result":"failed","queueTime":"2026-01-01T10:50:00Z","startTime":"2026-01-01T10:51:00Z","finishTime":"2026-01-01T10:59:00Z","sourceBranch":"refs/pull/55/merge","reason":"pullRequest","definition":{"id":1,"name":"CI"},"parameters":{{{parameters}}},"triggerInfo":{"pr.sourceBranch":"feature","pr.number":"55","pr.isFork":"False"}}
+                  ]}
+                  """);
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: ("organization", "contoso"));
+        var fetched = await ProviderTestHelpers.DiscoverAndFetch("azure-devops", context);
+        await Assert.That(fetched.Single().Branch).IsEqualTo("feature");
+    }
+
     static PollGroup Web() =>
         new("Web", [new("Web/1", "CI", "Web", "Web", "https://dev.azure.com/contoso/Web"), new("Web/2", "Nightly", "Web", "Web", "https://dev.azure.com/contoso/Web")]);
 
