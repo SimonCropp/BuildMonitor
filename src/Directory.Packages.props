@@ -15,7 +15,7 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
     <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
     <PackageVersion Include="Polyfill" Version="11.4.1" />
-    <PackageVersion Include="ProjectDefaults" Version="1.0.181" />
+    <PackageVersion Include="ProjectDefaults" Version="1.0.182" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.0" />
