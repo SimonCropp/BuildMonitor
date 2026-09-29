@@ -154,6 +154,7 @@
       LearnLimit: false,
       ChargeByCost: false
     },
+    IdleCap: 00:30:00,
     ActionPermission: Actions read and write, or the repo scope on a classic token,
     HostsRepositories: true,
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/github.md

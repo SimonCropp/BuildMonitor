@@ -112,6 +112,10 @@ static class ProviderDescriptors
         FetchConcurrency: Concurrently.Limit,
         // Half the secondary limit of 900 points a minute, which counts a 304 like any GET.
         Quota: new(450, TimeSpan.FromMinutes(1), 450),
+        // The probe reads pushes off the repository listing, so a quiet repository need not be
+        // fetched every five minutes: three hundred of them were most of a connection's requests.
+        // A run no push starts, such as a schedule, a dispatch or a re-run, waits for this at worst.
+        IdleCap: TimeSpan.FromMinutes(30),
         ActionPermission: "Actions read and write, or the repo scope on a classic token",
         HostsRepositories: true);
 
