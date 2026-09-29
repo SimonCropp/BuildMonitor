@@ -133,14 +133,23 @@ static class Snapshot
     public static List<PipelineDto> Pipelines(SessionState state)
     {
         var builds = Filters.Apply(state.Settings.Filters, state.Builds);
+        // Counted in one pass over the builds. Counting each pipeline's by walking every build was
+        // 1.7 million comparisons and 10 ms on a 588 pipeline account.
+        var runs = new Dictionary<(string ConnectionId, string PipelineId), int>();
+        foreach (var build in builds)
+        {
+            var key = (build.ConnectionId, build.PipelineId);
+            runs[key] = runs.GetValueOrDefault(key) + 1;
+        }
+
         return state.Connections
             .SelectMany(_ => _.Pipelines
                 .Where(pipeline => !Filters.ExcludesPipeline(state.Settings.Filters, pipeline))
-                .Select(pipeline => Pipeline(builds, _.Connection, pipeline, state.LocalRepos)))
+                .Select(pipeline => Pipeline(runs, _.Connection, pipeline, state.LocalRepos)))
             .ToList();
     }
 
-    static PipelineDto Pipeline(ImmutableArray<Build> builds, Connection connection, Pipeline pipeline, ImmutableDictionary<string, string> localRepos) =>
+    static PipelineDto Pipeline(Dictionary<(string ConnectionId, string PipelineId), int> runs, Connection connection, Pipeline pipeline, ImmutableDictionary<string, string> localRepos) =>
         new(
             $"{connection.Id}/{pipeline.Id}",
             connection.Name,
@@ -148,8 +157,7 @@ static class Snapshot
             pipeline.RepoName,
             pipeline.Group,
             pipeline.Url,
-            builds.Count(_ => _.ConnectionId == connection.Id &&
-                              _.PipelineId == pipeline.Id),
+            runs.GetValueOrDefault((connection.Id, pipeline.Id)),
             LocalRepos.Find(localRepos, pipeline.RepoName));
 
     /// <param name="otherBranch">Whether the run is on another branch than its pipeline's own, which
