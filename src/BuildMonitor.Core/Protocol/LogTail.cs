@@ -93,7 +93,7 @@ static class LogTail
     /// A line a log of its own was written under. A job that printed one itself would split its
     /// log in two here, which costs nothing but a heading the tail is measured against.
     /// </summary>
-    static bool IsHeader(ReadOnlySpan<char> line)
+    static bool IsHeader(CharSpan line)
     {
         var trimmed = line.TrimEnd();
         return trimmed.StartsWith("==> ", StringComparison.Ordinal) &&

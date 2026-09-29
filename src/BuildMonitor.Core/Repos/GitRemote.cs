@@ -123,7 +123,7 @@ static class GitRemote
         return null;
     }
 
-    static bool IsOriginHeader(ReadOnlySpan<char> text)
+    static bool IsOriginHeader(CharSpan text)
     {
         if (!text.EndsWith(']'))
         {
