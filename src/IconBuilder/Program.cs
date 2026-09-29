@@ -492,13 +492,13 @@ static class Program
     {
         var loaded = new SKSvg();
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(svg.Replace("currentColor", $"#{Hex(colour)}")));
-        if (loaded.Load(stream) is null)
+        if (loaded.Load(stream) is not null)
         {
-            loaded.Dispose();
-            throw new InvalidOperationException($"Could not parse {name}");
+            return loaded;
         }
 
-        return loaded;
+        loaded.Dispose();
+        throw new InvalidOperationException($"Could not parse {name}");
     }
 
     static string Hex(SKColor colour) =>

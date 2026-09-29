@@ -445,7 +445,9 @@ sealed class GitHubProvider : ProviderBase
             $"repos/{pipeline.RepoName}/actions/workflows/{workflowId}/runs?status=success&per_page=10",
             GitHubContext.Default.GitHubRuns,
             cancel);
-        return runs?.WorkflowRuns.Select(_ => Convert(context.Connection.Id, pipeline.RepoName, pipeline, _, false)).ToList() ?? [];
+        return runs?
+            .WorkflowRuns
+            .Select(_ => Convert(context.Connection.Id, pipeline.RepoName, pipeline, _, false)).ToList() ?? [];
     }
 
     static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRun run, bool change)

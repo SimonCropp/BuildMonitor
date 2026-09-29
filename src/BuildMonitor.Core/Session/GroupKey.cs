@@ -131,7 +131,7 @@ record GroupKey(string Project)
         foreach (var prefix in prefixes)
         {
             if (prefix.Length == 0 ||
-                !project.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                MatchedLength(project, prefix) < 0)
             {
                 continue;
             }
@@ -144,6 +144,40 @@ record GroupKey(string Project)
         }
 
         return found;
+    }
+
+    /// <summary>
+    /// How much of the project the prefix covers, or -1 where the project does not start with it.
+    /// Ignoring case, spaces and periods, so "Document Converter" and NServiceBus.Community.Validation
+    /// fall under the DocumentConverter and NServiceBusCommunity someone typed, rather than only the
+    /// spelling that matched it character for character.
+    /// </summary>
+    public static int MatchedLength(CharSpan project, CharSpan prefix)
+    {
+        var index = 0;
+        foreach (var character in prefix)
+        {
+            if (character is ' ' or '.')
+            {
+                continue;
+            }
+
+            while (index < project.Length &&
+                   project[index] is ' ' or '.')
+            {
+                index++;
+            }
+
+            if (index == project.Length ||
+                char.ToLowerInvariant(project[index]) != char.ToLowerInvariant(character))
+            {
+                return -1;
+            }
+
+            index++;
+        }
+
+        return index;
     }
 
     /// <summary>

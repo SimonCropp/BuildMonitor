@@ -54,6 +54,9 @@ public class GroupKeyTests
     [Arguments("owner/THEPROJECT", "TheProject")]
     // The longest match, for someone who wants a narrower group inside a wider one.
     [Arguments("owner/TheProjectManager.Messages", "TheProjectManager")]
+    // Spaces and periods in the name do not stop the prefix matching.
+    [Arguments("The Project Web", "TheProject")]
+    [Arguments("owner/The.Project.Api", "TheProject")]
     // No prefix matches, so the repository name still keys the group.
     [Arguments("owner/DiffEngine", "DiffEngine")]
     public async Task APrefixKeysTheGroupAheadOfTheProject(string repo, string expected)

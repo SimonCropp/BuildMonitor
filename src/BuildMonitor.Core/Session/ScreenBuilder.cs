@@ -234,7 +234,31 @@ static class ScreenBuilder
             return "";
         }
 
-        return project;
+        return WithoutGroup(project, row.Group.Project);
+    }
+
+    /// <summary>
+    /// The member's name less the group's at its start, since the row above already says it: under
+    /// Ministers, MinistersUI read as the group's name a second time down the column before the part
+    /// that told the members apart. Matched ignoring case, spaces and periods, so "Ministers Web",
+    /// MInistersManager and NServiceBus.Community.Validation under NServiceBusCommunity lose it too. A name that would be left empty, or that the
+    /// group's name does not start, stays whole.
+    /// </summary>
+    static string WithoutGroup(string project, string group)
+    {
+        var index = GroupKey.MatchedLength(project, group);
+        if (index < 0)
+        {
+            return project;
+        }
+
+        var rest = project.AsSpan(index).TrimStart(" .-_");
+        if (rest.Length == 0)
+        {
+            return project;
+        }
+
+        return rest.ToString();
     }
 
     /// <summary>
