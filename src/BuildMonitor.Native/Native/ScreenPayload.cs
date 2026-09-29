@@ -240,12 +240,15 @@ sealed unsafe class ScreenPayload
     BmString Add(string text)
     {
         var offset = strings.Count;
-        var bytes = Encoding.UTF8.GetBytes(text);
-        strings.AddRange(bytes);
+        // Encoded where it goes rather than into an array of its own to copy from: a frame of a
+        // large account holds several hundred strings, and the screen is flattened every second.
+        var length = Encoding.UTF8.GetByteCount(text);
+        CollectionsMarshal.SetCount(strings, offset + length);
+        Encoding.UTF8.GetBytes(text, CollectionsMarshal.AsSpan(strings)[offset..]);
         return new()
         {
             Offset = offset,
-            Length = bytes.Length
+            Length = length
         };
     }
 
