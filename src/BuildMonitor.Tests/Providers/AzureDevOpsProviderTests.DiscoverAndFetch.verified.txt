@@ -90,7 +90,7 @@
     {
       ConnectionId: azure-devops,
       PipelineId: Web/2,
-      PipelineName: ops\Nightly,
+      PipelineName: Nightly,
       RepoName: Web,
       Branch: main,
       RunNumber: 20251231.1,
@@ -108,6 +108,7 @@
       PipelineUrl: https://dev.azure.com/contoso/Web/_build?definitionId=2,
       RepoUrl: https://dev.azure.com/contoso/Web/_git/Web,
       Project: Web,
+      Folder: ops,
       Key: azure-devops/Web/2/main,
       PipelineKey: azure-devops/Web/2,
       IsActive: false,

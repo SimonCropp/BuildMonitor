@@ -18,4 +18,8 @@
 /// Without it a pull request's run was as much the pipeline as a push to main was. Null where the
 /// service does not say at discovery. Where what it says can be stale, as AppVeyor's setting is,
 /// the provider checks it against the runs it fetches before any build carries it.</param>
-record Pipeline(string Id, string Name, string RepoName, string? Group, string Url, string? RepoUrl = null, string? ProjectGroup = null, string? DefaultBranch = null);
+/// <param name="Folder">The folder the service files the pipeline in, as "Security" or
+/// "Team\Nightly": an Azure DevOps definition's folder. Said on hover rather than in the name,
+/// which only carries it where two pipelines would otherwise read the same. Null at the root and
+/// for every other provider.</param>
+record Pipeline(string Id, string Name, string RepoName, string? Group, string Url, string? RepoUrl = null, string? ProjectGroup = null, string? DefaultBranch = null, string? Folder = null);

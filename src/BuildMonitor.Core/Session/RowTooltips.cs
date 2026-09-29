@@ -136,6 +136,11 @@ static class RowTooltips
         {
             build.Branch is null ? build.RepoName : $"{build.RepoName} {DetailSpan.BranchIconText}{build.Branch}"
         };
+        if (build.Folder is not null)
+        {
+            lines.Add($"folder {build.Folder}");
+        }
+
         if (build.CommitMessage is not null)
         {
             lines.Add(FirstLine(build.CommitMessage));

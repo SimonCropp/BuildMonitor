@@ -42,6 +42,10 @@
 /// found no owner in an Azure DevOps name and left every repository in a group of its own. Null
 /// for every other provider, whose repository name already carries its owner.
 /// </param>
+/// <param name="Folder">
+/// The folder the pipeline is filed in, carried from <see cref="Pipeline.Folder"/> for the row's
+/// hover. Null at the root and for every provider without folders.
+/// </param>
 record Build(
     string ConnectionId,
     string PipelineId,
@@ -69,7 +73,8 @@ record Build(
     string? RepoUrl = null,
     string? ProjectGroup = null,
     string? DefaultBranch = null,
-    string? Project = null)
+    string? Project = null,
+    string? Folder = null)
 {
     /// <summary>
     /// What a row is: a pipeline on a branch. Stable across polls so the selection survives a

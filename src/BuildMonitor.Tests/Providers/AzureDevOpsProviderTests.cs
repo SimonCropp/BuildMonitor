@@ -35,7 +35,24 @@
         });
     }
 
-    const string mainBuilds = $"{organization}/Web/_apis/build/builds?definitions=1&branchName=refs%2Fheads%2Fmain&maxBuildsPerDefinition=1&queryOrder=queueTimeDescending&properties=TriggeredBy&api-version=7.1";
+    /// <summary>
+    /// A folder stays out of the name unless another definition in the project has the same one,
+    /// and is carried either way for the hover.
+    /// </summary>
+    [Test]
+    public async Task AFolderNamesOnlyThePipelinesItTellsApart()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                $"{organization}/Web/_apis/pipelines?api-version=7.1",
+                """{"count":4,"value":[{"id":1,"name":"CI","folder":"\\"},{"id":2,"name":"UI - Security","folder":"\\Security"},{"id":3,"name":"Nightly","folder":"\\Team"},{"id":4,"name":"nightly","folder":"\\Ops\\Jobs"}]}""");
+        var context = ProviderTestHelpers.Context("azure-devops", handler, scope: [("organization", "contoso"), ("project", "Web")]);
+        var pipelines = await ProviderTestHelpers.Provider("azure-devops").DiscoverPipelines(context, Cancel.None);
+        await Assert.That(pipelines.Select(_ => $"{_.Name} ({_.Folder})"))
+            .IsEquivalentTo(["CI ()", "UI - Security (Security)", "Team\\Nightly (Team)", "Ops\\Jobs\\nightly (Ops\\Jobs)"]);
+    }
+
+    const string mainBuilds =$"{organization}/Web/_apis/build/builds?definitions=1&branchName=refs%2Fheads%2Fmain&maxBuildsPerDefinition=1&queryOrder=queueTimeDescending&properties=TriggeredBy&api-version=7.1";
 
     /// <summary>
     /// CI's window is all pull requests, which target main, so its newest build of main is asked

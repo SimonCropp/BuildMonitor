@@ -28,17 +28,44 @@ sealed class AzureDevOpsProvider : ProviderBase
             async (project, token) =>
             {
                 var definitions = await context.Http.Get($"{Encode(project)}/_apis/pipelines?{apiVersion}", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsPipeline, token);
+                var shared = definitions.Value
+                    .GroupBy(_ => _.Name, StringComparer.OrdinalIgnoreCase)
+                    .Where(_ => _.Count() > 1)
+                    .Select(_ => _.Key)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 return definitions.Value
-                    .Select(_ => new Pipeline(
-                        $"{project}/{_.Id}",
-                        _.Folder is null or "\\" ? _.Name : $"{_.Folder.Trim('\\')}\\{_.Name}",
-                        project,
-                        project,
-                        _.Links?.Web?.Href ?? $"{context.Http.BaseAddress}{Encode(project)}/_build?definitionId={_.Id}"))
+                    .Select(_ =>
+                    {
+                        var folder = FolderOf(_);
+                        return new Pipeline(
+                            $"{project}/{_.Id}",
+                            folder is not null && shared.Contains(_.Name) ? $"{folder}\\{_.Name}" : _.Name,
+                            project,
+                            project,
+                            _.Links?.Web?.Href ?? $"{context.Http.BaseAddress}{Encode(project)}/_build?definitionId={_.Id}",
+                            Folder: folder);
+                    })
                     .ToList();
             },
             cancel);
         return perProject.SelectMany(_ => _).ToList();
+    }
+
+    /// <summary>
+    /// The folder a definition is filed in, without its slashes, or null for the root. Kept out of
+    /// the name unless two definitions in a project share one: a folder is how a team files its
+    /// pipelines, not what it calls them, and a name that always carried it read as a path the
+    /// run's own page never shows.
+    /// </summary>
+    static string? FolderOf(AzureDevOpsPipeline definition)
+    {
+        var folder = definition.Folder?.Trim('\\');
+        if (string.IsNullOrEmpty(folder))
+        {
+            return null;
+        }
+
+        return folder;
     }
 
     static async Task<List<string>> Projects(ProviderContext context, Cancel cancel)
@@ -317,7 +344,8 @@ sealed class AzureDevOpsProvider : ProviderBase
             Join(project, build.Id.ToString()),
             pipeline.Url,
             repositoryWeb,
-            Project: project);
+            Project: project,
+            Folder: pipeline.Folder);
     }
 
     /// <summary>
