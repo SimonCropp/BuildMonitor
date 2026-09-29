@@ -130,6 +130,42 @@ record Build(
         ConnectionId == other.ConnectionId &&
         PipelineId == other.PipelineId;
 
+    /// <summary>
+    /// Orders builds as their <see cref="Key"/>s order, for a sort that ends on the key. A sort
+    /// reads the key of everything it sorts before comparing any, so ending on the key itself built
+    /// one for every row of every projection, to settle a tie almost none of them were in.
+    /// </summary>
+    public static readonly IComparer<Build> ByKey = Comparer<Build>.Create((left, right) => left.CompareKey(right));
+
+    /// <summary>
+    /// How <see cref="Key"/> compares to <paramref name="other"/>'s, ordinally. From the parts
+    /// where they line up, which is wherever the two connections and the two pipelines are as long
+    /// as each other; a shorter part puts its separator against the other's next character, and
+    /// then the keys themselves are compared.
+    /// </summary>
+    public int CompareKey(Build other)
+    {
+        if (ConnectionId.Length != other.ConnectionId.Length ||
+            PipelineId.Length != other.PipelineId.Length)
+        {
+            return string.CompareOrdinal(Key, other.Key);
+        }
+
+        var connection = string.CompareOrdinal(ConnectionId, other.ConnectionId);
+        if (connection != 0)
+        {
+            return connection;
+        }
+
+        var pipeline = string.CompareOrdinal(PipelineId, other.PipelineId);
+        if (pipeline != 0)
+        {
+            return pipeline;
+        }
+
+        return string.CompareOrdinal(Branch ?? "", other.Branch ?? "");
+    }
+
     public bool IsActive => Status is BuildStatus.Queued or BuildStatus.Running;
 
     public DateTimeOffset? Ordering => Started ?? Queued ?? Finished;

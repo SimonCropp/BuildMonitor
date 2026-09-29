@@ -23,6 +23,25 @@ public class GroupKeyTests
     public async Task AGroupIsNamedByItsLongestThenFirstKey(string[] projects, string expected) =>
         await Assert.That(GroupKey.Name(projects.Select(_ => new GroupKey(_))).Project).IsEqualTo(expected);
 
+    /// <summary>
+    /// Named from the builds as it is from the key of each, whichever order they come in and however
+    /// many of one repository follow each other.
+    /// </summary>
+    [Test]
+    [Arguments(new[] { "owner/OrderEntryService", "owner/OrderEntryService", "other/Order Entry Service" }, false)]
+    [Arguments(new[] { "other/Order Entry Service", "owner/OrderEntryService", "owner/OrderEntryService" }, false)]
+    [Arguments(new[] { "owner/OrderEntry Service", "owner/Order EntryService" }, false)]
+    [Arguments(new[] { "owner/Order EntryService", "owner/OrderEntry Service" }, false)]
+    [Arguments(new[] { "VerifyTests/Verify", "VerifyTests/Verify.Http", "Verify Tests/DiffEngine" }, true)]
+    [Arguments(new[] { "TheProjectApi", "owner/The Project UI", "TheProjectApi" }, false)]
+    public async Task AGroupIsNamedFromItsBuildsAsFromTheirKeys(string[] repositories, bool byOrg)
+    {
+        ImmutableArray<string> prefixes = ["TheProject"];
+        ImmutableArray<Build> members = [..repositories.Select(_ => Build(_, BuildStatus.Succeeded))];
+        var expected = GroupKey.Name(members.Select(_ => GroupKey.Of(_, prefixes, byOrg)!));
+        await Assert.That(GroupKey.Name(members, prefixes, byOrg)).IsEqualTo(expected);
+    }
+
     [Test]
     public async Task AProjectTooLongForTheStackIsLowerCasedToo()
     {

@@ -27,16 +27,26 @@ static class BuildSelection
     /// about its branch. A failed branch that can be asked keeps its row until the answer comes.</param>
     public static ImmutableArray<PipelineBuilds> Select(IEnumerable<Build> builds, bool showOtherBranches, ImmutableDictionary<string, BranchVerdict> verdicts, Func<Build, bool> askable)
     {
-        var result = ImmutableArray.CreateBuilder<PipelineBuilds>();
-        // By the parts of the pipeline key, which would otherwise be built for every build on every
-        // projection of the rows.
-        foreach (var pipeline in builds.GroupBy(_ => (_.ConnectionId, _.PipelineId)))
+        var runs = ByPipeline(builds, out var counts);
+        var result = ImmutableArray.CreateBuilder<PipelineBuilds>(counts.Count);
+        // One list for every pipeline's branches, emptied between them: most pipelines have runs
+        // on one branch only and put nothing in it.
+        var branches = new List<(string? Branch, Build Newest, Build? Named)>();
+        var start = 0;
+        foreach (var count in counts)
         {
-            var ordered = pipeline
-                .OrderByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)
-                .ToList();
-            var head = HeadOf(ordered);
+            var pipeline = runs.AsSpan(start, count);
+            start += count;
+            NewestFirst(pipeline);
+            var head = HeadOf(pipeline);
             if (!showOtherBranches)
+            {
+                result.Add(new(head, [], []));
+                continue;
+            }
+
+            Branches(pipeline, head, branches);
+            if (branches.Count == 0)
             {
                 result.Add(new(head, [], []));
                 continue;
@@ -44,11 +54,9 @@ static class BuildSelection
 
             var lanes = new List<Build>();
             var folded = ImmutableArray.CreateBuilder<FoldedBranch>();
-            foreach (var branch in ordered
-                         .Where(_ => _.Branch != head.Branch)
-                         .GroupBy(_ => _.Branch))
+            foreach (var (_, newest, named) in branches)
             {
-                var lane = LaneOf(branch.ToList());
+                var lane = LaneOf(newest, named);
                 if (FoldOf(head, lane, verdicts, askable) is { } reason)
                 {
                     folded.Add(new(lane, reason));
@@ -59,34 +67,198 @@ static class BuildSelection
                 }
             }
 
-            result.Add(
-                new(
-                    head,
-                    [
-                        ..lanes
-                            .OrderBy(_ => _.Rank())
-                            .ThenByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)
-                            .ThenBy(_ => _.Key, StringComparer.Ordinal)
-                    ],
-                    folded.ToImmutable()));
+            result.Add(new(head, MostUrgentFirst(lanes), folded.ToImmutable()));
         }
 
-        return result.ToImmutable();
+        return result.MoveToImmutable();
     }
+
+    /// <summary>
+    /// Every build beside the others of its pipeline, in one array: the pipelines in the order the
+    /// first build of each came, each one's builds in the order they came, and how many each has.
+    /// By the parts of the pipeline key, which would otherwise be built for every build on every
+    /// projection of the rows, and in one array rather than a grouping of each pipeline, which
+    /// with the ordered copy and the lookup of branches made of it was a megabyte a projection of a
+    /// large account.
+    /// </summary>
+    static Build[] ByPipeline(IEnumerable<Build> builds, out List<int> counts)
+    {
+        var list = builds as IReadOnlyList<Build> ?? builds.ToList();
+        counts = [];
+        var ordinals = new int[list.Count];
+        var pipelines = new Dictionary<(string ConnectionId, string PipelineId), int>();
+        Build? previous = null;
+        var ordinal = -1;
+        for (var index = 0; index < list.Count; index++)
+        {
+            var build = list[index];
+            // A poll hands over a pipeline's runs together, so most builds join the pipeline the
+            // build before them did.
+            if (previous is null ||
+                !build.SamePipeline(previous))
+            {
+                var key = (build.ConnectionId, build.PipelineId);
+                if (!pipelines.TryGetValue(key, out ordinal))
+                {
+                    ordinal = counts.Count;
+                    pipelines[key] = ordinal;
+                    counts.Add(0);
+                }
+            }
+
+            counts[ordinal]++;
+            ordinals[index] = ordinal;
+            previous = build;
+        }
+
+        var next = new int[counts.Count];
+        var offset = 0;
+        for (var index = 0; index < next.Length; index++)
+        {
+            next[index] = offset;
+            offset += counts[index];
+        }
+
+        var grouped = new Build[list.Count];
+        for (var index = 0; index < grouped.Length; index++)
+        {
+            grouped[next[ordinals[index]]++] = list[index];
+        }
+
+        return grouped;
+    }
+
+    /// <summary>
+    /// Sorts a pipeline's runs newest first, in place, runs of the same moment staying in the order
+    /// they came. A pipeline holds a handful of runs, already newest first as most services list
+    /// them, which an insertion sort passes over once; a pipeline with many is sorted as before.
+    /// </summary>
+    static void NewestFirst(Span<Build> runs)
+    {
+        if (runs.Length > 64)
+        {
+            runs.ToArray()
+                .OrderByDescending(When)
+                .ToArray()
+                .CopyTo(runs);
+            return;
+        }
+
+        for (var index = 1; index < runs.Length; index++)
+        {
+            var run = runs[index];
+            var when = When(run);
+            var position = index - 1;
+            while (position >= 0 &&
+                   When(runs[position]) < when)
+            {
+                runs[position + 1] = runs[position];
+                position--;
+            }
+
+            runs[position + 1] = run;
+        }
+    }
+
+    static DateTimeOffset When(Build build) =>
+        build.Ordering ?? DateTimeOffset.MinValue;
 
     /// <summary>
     /// The newest run on the default branch the runs carry, or the newest run where they carry none
     /// or none of them is on it.
     /// </summary>
-    static Build HeadOf(List<Build> ordered)
+    static Build HeadOf(ReadOnlySpan<Build> ordered)
     {
-        if (ordered.Select(_ => _.DefaultBranch).OfType<string>().FirstOrDefault() is { } defaultBranch &&
-            ordered.FirstOrDefault(_ => _.Branch == defaultBranch) is { } own)
+        string? defaultBranch = null;
+        foreach (var run in ordered)
         {
-            return own;
+            if (run.DefaultBranch is not null)
+            {
+                defaultBranch = run.DefaultBranch;
+                break;
+            }
+        }
+
+        if (defaultBranch is not null)
+        {
+            foreach (var run in ordered)
+            {
+                if (run.Branch == defaultBranch)
+                {
+                    return run;
+                }
+            }
         }
 
         return ordered[0];
+    }
+
+    /// <summary>
+    /// The branches other than the head's, in the order the newest run of each came: its newest
+    /// run, and the newest of its runs to name a pull request, which <see cref="LaneOf"/> reads.
+    /// </summary>
+    static void Branches(ReadOnlySpan<Build> ordered, Build head, List<(string? Branch, Build Newest, Build? Named)> branches)
+    {
+        branches.Clear();
+        foreach (var run in ordered)
+        {
+            if (run.Branch == head.Branch)
+            {
+                continue;
+            }
+
+            var index = IndexOf(branches, run.Branch);
+            if (index < 0)
+            {
+                branches.Add((run.Branch, run, run.PullRequestNumber is null ? null : run));
+                continue;
+            }
+
+            if (branches[index].Named is null &&
+                run.PullRequestNumber is not null)
+            {
+                branches[index] = branches[index] with
+                {
+                    Named = run
+                };
+            }
+        }
+    }
+
+    /// <summary>
+    /// A loop rather than a lambda holding the branch, which would be made for every run of every
+    /// pipeline, on the head's branch or not.
+    /// </summary>
+    static int IndexOf(List<(string? Branch, Build Newest, Build? Named)> branches, string? branch)
+    {
+        for (var index = 0; index < branches.Count; index++)
+        {
+            if (branches[index].Branch == branch)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// The lanes, most urgent first. Sorted only where there is more than one to sort.
+    /// </summary>
+    static ImmutableArray<Build> MostUrgentFirst(List<Build> lanes)
+    {
+        if (lanes.Count < 2)
+        {
+            return [..lanes];
+        }
+
+        return
+        [
+            ..lanes
+                .OrderBy(_ => _.Rank())
+                .ThenByDescending(When)
+                .ThenBy(_ => _, Build.ByKey)
+        ];
     }
 
     /// <summary>
@@ -144,11 +316,11 @@ static class BuildSelection
     /// one branch of which only one knows the pull request, and the lane would lose its PR button
     /// whenever the other was the newer.
     /// </summary>
-    static Build LaneOf(List<Build> runs)
+    /// <param name="named">The newest of the branch's runs to name a pull request, or null.</param>
+    static Build LaneOf(Build newest, Build? named)
     {
-        var newest = runs[0];
         if (newest.PullRequestNumber is not null ||
-            runs.FirstOrDefault(_ => _.PullRequestNumber is not null) is not { } named)
+            named is null)
         {
             return newest;
         }

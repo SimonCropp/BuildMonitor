@@ -40,29 +40,42 @@ record GroupKey(string Project)
     /// </summary>
     public static GroupKey? Of(Build build, ImmutableArray<string> prefixes, bool byOrg = false)
     {
+        if (ProjectOf(build, prefixes, byOrg) is { } project)
+        {
+            return new(project);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// What the key <see cref="Of"/> makes for the build is named, null where it makes none.
+    /// </summary>
+    static string? ProjectOf(Build build, ImmutableArray<string> prefixes, bool byOrg)
+    {
         if (build.Status != BuildStatus.Succeeded)
         {
             return null;
         }
 
-        var project = build.ShortRepoName();
-        if (Prefix(project.AsSpan(), prefixes) is { } prefix)
+        var project = BuildExtensions.ShortRepoName(build.RepoName.AsSpan());
+        if (Prefix(project, prefixes) is { } prefix)
         {
-            return new(prefix);
+            return prefix;
         }
 
         if (build.ProjectGroup is { Length: > 0 } group)
         {
-            return new(group);
+            return group;
         }
 
         if (byOrg &&
             Org(build) is { Length: > 0 } org)
         {
-            return new(org.ToString());
+            return org.ToString();
         }
 
-        return new(project);
+        return project.ToString();
     }
 
     /// <summary>
@@ -212,4 +225,39 @@ record GroupKey(string Project)
         keys.OrderByDescending(_ => _.Project.Length)
             .ThenBy(_ => _.Project, StringComparer.Ordinal)
             .First();
+
+    /// <summary>
+    /// The key a group of <paramref name="members"/> is named by, as <see cref="Name(IEnumerable{GroupKey})"/>
+    /// names it from the key of each. Only the one key is made: a key for every member, sorted to
+    /// take the first, was four strings a passing build on every projection of the rows, and a
+    /// repository's workflows, which follow each other, are all named alike.
+    /// </summary>
+    public static GroupKey Name(ImmutableArray<Build> members, ImmutableArray<string> prefixes, bool byOrg)
+    {
+        string? name = null;
+        Build? previous = null;
+        foreach (var member in members)
+        {
+            if (previous is not null &&
+                member.RepoName == previous.RepoName &&
+                member.ProjectGroup == previous.ProjectGroup &&
+                member.Project == previous.Project)
+            {
+                continue;
+            }
+
+            previous = member;
+            if (ProjectOf(member, prefixes, byOrg) is { } project &&
+                (name is null || NamesBetter(project, name)))
+            {
+                name = project;
+            }
+        }
+
+        return new(name!);
+    }
+
+    static bool NamesBetter(string project, string than) =>
+        project.Length > than.Length ||
+        (project.Length == than.Length && string.CompareOrdinal(project, than) < 0);
 }

@@ -31,17 +31,24 @@ static class RowProjection
     /// for a caller that has them already. Sorting them is most of the time a projection takes,
     /// and a screen rebuild used to take it three times, four with a filter typed.
     /// </summary>
-    public static ImmutableArray<Row> Rows(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
+    public static ImmutableArray<Row> Rows(SessionState state, ImmutableArray<PipelineBuilds> pipelines) =>
+        Projected(state, pipelines).Rows;
+
+    /// <summary>
+    /// The rows with what they were projected from, for a caller that keeps something read from
+    /// them for as long as they stand.
+    /// </summary>
+    public static ProjectedRows Projected(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
     {
         if (lastRows is { } last &&
             last.IsFor(state, pipelines))
         {
-            return last.Rows;
+            return last;
         }
 
-        var rows = Project(state, pipelines);
-        lastRows = new(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, state.Settings.GroupByOrg, rows);
-        return rows;
+        var projected = new ProjectedRows(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, state.Settings.GroupByOrg, Project(state, pipelines));
+        lastRows = projected;
+        return projected;
     }
 
     static ImmutableArray<Row> Project(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
@@ -49,7 +56,12 @@ static class RowProjection
         // Narrowed before grouping, so a group holds only the members that match: a closed group
         // left whole would hide the one build the filter was typed to find.
         var search = state.Search.Trim();
-        var builds = Sorted(state).Sorted.Where(_ => Matches(_, search)).ToImmutableArray();
+        var builds = Sorted(state).Sorted;
+        if (search.Length > 0)
+        {
+            builds = [..builds.Where(_ => Matches(_, search))];
+        }
+
         // What each pipeline's own run folds away, for its hover. By reference, since two runs can
         // be equal as records.
         var folded = new Dictionary<Build, ImmutableArray<FoldedBranch>>(ReferenceEqualityComparer.Instance);
@@ -66,18 +78,34 @@ static class RowProjection
         // passing build at every step cost each of them a handful of strings a projection.
         var prefixes = state.Settings.GroupPrefixes;
         var byOrg = state.Settings.GroupByOrg;
-        var ids = builds.Select(_ => GroupKey.IdOf(_, prefixes, byOrg)).ToArray();
-        // A repository's pipelines together, in the order its most recent one came, so under a
-        // prefix group each repository is named once, on the first of its rows.
-        var groups = Enumerable.Range(0, builds.Length)
-            .Where(_ => ids[_] is not null)
-            .GroupBy(_ => ids[_]!, _ => builds[_])
-            .Where(_ => _.Count() > 1)
-            .ToDictionary(
-                _ => _.Key,
-                _ => _.GroupBy(_ => _.RepoName, StringComparer.OrdinalIgnoreCase)
-                    .SelectMany(_ => _)
-                    .ToImmutableArray());
+        var ids = new string?[builds.Length];
+        var sharing = new Dictionary<string, List<Build>>();
+        for (var index = 0; index < builds.Length; index++)
+        {
+            if (GroupKey.IdOf(builds[index], prefixes, byOrg) is not { } id)
+            {
+                continue;
+            }
+
+            ids[index] = id;
+            if (!sharing.TryGetValue(id, out var sharers))
+            {
+                sharers = [];
+                sharing[id] = sharers;
+            }
+
+            sharers.Add(builds[index]);
+        }
+
+        var groups = new Dictionary<string, ImmutableArray<Build>>();
+        foreach (var (id, sharers) in sharing)
+        {
+            if (sharers.Count > 1)
+            {
+                groups[id] = ByRepository(sharers);
+            }
+        }
+
         var rows = ImmutableArray.CreateBuilder<Row>();
         var added = new HashSet<string>();
         for (var index = 0; index < builds.Length; index++)
@@ -96,7 +124,7 @@ static class RowProjection
                 continue;
             }
 
-            var key = GroupKey.Name(members.Select(_ => GroupKey.Of(_, prefixes, byOrg)!));
+            var key = GroupKey.Name(members, prefixes, byOrg);
             var expanded = IsExpanded(state, key);
             rows.Add(new(RowKind.Group, null, null, key, expanded, members, []));
             if (!expanded)
@@ -114,6 +142,36 @@ static class RowProjection
         }
 
         return rows.ToImmutable();
+    }
+
+    /// <summary>
+    /// A repository's pipelines together, in the order its most recent one came, so under a prefix
+    /// group each repository is named once, on the first of its rows. Most groups are one
+    /// repository's workflows, which are together as they stand.
+    /// </summary>
+    static ImmutableArray<Build> ByRepository(List<Build> builds)
+    {
+        var together = true;
+        foreach (var build in builds)
+        {
+            if (!string.Equals(build.RepoName, builds[0].RepoName, StringComparison.OrdinalIgnoreCase))
+            {
+                together = false;
+                break;
+            }
+        }
+
+        if (together)
+        {
+            return [..builds];
+        }
+
+        return
+        [
+            ..builds
+                .GroupBy(_ => _.RepoName, StringComparer.OrdinalIgnoreCase)
+                .SelectMany(_ => _)
+        ];
     }
 
     static ImmutableArray<FoldedBranch> FoldedOf(Dictionary<Build, ImmutableArray<FoldedBranch>> folded, Build build)
@@ -178,7 +236,7 @@ static class RowProjection
                 .OrderBy(_ => _.Rank())
                 .ThenByDescending(_ => _.Ordering ?? DateTimeOffset.MinValue)
                 .ThenBy(_ => _.PipelineName, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(_ => _.Key, StringComparer.Ordinal)
+                .ThenBy(_ => _, Build.ByKey)
         ];
         var sorted = new SortedBuilds(state.Settings, state.Connections, state.Builds, state.Verdicts, pipelines, builds);
         lastBuilds = sorted;
@@ -199,7 +257,7 @@ static class RowProjection
                 .OrderBy(_ => _.Lead.Rank())
                 .ThenByDescending(_ => _.Lead.Ordering ?? DateTimeOffset.MinValue)
                 .ThenBy(_ => _.Lead.PipelineName, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(_ => _.Lead.Key, StringComparer.Ordinal)
+                .ThenBy(_ => _.Lead, Build.ByKey)
                 .Select(_ => _.Pipeline)
         ];
     }
