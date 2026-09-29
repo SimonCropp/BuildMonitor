@@ -1,18 +1,18 @@
 ﻿+----------------------------------------------------------------------------------------------------------------------+
-| BuildMonitor                                           2 pipelines, 0 failing, 2 running  Filter: [                ] |
+| BuildMonitor                                          11 pipelines, 1 failing, 4 running  Filter: [                ] |
 +----------------------------------------------------------------------------------------------------------------------+
-| > > Verify   teamcity Package @main                          01:00         [Cancel]                                  |
-|   ? Verify   teamcity Build @main                            queued 2m     [Cancel] [Run next]                       |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
+|   > build-all      jenkins  Build all @main          [##------] 04:00 left               [Cancel]                    |
+|   > Deploy Web     octopus                           [###-----] 02:15 left               [Cancel]                    |
+|   > DiffEngine     github   test.yml @main           [####----] 03:00 left               [Cancel]                    |
+|   ? nightly        jenkins                                      queued 30s               [Cancel]                    |
+|   x Verify         github   test.yml @feature/inline            25m ago       SimonCropp PR 42 [Retry] [Log]         |
+| > + [-] Verify              5 passing                           2h ago                                               |
+|   +                github   docs.yml @main                      2h ago                                               |
+|   +                github   nuget.yml @main                     4h ago                                               |
+|   +     Xunit      github   test.yml @main                      3h ago                                               |
+|   +                github   Xunit - Security @main              5h ago                                               |
+|   +                github   Security @main                      6h ago                                               |
+|   + DiffEngine     github   docs.yml @main                      23h ago                                              |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
@@ -26,9 +26,9 @@
 |                                                                                                                      |
 |                                                                                                                      |
 +----------------------------------------------------------------------------------------------------------------------+
-| [Refresh] [Connections] [Options] [Filters] [Hide]                                                     Polled 8s ago |
+| [Refresh] [Connections] [Options] [Filters] [Hide]                                                     Polled 5s ago |
 +----------------------------------------------------------------------------------------------------------------------+
-tray: Running "BuildMonitor: 0 failing, 2 running"
+tray: Failed "BuildMonitor: Verify failing, 4 running"
   Open
   Refresh
   Connections

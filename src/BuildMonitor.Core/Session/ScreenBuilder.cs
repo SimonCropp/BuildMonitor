@@ -59,11 +59,13 @@ static class ScreenBuilder
         var visible = rows.Skip(top).Take(body).ToList();
         // Across every failed build rather than the visible rows, so a name does not grow and shrink
         // while scrolling past someone who shares it. Lanes too: a failed lane names who broke it.
-        var authors = AuthorNames.Of(RowProjection.Builds(state).Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
+        var shown = RowProjection.Builds(state);
+        var authors = AuthorNames.Of(shown.Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
+        var siblings = SiblingPipelines(shown);
         var composed = new List<BuildRow>(visible.Count);
         for (var index = 0; index < visible.Count; index++)
         {
-            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now, authors));
+            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now, authors, siblings));
         }
 
         var counts = BuildCounts.Of(pipelines);
@@ -83,7 +85,7 @@ static class ScreenBuilder
         return new(
             Title,
             Page.Builds,
-            new(Header(state, counts), composed, top, rows.Length, selected, counts.Failing, counts.Running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized), loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), authors.Values.Distinct().ToList()),
+            new(Header(state, counts), composed, top, rows.Length, selected, counts.Failing, counts.Running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized, siblings), loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), authors.Values.Distinct().ToList()),
             null,
             Buttons(state),
             status,
@@ -343,13 +345,13 @@ static class ScreenBuilder
     static bool NamedAfterProject(Build build) =>
         BuildExtensions.ShortRepoName(build.RepoName.AsSpan()).Equals(build.PipelineName, StringComparison.OrdinalIgnoreCase);
 
-    static List<string> Details(ImmutableArray<Row> rows)
+    static List<string> Details(ImmutableArray<Row> rows, IReadOnlyDictionary<string, List<string>> siblings)
     {
         var details = new List<string>();
         var seen = new HashSet<string>().GetAlternateLookup<CharSpan>();
         foreach (var row in rows)
         {
-            AddDetail(seen, details, row);
+            AddDetail(seen, details, row, siblings);
         }
 
         return details;
@@ -359,7 +361,7 @@ static class ScreenBuilder
     /// The text <see cref="DetailOf"/> gives the row, written on the stack rather than as runs that
     /// are then joined.
     /// </summary>
-    static void AddDetail(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> details, Row row)
+    static void AddDetail(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> details, Row row, IReadOnlyDictionary<string, List<string>> siblings)
     {
         if (row.Build is null)
         {
@@ -367,7 +369,7 @@ static class ScreenBuilder
             return;
         }
 
-        var (pipeline, branch) = DetailParts(row);
+        var (pipeline, branch) = DetailParts(row, siblings);
         var separator = pipeline.Length > 0 && branch.Length > 0 ? " " : "";
         var length = pipeline.Length + separator.Length + branch.Length;
         var text = length <= 256 ? stackalloc char[length] : new char[length];
@@ -380,19 +382,135 @@ static class ScreenBuilder
     /// is left out only where the first cell is already showing that name, as it is on an AppVeyor
     /// row whose project is named after its repository, or on a member naming its own project under
     /// a group the server or a prefix made. A member with a blank first cell has nothing to repeat,
-    /// so its pipeline stays: without it the row named its run nowhere a click could reach.
+    /// so its pipeline stays: without it the row named its run nowhere a click could reach. A
+    /// member's pipeline loses the group's name at its start as its project does, so under
+    /// Legislation, LegislationUI - Security reads as UI - Security. Then it loses its project's
+    /// name, so DataModel - Security under DataModel reads as Security, unless that would read the
+    /// same as another pipeline of the repository.
     /// </summary>
-    static (string Pipeline, string Branch) DetailParts(Row row)
+    static (string Pipeline, string Branch) DetailParts(Row row, IReadOnlyDictionary<string, List<string>> siblings)
     {
         var build = row.Build!;
-        if (NameOf(row).Length > 0 &&
+        var branch = build.ShortBranchName();
+        var named = NameOf(row).Length > 0;
+        if (named &&
             NamedAfterProject(build))
         {
-            return ("", build.ShortBranchName());
+            return ("", branch);
         }
 
-        return (build.PipelineName, build.ShortBranchName());
+        var group = GroupOf(row);
+        var (pipeline, shorter) = Label(build.PipelineName, build.ShortRepoName(), group);
+        if (shorter is null)
+        {
+            return (pipeline, branch);
+        }
+
+        if (shorter.Length == 0)
+        {
+            // Named after its project: left out where the first cell says the project, as above.
+            if (named)
+            {
+                return ("", branch);
+            }
+
+            return (pipeline, branch);
+        }
+
+        if (siblings.TryGetValue(SiblingKey(build), out var others) &&
+            others.Any(_ => ReadsAs(_, build, group, shorter)))
+        {
+            return (pipeline, branch);
+        }
+
+        return (shorter, branch);
     }
+
+    static string? GroupOf(Row row)
+    {
+        if (row.Kind == RowKind.Member)
+        {
+            return row.Group!.Project;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A pipeline's name less the group's at its start, and that less the project's, or null for the
+    /// second where the project does not start it. The project is tried whole and, under a group, as
+    /// its row shows it, so LegislationDataModel - Security and DataModel - Security both lose it.
+    /// </summary>
+    static (string Pipeline, string? Shorter) Label(string name, string project, string? group)
+    {
+        var pipeline = name;
+        var shownProject = project;
+        if (group is not null)
+        {
+            pipeline = WithoutGroup(name, group);
+            shownProject = WithoutGroup(project, group);
+        }
+
+        var shorter = WithoutProject(name, project) ?? WithoutProject(pipeline, shownProject);
+        return (pipeline, shorter);
+    }
+
+    /// <summary>
+    /// The name less the project at its start, empty where that is all it is, or null where the
+    /// project does not start it. Matched as <see cref="WithoutGroup"/> matches, and only where
+    /// the project ends at a word: Api under a project named Ap is a word cut in half, not a prefix.
+    /// </summary>
+    static string? WithoutProject(string name, string project)
+    {
+        if (project.Length == 0)
+        {
+            return null;
+        }
+
+        var index = GroupKey.MatchedLength(name, project);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        var rest = name.AsSpan(index);
+        if (rest.Length > 0 &&
+            char.IsLower(rest[0]))
+        {
+            return null;
+        }
+
+        // TeamCity names a configuration "Verify / Package" and Azure DevOps a folder "Security\UI".
+        return rest.TrimStart(" .-_/\\:").ToString();
+    }
+
+    /// <summary>
+    /// Whether another pipeline of the build's repository would read as <paramref name="shorter"/>,
+    /// shortened or not, which would leave two rows saying the same thing.
+    /// </summary>
+    static bool ReadsAs(string other, Build build, string? group, string shorter)
+    {
+        if (string.Equals(other, build.PipelineName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var (pipeline, otherShorter) = Label(other, build.ShortRepoName(), group);
+        return string.Equals(pipeline, shorter, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(otherShorter, shorter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    static string SiblingKey(Build build) =>
+        $"{build.ConnectionId}/{build.RepoName}";
+
+    /// <summary>
+    /// The pipeline names of each repository among the builds shown, so a row can tell whether
+    /// leaving its project's name out would read as one of the others.
+    /// </summary>
+    static IReadOnlyDictionary<string, List<string>> SiblingPipelines(ImmutableArray<Build> builds) =>
+        builds
+            .GroupBy(SiblingKey)
+            .ToDictionary(_ => _.Key, _ => _.Select(_ => _.PipelineName).Distinct(StringComparer.OrdinalIgnoreCase).ToList());
 
     static string GroupDetail(Row row) =>
         $"{row.Members.Length} passing";
@@ -403,14 +521,14 @@ static class ScreenBuilder
     /// page. A branch the provider gave no page is plain text, as a link that opened nothing would
     /// read as broken, but it keeps its mark: the mark is what says where the pipeline ends.
     /// </summary>
-    static List<DetailSpan> DetailOf(Row row)
+    static List<DetailSpan> DetailOf(Row row, IReadOnlyDictionary<string, List<string>> siblings)
     {
         if (row.Build is not { } build)
         {
             return [new(GroupDetail(row))];
         }
 
-        var (pipeline, branch) = DetailParts(row);
+        var (pipeline, branch) = DetailParts(row, siblings);
         var spans = new List<DetailSpan>();
         // The run where the first cell did not take it, and the pipeline's own page where it did,
         // so that no part of a row repeats the one beside it. A row that leads with its run and
@@ -472,11 +590,11 @@ static class ScreenBuilder
         return $"{Plural(counts.Pipelines, "pipeline")}, {counts.Failing} failing, {counts.Running} running";
     }
 
-    static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now, IReadOnlyDictionary<string, string> authors)
+    static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now, IReadOnlyDictionary<string, string> authors, IReadOnlyDictionary<string, List<string>> siblings)
     {
         if (row.Build is not { } build)
         {
-            return ComposeGroup(state, row, row.Group!, selected, now);
+            return ComposeGroup(state, row, row.Group!, selected, now, siblings);
         }
 
         var estimate = Estimator.Estimate(build, state.Medians);
@@ -495,7 +613,7 @@ static class ScreenBuilder
             NameLinkOf(row),
             NameIconOf(row, descriptor),
             ChipKind.Build,
-            DetailOf(row),
+            DetailOf(row, siblings),
             detailIcon.Icon,
             detailIcon.Link,
             descriptor.Id,
@@ -515,7 +633,7 @@ static class ScreenBuilder
     /// is the checkout, when every member is the same one: a closed group would otherwise hide the
     /// folder button of rows that all name the same folder.
     /// </summary>
-    static BuildRow ComposeGroup(SessionState state, Row row, GroupKey group, bool selected, DateTimeOffset now)
+    static BuildRow ComposeGroup(SessionState state, Row row, GroupKey group, bool selected, DateTimeOffset now, IReadOnlyDictionary<string, List<string>> siblings)
     {
         var latest = row.Members.MaxBy(_ => _.Finished ?? _.Started ?? _.Queued ?? DateTimeOffset.MinValue)!;
         var (_, timing) = Progress.Compute(latest, null, now);
@@ -531,7 +649,7 @@ static class ScreenBuilder
             repo is null ? ChipKind.None : ChipKind.Repo,
             RepoHosts.MarkOf(repo),
             ChipKind.None,
-            DetailOf(row),
+            DetailOf(row, siblings),
             "",
             ChipKind.None,
             "",

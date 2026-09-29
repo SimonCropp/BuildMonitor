@@ -149,6 +149,77 @@ public class ScreenTests
     }
 
     /// <summary>
+    /// A member's pipeline loses the group's name at its start as its project does, and then its
+    /// project's: under Verify, "VerifyXunit - Security" in VerifyXunit reads as "Security".
+    /// </summary>
+    [Test]
+    public Task AMembersPipelineDropsTheGroupsName()
+    {
+        var state = Fixtures.WithPrefixGroup();
+        state = MonitorSession.ApplyPoll(
+            state,
+            Fixtures.GitHub.Id,
+            [],
+            [
+                ..state.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id),
+                Fixtures.Build(
+                    Fixtures.GitHub.Id,
+                    "VerifyXunit/security.yml",
+                    "VerifyXunit - Security",
+                    "VerifyTests/VerifyXunit",
+                    "main",
+                    "8",
+                    BuildStatus.Succeeded,
+                    started: Fixtures.Now - TimeSpan.FromHours(6),
+                    finished: Fixtures.Now - TimeSpan.FromHours(6) + TimeSpan.FromMinutes(1),
+                    branchUrl: "https://github.com/VerifyTests/VerifyXunit/tree/main")
+            ],
+            Fixtures.Now - TimeSpan.FromSeconds(12));
+        return Verify(Fixtures.Render(MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing)));
+    }
+
+    /// <summary>
+    /// A pipeline keeps its project's name where leaving it out would read as another pipeline of
+    /// the repository: beside one named Security, "VerifyXunit - Security" stays "Xunit - Security".
+    /// </summary>
+    [Test]
+    public Task AProjectsNameStaysWhereItTellsPipelinesApart()
+    {
+        var state = Fixtures.WithPrefixGroup();
+        state = MonitorSession.ApplyPoll(
+            state,
+            Fixtures.GitHub.Id,
+            [],
+            [
+                ..state.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id),
+                Fixtures.Build(
+                    Fixtures.GitHub.Id,
+                    "VerifyXunit/security.yml",
+                    "VerifyXunit - Security",
+                    "VerifyTests/VerifyXunit",
+                    "main",
+                    "8",
+                    BuildStatus.Succeeded,
+                    started: Fixtures.Now - TimeSpan.FromHours(6),
+                    finished: Fixtures.Now - TimeSpan.FromHours(6) + TimeSpan.FromMinutes(1),
+                    branchUrl: "https://github.com/VerifyTests/VerifyXunit/tree/main"),
+                Fixtures.Build(
+                    Fixtures.GitHub.Id,
+                    "VerifyXunit/audit.yml",
+                    "Security",
+                    "VerifyTests/VerifyXunit",
+                    "main",
+                    "3",
+                    BuildStatus.Succeeded,
+                    started: Fixtures.Now - TimeSpan.FromHours(7),
+                    finished: Fixtures.Now - TimeSpan.FromHours(7) + TimeSpan.FromMinutes(1),
+                    branchUrl: "https://github.com/VerifyTests/VerifyXunit/tree/main")
+            ],
+            Fixtures.Now - TimeSpan.FromSeconds(12));
+        return Verify(Fixtures.Render(MonitorSession.ToggleGroup(state, Fixtures.VerifyPassing)));
+    }
+
+    /// <summary>
     /// The right click menu of a row whose project shares a prefix with another: what it could be
     /// grouped by, above what it could be excluded from.
     /// </summary>
