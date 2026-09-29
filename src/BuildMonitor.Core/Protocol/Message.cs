@@ -8,57 +8,64 @@ record Message(Verb Verb, string? Key = null, string? Body = null)
 {
     const int version = 1;
 
-    public string Build()
+    /// <summary>
+    /// The message as the UTF-8 that goes on the wire.
+    /// </summary>
+    public byte[] Build()
     {
-        var builder = new StringBuilder();
-        builder.Append("version: ").Append(version).Append('\n');
-        builder.Append("verb: ").Append(Verb.ToString().ToLowerInvariant()).Append('\n');
+        var header = $"version: {version}\nverb: {Verb.ToString().ToLowerInvariant()}\n";
+        var length = Encoding.UTF8.GetByteCount(header) + 1;
         if (Key is not null)
         {
-            builder.Append("key: ").Append(Encode(Key)).Append('\n');
+            length += ProtocolLines.FieldLength("key"u8, Key);
         }
 
         if (Body is not null)
         {
-            builder.Append("body: ").Append(Encode(Body)).Append('\n');
+            length += ProtocolLines.FieldLength("body"u8, Body);
         }
 
-        builder.Append('\n');
-        return builder.ToString();
+        var bytes = new byte[length];
+        var span = bytes.AsSpan();
+        var position = Encoding.UTF8.GetBytes(header, span);
+        if (Key is not null)
+        {
+            position += ProtocolLines.WriteField(span[position..], "key"u8, Key);
+        }
+
+        if (Body is not null)
+        {
+            position += ProtocolLines.WriteField(span[position..], "body"u8, Body);
+        }
+
+        span[position] = (byte) '\n';
+        return bytes;
     }
 
-    public static bool TryParse(string text, [NotNullWhen(true)] out Message? message)
+    public static bool TryParse(ReadOnlySpan<byte> text, [NotNullWhen(true)] out Message? message)
     {
         message = null;
         Verb? verb = null;
         string? key = null;
         string? body = null;
-        foreach (var line in text.AsSpan().EnumerateLines())
+        while (ProtocolLines.TryReadField(ref text, out var name, out var value))
         {
-            var separator = line.IndexOf(':');
-            if (separator < 0)
+            if (name.SequenceEqual("verb"u8))
             {
-                continue;
+                if (!Enum.TryParse<Verb>(Encoding.UTF8.GetString(value), true, out var parsed))
+                {
+                    return false;
+                }
+
+                verb = parsed;
             }
-
-            var name = line[..separator].Trim();
-            var value = line[(separator + 1)..].Trim();
-            switch (name)
+            else if (name.SequenceEqual("key"u8))
             {
-                case "verb":
-                    if (!Enum.TryParse<Verb>(value, true, out var parsed))
-                    {
-                        return false;
-                    }
-
-                    verb = parsed;
-                    break;
-                case "key":
-                    key = Decode(value);
-                    break;
-                case "body":
-                    body = Decode(value);
-                    break;
+                key = ProtocolLines.Decode(value);
+            }
+            else if (name.SequenceEqual("body"u8))
+            {
+                body = ProtocolLines.Decode(value);
             }
         }
 
@@ -69,19 +76,5 @@ record Message(Verb Verb, string? Key = null, string? Body = null)
 
         message = new(verb.Value, key, body);
         return true;
-    }
-
-    public static string Encode(string value) =>
-        Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
-
-    public static string Decode(ReadOnlySpan<char> value)
-    {
-        var bytes = new byte[value.Length / 4 * 3 + 3];
-        if (!Convert.TryFromBase64Chars(value, bytes, out var written))
-        {
-            return "";
-        }
-
-        return Encoding.UTF8.GetString(bytes, 0, written);
     }
 }

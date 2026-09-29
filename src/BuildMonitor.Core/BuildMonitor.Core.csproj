@@ -13,6 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="System.Buffers" />
+    <Using Include="System.Buffers.Text" />
     <Using Include="System.Text" />
     <Using Include="System.Text.Json" />
     <Using Include="System.Text.Json.Serialization" />

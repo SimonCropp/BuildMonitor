@@ -10,32 +10,35 @@ record Response(bool Ok, string Body)
     public static Response Error(string message) =>
         new(false, message);
 
-    public string Build() =>
-        $"ok: {(Ok ? "true" : "false")}\nbody: {Message.Encode(Body)}\n\n";
+    /// <summary>
+    /// The response as the UTF-8 that goes on the wire, written into one array sized up front:
+    /// a body is a listing or a log, and a string built first would be copied twice more.
+    /// </summary>
+    public byte[] Build()
+    {
+        var header = Ok ? "ok: true\n"u8 : "ok: false\n"u8;
+        var bytes = new byte[header.Length + ProtocolLines.FieldLength("body"u8, Body) + 1];
+        var span = bytes.AsSpan();
+        var position = ProtocolLines.Write(span, header);
+        position += ProtocolLines.WriteField(span[position..], "body"u8, Body);
+        span[position] = (byte) '\n';
+        return bytes;
+    }
 
-    public static bool TryParse(string text, [NotNullWhen(true)] out Response? response)
+    public static bool TryParse(ReadOnlySpan<byte> text, [NotNullWhen(true)] out Response? response)
     {
         response = null;
         bool? ok = null;
         var body = "";
-        foreach (var line in text.AsSpan().EnumerateLines())
+        while (ProtocolLines.TryReadField(ref text, out var name, out var value))
         {
-            var separator = line.IndexOf(':');
-            if (separator < 0)
+            if (name.SequenceEqual("ok"u8))
             {
-                continue;
+                ok = value.SequenceEqual("true"u8);
             }
-
-            var name = line[..separator].Trim();
-            var value = line[(separator + 1)..].Trim();
-            switch (name)
+            else if (name.SequenceEqual("body"u8))
             {
-                case "ok":
-                    ok = value.SequenceEqual("true");
-                    break;
-                case "body":
-                    body = Message.Decode(value);
-                    break;
+                body = ProtocolLines.Decode(value);
             }
         }
 

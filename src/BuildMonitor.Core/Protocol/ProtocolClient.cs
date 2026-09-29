@@ -31,10 +31,10 @@ sealed class ProtocolClient(int port) : IProtocolClient
         {
             await client.ConnectAsync(IPAddress.Loopback, Port, timeout.Token);
             await using var stream = client.GetStream();
-            await stream.WriteAsync(Encoding.UTF8.GetBytes(message.Build()), timeout.Token);
+            await stream.WriteAsync(message.Build(), timeout.Token);
             await stream.FlushAsync(timeout.Token);
             var text = await LocalServer.ReadMessage(stream, timeout.Token, limit);
-            if (Response.TryParse(text, out var response))
+            if (Response.TryParse(text.Span, out var response))
             {
                 return response;
             }

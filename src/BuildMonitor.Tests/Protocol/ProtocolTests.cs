@@ -7,7 +7,7 @@ public class ProtocolTests
         var text = message.Build();
         await Assert.That(Message.TryParse(text, out var parsed)).IsTrue();
         await Assert.That(parsed).IsEqualTo(message);
-        await Verify(text)
+        await Verify(Encoding.UTF8.GetString(text))
             .Snapshot(
                 """
                 version: 1
@@ -30,16 +30,16 @@ public class ProtocolTests
     [Test]
     public async Task UnknownLinesAreIgnoredAndUnknownVerbsRejected()
     {
-        await Assert.That(Message.TryParse("version: 9\nverb: ping\nfuture: x\n\n", out var message)).IsTrue();
+        await Assert.That(Message.TryParse("version: 9\nverb: ping\nfuture: x\n\n"u8, out var message)).IsTrue();
         await Assert.That(message!.Verb).IsEqualTo(Verb.Ping);
-        await Assert.That(Message.TryParse("verb: dance\n\n", out _)).IsFalse();
-        await Assert.That(Message.TryParse("nothing", out _)).IsFalse();
+        await Assert.That(Message.TryParse("verb: dance\n\n"u8, out _)).IsFalse();
+        await Assert.That(Message.TryParse("nothing"u8, out _)).IsFalse();
     }
 
     [Test]
     public async Task BadBase64IsEmptyNotAnException()
     {
-        await Assert.That(Message.TryParse("verb: get\nkey: !!!\n\n", out var message)).IsTrue();
+        await Assert.That(Message.TryParse("verb: get\nkey: !!!\n\n"u8, out var message)).IsTrue();
         await Assert.That(message!.Key).IsEqualTo("");
     }
 }
