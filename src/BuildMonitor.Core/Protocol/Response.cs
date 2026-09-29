@@ -18,7 +18,7 @@ record Response(bool Ok, string Body)
         response = null;
         bool? ok = null;
         var body = "";
-        foreach (var line in text.Split('\n'))
+        foreach (var line in text.AsSpan().EnumerateLines())
         {
             var separator = line.IndexOf(':');
             if (separator < 0)
@@ -31,7 +31,7 @@ record Response(bool Ok, string Body)
             switch (name)
             {
                 case "ok":
-                    ok = value == "true";
+                    ok = value.SequenceEqual("true");
                     break;
                 case "body":
                     body = Message.Decode(value);

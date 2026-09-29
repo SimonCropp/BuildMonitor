@@ -33,7 +33,7 @@ record Message(Verb Verb, string? Key = null, string? Body = null)
         Verb? verb = null;
         string? key = null;
         string? body = null;
-        foreach (var line in text.Split('\n'))
+        foreach (var line in text.AsSpan().EnumerateLines())
         {
             var separator = line.IndexOf(':');
             if (separator < 0)
@@ -74,15 +74,14 @@ record Message(Verb Verb, string? Key = null, string? Body = null)
     public static string Encode(string value) =>
         Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
 
-    public static string Decode(string value)
+    public static string Decode(ReadOnlySpan<char> value)
     {
-        try
-        {
-            return Encoding.UTF8.GetString(Convert.FromBase64String(value));
-        }
-        catch (FormatException)
+        var bytes = new byte[value.Length / 4 * 3 + 3];
+        if (!Convert.TryFromBase64Chars(value, bytes, out var written))
         {
             return "";
         }
+
+        return Encoding.UTF8.GetString(bytes, 0, written);
     }
 }

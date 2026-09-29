@@ -138,7 +138,7 @@ static class RowTooltips
         };
         if (build.CommitMessage is not null)
         {
-            lines.Add(build.CommitMessage.Split('\n')[0].Trim());
+            lines.Add(FirstLine(build.CommitMessage));
         }
 
         var details = new List<string>();
@@ -163,6 +163,22 @@ static class RowTooltips
         }
 
         return string.Join("\n", lines);
+    }
+
+    /// <summary>
+    /// A commit message's subject. Sliced rather than split, because a long message would
+    /// otherwise allocate every line of its body on each hover to keep only the first.
+    /// </summary>
+    static string FirstLine(string message)
+    {
+        var text = message.AsSpan();
+        var newline = text.IndexOf('\n');
+        if (newline >= 0)
+        {
+            text = text[..newline];
+        }
+
+        return text.Trim().ToString();
     }
 
     /// <summary>

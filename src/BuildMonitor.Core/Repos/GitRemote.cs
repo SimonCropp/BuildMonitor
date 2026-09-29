@@ -94,12 +94,10 @@ static class GitRemote
         var inOrigin = false;
         foreach (var line in lines)
         {
-            var text = line.Trim();
+            var text = line.AsSpan().Trim();
             if (text.StartsWith('['))
             {
-                inOrigin = text
-                    .Replace(" ", "")
-                    .Equals("[remote\"origin\"]", StringComparison.OrdinalIgnoreCase);
+                inOrigin = IsOriginHeader(text);
                 continue;
             }
 
@@ -118,11 +116,29 @@ static class GitRemote
             var url = text[(equals + 1)..].Trim();
             if (url.Length > 0)
             {
-                return url;
+                return url.ToString();
             }
         }
 
         return null;
+    }
+
+    static bool IsOriginHeader(ReadOnlySpan<char> text)
+    {
+        if (!text.EndsWith(']'))
+        {
+            return false;
+        }
+
+        var inner = text[1..^1].Trim();
+        if (!inner.StartsWith("remote", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return inner["remote".Length..]
+            .Trim()
+            .Equals("\"origin\"", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
