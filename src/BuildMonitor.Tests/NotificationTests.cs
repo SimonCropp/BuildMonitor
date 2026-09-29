@@ -5,14 +5,20 @@
     {
         var state = Fixtures.WithBuilds();
         var builds = Fixtures.GitHubBuilds();
-        var failed = builds.Select(_ => _.RunNumber == "1234"
-                ? _
+        var failed = builds.Select(_ =>
+        {
+            if (_.RunNumber == "1234")
+            {
+                return _
                     with
                     {
                         Status = BuildStatus.Failed,
                         Finished = Fixtures.Now
-                    }
-                : _)
+                    };
+            }
+
+            return _;
+        })
             .ToImmutableArray();
         var next = MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, state.Connection(Fixtures.GitHub.Id)!.Pipelines, failed, Fixtures.Now);
         await Assert.That(next.Notification).IsEqualTo(new("test.yml failed", "VerifyTests/DiffEngine @main #1234", failed.Single(_ => _.RunNumber == "1234").Key));

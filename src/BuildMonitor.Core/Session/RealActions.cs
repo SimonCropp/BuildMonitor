@@ -41,9 +41,15 @@ static class RealActions
                 try
                 {
                     var log = await poller.FetchLog(build, Cancel.None);
-                    host.Mutate(_ => log.Length == 0
-                        ? MonitorSession.SetStatus(_, $"{name} has no log to copy")
-                        : MonitorSession.Copy(_, log, $"Copied the log of {name}"));
+                    host.Mutate(_ =>
+                    {
+                        if (log.Length == 0)
+                        {
+                            return MonitorSession.SetStatus(_, $"{name} has no log to copy");
+                        }
+
+                        return MonitorSession.Copy(_, log, $"Copied the log of {name}");
+                    });
                 }
                 catch (Exception exception)
                 {
@@ -89,9 +95,15 @@ static class RealActions
                 {
                     var result = await poller.Test(connection, token, Cancel.None);
                     var message = result.Describe(ProviderDescriptors.Get(connection.ProviderId));
-                    host.Mutate(_ => result.Ok
-                        ? MonitorSession.SetFormMessage(_, message)
-                        : MonitorSession.SetFormError(_, new(message)));
+                    host.Mutate(_ =>
+                    {
+                        if (result.Ok)
+                        {
+                            return MonitorSession.SetFormMessage(_, message);
+                        }
+
+                        return MonitorSession.SetFormError(_, new(message));
+                    });
                 }
                 catch (Exception exception)
                 {

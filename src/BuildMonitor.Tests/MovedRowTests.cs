@@ -14,7 +14,15 @@ public class MovedRowTests
 
     static SessionState Poll(SessionState state, Func<Build, Build> docsRun)
     {
-        ImmutableArray<Build> builds = [.. Fixtures.GitHubBuilds().Select(_ => _.Key == docs ? docsRun(_) : _)];
+        ImmutableArray<Build> builds = [.. Fixtures.GitHubBuilds().Select(_ =>
+        {
+            if (_.Key == docs)
+            {
+                return docsRun(_);
+            }
+
+            return _;
+        })];
         return MonitorSession.ApplyPoll(state, Fixtures.GitHub.Id, state.Connection(Fixtures.GitHub.Id)!.Pipelines, builds, polled);
     }
 

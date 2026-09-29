@@ -26,7 +26,15 @@ static class AuthorNames
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         return distinct.ToDictionary(
             _ => _,
-            _ => shared.Contains(Short(_)) ? Full(_) : Short(_),
+            _ =>
+            {
+                if (shared.Contains(Short(_)))
+                {
+                    return Full(_);
+                }
+
+                return Short(_);
+            },
             StringComparer.OrdinalIgnoreCase);
     }
 

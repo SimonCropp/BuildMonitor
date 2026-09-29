@@ -1430,13 +1430,18 @@ static class MonitorSession
     /// <summary>
     /// The Undo beside the status line goes when its message does.
     /// </summary>
-    public static SessionState ForgetUndo(SessionState state) =>
-        state.Undo is null
-            ? state
-            : state with
-            {
-                Undo = null
-            };
+    public static SessionState ForgetUndo(SessionState state)
+    {
+        if (state.Undo is null)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            Undo = null
+        };
+    }
 
     // Settings
 
@@ -1486,7 +1491,15 @@ static class MonitorSession
             state,
             state.Settings with
             {
-                Connections = [.. state.Settings.Connections.Select(_ => _.Id == connection.Id ? connection : _)]
+                Connections = [.. state.Settings.Connections.Select(_ =>
+                {
+                    if (_.Id == connection.Id)
+                    {
+                        return connection;
+                    }
+
+                    return _;
+                })]
             });
 
     public static SessionState RemoveConnection(SessionState state, string connectionId) =>
@@ -1622,12 +1635,18 @@ static class MonitorSession
         });
 
     public static SessionState SetProgress(SessionState state, string connectionId, PollProgress progress) =>
-        UpdateConnection(state, connectionId, _ => _.Health == ConnectionHealth.Polling
-            ? _ with
+        UpdateConnection(state, connectionId, _ =>
+        {
+            if (_.Health == ConnectionHealth.Polling)
             {
-                Progress = progress
+                return _ with
+                {
+                    Progress = progress
+                };
             }
-            : _);
+
+            return _;
+        });
 
     /// <summary>
     /// The result of one poll: that connection's builds are replaced wholesale. Everything else
@@ -1783,10 +1802,15 @@ static class MonitorSession
     /// <summary>
     /// A deferred pipeline failing again is the failure the user put off, not news.
     /// </summary>
-    static ImmutableArray<Build> Undeferred(SessionState state, ImmutableArray<Build> failures) =>
-        state.Settings.Deferrals.Length == 0
-            ? failures
-            : failures.RemoveAll(_ => Deferrals.Hides(state.Settings.Deferrals, _));
+    static ImmutableArray<Build> Undeferred(SessionState state, ImmutableArray<Build> failures)
+    {
+        if (state.Settings.Deferrals.Length == 0)
+        {
+            return failures;
+        }
+
+        return failures.RemoveAll(_ => Deferrals.Hides(state.Settings.Deferrals, _));
+    }
 
     /// <summary>
     /// Ends the deferrals that are due or whose pipeline has passed since, with the poll that

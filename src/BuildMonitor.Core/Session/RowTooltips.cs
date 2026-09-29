@@ -72,7 +72,15 @@ static class RowTooltips
             $"{group.Project}: {Plural(members.Length, "passing build")}"
         };
         lines.AddRange(members
-            .Select(_ => _.Branch is null ? _.PipelineName : $"{_.PipelineName} {DetailSpan.BranchIconText}{_.ShortBranchName()}")
+            .Select(_ =>
+            {
+                if (_.Branch is null)
+                {
+                    return _.PipelineName;
+                }
+
+                return $"{_.PipelineName} {DetailSpan.BranchIconText}{_.ShortBranchName()}";
+            })
             .Distinct(StringComparer.OrdinalIgnoreCase));
         List<RowTooltip> tooltips =
         [

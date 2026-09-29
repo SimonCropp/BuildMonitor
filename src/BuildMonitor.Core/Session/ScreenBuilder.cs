@@ -557,9 +557,15 @@ static class ScreenBuilder
     static List<string> Problems(SessionState state, DateTimeOffset now) =>
     [
         .. MonitorSession.Unhealthy(state)
-            .Select(_ => _.Health == ConnectionHealth.NeedsAuth
-                ? $"Sign in required for {_.Connection.Name}"
-                : $"{_.Connection.Name}: {_.Describe(now)}")
+            .Select(_ =>
+            {
+                if (_.Health == ConnectionHealth.NeedsAuth)
+                {
+                    return $"Sign in required for {_.Connection.Name}";
+                }
+
+                return $"{_.Connection.Name}: {_.Describe(now)}";
+            })
     ];
 
     /// <summary>

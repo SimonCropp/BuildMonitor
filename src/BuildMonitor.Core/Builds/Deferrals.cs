@@ -74,8 +74,15 @@ static class Deferrals
     public static string Label(int days) =>
         $"Defer {Span(days)}";
 
-    public static string Span(int days) =>
-        days == 1 ? "1 day" : $"{days} days";
+    public static string Span(int days)
+    {
+        if (days == 1)
+        {
+            return "1 day";
+        }
+
+        return $"{days} days";
+    }
 
     /// <summary>
     /// How long is left, rounded up, as the filters page says it: a deferral due in an hour is not
@@ -92,10 +99,20 @@ static class Deferrals
         if (left < TimeSpan.FromDays(1))
         {
             var hours = (int) Math.Ceiling(left.TotalHours);
-            return hours == 1 ? "1 hour left" : $"{hours} hours left";
+            if (hours == 1)
+            {
+                return "1 hour left";
+            }
+
+            return $"{hours} hours left";
         }
 
         var days = (int) Math.Ceiling(left.TotalDays);
-        return days == 1 ? "1 day left" : $"{days} days left";
+        if (days == 1)
+        {
+            return "1 day left";
+        }
+
+        return $"{days} days left";
     }
 }
