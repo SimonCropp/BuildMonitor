@@ -69,7 +69,7 @@ sealed class RowsCanvas : Control
     List<(int Row, ChipKind Chip, bool Overflow, Rectangle Bounds)> chips = [];
     // Each hover text the last paint drew, in the order drawn, so a later one wins where two
     // overlap: a cell's own text over the one for the whole row.
-    List<(Rectangle Bounds, string Text)> tips = [];
+    List<(int Row, Rectangle Bounds, string Text)> tips = [];
     // Shown by hand rather than by assigning the control a tool and letting it decide when:
     // InitialDelay only governs the first time the pointer enters a tool, and the whole canvas is
     // one tool whose text changes as the pointer crosses cells, so the control re-showed instantly
@@ -173,8 +173,14 @@ sealed class RowsCanvas : Control
     /// Taken from the font's line height rather than fixed pixels. The app is per monitor DPI
     /// aware, so on a scaled display the font grows and a fixed chip would push its text out of
     /// the bottom.
+    /// <para>
+    /// From the height the control keeps rather than the font's own, here and wherever else a
+    /// height is read: the font makes a device context of the screen to answer each time it is
+    /// asked, a row asks a dozen times over, and that was two fifths of a paint. The frame loop
+    /// asks too, every frame, for how many rows fit.
+    /// </para>
     /// </summary>
-    public int RowHeight => Font.Height + LogicalToDeviceUnits(14);
+    public int RowHeight => FontHeight + LogicalToDeviceUnits(14);
 
     /// <summary>
     /// The square a row's two marks are drawn in: the host's before the name, and the provider's
@@ -183,12 +189,13 @@ sealed class RowsCanvas : Control
     /// </summary>
     int LogoSize => RowHeight - LogicalToDeviceUnits(logoInset);
 
-    int ChipHeight => Font.Height + LogicalToDeviceUnits(2);
+    int ChipHeight => FontHeight + LogicalToDeviceUnits(2);
 
     public int VisibleRows => Math.Max(1, Height / RowHeight);
 
     public void Apply(BuildsPage builds, MenuOverlay? overlay)
     {
+        var previous = page;
         page = builds;
         if (overlay is null)
         {
@@ -209,7 +216,86 @@ sealed class RowsCanvas : Control
             ShowMenu(overlay);
         }
 
-        Invalidate();
+        if (Changed(previous, builds) is not { } rows)
+        {
+            Invalidate();
+            return;
+        }
+
+        foreach (var row in rows)
+        {
+            InvalidateRow(row);
+        }
+    }
+
+    /// <summary>
+    /// The rows of <paramref name="next"/> to draw again once <paramref name="previous"/> has been
+    /// drawn, or null for all of them. The clock rebuilds the page every second, and most seconds
+    /// change no row, or only the ones still running: drawing every row each time was most of what
+    /// an open window cost, nearly all of it text drawn exactly where it already was.
+    /// <para>
+    /// All of them whenever what the columns are sized from has changed, since that moves every
+    /// row, and while the page is loading, whose spinner turns only when it is drawn.
+    /// </para>
+    /// </summary>
+    public static List<int>? Changed(BuildsPage? previous, BuildsPage next)
+    {
+        if (previous is null ||
+            next.Loading ||
+            !SameColumns(previous, next))
+        {
+            return null;
+        }
+
+        var rows = new List<int>();
+        for (var index = 0; index < next.Rows.Count; index++)
+        {
+            if (!previous.Rows[index].SameAs(next.Rows[index]))
+            {
+                rows.Add(index);
+            }
+        }
+
+        return rows;
+    }
+
+    /// <summary>
+    /// Whether the two pages give every row the same place: as many rows, columns sized from the
+    /// same texts, and marks in the same columns.
+    /// </summary>
+    static bool SameColumns(BuildsPage previous, BuildsPage next) =>
+        previous.Rows.Count == next.Rows.Count &&
+        previous.Loading == next.Loading &&
+        previous.Empty == next.Empty &&
+        Same(previous.Names, next.Names) &&
+        Same(previous.GroupNames, next.GroupNames) &&
+        Same(previous.Details, next.Details) &&
+        Same(previous.Authors ?? [], next.Authors ?? []) &&
+        Marks(previous) == Marks(next);
+
+    static bool Same(IReadOnlyList<string> previous, IReadOnlyList<string> next) =>
+        ReferenceEquals(previous, next) ||
+        previous.SequenceEqual(next);
+
+    /// <summary>
+    /// Which marks the page draws at all: the one leading the second cell, the one before the name,
+    /// and one inside a run of the second cell. Room for each is reserved on every row once any row
+    /// has one, so a row gaining or losing a mark can move them all.
+    /// </summary>
+    static (bool Detail, bool Name, bool Span) Marks(BuildsPage page) =>
+        (page.Rows.Any(_ => _.DetailIcon.Length > 0),
+            page.Rows.Any(_ => _.NameIcon.Length > 0),
+            page.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)));
+
+    Rectangle RowBounds(int row) =>
+        new(0, row * RowHeight, Width, RowHeight);
+
+    void InvalidateRow(int row)
+    {
+        if (row >= 0)
+        {
+            Invalidate(RowBounds(row));
+        }
     }
 
     public void Retheme()
@@ -284,7 +370,25 @@ sealed class RowsCanvas : Control
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        var graphics = e.Graphics;
+        // A poll moves the rows under a pointer that has not moved, and a tooltip stays up for
+        // twenty seconds, so without this one could sit there describing the row that used to be
+        // under it. Only where the pointer is already hovering something: a repaint is not itself
+        // a reason to start showing one.
+        if (PaintRows(e.Graphics, e.ClipRectangle) &&
+            tipPending.Length > 0)
+        {
+            ShowTip(PointToClient(MousePosition));
+        }
+    }
+
+    /// <summary>
+    /// Draws the rows that <paramref name="clip"/> takes in, and records what can be clicked and
+    /// hovered on them in place of what the last paint recorded there. The rows outside it keep
+    /// what they recorded, since they are still on screen as that paint drew them. False where the
+    /// page has no rows to draw.
+    /// </summary>
+    public bool PaintRows(Graphics graphics, Rectangle clip)
+    {
         graphics.Clear(Palette.Background);
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
@@ -292,11 +396,22 @@ sealed class RowsCanvas : Control
         // default filter left the small detail in one, a play badge or a face, muddy.
         graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
         graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        chips.Clear();
-        tips.Clear();
+        // Everything, where everything is drawn: a page with fewer rows than the last leaves rows
+        // behind that no row drawn now would replace.
+        if (clip.Contains(ClientRectangle))
+        {
+            chips.Clear();
+            tips.Clear();
+        }
+        else
+        {
+            chips.RemoveAll(_ => clip.IntersectsWith(RowBounds(_.Row)));
+            tips.RemoveAll(_ => clip.IntersectsWith(RowBounds(_.Row)));
+        }
+
         if (page is null)
         {
-            return;
+            return false;
         }
 
         if (page.Rows.Count == 0)
@@ -311,7 +426,7 @@ sealed class RowsCanvas : Control
             }
 
             TextRenderer.DrawText(graphics, page.Empty, Font, new Rectangle(x, gap, Width - x - gap, RowHeight), Palette.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-            return;
+            return false;
         }
 
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps
@@ -340,7 +455,12 @@ sealed class RowsCanvas : Control
             }
 
             var row = page.Rows[index];
-            var bounds = new Rectangle(0, top, Width, RowHeight);
+            var bounds = RowBounds(index);
+            if (!clip.IntersectsWith(bounds))
+            {
+                continue;
+            }
+
             if (row.Selected)
             {
                 using var brush = new SolidBrush(Palette.SelectedRow);
@@ -355,14 +475,7 @@ sealed class RowsCanvas : Control
             DrawRow(graphics, row, bounds, index, iconWidth, markWidth, layout);
         }
 
-        // A poll moves the rows under a pointer that has not moved, and a tooltip stays up for
-        // twenty seconds, so without this one could sit there describing the row that used to be
-        // under it. Only where the pointer is already hovering something: a repaint is not itself
-        // a reason to start showing one.
-        if (tipPending.Length > 0)
-        {
-            ShowTip(PointToClient(MousePosition));
-        }
+        return true;
     }
 
     /// <summary>
@@ -462,7 +575,7 @@ sealed class RowsCanvas : Control
     void DrawRow(Graphics graphics, BuildRow row, Rectangle bounds, int index, int iconWidth, int markWidth, (int Name, int Detail, int Bar, int Author, int Chips) layout)
     {
         // First, so every cell drawn after it covers it where that cell has something of its own.
-        Tip(bounds, row.Tooltip(RowPart.Row));
+        Tip(index, bounds, row.Tooltip(RowPart.Row));
         // The full height of the row and flush with its neighbours, so a run of rows in one status
         // reads as one block rather than a column of dots.
         var square = new Rectangle(bounds.Left, bounds.Top, bounds.Height, bounds.Height);
@@ -477,7 +590,7 @@ sealed class RowsCanvas : Control
         if (row.StatusLink != ChipKind.None)
         {
             chips.Add((index, row.StatusLink, false, square));
-            Tip(square, row.Tooltip(RowPart.Status));
+            Tip(index, square, row.Tooltip(RowPart.Status));
         }
 
         var gap = LogicalToDeviceUnits(padding);
@@ -499,7 +612,7 @@ sealed class RowsCanvas : Control
             if (Icons.Draw(graphics, row.DetailIcon, iconBounds, logoSource))
             {
                 chips.Add((index, row.DetailIconLink, false, iconBounds));
-                Tip(iconBounds, row.Tooltip(RowPart.DetailIcon));
+                Tip(index, iconBounds, row.Tooltip(RowPart.DetailIcon));
             }
         }
 
@@ -522,7 +635,7 @@ sealed class RowsCanvas : Control
         }
 
         Draw(graphics, row.Timing, Font, x, bounds, timingWidth, Palette.Dim);
-        Tip(new(x, bounds.Top, timingWidth, bounds.Height), row.Tooltip(RowPart.Timing));
+        Tip(index, new(x, bounds.Top, timingWidth, bounds.Height), row.Tooltip(RowPart.Timing));
         x += timingWidth + gap;
         if (layout.Author > 0)
         {
@@ -597,7 +710,7 @@ sealed class RowsCanvas : Control
 
         Draw(graphics, row.Name, link == hoverLink ? Hovered(font) : font, x, bounds, width, Palette.ChipText);
         chips.Add((index, row.NameLink, false, link));
-        Tip(link, row.Tooltip(RowPart.Name));
+        Tip(index, link, row.Tooltip(RowPart.Name));
     }
 
     /// <summary>
@@ -661,7 +774,7 @@ sealed class RowsCanvas : Control
             var link = LinkBounds(left, Math.Min(x + icons + Measure(before), right) - left, bounds);
             TextRenderer.DrawText(graphics, span.Text, link == hoverLink ? underline : Font, cell, Palette.ChipText, runFlags);
             chips.Add((index, span.Link, false, link));
-            Tip(link, row.Tooltip(span.Link == ChipKind.Branch ? RowPart.Branch : RowPart.Pipeline));
+            Tip(index, link, row.Tooltip(span.Link == ChipKind.Branch ? RowPart.Branch : RowPart.Pipeline));
         }
     }
 
@@ -676,7 +789,7 @@ sealed class RowsCanvas : Control
     /// A line of text centred in its row: what a link in the text is hit tested against.
     /// </summary>
     Rectangle LinkBounds(int x, int width, Rectangle row) =>
-        new(x, row.Top + (row.Height - Font.Height) / 2, width, Font.Height);
+        new(x, row.Top + (row.Height - FontHeight) / 2, width, FontHeight);
 
     /// <summary>
     /// The chips that fit, from the left, then an overflow chip in place of the rest. A chip is
@@ -761,7 +874,7 @@ sealed class RowsCanvas : Control
         }
 
         chips.Add((row, kind, overflow, bounds));
-        Tip(bounds, tooltip);
+        Tip(row, bounds, tooltip);
         return bounds.Right;
     }
 
@@ -863,9 +976,12 @@ sealed class RowsCanvas : Control
         if (row != hoverRow ||
             link != hoverLink)
         {
+            // The row the pointer left and the one it is on, which hold the link it left and the
+            // one it is on: every row was drawn again for each row the pointer crossed.
+            InvalidateRow(hoverRow);
             hoverRow = row;
             hoverLink = link;
-            Invalidate();
+            InvalidateRow(hoverRow);
         }
 
         base.OnMouseMove(args);
@@ -902,18 +1018,18 @@ sealed class RowsCanvas : Control
             return false;
         }
 
-        return hit.Bounds.Height <= Font.Height;
+        return hit.Bounds.Height <= FontHeight;
     }
 
     /// <summary>
     /// Records a hover text, dropping the empty ones so a cell with nothing of its own to say
     /// leaves the row's own text showing rather than blanking it.
     /// </summary>
-    void Tip(Rectangle bounds, string text)
+    void Tip(int row, Rectangle bounds, string text)
     {
         if (text.Length > 0)
         {
-            tips.Add((bounds, text));
+            tips.Add((row, bounds, text));
         }
     }
 
@@ -994,11 +1110,11 @@ sealed class RowsCanvas : Control
 
     protected override void OnMouseLeave(EventArgs args)
     {
+        InvalidateRow(hoverRow);
         hoverRow = -1;
         hoverLink = Rectangle.Empty;
         Hovering(default);
         ShowTip(new(-1, -1));
-        Invalidate();
         base.OnMouseLeave(args);
     }
 

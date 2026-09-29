@@ -70,6 +70,36 @@ record BuildRow(
         string.Concat(Detail.Select(_ => _.Text));
 
     /// <summary>
+    /// Whether the two rows hold the same, for a head deciding whether one has to be drawn again.
+    /// The record's own equality compares the lists by instance, and every rebuild of the screen
+    /// makes new ones, so by it no row is ever the row it was a second ago. The lists are compared
+    /// by what they hold and everything else as the record does, so a field added later is compared
+    /// without being named here, and a list added later reads as a change until it is.
+    /// </summary>
+    public bool SameAs(BuildRow other)
+    {
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        if (!Detail.SequenceEqual(other.Detail) ||
+            !Chips.SequenceEqual(other.Chips) ||
+            !Tooltips.SequenceEqual(other.Tooltips))
+        {
+            return false;
+        }
+
+        var aligned = this with
+        {
+            Detail = other.Detail,
+            Chips = other.Chips,
+            Tooltips = other.Tooltips
+        };
+        return aligned == other;
+    }
+
+    /// <summary>
     /// What <paramref name="part"/> says on hover, falling back to the row's own text so a head can
     /// ask for any part without first checking whether this row has one.
     /// </summary>

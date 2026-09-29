@@ -116,6 +116,98 @@ public class RowsCanvasTests
         await Assert.That(Png(changed).SequenceEqual(Png(fresh))).IsTrue();
     }
 
+    /// <summary>
+    /// A rebuild makes every list again, so a page is never the instance it was, and compared that
+    /// way every row would be drawn again every second.
+    /// </summary>
+    [Test]
+    public async Task APageRebuiltTheSameDrawsNothingAgain()
+    {
+        var state = Fixtures.WithBuilds();
+        var drawn = ScreenBuilder.Build(state, Fixtures.Now).Builds!;
+        var rebuilt = ScreenBuilder.Build(state with { Status = "Copied" }, Fixtures.Now).Builds!;
+        await Assert.That(RowsCanvas.Changed(drawn, rebuilt)!).IsEmpty();
+    }
+
+    [Test]
+    public async Task ASecondOnOnlyTheRowsThatSayItAreDrawnAgain()
+    {
+        var state = Fixtures.WithBuilds();
+        var drawn = ScreenBuilder.Build(state, Fixtures.Now).Builds!;
+        var next = ScreenBuilder.Build(state, Fixtures.Now + TimeSpan.FromSeconds(1)).Builds!;
+        var changed = RowsCanvas.Changed(drawn, next)!;
+        await Assert.That(changed).Contains(Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main"));
+        await Assert.That(changed).DoesNotContain(FailedRow());
+    }
+
+    /// <summary>
+    /// What moves every row: nothing drawn before, other texts to size the columns from, and a
+    /// page still loading, whose spinner only turns when it is drawn.
+    /// </summary>
+    [Test]
+    public async Task EveryRowIsDrawnAgainWhenTheColumnsMayMove()
+    {
+        var drawn = ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now).Builds!;
+        await Assert.That(RowsCanvas.Changed(null, drawn)).IsNull();
+        await Assert.That(RowsCanvas.Changed(drawn, ScreenBuilder.Build(Fixtures.WithTwoFailures(), Fixtures.Now).Builds!)).IsNull();
+        var loading = ScreenBuilder.Build(Fixtures.Connected(), Fixtures.Now).Builds!;
+        await Assert.That(loading.Loading).IsTrue();
+        await Assert.That(RowsCanvas.Changed(loading, loading)).IsNull();
+    }
+
+    /// <summary>
+    /// The rows that changed drawn over the last paint come out as drawing every row does, and a
+    /// click on a row left alone still finds what that paint recorded for it.
+    /// </summary>
+    [Test]
+    public async Task RowsDrawnAloneComeOutAsDrawnWithTheRest()
+    {
+        var state = Fixtures.WithBuilds();
+        var first = ScreenBuilder.Build(state, Fixtures.Now).Builds!;
+        var second = ScreenBuilder.Build(state, Fixtures.Now + TimeSpan.FromSeconds(1)).Builds!;
+        var changed = RowsCanvas.Changed(first, second)!;
+        await Assert.That(changed.Count).IsBetween(1, second.Rows.Count - 1);
+
+        using var canvas = new RowsCanvas
+        {
+            Size = new(1000, 400)
+        };
+        var everything = new Rectangle(0, 0, 1000, 400);
+        using var inParts = new Bitmap(1000, 400);
+        canvas.Apply(first, null);
+        using (var graphics = Graphics.FromImage(inParts))
+        {
+            canvas.PaintRows(graphics, everything);
+        }
+
+        canvas.Apply(second, null);
+        foreach (var row in changed)
+        {
+            using var graphics = Graphics.FromImage(inParts);
+            var clip = new Rectangle(0, row * canvas.RowHeight, 1000, canvas.RowHeight);
+            graphics.SetClip(clip);
+            canvas.PaintRows(graphics, clip);
+        }
+
+        var input = ClickAlong(canvas, FailedRow(), _ => _.ClickedChip == ChipKind.CopyLog);
+        await Assert.That(input.ClickedChipRow).IsEqualTo(FailedRow());
+
+        using var whole = new Bitmap(1000, 400);
+        using (var graphics = Graphics.FromImage(whole))
+        {
+            canvas.PaintRows(graphics, everything);
+        }
+
+        await Assert.That(Png(inParts).SequenceEqual(Png(whole))).IsTrue();
+    }
+
+    static byte[] Png(Bitmap bitmap)
+    {
+        using var stream = new MemoryStream();
+        bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+        return stream.ToArray();
+    }
+
     static byte[] Png(RowsCanvas canvas)
     {
         using var bitmap = new Bitmap(canvas.Width, canvas.Height);
