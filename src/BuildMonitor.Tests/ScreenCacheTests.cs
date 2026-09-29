@@ -91,4 +91,70 @@ public class ScreenCacheTests
         await Assert.That(first.Status).IsEqualTo("Polled 5s ago");
         await Assert.That(shown.Status).IsEqualTo("Polled 5m ago");
     }
+
+    [Test]
+    public async Task UntilTickIsToTheNextWholeSecond()
+    {
+        var cache = new ScreenCache();
+        cache.Get(Fixtures.WithBuilds(), now + TimeSpan.FromMilliseconds(300), out _);
+
+        await Assert.That(cache.UntilTick(now + TimeSpan.FromMilliseconds(400))).IsEqualTo(TimeSpan.FromMilliseconds(600));
+        // Past it, as when the loop wakes late, the tick is due at once.
+        await Assert.That(cache.UntilTick(now + TimeSpan.FromMilliseconds(1100))).IsEqualTo(TimeSpan.Zero);
+    }
+
+    [Test]
+    public async Task UntilTickKeepsUpWithTheSpinner()
+    {
+        var cache = new ScreenCache();
+        cache.Get(Fixtures.Connected(), now + TimeSpan.FromMilliseconds(100), out _);
+
+        await Assert.That(cache.UntilTick(now + TimeSpan.FromMilliseconds(100))).IsEqualTo(TimeSpan.FromMilliseconds(150));
+    }
+
+    [Test]
+    public async Task NoTickIsComingWhileHidden()
+    {
+        var cache = new ScreenCache();
+        await Assert.That(cache.UntilTick(now)).IsNull();
+        cache.Get(Fixtures.Hidden(), now, out _);
+        await Assert.That(cache.UntilTick(now)).IsNull();
+    }
+
+    [Test]
+    public async Task TheLoopIdlesUntilTheTick()
+    {
+        var cache = new ScreenCache();
+        var state = Fixtures.WithBuilds();
+        cache.Get(state, now, out _);
+
+        await Assert.That(MonitorProgram.Idle(cache, state, now + TimeSpan.FromMilliseconds(250))).IsEqualTo(TimeSpan.FromMilliseconds(750));
+    }
+
+    [Test]
+    public async Task HiddenTheLoopIdlesUntilWoken()
+    {
+        var cache = new ScreenCache();
+        var state = Fixtures.Hidden();
+        cache.Get(state, now, out _);
+
+        await Assert.That(MonitorProgram.Idle(cache, state, now)).IsEqualTo(MonitorProgram.LongestIdle);
+    }
+
+    /// <summary>
+    /// The pump offers a copy the desktop refused again on the next frame, and a refusal changes no
+    /// state to wake the loop with.
+    /// </summary>
+    [Test]
+    public async Task ACopyStillToOfferIsTriedAFrameLater()
+    {
+        var cache = new ScreenCache();
+        var state = Fixtures.Hidden() with
+        {
+            Clipboard = new("text")
+        };
+        cache.Get(state, now, out _);
+
+        await Assert.That(MonitorProgram.Idle(cache, state, now)).IsEqualTo(MonitorProgram.Frame);
+    }
 }

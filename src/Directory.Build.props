@@ -19,8 +19,8 @@
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
     <Verify_SponsorshipExemption>OpenSource</Verify_SponsorshipExemption>
     <Verify_SponsorshipExemptionUntil>2027-08</Verify_SponsorshipExemptionUntil>
-    <!-- IconifyBundle is maintained by the same author. -->
-    <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>
+    <Papyrine_SponsorshipExemption>OpenSource</Papyrine_SponsorshipExemption>
+    <Papyrine_SponsorshipExemptionUntil>2027-08</Papyrine_SponsorshipExemptionUntil>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.Runtime.CompilerServices" />

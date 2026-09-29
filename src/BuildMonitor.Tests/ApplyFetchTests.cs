@@ -64,6 +64,132 @@
         await Assert.That(fetched.Connection(Fixtures.GitHub.Id)!.LastPolled).IsEqualTo(Fixtures.Now);
     }
 
+    /// <summary>
+    /// What a fetch answered with 304s brings: the builds already held, of the pipelines it fetched.
+    /// </summary>
+    static FetchOutcome Refetch(SessionState state, params string[] fetched) =>
+        Outcome(pipelines, fetched, state.Builds.Where(_ => _.ConnectionId == Fixtures.GitHub.Id && fetched.Contains(_.PipelineId)));
+
+    static readonly string[] everyPipeline = ["DiffEngine/test.yml", "DiffEngine/docs.yml", "Verify/test.yml"];
+
+    // Applied once, so the connection holds the discovered pipelines as a later fetch reports them.
+    static SessionState Settled()
+    {
+        var state = Fixtures.WithBuilds();
+        return MonitorSession.ApplyFetch(state, Fixtures.GitHub.Id, Refetch(state, everyPipeline), Fixtures.Now);
+    }
+
+    [Test]
+    [Arguments("DiffEngine/test.yml,DiffEngine/docs.yml,Verify/test.yml")]
+    [Arguments("Verify/test.yml")]
+    [Arguments("")]
+    public async Task AFetchOfTheBuildsAlreadyHeldChangesNothing(string fetched)
+    {
+        var state = Settled();
+        var outcome = Refetch(state, fetched.Split(',', StringSplitOptions.RemoveEmptyEntries));
+        await Assert.That(MonitorSession.FetchChanges(state, Fixtures.GitHub.Id, outcome, Fixtures.Now)).IsFalse();
+        // And the apply it saves would have left every build as it was.
+        var applied = MonitorSession.ApplyFetch(state, Fixtures.GitHub.Id, outcome, Fixtures.Now);
+        await Assert.That(applied.Builds).IsEquivalentTo(state.Builds);
+        await Assert.That(applied.Notification).IsEqualTo(state.Notification);
+    }
+
+    [Test]
+    public async Task ANewRunIsAChange()
+    {
+        var state = Settled();
+        var rerun = Fixtures.Build(Fixtures.GitHub.Id, "Verify/test.yml", "test.yml", "VerifyTests/Verify", "main", "79", BuildStatus.Running, started: Fixtures.Now);
+        var outcome = Refetch(state, "Verify/test.yml");
+        outcome = outcome with
+        {
+            Builds = outcome.Builds.Add(rerun)
+        };
+        await Assert.That(MonitorSession.FetchChanges(state, Fixtures.GitHub.Id, outcome, Fixtures.Now)).IsTrue();
+    }
+
+    [Test]
+    public async Task ARunThatChangedIsAChange()
+    {
+        var state = Settled();
+        var outcome = Refetch(state, "Verify/test.yml");
+        var changed = outcome.Builds[0] with
+        {
+            Status = BuildStatus.Succeeded,
+            Finished = Fixtures.Now
+        };
+        outcome = outcome with
+        {
+            Builds = outcome.Builds.SetItem(0, changed)
+        };
+        await Assert.That(MonitorSession.FetchChanges(state, Fixtures.GitHub.Id, outcome, Fixtures.Now)).IsTrue();
+    }
+
+    [Test]
+    public async Task ARunNoLongerListedIsAChange()
+    {
+        var state = Settled();
+        var outcome = Refetch(state, everyPipeline);
+        outcome = outcome with
+        {
+            Builds = outcome.Builds.RemoveAt(0)
+        };
+        await Assert.That(MonitorSession.FetchChanges(state, Fixtures.GitHub.Id, outcome, Fixtures.Now)).IsTrue();
+    }
+
+    [Test]
+    public async Task APipelineNoLongerDiscoveredIsAChange()
+    {
+        var state = Settled();
+        var outcome = Refetch(state) with
+        {
+            Pipelines = [pipelines[0], pipelines[1]]
+        };
+        await Assert.That(MonitorSession.FetchChanges(state, Fixtures.GitHub.Id, outcome, Fixtures.Now)).IsTrue();
+    }
+
+    [Test]
+    public async Task AnotherHealthIsAChange()
+    {
+        var state = Settled();
+        var outcome = Refetch(state, everyPipeline) with
+        {
+            Health = ConnectionHealth.Error,
+            Error = "1 of 3 failed: 500"
+        };
+        await Assert.That(MonitorSession.FetchChanges(state, Fixtures.GitHub.Id, outcome, Fixtures.Now)).IsTrue();
+    }
+
+    [Test]
+    public async Task ADeferralFallingDueIsAChange()
+    {
+        var settled = Settled();
+        var state = settled with
+        {
+            Settings = settled.Settings with
+            {
+                Deferrals = [new("gh/Nothing/ci.yml/main", "ci.yml", Fixtures.Now + TimeSpan.FromMinutes(1))]
+            }
+        };
+        var outcome = Refetch(state);
+        await Assert.That(MonitorSession.FetchChanges(state, Fixtures.GitHub.Id, outcome, Fixtures.Now)).IsFalse();
+        await Assert.That(MonitorSession.FetchChanges(state, Fixtures.GitHub.Id, outcome, Fixtures.Now + TimeSpan.FromMinutes(2))).IsTrue();
+    }
+
+    [Test]
+    public async Task PolledMovesOnlyWhenTheConnectionWasPolled()
+    {
+        var state = Settled();
+        var later = Fixtures.Now + TimeSpan.FromMinutes(1);
+        var next = MonitorSession.Polled(state, Fixtures.GitHub.Id, later);
+        await Assert.That(next.Connection(Fixtures.GitHub.Id)!.LastPolled).IsEqualTo(later);
+        await Assert.That(next.Connection(Fixtures.GitHub.Id)! with
+            {
+                LastPolled = Fixtures.Now
+            })
+            .IsEqualTo(state.Connection(Fixtures.GitHub.Id)!);
+        await Assert.That(next.Builds == state.Builds).IsTrue();
+    }
+
     [Test]
     public async Task AFailureOfAKnownPipelineIsNews()
     {

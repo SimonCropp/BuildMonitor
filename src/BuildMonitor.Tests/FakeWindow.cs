@@ -13,6 +13,9 @@ class FakeWindow : IMonitorWindow
         return true;
     }
 
+    public bool Wait(TimeSpan timeout, WaitHandle wake) =>
+        true;
+
     public MonitorInput Poll()
     {
         var input = Next;

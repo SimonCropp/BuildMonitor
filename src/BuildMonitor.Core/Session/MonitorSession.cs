@@ -1759,6 +1759,87 @@ static class MonitorSession
     }
 
     /// <summary>
+    /// Whether <see cref="ApplyFetch"/> would change anything but when the connection was last
+    /// polled. A 304 hands back the value cached from the answer before it, so a cycle over quiet
+    /// groups brings builds equal to the ones already held, and applying them anyway made a new
+    /// state every few seconds: the rows projected twice to follow the selection, and the screen
+    /// and the tray built again, for nothing new. Where unsure it says true, which only costs the
+    /// apply it would have skipped.
+    /// </summary>
+    public static bool FetchChanges(SessionState state, string connectionId, FetchOutcome outcome, DateTimeOffset now)
+    {
+        if (state.Connection(connectionId) is not { } connection ||
+            connection.Health != outcome.Health ||
+            connection.Error != outcome.Error ||
+            connection.RetryAfter != outcome.RetryAfter ||
+            connection.Access != outcome.Access ||
+            connection.Progress is not null ||
+            !connection.Pipelines.SequenceEqual(outcome.Pipelines))
+        {
+            return true;
+        }
+
+        // A deferral falling due is lifted by the apply of whichever poll comes after it.
+        if (Deferrals.Standing(state.Settings.Deferrals, state.Builds, now) != state.Settings.Deferrals)
+        {
+            return true;
+        }
+
+        var discovered = outcome.Pipelines.Select(_ => _.Id).ToHashSet();
+        var cutoff = HistoryCutoff.Of(now, state.Settings.HistoryDays);
+        var held = new HashSet<Build>();
+        foreach (var build in state.Builds)
+        {
+            if (build.ConnectionId != connectionId)
+            {
+                continue;
+            }
+
+            // The apply would drop it: its pipeline has gone, or it has aged out of the history.
+            if (!discovered.Contains(build.PipelineId) ||
+                !HistoryCutoff.Keeps(build, cutoff))
+            {
+                return true;
+            }
+
+            if (outcome.Fetched.Contains(build.PipelineId))
+            {
+                held.Add(build);
+            }
+        }
+
+        var arrived = 0;
+        foreach (var build in outcome.Builds)
+        {
+            if (!HistoryCutoff.Keeps(build, cutoff))
+            {
+                continue;
+            }
+
+            arrived++;
+            if (!held.Contains(Offered(build, outcome.Access)))
+            {
+                return true;
+            }
+        }
+
+        return arrived != held.Count;
+    }
+
+    /// <summary>
+    /// A fetch that changed nothing, as <see cref="FetchChanges"/> found, still moves when the
+    /// connection was last polled, which the footer counts from. Only that, so no row is projected.
+    /// </summary>
+    public static SessionState Polled(SessionState state, string connectionId, DateTimeOffset now) =>
+        UpdateConnection(
+            state,
+            connectionId,
+            _ => _ with
+            {
+                LastPolled = now
+            });
+
+    /// <summary>
     /// What a service holding repositories said about failed branches. One found merged, closed or
     /// deleted folds into its pipeline's hover, which moves the rows as a poll does, so the selection
     /// follows them the same way. An answer that the service could not tell never replaces one another

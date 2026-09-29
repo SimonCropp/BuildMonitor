@@ -933,6 +933,22 @@ public class ApplyTests
         await Assert.That(state.Status).IsEqualTo("Saved GitHub");
     }
 
+    /// <summary>
+    /// The loop applies the input of every frame it wakes for, which is mostly nothing, and idles
+    /// until the state changes. A new state for a frame with nothing in it would wake it again at
+    /// once, and it would never idle.
+    /// </summary>
+    [Test]
+    public async Task AFrameWithNothingInItKeepsTheState()
+    {
+        // Measured first, as the head measures every frame, so the size is not what changes.
+        var state = Apply(Fixtures.WithBuilds(), new(Columns: 120, Rows: 20), new());
+
+        var next = Apply(state, new(Columns: 120, Rows: 20, At: Fixtures.Now), new());
+
+        await Assert.That(ReferenceEquals(next, state)).IsTrue();
+    }
+
     static SessionState Apply(SessionState state, MonitorInput input, RecordingActions actions) =>
         InputApplier.Apply(state, input, actions.Actions, new FakeWindow());
 }

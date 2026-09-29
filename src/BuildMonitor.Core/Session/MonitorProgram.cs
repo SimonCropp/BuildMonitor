@@ -16,10 +16,22 @@ static class MonitorProgram
     public const string HiddenArgument = "--hidden";
 
     /// <summary>
-    /// How long the loop sleeps between frames when the window is hidden. Nothing is drawn, so
-    /// the only thing to keep up with is the tray, which does not need sixty a second.
+    /// How long the loop sleeps between frames when the window is hidden, for a head that cannot
+    /// <see cref="IMonitorWindow.Wait">idle</see>. Nothing is drawn, so the only thing to keep up
+    /// with is the tray, which does not need sixty a second.
     /// </summary>
     public static readonly TimeSpan HiddenFrame = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// The longest the loop idles with nothing to wake it. Everything that changes the state or
+    /// sends a command sets the wake, so this only bounds what a wake that never came would cost.
+    /// </summary>
+    public static readonly TimeSpan LongestIdle = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// One frame at sixty a second, which is as often as the loop ever ran before it could idle.
+    /// </summary>
+    public static readonly TimeSpan Frame = TimeSpan.FromMilliseconds(16);
 
     /// <summary>
     /// What the run starts from. <paramref name="hidden"/> wins over ShowWindowAtStart, and does it
@@ -108,6 +120,9 @@ static class MonitorProgram
                 AllowAutoRedirect = false
             });
         var windowCommands = new ConcurrentQueue<WindowCommand>();
+        // Set off the loop's thread, so an idle loop draws a poll's rows or answers the socket at once.
+        using var wake = new AutoResetEvent(false);
+        host.Changed += Wake;
         var signIn = new SignInCoordinator(host, secrets, handler);
         var runAtLogin = RunAtLogin.ForPlatform();
         host.Mutate(_ => MonitorSession.ApplyMedians(_, history.Medians()));
@@ -147,18 +162,20 @@ static class MonitorProgram
         // only thing that fills the directory and the only thing that has to find it small.
         // ReSharper disable once MethodSupportsCancellation
         _ = Task.Run(artifacts.Sweep);
-        var listening = server.Listen(new MessageHandler(host, poller, LinkLauncher.OpenUrl, windowCommands.Enqueue, artifacts).Handle, cancel.Token);
+        var listening = server.Listen(new MessageHandler(host, poller, LinkLauncher.OpenUrl, Command, artifacts).Handle, cancel.Token);
 
         try
         {
             using (tray)
             using (window)
             {
-                Loop(host, window, tray, actions, windowCommands, args);
+                Loop(host, window, tray, actions, windowCommands, wake, args);
             }
         }
         finally
         {
+            // First, so a poll finishing while the rest shuts down does not set a disposed handle.
+            host.Changed -= Wake;
             cancel.Cancel();
             try
             {
@@ -175,9 +192,39 @@ static class MonitorProgram
         }
 
         return 0;
+
+        void Wake() =>
+            wake.Set();
+
+        void Command(WindowCommand command)
+        {
+            windowCommands.Enqueue(command);
+            wake.Set();
+        }
     }
 
-    static void Loop(SessionHost host, IMonitorWindow window, ITray? tray, MonitorActions actions, ConcurrentQueue<WindowCommand> windowCommands, string[] args)
+    /// <summary>
+    /// How long the loop may idle after presenting a frame built from <paramref name="state"/>:
+    /// until the clock would rebuild the screen, one frame while the clipboard pump has a copy to
+    /// offer again, and otherwise until something wakes it.
+    /// </summary>
+    public static TimeSpan Idle(ScreenCache screens, SessionState state, DateTimeOffset now)
+    {
+        if (state.Clipboard is not null)
+        {
+            return Frame;
+        }
+
+        if (screens.UntilTick(now) is { } tick &&
+            tick < LongestIdle)
+        {
+            return tick;
+        }
+
+        return LongestIdle;
+    }
+
+    static void Loop(SessionHost host, IMonitorWindow window, ITray? tray, MonitorActions actions, ConcurrentQueue<WindowCommand> windowCommands, WaitHandle wake, string[] args)
     {
         if (args.Contains("--options"))
         {
@@ -251,6 +298,7 @@ static class MonitorProgram
                 return;
             }
 
+            var idled = window.Wait(Idle(screens, state, DateTimeOffset.UtcNow), wake);
             var input = window.Poll();
             if (tray is not null)
             {
@@ -270,7 +318,8 @@ static class MonitorProgram
 
             input = input with {At = DateTimeOffset.UtcNow};
             host.Mutate(_ => InputApplier.Apply(_, input, actions, window));
-            if (host.State.Hidden)
+            if (!idled &&
+                host.State.Hidden)
             {
                 Thread.Sleep(HiddenFrame);
             }

@@ -20,6 +20,8 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RollForward>LatestMajor</RollForward>
     <ApplicationIcon>tray.ico</ApplicationIcon>
+    <!-- For the LibraryImport of MessageWait, whose generated marshalling pins the handle. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">

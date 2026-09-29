@@ -10,6 +10,8 @@ sealed class FormsMonitorWindow : IMonitorWindow
 {
     MonitorForm form;
     bool disposed;
+    // When the last Wait ended, which the next one keeps a frame from.
+    long lastFrame;
 
     FormsMonitorWindow(MonitorForm form) =>
         this.form = form;
@@ -43,8 +45,29 @@ sealed class FormsMonitorWindow : IMonitorWindow
 
         form.Apply(screen);
         Application.DoEvents();
-        Thread.Sleep(16);
         return !form.IsDisposed;
+    }
+
+    /// <summary>
+    /// Idles on the message queue, then handles whatever ended it before <see cref="Poll"/> reads
+    /// it. No sooner than a frame after the last one ended, as when every frame slept for one: a
+    /// wheel or a drag sends messages far faster than sixty a second, and each frame they woke
+    /// would build the screen again for a change no one could see.
+    /// </summary>
+    public bool Wait(TimeSpan timeout, WaitHandle wake)
+    {
+        var since = Stopwatch.GetElapsedTime(lastFrame);
+        if (since < MonitorProgram.Frame)
+        {
+            var rest = MonitorProgram.Frame - since;
+            Thread.Sleep(rest);
+            timeout -= rest;
+        }
+
+        MessageWait.For(wake, timeout);
+        Application.DoEvents();
+        lastFrame = Stopwatch.GetTimestamp();
+        return true;
     }
 
     public MonitorInput Poll() =>

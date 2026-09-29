@@ -13,7 +13,11 @@ sealed class ConnectionPoller
     HttpMessageHandler handler;
     TokenRefresher? refresher;
     Func<DateTimeOffset> clock;
-    Channel<bool> wake = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
+    Channel<bool> wake = Channel.CreateBounded<bool>(
+        new BoundedChannelOptions(1)
+        {
+            FullMode = BoundedChannelFullMode.DropWrite
+        });
     CancelSource stop = new();
     HashSet<string> recorded = [];
     // The pipelines already asked for their recent passes, by pipeline key.
@@ -40,9 +44,9 @@ sealed class ConnectionPoller
     int discoveryFailures;
     // The tokens the last probe saw for keys no discovered pipeline is in, as a repository with no
     // workflows yet, and whether one of them has moved since, which brings discovery forward.
-    ImmutableDictionary<string, string> outsideActivity = ImmutableDictionary<string, string>.Empty;
+    ImmutableDictionary<string, string> outsideActivity = [];
     bool rediscoverSoon;
-    ImmutableDictionary<string, GroupMemory> memory = ImmutableDictionary<string, GroupMemory>.Empty;
+    ImmutableDictionary<string, GroupMemory> memory = [];
     // Nudges and refreshes arrive from other threads, and a cycle in flight must not lose them.
     ConcurrentDictionary<string, byte> nudges = new();
     int refreshRequested;
@@ -487,15 +491,13 @@ sealed class ConnectionPoller
         failures = 0;
         var (health, error, retryAfter) = await Health(connection, groups, rateLimit, unauthorized, attempted, forbidden, fetched.Count, cancel);
         var outcome = new FetchOutcome(pipelines, fetched.ToImmutable(), firstFetch.ToImmutable(), [..builds], health, error, retryAfter, access);
-        var current = host.State.Connection(connectionId);
-        if (fetched.Count > 0 ||
-            rediscovered ||
-            visible ||
-            current?.Health != health ||
-            current.Error != error ||
-            current.Access != access)
+        var current = host.State;
+        // The same instance until a run is recorded, so a reference comparison finds a new median.
+        var medians = history.Medians();
+        if (visible ||
+            !ReferenceEquals(medians, current.Medians) ||
+            MonitorSession.FetchChanges(current, connectionId, outcome, clock()))
         {
-            var medians = history.Medians();
             Settings? lifted = null;
             host.Mutate(_ =>
             {
@@ -511,6 +513,13 @@ sealed class ConnectionPoller
             {
                 await SaveLifted(lifted);
             }
+        }
+        else if (fetched.Count > 0 &&
+                 !current.Hidden)
+        {
+            // Only while the window shows the footer that counts from it. Hidden, even this built the
+            // screen again for the tray, and the next cycle after showing it moves it anyway.
+            host.Mutate(_ => MonitorSession.Polled(_, connectionId, clock()));
         }
 
         // Not while the credential is refused or the quota is spent, where every question would be too.

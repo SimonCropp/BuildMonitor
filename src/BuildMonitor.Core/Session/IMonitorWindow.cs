@@ -17,6 +17,17 @@ interface IMonitorWindow : IDisposable
     bool Present(Screen screen);
 
     /// <summary>
+    /// Idles after <see cref="Present"/> until the user does something, <paramref name="wake"/> is
+    /// set, or <paramref name="timeout"/> passes, and answers whether it did. A loop that slept a
+    /// frame at a time woke sixty times a second to find nothing new, which with the window open was
+    /// nearly all of the app's CPU while nothing was building. A head that cannot wait on its input
+    /// alongside a handle, as the native heads whose frame call already waits one frame, answers
+    /// false at once, and the loop paces itself as it did before.
+    /// </summary>
+    /// <param name="wake">Set when the state changes, or a command arrives, off the loop's thread.</param>
+    bool Wait(TimeSpan timeout, WaitHandle wake);
+
+    /// <summary>
     /// Everything the user did since the last call. Drains as it reads, so each event arrives once.
     /// </summary>
     MonitorInput Poll();

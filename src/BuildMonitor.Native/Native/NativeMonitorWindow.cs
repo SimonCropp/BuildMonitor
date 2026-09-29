@@ -154,6 +154,13 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
         return payload.Present() == 1;
     }
 
+    /// <summary>
+    /// bm_present already waits out a frame for input, inside the renderer where the managed side
+    /// cannot add a handle to what it waits on.
+    /// </summary>
+    public bool Wait(TimeSpan timeout, WaitHandle wake) =>
+        false;
+
     public bool Capture(Screen screen, int width, int height, string pngPath)
     {
         payload.Build(screen);

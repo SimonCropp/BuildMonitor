@@ -127,6 +127,50 @@
         await Assert.That(host.State.Builds.Length).IsEqualTo(2);
     }
 
+    /// <summary>
+    /// A cycle whose answers were all 304s brings the builds already held. Applying them anyway
+    /// built the screen again every few seconds for a connection of many quiet repositories.
+    /// </summary>
+    [Test]
+    public async Task AnUnchangedFetchLeavesAHiddenWindowsStateAlone()
+    {
+        var (host, secrets, history) = Setup();
+        host.Mutate(MonitorSession.Hide);
+        var handler = GitHubHandler();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Map("GET", runsUrl, "", HttpStatusCode.NotModified);
+        var before = host.State;
+        handler.Requests.Clear();
+
+        now = now.AddMinutes(1);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(Fetches(handler, runsUrl)).IsEqualTo(1);
+        await Assert.That(ReferenceEquals(host.State, before)).IsTrue();
+    }
+
+    [Test]
+    public async Task AnUnchangedFetchOnlyMovesWhenAShownWindowWasPolled()
+    {
+        var (host, secrets, history) = Setup();
+        var handler = GitHubHandler();
+        var now = Fixtures.Now;
+        var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, history, handler, null, () => now);
+        await poller.PollOnce(Cancel.None);
+        handler.Map("GET", runsUrl, "", HttpStatusCode.NotModified);
+        var before = host.State;
+        handler.Requests.Clear();
+
+        now = now.AddMinutes(1);
+        await poller.PollDue(Cancel.None);
+
+        await Assert.That(Fetches(handler, runsUrl)).IsEqualTo(1);
+        await Assert.That(host.State.Connection(Fixtures.GitHub.Id)!.LastPolled).IsEqualTo(now);
+        await Assert.That(host.State.Builds == before.Builds).IsTrue();
+    }
+
     [Test]
     public async Task NoTokenNeedsAuth()
     {

@@ -43,6 +43,29 @@ class ScreenCache
     }
 
     /// <summary>
+    /// How long from <paramref name="now"/> until the clock alone rebuilds the last screen, which is
+    /// as long as the loop can idle without a moving time or a spinner falling behind. Null when the
+    /// clock never will, as while hidden.
+    /// </summary>
+    public TimeSpan? UntilTick(DateTimeOffset now)
+    {
+        if (screen is null ||
+            builtState is not { Hidden: false })
+        {
+            return null;
+        }
+
+        var tick = Tick(screen);
+        var next = (builtAt.Ticks / tick.Ticks + 1) * tick.Ticks;
+        if (next <= now.Ticks)
+        {
+            return TimeSpan.Zero;
+        }
+
+        return TimeSpan.FromTicks(next - now.Ticks);
+    }
+
+    /// <summary>
     /// Whether the clock has moved into another tick since <paramref name="built"/>. Never while
     /// hidden: no one sees the screen, and the tray and the notification take no clock, yet a large
     /// account rebuilt it four times a second, about 22 ms of CPU and 15 MB of garbage a second.
@@ -55,7 +78,17 @@ class ScreenCache
             return false;
         }
 
-        var tick = built.Builds is { Loading: true } ? LoadingTick : ClockTick;
+        var tick = Tick(built);
         return now.Ticks / tick.Ticks != builtAt.Ticks / tick.Ticks;
+    }
+
+    static TimeSpan Tick(Screen built)
+    {
+        if (built.Builds is { Loading: true })
+        {
+            return LoadingTick;
+        }
+
+        return ClockTick;
     }
 }

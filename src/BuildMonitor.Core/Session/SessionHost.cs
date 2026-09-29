@@ -11,6 +11,14 @@ sealed class SessionHost(SessionState initial)
     public SessionState State => state;
 
     /// <summary>
+    /// Raised after a mutation swaps in another state, on the thread that made it and outside the
+    /// gate. A mutation handing back the state it was given raises nothing: the frame loop idles
+    /// until this says there is something new to draw, and the loop's own mutation of every frame
+    /// usually changes nothing, so raising for it would never let the loop idle.
+    /// </summary>
+    public event Action? Changed;
+
+    /// <summary>
     /// <paramref name="change"/> may not mutate again while it runs. The gate is reentrant, so a
     /// nested call does not deadlock: it swaps in its own state, and then the outer call swaps in
     /// the one it had already computed, silently undoing it. An action calling back in here instead
@@ -19,6 +27,8 @@ sealed class SessionHost(SessionState initial)
     /// </summary>
     public SessionState Mutate(Func<SessionState, SessionState> change)
     {
+        SessionState next;
+        bool changed;
         lock (gate)
         {
             if (mutating)
@@ -29,13 +39,21 @@ sealed class SessionHost(SessionState initial)
             mutating = true;
             try
             {
-                state = change(state);
-                return state;
+                next = change(state);
+                changed = !ReferenceEquals(next, state);
+                state = next;
             }
             finally
             {
                 mutating = false;
             }
         }
+
+        if (changed)
+        {
+            Changed?.Invoke();
+        }
+
+        return next;
     }
 }

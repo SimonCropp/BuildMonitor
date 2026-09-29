@@ -54,4 +54,42 @@ public class SessionHostTests
 
         await Assert.That(host.Mutate(_ => MonitorSession.SetStatus(_, "Refreshing")).Status).IsEqualTo("Refreshing");
     }
+
+    /// <summary>
+    /// The frame loop idles until a change is raised, and applies a frame of input itself every
+    /// time it wakes, which is usually nothing. Raised for that too, the loop would wake itself.
+    /// </summary>
+    [Test]
+    public async Task OnlyANewStateIsRaised()
+    {
+        var host = new SessionHost(SessionState.Start(new()));
+        var raised = 0;
+        host.Changed += () => raised++;
+
+        host.Mutate(_ => _);
+        await Assert.That(raised).IsEqualTo(0);
+
+        host.Mutate(_ => MonitorSession.SetStatus(_, "Refreshing"));
+        await Assert.That(raised).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// Outside the gate, so a handler may read the state it was raised for, and mutate again.
+    /// </summary>
+    [Test]
+    public async Task AChangeIsRaisedOnceTheGateIsOpen()
+    {
+        var host = new SessionHost(SessionState.Start(new()));
+        host.Changed += () =>
+        {
+            if (host.State.Status == "Refreshing")
+            {
+                host.Mutate(_ => MonitorSession.SetStatus(_, "Refreshed"));
+            }
+        };
+
+        host.Mutate(_ => MonitorSession.SetStatus(_, "Refreshing"));
+
+        await Assert.That(host.State.Status).IsEqualTo("Refreshed");
+    }
 }
