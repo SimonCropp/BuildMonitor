@@ -276,11 +276,7 @@ static class RowProjection
     /// </summary>
     static IEnumerable<PipelineBuilds> Selected(SessionState state, string connectionId, Func<Build, bool> askable)
     {
-        var selected = BuildSelection.Select(
-            Filters.Apply(state.Settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
-            state.Settings.ShowOtherBranches,
-            state.Verdicts,
-            askable);
+        var selected = Selection(state, connectionId, askable);
         var deferrals = state.Settings.Deferrals;
         if (deferrals.Length == 0)
         {
@@ -296,4 +292,23 @@ static class RowProjection
             .Where(_ => _.Head is not null ||
                         _.Lanes.Length > 0);
     }
+
+    /// <summary>
+    /// Every connection's pipelines before a deferral drops any, for what must hold whether or not
+    /// a row is shown. A pipeline whose own failure was deferred and whose failed branches had all
+    /// folded went from <see cref="Pipelines"/>, its folded branches with it, so the answers that
+    /// folded them were dropped as no longer failing, and the rows came back until asked again.
+    /// </summary>
+    public static IEnumerable<PipelineBuilds> Undeferred(SessionState state)
+    {
+        var askable = BranchHosts.Askable(state.Connections.Select(_ => _.Connection));
+        return state.Connections.SelectMany(_ => Selection(state, _.Connection.Id, askable));
+    }
+
+    static ImmutableArray<PipelineBuilds> Selection(SessionState state, string connectionId, Func<Build, bool> askable) =>
+        BuildSelection.Select(
+            Filters.Apply(state.Settings.Filters, state.Builds.Where(_ => _.ConnectionId == connectionId)),
+            state.Settings.ShowOtherBranches,
+            state.Verdicts,
+            askable);
 }

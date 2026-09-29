@@ -45,7 +45,7 @@ static class BranchVerdicts
     /// The other branches whose newest run failed, whether they have a row or were folded: the ones
     /// a service could be asked about.
     /// </summary>
-    public static IEnumerable<Build> Failed(ImmutableArray<PipelineBuilds> pipelines)
+    public static IEnumerable<Build> Failed(IEnumerable<PipelineBuilds> pipelines)
     {
         foreach (var pipeline in pipelines)
         {

@@ -1845,11 +1845,12 @@ static class MonitorSession
     /// follows them the same way. An answer that the service could not tell never replaces one another
     /// connection gave: a second connection whose credential cannot see the repository would otherwise
     /// undo what the first found. Only the answers about branches still failing are kept, so a session
-    /// left running does not collect every branch it ever asked about.
+    /// left running does not collect every branch it ever asked about. Still failing whether or not
+    /// a deferral hides its pipeline; see <see cref="RowProjection.Undeferred"/>.
     /// </summary>
     public static SessionState ApplyVerdicts(SessionState state, IReadOnlyList<KeyValuePair<string, BranchVerdict>> verdicts, DateTimeOffset now)
     {
-        var failing = BranchVerdicts.Failed(RowProjection.Pipelines(state))
+        var failing = BranchVerdicts.Failed(RowProjection.Undeferred(state))
             .Select(BranchVerdicts.KeyOf)
             .OfType<string>()
             .ToHashSet();

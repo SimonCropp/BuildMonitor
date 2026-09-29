@@ -248,6 +248,45 @@ public class SessionTests
         await Assert.That(state.Verdicts).IsEmpty();
     }
 
+    /// <summary>
+    /// A pipeline whose own failure was deferred, and whose failed pull request was found merged,
+    /// has no row left. The answer still stands: dropped with the row, the next answer about any
+    /// other branch took it away, and the pull request's row came back until asked again.
+    /// </summary>
+    [Test]
+    public async Task AnAnswerOutlivesItsDeferredPipelinesRow()
+    {
+        var runs = Fixtures.GitHubBuildsOnMain().ToList();
+        var index = runs.FindIndex(
+            _ => _ is
+            {
+                PipelineId: "Verify/test.yml",
+                Branch: "main"
+            });
+        runs[index] = runs[index] with
+        {
+            Status = BuildStatus.Failed
+        };
+        var state = MonitorSession.ApplyPoll(
+            Fixtures.WithDefaultBranches(),
+            Fixtures.GitHub.Id,
+            [],
+            [.. runs],
+            Fixtures.Now);
+        state = state with
+        {
+            Settings = state.Settings with
+            {
+                Deferrals = [new("gh/Verify/test.yml/main", "test.yml", Fixtures.Now + TimeSpan.FromDays(1))]
+            }
+        };
+        state = MonitorSession.ApplyVerdicts(state, [Answer(state, "feature/inline", BranchFate.Merged)], Fixtures.Now);
+        var other = new KeyValuePair<string, BranchVerdict>(BranchVerdicts.KeyOf("https://github.com/VerifyTests/Other", "feature/x", null), new(BranchFate.Open, Fixtures.Now));
+        state = MonitorSession.ApplyVerdicts(state, [other], Fixtures.Now);
+        await Assert.That(state.Verdicts.Values.Single().Fate).IsEqualTo(BranchFate.Merged);
+        await Assert.That(RowProjection.Builds(state).Any(_ => _.RepoName == "VerifyTests/Verify")).IsFalse();
+    }
+
     static KeyValuePair<string, BranchVerdict> Answer(SessionState state, string branch, BranchFate fate) =>
         new(BranchVerdicts.KeyOf(state.Builds.Single(_ => _.Branch == branch))!, new(fate, Fixtures.Now));
 
