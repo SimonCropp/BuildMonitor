@@ -48,8 +48,29 @@ record PipelineBuilds(Build? Head, ImmutableArray<Build> Lanes, ImmutableArray<F
 
     /// <summary>
     /// How many of its runs with a row are running or queued, lanes as well: a pull request being
-    /// built is something happening, whichever branch it is on.
+    /// built is something happening, whichever branch it is on. Counted without walking
+    /// <see cref="Shown"/>, whose iterator is an allocation a pipeline, and the counts and the tray
+    /// each read this of every pipeline on every rebuild of the screen.
     /// </summary>
-    public int Running =>
-        Shown.Count(_ => _.IsActive);
+    public int Running
+    {
+        get
+        {
+            var running = 0;
+            if (Head is {IsActive: true})
+            {
+                running++;
+            }
+
+            foreach (var lane in Lanes)
+            {
+                if (lane.IsActive)
+                {
+                    running++;
+                }
+            }
+
+            return running;
+        }
+    }
 }

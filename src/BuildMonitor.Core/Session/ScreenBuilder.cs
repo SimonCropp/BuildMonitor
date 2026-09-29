@@ -16,12 +16,14 @@ static class ScreenBuilder
     {
         // Once for the tray, the rows and the columns, each of which used to sort every build itself.
         var pipelines = RowProjection.Pipelines(state);
-        var tray = Tray(state, pipelines);
+        // Once for the header and the tray, each of which used to count every pipeline itself.
+        var counts = BuildCounts.Of(pipelines);
+        var tray = Tray(state, pipelines, counts);
         var status = Status(state, now);
         return state.Page switch
         {
-            Page.Builds when state.Hidden => HiddenScreen(state, now, pipelines, tray, status),
-            Page.Builds => BuildsScreen(state, now, pipelines, tray, status),
+            Page.Builds when state.Hidden => HiddenScreen(state, now, counts, tray, status),
+            Page.Builds => BuildsScreen(state, now, pipelines, counts, tray, status),
             _ => FormScreen(state, now, tray, status)
         };
     }
@@ -32,10 +34,8 @@ static class ScreenBuilder
     /// sized each row of a large account. Showing the window changes the state, which rebuilds the
     /// page whole.
     /// </summary>
-    static Screen HiddenScreen(SessionState state, DateTimeOffset now, ImmutableArray<PipelineBuilds> pipelines, TrayModel tray, string status)
-    {
-        var counts = BuildCounts.Of(pipelines);
-        return new(
+    static Screen HiddenScreen(SessionState state, DateTimeOffset now, BuildCounts counts, TrayModel tray, string status) =>
+        new(
             Title,
             Page.Builds,
             new(Header(state, counts), [], 0, 0, -1, counts.Failing, counts.Running, [], [], [], false, state.Search, SearchTooltip, ""),
@@ -49,26 +49,20 @@ static class ScreenBuilder
             null,
             state.Notification,
             state.Settings.Theme);
-    }
 
-    static Screen BuildsScreen(SessionState state, DateTimeOffset now, ImmutableArray<PipelineBuilds> pipelines, TrayModel tray, string status)
+    static Screen BuildsScreen(SessionState state, DateTimeOffset now, ImmutableArray<PipelineBuilds> pipelines, BuildCounts counts, TrayModel tray, string status)
     {
-        var rows = RowProjection.Rows(state, pipelines);
+        var columns = Columns(state, pipelines);
+        var rows = columns.Projected.Rows;
         var body = MonitorSession.BodyRows(state);
         var top = Math.Clamp(state.ScrollTop, 0, Math.Max(0, rows.Length - body));
         var visible = rows.Skip(top).Take(body).ToList();
-        // Across every failed build rather than the visible rows, so a name does not grow and shrink
-        // while scrolling past someone who shares it. Lanes too: a failed lane names who broke it.
-        var shown = RowProjection.Builds(state);
-        var authors = AuthorNames.Of(shown.Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
-        var siblings = SiblingPipelines(shown);
         var composed = new List<BuildRow>(visible.Count);
         for (var index = 0; index < visible.Count; index++)
         {
-            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now, authors, siblings));
+            composed.Add(Compose(state, visible[index], top + index == state.SelectedRow, now, columns.Authors, columns.Siblings));
         }
 
-        var counts = BuildCounts.Of(pipelines);
         var selected = state.SelectedRow >= top && state.SelectedRow < top + visible.Count
             ? state.SelectedRow - top
             : -1;
@@ -80,12 +74,11 @@ static class ScreenBuilder
             menu = new(open.Row - top, open.Items.Select(_ => new MenuEntry(_.Label, _.SeparatorAbove)).ToList(), open.Overflow);
         }
 
-        var sized = Sized(state, pipelines, rows);
         var loading = Loading(state, rows.Length);
         return new(
             Title,
             Page.Builds,
-            new(Header(state, counts), composed, top, rows.Length, selected, counts.Failing, counts.Running, Names(sized, RowKind.Build), Names(sized, RowKind.Group), Details(sized, siblings), loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), authors.Values.Distinct().ToList()),
+            new(Header(state, counts), composed, top, rows.Length, selected, counts.Failing, counts.Running, columns.Names, columns.GroupNames, columns.Details, loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), columns.AuthorNames),
             null,
             Buttons(state),
             status,
@@ -96,6 +89,43 @@ static class ScreenBuilder
             menu,
             state.Notification,
             state.Settings.Theme);
+    }
+
+    static PageColumns? lastColumns;
+
+    /// <summary>
+    /// What the page reads of every row, handed back while the state holds the same instances of
+    /// what the rows are projected from, as <see cref="RowProjection"/> hands back the rows. The
+    /// clock rebuilds the screen every second the window is open, and none of this reads the clock,
+    /// yet each rebuild composed the first two cells of every row of a large account to size the
+    /// columns, and with a filter typed projected the rows twice over to do it. Swapped whole, so a
+    /// reader on another thread at worst reads them again.
+    /// </summary>
+    static PageColumns Columns(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
+    {
+        if (lastColumns is { } last &&
+            last.Projected.IsFor(state, pipelines))
+        {
+            return last;
+        }
+
+        var projected = RowProjection.Projected(state, pipelines);
+        // Across every failed build rather than the visible rows, so a name does not grow and shrink
+        // while scrolling past someone who shares it. Lanes too: a failed lane names who broke it.
+        var shown = RowProjection.Builds(state);
+        var authors = AuthorNames.Of(shown.Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
+        var siblings = SiblingPipelines(shown);
+        var sized = Sized(state, pipelines, projected.Rows);
+        var columns = new PageColumns(
+            projected,
+            authors,
+            siblings,
+            Names(sized, RowKind.Build),
+            Names(sized, RowKind.Group),
+            Details(sized, siblings),
+            authors.Values.Distinct().ToList());
+        lastColumns = columns;
+        return columns;
     }
 
     /// <summary>
@@ -345,7 +375,7 @@ static class ScreenBuilder
     static bool NamedAfterProject(Build build) =>
         BuildExtensions.ShortRepoName(build.RepoName.AsSpan()).Equals(build.PipelineName, StringComparison.OrdinalIgnoreCase);
 
-    static List<string> Details(ImmutableArray<Row> rows, IReadOnlyDictionary<string, List<string>> siblings)
+    static List<string> Details(ImmutableArray<Row> rows, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
         var details = new List<string>();
         var seen = new HashSet<string>().GetAlternateLookup<CharSpan>();
@@ -361,7 +391,7 @@ static class ScreenBuilder
     /// The text <see cref="DetailOf"/> gives the row, written on the stack rather than as runs that
     /// are then joined.
     /// </summary>
-    static void AddDetail(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> details, Row row, IReadOnlyDictionary<string, List<string>> siblings)
+    static void AddDetail(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> details, Row row, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
         if (row.Build is null)
         {
@@ -388,7 +418,7 @@ static class ScreenBuilder
     /// name, so DataModel - Security under DataModel reads as Security, unless that would read the
     /// same as another pipeline of the repository.
     /// </summary>
-    static (string Pipeline, string Branch) DetailParts(Row row, IReadOnlyDictionary<string, List<string>> siblings)
+    static (string Pipeline, string Branch) DetailParts(Row row, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
         var build = row.Build!;
         var branch = build.ShortBranchName();
@@ -500,17 +530,37 @@ static class ScreenBuilder
                string.Equals(otherShorter, shorter, StringComparison.OrdinalIgnoreCase);
     }
 
-    static string SiblingKey(Build build) =>
-        $"{build.ConnectionId}/{build.RepoName}";
+    /// <summary>
+    /// The parts rather than a string of them, which was built for every build shown to group them
+    /// and again for every row to look its repository up.
+    /// </summary>
+    static (string ConnectionId, string RepoName) SiblingKey(Build build) =>
+        (build.ConnectionId, build.RepoName);
 
     /// <summary>
     /// The pipeline names of each repository among the builds shown, so a row can tell whether
     /// leaving its project's name out would read as one of the others.
     /// </summary>
-    static IReadOnlyDictionary<string, List<string>> SiblingPipelines(ImmutableArray<Build> builds) =>
-        builds
-            .GroupBy(SiblingKey)
-            .ToDictionary(_ => _.Key, _ => _.Select(_ => _.PipelineName).Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+    static IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> SiblingPipelines(ImmutableArray<Build> builds)
+    {
+        var siblings = new Dictionary<(string ConnectionId, string RepoName), List<string>>();
+        foreach (var build in builds)
+        {
+            var key = SiblingKey(build);
+            if (!siblings.TryGetValue(key, out var names))
+            {
+                names = [];
+                siblings[key] = names;
+            }
+
+            if (!names.Contains(build.PipelineName, StringComparer.OrdinalIgnoreCase))
+            {
+                names.Add(build.PipelineName);
+            }
+        }
+
+        return siblings;
+    }
 
     static string GroupDetail(Row row) =>
         $"{row.Members.Length} passing";
@@ -521,7 +571,7 @@ static class ScreenBuilder
     /// page. A branch the provider gave no page is plain text, as a link that opened nothing would
     /// read as broken, but it keeps its mark: the mark is what says where the pipeline ends.
     /// </summary>
-    static List<DetailSpan> DetailOf(Row row, IReadOnlyDictionary<string, List<string>> siblings)
+    static List<DetailSpan> DetailOf(Row row, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
         if (row.Build is not { } build)
         {
@@ -590,7 +640,7 @@ static class ScreenBuilder
         return $"{Plural(counts.Pipelines, "pipeline")}, {counts.Failing} failing, {counts.Running} running";
     }
 
-    static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now, IReadOnlyDictionary<string, string> authors, IReadOnlyDictionary<string, List<string>> siblings)
+    static BuildRow Compose(SessionState state, Row row, bool selected, DateTimeOffset now, IReadOnlyDictionary<string, string> authors, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
         if (row.Build is not { } build)
         {
@@ -633,7 +683,7 @@ static class ScreenBuilder
     /// is the checkout, when every member is the same one: a closed group would otherwise hide the
     /// folder button of rows that all name the same folder.
     /// </summary>
-    static BuildRow ComposeGroup(SessionState state, Row row, GroupKey group, bool selected, DateTimeOffset now, IReadOnlyDictionary<string, List<string>> siblings)
+    static BuildRow ComposeGroup(SessionState state, Row row, GroupKey group, bool selected, DateTimeOffset now, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
         var latest = row.Members.MaxBy(_ => _.Finished ?? _.Started ?? _.Queued ?? DateTimeOffset.MinValue)!;
         var (_, timing) = Progress.Compute(latest, null, now);
@@ -1341,13 +1391,16 @@ static class ScreenBuilder
 
     // Tray
 
-    public static TrayModel Tray(SessionState state) =>
-        Tray(state, RowProjection.Pipelines(state));
-
-    static TrayModel Tray(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
+    public static TrayModel Tray(SessionState state)
     {
-        var icon = Icon(state, pipelines);
-        var tooltip = TrayTooltip(state, pipelines);
+        var pipelines = RowProjection.Pipelines(state);
+        return Tray(state, pipelines, BuildCounts.Of(pipelines));
+    }
+
+    static TrayModel Tray(SessionState state, ImmutableArray<PipelineBuilds> pipelines, BuildCounts counts)
+    {
+        var icon = Icon(state, pipelines, counts);
+        var tooltip = TrayTooltip(state, pipelines, counts);
 
         List<TrayMenuItem> items =
         [
@@ -1389,26 +1442,31 @@ static class ScreenBuilder
     /// Names come off the end as "and 2 more" until the line fits in <see cref="TrayTooltipLimit"/>.
     /// A pipeline is named for its own run failing, as <see cref="PipelineBuilds.Failing"/> says.
     /// </summary>
-    static string TrayTooltip(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
+    static string TrayTooltip(SessionState state, ImmutableArray<PipelineBuilds> pipelines, BuildCounts counts)
     {
         if (state.Connections.Length == 0)
         {
             return $"{Title}: no connections";
         }
 
-        var counts = BuildCounts.Of(pipelines);
         var failed = counts.Failing;
-        var names = pipelines
-            .Where(_ => _.Failing)
-            .Select(_ => _.Head!.ShortRepoName())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        List<string> names = [];
+        // Only walked while something is failing, which on most rebuilds nothing is.
+        if (failed > 0)
+        {
+            names = pipelines
+                .Where(_ => _.Failing)
+                .Select(_ => _.Head!.ShortRepoName())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
         var running = counts.Running;
         // What raised the icon leads, as Unhealthy orders them: a rate limit raises no Attention.
         var problems = MonitorSession.Unhealthy(state).Select(TrayProblem).ToList();
         var lead = problems.Count == 0 ? "" : $"{FirstOf(problems)}. ";
         var tooltip = "";
-        for (var shown = names.Count; shown >= 0; shown--)
+        for (var shown = MostThatCouldFit(names); shown >= 0; shown--)
         {
             tooltip = $"{Title}: {lead}{Failing(names, shown, failed)}, {running} running";
             if (tooltip.Length <= TrayTooltipLimit)
@@ -1419,6 +1477,26 @@ static class ScreenBuilder
 
         // Only a connection named past any sense gets here: cut, but visibly.
         return $"{tooltip[..(TrayTooltipLimit - 1)]}…";
+    }
+
+    /// <summary>
+    /// How many of the names could fit in <see cref="TrayTooltipLimit"/> with the least that goes
+    /// between them, which is where trying them starts. Started from all of them, an account with
+    /// fifty projects failing composed the tooltip fifty times over, each a list and a line of every
+    /// name still in it, on every rebuild of the screen.
+    /// </summary>
+    static int MostThatCouldFit(List<string> names)
+    {
+        var count = 0;
+        var length = 0;
+        while (count < names.Count &&
+               length + names[count].Length <= TrayTooltipLimit)
+        {
+            length += names[count].Length + 2;
+            count++;
+        }
+
+        return count;
     }
 
     /// <summary>
@@ -1468,26 +1546,40 @@ static class ScreenBuilder
     /// running. A pipeline whose own run a deferral hid has none to judge, and says nothing to green.
     /// </para>
     /// </summary>
-    static TrayIconKind Icon(SessionState state, ImmutableArray<PipelineBuilds> pipelines)
+    static TrayIconKind Icon(SessionState state, ImmutableArray<PipelineBuilds> pipelines, BuildCounts counts)
     {
         if (state.Connections.Any(_ => _.Health is ConnectionHealth.NeedsAuth or ConnectionHealth.Error))
         {
             return TrayIconKind.Attention;
         }
 
-        if (pipelines.Any(_ => _.Failing))
+        if (counts.Failing > 0)
         {
             return TrayIconKind.Failed;
         }
 
-        if (pipelines.Any(_ => _.Running > 0))
+        if (counts.Running > 0)
         {
             return TrayIconKind.Running;
         }
 
-        var judged = pipelines.Where(_ => _.Head is not null).ToList();
-        if (judged.Count > 0 &&
-            judged.All(_ => _.Passing))
+        var judged = false;
+        foreach (var pipeline in pipelines)
+        {
+            if (pipeline.Head is null)
+            {
+                continue;
+            }
+
+            if (!pipeline.Passing)
+            {
+                return TrayIconKind.Idle;
+            }
+
+            judged = true;
+        }
+
+        if (judged)
         {
             return TrayIconKind.Success;
         }

@@ -5,9 +5,20 @@
 /// </summary>
 record BuildCounts(int Pipelines, int Failing, int Running)
 {
-    public static BuildCounts Of(ImmutableArray<PipelineBuilds> pipelines) =>
-        new(
-            pipelines.Length,
-            pipelines.Count(_ => _.Failing),
-            pipelines.Sum(_ => _.Running));
+    public static BuildCounts Of(ImmutableArray<PipelineBuilds> pipelines)
+    {
+        var failing = 0;
+        var running = 0;
+        foreach (var pipeline in pipelines)
+        {
+            if (pipeline.Failing)
+            {
+                failing++;
+            }
+
+            running += pipeline.Running;
+        }
+
+        return new(pipelines.Length, failing, running);
+    }
 }
