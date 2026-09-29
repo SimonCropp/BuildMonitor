@@ -27,7 +27,7 @@ public class SessionHostTests
 
         await Assert.That(() => host.Mutate(outer =>
             {
-                host.Mutate(_ => MonitorSession.Quit(_));
+                host.Mutate(MonitorSession.Quit);
                 return MonitorSession.SetStatus(outer, "Refreshing");
             }))
             .Throws<InvalidOperationException>();
