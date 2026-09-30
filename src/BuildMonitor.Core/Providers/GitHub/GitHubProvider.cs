@@ -648,7 +648,7 @@ sealed class GitHubProvider : ProviderBase
 
         if (await GetOrNone(context, $"repos/{repository}/branches/{EncodePath(question.Branch)}", GitHubContext.Default.GitHubBranch, cancel) is not null)
         {
-            return BranchFate.Open;
+            return await FateOfPullRequestBuilt(context, repository, question, cancel);
         }
 
         var tags = await GetOrNone(context, $"repos/{repository}/git/matching-refs/tags/{EncodePath(question.Branch)}", GitHubContext.Default.ListGitHubRef, cancel);
@@ -664,6 +664,31 @@ sealed class GitHubProvider : ProviderBase
         }
 
         return BranchFate.Deleted;
+    }
+
+    /// <summary>
+    /// A branch that is still there, asked for the newest pull request from it. A pull_request run
+    /// often lists no pull request, so a pull request closed without its branch being deleted held
+    /// its failed row red for good, the branch being all there was to ask about. The pull request
+    /// speaks for the run only when its head is the commit the run built: a branch whose pull
+    /// request was merged and that went on being pushed to, a long lived develop say, is still open.
+    /// </summary>
+    static async Task<BranchFate> FateOfPullRequestBuilt(ProviderContext context, string repository, BranchQuestion question, Cancel cancel)
+    {
+        if (question.Commit is not { } commit)
+        {
+            return BranchFate.Open;
+        }
+
+        var owner = repository[..repository.IndexOf('/')];
+        var pullRequests = await GetOrNone(context, $"repos/{repository}/pulls?head={Encode($"{owner}:{question.Branch}")}&state=all&per_page=1", GitHubContext.Default.ListGitHubPullRequest, cancel);
+        if (pullRequests?.FirstOrDefault() is { } pullRequest &&
+            pullRequest.Head?.Sha == commit)
+        {
+            return FateOf(pullRequest);
+        }
+
+        return BranchFate.Open;
     }
 
     static BranchFate FateOf(GitHubPullRequest? pullRequest)

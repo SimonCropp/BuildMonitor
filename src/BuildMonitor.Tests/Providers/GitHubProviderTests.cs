@@ -456,8 +456,8 @@ public class GitHubProviderTests
 
     const string verifyRepository = "https://github.com/VerifyTests/Verify";
 
-    static Task<BranchFate> FateOf(FakeHttpHandler handler, string branch, string? pullRequest = null, string repository = verifyRepository, string? server = null) =>
-        ProviderTestHelpers.Provider("github").FateOf(ProviderTestHelpers.Context("github", handler, server), new(repository, branch, pullRequest), Cancel.None);
+    static Task<BranchFate> FateOf(FakeHttpHandler handler, string branch, string? pullRequest = null, string repository = verifyRepository, string? server = null, string? commit = null) =>
+        ProviderTestHelpers.Provider("github").FateOf(ProviderTestHelpers.Context("github", handler, server), new(repository, branch, pullRequest, commit), Cancel.None);
 
     /// <summary>
     /// A pull request is asked for its own state, whatever built it.
@@ -513,6 +513,24 @@ public class GitHubProviderTests
             .Get("https://api.github.com/repos/VerifyTests/Verify/branches/dependabot/nuget/Polyfill-9.1.0", """{"name":"dependabot/nuget/Polyfill-9.1.0"}""");
         await Assert.That(await FateOf(handler, "dependabot/nuget/Polyfill-9.1.0")).IsEqualTo(BranchFate.Open);
         await Assert.That(handler.Requests.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// A pull_request run often names no pull request, so a branch still there is asked for the
+    /// newest pull request from it, which speaks for the run when its head is the commit built.
+    /// </summary>
+    [Test]
+    [Arguments("""[{"number":6,"state":"closed","merged_at":null,"head":{"sha":"dcc6fca"}}]""", BranchFate.Closed)]
+    [Arguments("""[{"number":6,"state":"closed","merged_at":"2026-01-01T10:00:00Z","head":{"sha":"dcc6fca"}}]""", BranchFate.Merged)]
+    [Arguments("""[{"number":6,"state":"open","merged_at":null,"head":{"sha":"dcc6fca"}}]""", BranchFate.Open)]
+    [Arguments("""[{"number":6,"state":"closed","merged_at":null,"head":{"sha":"0ld"}}]""", BranchFate.Open)]
+    [Arguments("[]", BranchFate.Open)]
+    public async Task ABranchStillThereIsAskedForThePullRequestThatBuiltIt(string body, BranchFate fate)
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/repos/VerifyTests/Verify/branches/refresh/package-versions", """{"name":"refresh/package-versions"}""")
+            .Get("https://api.github.com/repos/VerifyTests/Verify/pulls?head=VerifyTests%3Arefresh%2Fpackage-versions&state=all&per_page=1", body);
+        await Assert.That(await FateOf(handler, "refresh/package-versions", commit: "dcc6fca")).IsEqualTo(fate);
     }
 
     /// <summary>

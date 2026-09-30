@@ -19,7 +19,7 @@ public class BranchQuestionsTests
     public async Task AFailedBranchWithNoAnswerIsAsked()
     {
         var questions = Of(Fixtures.WithDefaultBranches(), Fixtures.Now);
-        await Assert.That(questions).IsEquivalentTo([new BranchQuestion("https://github.com/VerifyTests/Verify", "feature/inline", "42")]);
+        await Assert.That(questions).IsEquivalentTo([new BranchQuestion("https://github.com/VerifyTests/Verify", "feature/inline", "42", inline.CommitSha)]);
     }
 
     /// <summary>

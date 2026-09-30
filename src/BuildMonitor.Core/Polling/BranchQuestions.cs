@@ -34,7 +34,7 @@ static class BranchQuestions
                 continue;
             }
 
-            var question = new BranchQuestion(repository, branch, run.PullRequestNumber);
+            var question = new BranchQuestion(repository, branch, run.PullRequestNumber, run.CommitSha);
             var key = question.Key;
             // Asked once however many workflows failed on it, and marked asked only once due: two
             // workflows' runs of one branch can start either side of an answer.
