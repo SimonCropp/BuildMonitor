@@ -12,8 +12,9 @@
 /// and is due the moment that window opens; before it, and for a queued build, the poll interval
 /// applies, and past it the interval grows with the overrun. A quiet pipeline slows with the time
 /// since its last build, a thirtieth of it, or a hundred and twentieth after a failure, until the
-/// idle cap. On top of that come failure backoff, pressure from a draining quota, and a request
-/// quota that defers the least urgent groups. A cycle that fetches anyway takes the groups falling
+/// idle cap. While the desktop session is locked nothing is polled more often than five minutes.
+/// On top of that come failure backoff, pressure from a draining quota, and a request quota that
+/// defers the least urgent groups. A cycle that fetches anyway takes the groups falling
 /// due soon along with it, so many quiet groups do not each wake the connection on their own.
 /// </para>
 /// </summary>
@@ -49,6 +50,14 @@ static class PollSchedule
 
     public static TimeSpan IdleCap(ScheduleInput input) =>
         Max(input.IdleCap ?? DefaultIdleCap, input.Interval);
+
+    /// <summary>
+    /// The shortest interval while the desktop session is locked: the default idle cap, not the
+    /// provider's, as a provider that waits thirty minutes on a quiet group would otherwise leave an
+    /// agent reading a running build half an hour old.
+    /// </summary>
+    public static TimeSpan LockedInterval(ScheduleInput input) =>
+        Min(Max(DefaultIdleCap, input.Interval), IdleCap(input));
 
     public static TimeSpan MaximumInterval(ScheduleInput input) =>
         Max(Max(Backoff.Max, input.Interval), IdleCap(input));
@@ -193,6 +202,17 @@ static class PollSchedule
             (reason, interval) = (ScheduleReason.Nudged, input.Interval);
         }
 
+        // Nobody watches a finish window from a locked session, and a running build polled on the
+        // running interval all night spent a quota shared with the user's other tools for nothing.
+        // Not paused outright: an agent asking through the socket still gets rows no older than the
+        // LockedInterval. A nudge still fetches once, as its due time below does not wait on the
+        // interval.
+        if (input.Locked &&
+            interval < LockedInterval(input))
+        {
+            (reason, interval) = (ScheduleReason.Locked, LockedInterval(input));
+        }
+
         if (memory.Failures > 0 &&
             Backoff.Next(input.Interval, memory.Failures) is var backoff &&
             backoff > interval)
@@ -216,6 +236,7 @@ static class PollSchedule
         // short a backoff or a draining quota, which stretched the interval on purpose.
         if (memory.Failures == 0 &&
             pressure <= 1 &&
+            !input.Locked &&
             WindowOpens(input, group, byPipeline) is { } opens &&
             opens < dueAt)
         {

@@ -48,7 +48,10 @@ record SessionState(
     // after is not taken as meant for the build now there.
     MovedRows? Moved = null,
     // The button of a row the pointer is on, which holds the rows still until it is clicked.
-    HoverState? Hover = null)
+    HoverState? Hover = null,
+    // Set while the desktop session is locked: polling slows to PollSchedule.LockedInterval and
+    // failures wait for the unlock to be announced. See LockWatcher.
+    LockedState? Locked = null)
 {
     public static SessionState Start(Settings settings) =>
         new(

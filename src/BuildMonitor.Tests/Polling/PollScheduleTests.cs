@@ -15,7 +15,8 @@ public class PollScheduleTests
         RateState? rate = null,
         DateTimeOffset? pausedUntil = null,
         RequestBucket? bucket = null,
-        ImmutableDictionary<string, DurationRange>? durations = null) =>
+        ImmutableDictionary<string, DurationRange>? durations = null,
+        bool locked = false) =>
         new(
             "gh",
             quota,
@@ -30,7 +31,8 @@ public class PollScheduleTests
             pausedUntil,
             bucket,
             false,
-            now);
+            now,
+            locked);
 
     static PollGroup Group(string key, params string[] pipelineIds) =>
         new(key, [.. pipelineIds.Select(_ => new Pipeline(_, _, key, key, $"https://github.com/{key}"))]);
@@ -144,6 +146,82 @@ public class PollScheduleTests
         };
         var backingOff = PollSchedule.Group(Input([group], [nearlyOpen], ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, failing), durations: fiveToSeven), group);
         await Assert.That(backingOff.DueAt).IsEqualTo(tick);
+    }
+
+    [Test]
+    public async Task WhileLockedARunningBuildWaitsTheIdleCap()
+    {
+        var group = Group("VerifyTests/Verify", "ci");
+        var memory = ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, Fetched(TimeSpan.FromSeconds(5), "ci"));
+        var plan = PollSchedule.Group(Input([group], [Running("ci", TimeSpan.FromMinutes(6))], memory, durations: fiveToSeven, locked: true), group);
+        await Assert.That((plan.Reason, plan.Interval)).IsEqualTo((ScheduleReason.Locked, TimeSpan.FromMinutes(5)));
+    }
+
+    [Test]
+    public async Task WhileLockedAProviderWithALongIdleCapWaitsFiveMinutes()
+    {
+        var group = Group("VerifyTests/Verify", "ci");
+        var memory = ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, Fetched(TimeSpan.FromSeconds(5), "ci"));
+        var running = PollSchedule.Group(Input([group], [Running("ci", TimeSpan.FromMinutes(6))], memory, idleCap: TimeSpan.FromMinutes(30), durations: fiveToSeven, locked: true), group);
+        await Assert.That((running.Reason, running.Interval)).IsEqualTo((ScheduleReason.Locked, TimeSpan.FromMinutes(5)));
+
+        var quiet = PollSchedule.Group(Input([group], [Finished("ci", BuildStatus.Succeeded, TimeSpan.FromDays(2))], memory, idleCap: TimeSpan.FromMinutes(30), locked: true), group);
+        await Assert.That((quiet.Reason, quiet.Interval)).IsEqualTo((ScheduleReason.Quiet, TimeSpan.FromMinutes(30)));
+    }
+
+    [Test]
+    public async Task WhileLockedAFinishWindowDoesNotPullTheGroupForward()
+    {
+        var group = Group("VerifyTests/Verify", "ci");
+        var memory = ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, Fetched(TimeSpan.FromSeconds(5), "ci"));
+        var nearlyOpen = Running("ci", TimeSpan.FromMinutes(5) - TimeSpan.FromSeconds(10));
+        var plan = PollSchedule.Group(Input([group], [nearlyOpen], memory, durations: fiveToSeven, locked: true), group);
+        var tick = now - TimeSpan.FromSeconds(5) + TimeSpan.FromMinutes(5) * (1 + PollSchedule.Spread("gh", group.Key));
+        await Assert.That(plan.DueAt).IsEqualTo(tick);
+    }
+
+    [Test]
+    public async Task WhileLockedAQuietGroupKeepsItsReason()
+    {
+        var group = Group("VerifyTests/Verify", "ci");
+        var memory = ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, Fetched(TimeSpan.Zero, "ci"));
+        var plan = PollSchedule.Group(Input([group], [Finished("ci", BuildStatus.Succeeded, TimeSpan.FromDays(2))], memory, locked: true), group);
+        await Assert.That((plan.Reason, plan.Interval)).IsEqualTo((ScheduleReason.Quiet, TimeSpan.FromMinutes(5)));
+    }
+
+    [Test]
+    public async Task WhileLockedANudgeFetchesOnceThenWaitsTheIdleCap()
+    {
+        var group = Group("VerifyTests/Verify", "ci");
+        var builds = new[]
+        {
+            Finished("ci", BuildStatus.Succeeded, TimeSpan.FromDays(1))
+        };
+        var nudged = Fetched(TimeSpan.FromMinutes(1), "ci") with
+        {
+            NudgedAt = now - TimeSpan.FromSeconds(5)
+        };
+        var dueNow = PollSchedule.Group(Input([group], builds, ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, nudged), locked: true), group);
+        await Assert.That(dueNow.DueAt).IsEqualTo(now);
+
+        var afterFetch = Fetched(TimeSpan.Zero, "ci") with
+        {
+            NudgedAt = now - TimeSpan.FromMinutes(1)
+        };
+        var capped = PollSchedule.Group(Input([group], builds, ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, afterFetch), locked: true), group);
+        await Assert.That((capped.Reason, capped.Interval)).IsEqualTo((ScheduleReason.Locked, TimeSpan.FromMinutes(5)));
+    }
+
+    [Test]
+    public async Task WhileLockedABackoffLongerThanTheIdleCapStands()
+    {
+        var group = Group("VerifyTests/Verify", "ci");
+        var failing = Fetched(TimeSpan.Zero, "ci") with
+        {
+            Failures = 9
+        };
+        var plan = PollSchedule.Group(Input([group], [Running("ci", TimeSpan.FromMinutes(1))], ImmutableDictionary<string, GroupMemory>.Empty.Add(group.Key, failing), locked: true), group);
+        await Assert.That((plan.Reason, plan.Interval)).IsEqualTo((ScheduleReason.Backoff, TimeSpan.FromMinutes(10)));
     }
 
     [Test]

@@ -86,6 +86,8 @@ A repository that keeps failing backs off on its own without holding up the rest
 
 Polling waits while a row's right click menu is open, or the pointer is on one of a row's buttons, because a poll re-sorts the rows and would move what is being read, or aimed at, out from under the pointer. It carries on as soon as the menu closes or the button is clicked, and after half a minute whatever is still there.
 
+While the computer is locked, nothing is polled more often than every five minutes, since nobody is watching a build finish, so an agent asking through the MCP server still gets builds about five minutes old at most. Failures are not announced while locked: unlocking shows one notification for what is failing then that was not when it locked, and refreshes everything. Waking from sleep refreshes everything too. On Linux this needs a desktop that tells logind the session is locked, as GNOME and KDE do.
+
 
 ## Local
 

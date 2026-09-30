@@ -13,6 +13,8 @@ public enum ScheduleReason
     Unfetched,
     RecentFailure,
     RecentSuccess,
+    // Would be sooner, but the desktop session is locked.
+    Locked,
     Quiet,
     Backoff
 }

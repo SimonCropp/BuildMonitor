@@ -5,7 +5,14 @@ static class Program
         NativeResolver.Register();
         try
         {
-            return MonitorProgram.Run(args, NativeMonitorWindow.Open, OperatingSystem.IsMacOS() ? NativeTray.Open : SniTray.Open);
+            if (OperatingSystem.IsMacOS())
+            {
+                return MonitorProgram.Run(args, NativeMonitorWindow.Open, NativeTray.Open);
+            }
+
+            // Not in Core with the others: only this head has a D-Bus client.
+            ISessionLock? sessionLock = OperatingSystem.IsLinux() ? new LoginSessionLock() : null;
+            return MonitorProgram.Run(args, NativeMonitorWindow.Open, SniTray.Open, sessionLock);
         }
         catch (Exception exception)
         {

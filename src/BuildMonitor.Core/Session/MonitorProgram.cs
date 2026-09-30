@@ -49,7 +49,9 @@ static class MonitorProgram
         return state;
     }
 
-    public static int Run(string[] args, OpenWindow openWindow, OpenTray openTray)
+    /// <param name="sessionLock">How to tell the desktop session is locked, where
+    /// <see cref="SessionLocks.ForPlatform"/> has no answer for this one.</param>
+    public static int Run(string[] args, OpenWindow openWindow, OpenTray openTray, ISessionLock? sessionLock = null)
     {
         Logging.Init();
         Log.Information("BuildMonitor {Version} starting", VersionReader.VersionString);
@@ -94,11 +96,11 @@ static class MonitorProgram
 
         using (server)
         {
-            return RunOwned(args, settings, hidden, server, openWindow, openTray);
+            return RunOwned(args, settings, hidden, server, openWindow, openTray, sessionLock ?? SessionLocks.ForPlatform());
         }
     }
 
-    static int RunOwned(string[] args, Settings settings, bool hidden, LocalServer server, OpenWindow openWindow, OpenTray openTray)
+    static int RunOwned(string[] args, Settings settings, bool hidden, LocalServer server, OpenWindow openWindow, OpenTray openTray, ISessionLock? sessionLock)
     {
         var host = new SessionHost(StartState(settings, hidden));
         // Read only by the tray that owns the port, so one started beside it and leaving at once
@@ -155,6 +157,15 @@ static class MonitorProgram
         var artifacts = new ArtifactStore();
         var actions = RealActions.Create(host, poller, repos, artifacts, secrets, signIn, runAtLogin);
         poller.Start();
+        if (sessionLock is null)
+        {
+            Log.Information("No way to tell the session is locked here. Polling as usual while it is.");
+        }
+        else
+        {
+            _ = new LockWatcher(host, sessionLock, () => poller.Refresh(null)).Run(cancel.Token);
+        }
+
         // Scans off the loop's thread, so a code directory on a slow or absent network share
         // delays the checkouts being found rather than the window appearing.
         repos.Sync(settings.CodeDirectory);

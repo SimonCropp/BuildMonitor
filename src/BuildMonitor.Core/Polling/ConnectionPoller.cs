@@ -778,14 +778,28 @@ sealed class ConnectionPoller
         }
     }
 
+    /// <summary>
+    /// When the next probe is due. No sooner than <see cref="PollSchedule.LockedInterval"/> while the
+    /// session is locked: a probe that sees activity nudges its group, which is fetched at once, so
+    /// probing on the poll interval would fetch every busy group about as often as if nothing were
+    /// locked.
+    /// </summary>
     DateTimeOffset? NextProbe(ProviderDescriptor descriptor)
     {
-        if (probeWorks)
+        if (!probeWorks)
         {
-            return probed + Backoff.Next(descriptor.ProbeInterval ?? Interval(host.State.Settings), probeFailures);
+            return null;
         }
 
-        return null;
+        var state = host.State;
+        var interval = Interval(state.Settings);
+        var every = descriptor.ProbeInterval ?? interval;
+        if (state.Locked is not null)
+        {
+            every = Max(every, Max(PollSchedule.DefaultIdleCap, interval));
+        }
+
+        return probed + Backoff.Next(every, probeFailures);
     }
 
     static DateTimeOffset Earliest(DateTimeOffset at, DateTimeOffset? other)
@@ -929,7 +943,8 @@ sealed class ConnectionPoller
             ignorePause ? null : PausedUntil(),
             bucket,
             everything,
-            now);
+            now,
+            state.Locked is not null);
     }
 
     async Task<(ConnectionHealth Health, string? Error, DateTimeOffset? RetryAfter)> Health(

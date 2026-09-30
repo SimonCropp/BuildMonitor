@@ -1668,7 +1668,8 @@ static class MonitorSession
             });
         var previous = state.Builds.Where(_ => _.ConnectionId == connectionId).ToImmutableArray();
         var notification = state.Notification;
-        if (state.Settings.NotifyOnFailure)
+        if (state.Settings.NotifyOnFailure &&
+            state.Locked is null)
         {
             var failures = Undeferred(state, FailureDetector.NewFailures(previous, builds));
             notification = FailureDetector.Describe(failures) ?? notification;
@@ -1731,7 +1732,8 @@ static class MonitorSession
                 Access = outcome.Access
             });
         var notification = state.Notification;
-        if (state.Settings.NotifyOnFailure)
+        if (state.Settings.NotifyOnFailure &&
+            state.Locked is null)
         {
             var news = arrived.Where(_ => !outcome.FirstFetch.Contains(_.PipelineId)).ToImmutableArray();
             notification = FailureDetector.Describe(Undeferred(state, FailureDetector.NewFailures(previous, news))) ?? notification;
@@ -2009,6 +2011,65 @@ static class MonitorSession
         {
             Notification = null
         };
+
+    /// <summary>
+    /// The desktop session locked. The builds as they are now are what <see cref="Unlock"/> judges
+    /// news against. Locking again while locked keeps the first, or a failure between the two
+    /// would never be announced.
+    /// </summary>
+    public static SessionState Lock(SessionState state)
+    {
+        if (state.Locked is not null)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            Locked = new(state.Builds)
+        };
+    }
+
+    /// <summary>
+    /// The desktop session unlocked: one announcement of what is failing now that was not when it
+    /// locked. A build that failed and went green again while locked is not news by now, and several
+    /// failures are one announcement rather than a balloon each. Only pipelines held at the lock count, as a pipeline's
+    /// first fetch is not news on a poll either, and a session that locked before the first poll
+    /// had nothing to judge by.
+    /// </summary>
+    public static SessionState Unlock(SessionState state)
+    {
+        if (state.Locked is not { } locked)
+        {
+            return state;
+        }
+
+        var next = state with
+        {
+            Locked = null
+        };
+        if (!state.Settings.NotifyOnFailure)
+        {
+            return next;
+        }
+
+        var held = locked.Builds.Select(_ => (_.ConnectionId, _.PipelineId)).ToHashSet();
+        // The latest run of each, as a failed run a newer one has passed since is still held.
+        var current = state.Builds
+            .Where(_ => held.Contains((_.ConnectionId, _.PipelineId)))
+            .GroupBy(_ => _.Key)
+            .Select(_ => _.MaxBy(_ => _.Ordering ?? DateTimeOffset.MinValue)!)
+            .ToImmutableArray();
+        if (FailureDetector.Describe(Undeferred(state, FailureDetector.NewFailures(locked.Builds, current))) is not { } notification)
+        {
+            return next;
+        }
+
+        return next with
+        {
+            Notification = notification
+        };
+    }
 
     public static SessionState ApplyMedians(SessionState state, ImmutableDictionary<string, TimeSpan> medians) =>
         state with
