@@ -20,6 +20,11 @@ static class InputApplier
             actions.SaveSettings(state.Settings);
         }
 
+        if (input.Minimized is { } minimized)
+        {
+            state = MonitorSession.Minimize(state, minimized);
+        }
+
         // The last message has been seen, unless the input is the click that copies it: cleared
         // first, the copy would take whatever the footer falls back to, "Polled 3s ago". The Undo
         // beside an exclude's message goes with it, unless it is what was clicked.

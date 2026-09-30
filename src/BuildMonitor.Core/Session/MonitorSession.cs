@@ -338,6 +338,23 @@ static class MonitorSession
             }
         };
 
+    /// <summary>
+    /// The head says its window was minimized or restored. The same value again is the same
+    /// state, since a head reports this on every poll and a new state would rebuild the screen.
+    /// </summary>
+    public static SessionState Minimize(SessionState state, bool minimized)
+    {
+        if (state.Minimized == minimized)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            Minimized = minimized
+        };
+    }
+
     // Context menu
 
     public static SessionState OpenMenu(SessionState state, int row)

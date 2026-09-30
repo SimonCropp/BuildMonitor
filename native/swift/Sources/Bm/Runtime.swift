@@ -271,6 +271,11 @@ final class Runtime {
         input.rows = Int32(renderer.bodyRows)
     }
 
+    /// Whether the window is minimized, into the input every poll, as a state rather than an event.
+    func sampleMinimized() {
+        input.minimized = (window?.isMiniaturized ?? false) ? 1 : 0
+    }
+
     /// Where the window is, into the input every poll. Left as it was while the window is hidden,
     /// minimized or full screen, none of which is a place to open at.
     func samplePlacement() {

@@ -77,6 +77,20 @@ public class HoverHoldTests
         await Assert.That(MonitorSession.Hide(hovering).HoldsRows).IsFalse();
     }
 
+    [Test]
+    public async Task AMinimizedWindowHoldsNothing()
+    {
+        var hovering = Apply(Fixtures.WithBuilds(), new(HoveredChipRow: 1, HoveredChip: ChipKind.Retry));
+        await Assert.That(MonitorSession.Minimize(hovering, true).HoldsRows).IsFalse();
+    }
+
+    [Test]
+    public async Task ALockedSessionHoldsNothing()
+    {
+        var hovering = Apply(Fixtures.WithBuilds(), new(HoveredChipRow: 1, HoveredChip: ChipKind.Retry));
+        await Assert.That(MonitorSession.Lock(hovering).HoldsRows).IsFalse();
+    }
+
     /// <summary>
     /// The head reports the row it drew, which is an index into the visible slice, and the hold is
     /// compared against rows counted from the first, as the selection is.

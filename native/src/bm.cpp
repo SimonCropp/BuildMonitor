@@ -175,8 +175,9 @@ bool Reachable(const BmPlacement& placement) {
 /* Where the window is now, into BmInput.placement. GLFW gives no bounds back for a maximized
    window other than the ones it fills, so those are kept from the last poll it was not maximized,
    which is what a restore goes back to. Hidden and minimized leave it as it was: neither is a
-   place to open at. */
+   place to open at. Whether it is minimized goes in on every poll. */
 void Sample() {
+    g.input.minimized = IsWindowMinimized() ? 1 : 0;
     if (g.hidden || IsWindowMinimized()) {
         return;
     }

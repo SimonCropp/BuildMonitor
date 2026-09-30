@@ -190,6 +190,7 @@ struct BmInput
     public int CloseRequested;
     public int Rows;
     public BmPlacement Placement;
+    public int Minimized;
 }
 
 enum BmKey

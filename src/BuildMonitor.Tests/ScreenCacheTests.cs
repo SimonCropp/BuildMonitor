@@ -79,6 +79,79 @@ public class ScreenCacheTests
         await Assert.That(ReferenceEquals(first, second)).IsTrue();
     }
 
+    static SessionState Minimized() =>
+        MonitorSession.Minimize(Fixtures.WithBuilds(), true);
+
+    static SessionState Locked() =>
+        MonitorSession.Lock(Fixtures.WithBuilds());
+
+    [Test]
+    public async Task MinimizedIgnoresTheClock()
+    {
+        var cache = new ScreenCache();
+        var state = Minimized();
+        var first = cache.Get(state, now, out _);
+        var second = cache.Get(state, now + TimeSpan.FromMinutes(5), out var rebuilt);
+
+        await Assert.That(rebuilt).IsFalse();
+        await Assert.That(ReferenceEquals(first, second)).IsTrue();
+    }
+
+    [Test]
+    public async Task LockedIgnoresTheClock()
+    {
+        var cache = new ScreenCache();
+        var state = Locked();
+        var first = cache.Get(state, now, out _);
+        var second = cache.Get(state, now + TimeSpan.FromMinutes(5), out var rebuilt);
+
+        await Assert.That(rebuilt).IsFalse();
+        await Assert.That(ReferenceEquals(first, second)).IsTrue();
+    }
+
+    /// <summary>
+    /// Unlike a hidden window, a minimized one keeps its rows, so a restore has something to show
+    /// before the state it brings rebuilds the screen.
+    /// </summary>
+    [Test]
+    public async Task MinimizedKeepsItsRows()
+    {
+        var cache = new ScreenCache();
+        var shown = cache.Get(Fixtures.WithBuilds(), now, out _);
+        var minimized = cache.Get(Minimized(), now, out _);
+
+        await Assert.That(minimized.Builds!.Rows.Count).IsEqualTo(shown.Builds!.Rows.Count);
+    }
+
+    [Test]
+    public async Task RestoringRebuildsWithTheClock()
+    {
+        var cache = new ScreenCache();
+        var minimized = Minimized();
+        var first = cache.Get(minimized, now, out _);
+        var restored = cache.Get(MonitorSession.Minimize(minimized, false), now + TimeSpan.FromMinutes(5), out var rebuilt);
+
+        await Assert.That(rebuilt).IsTrue();
+        await Assert.That(first.Status).IsEqualTo("Polled 5s ago");
+        await Assert.That(restored.Status).IsEqualTo("Polled 5m ago");
+    }
+
+    [Test]
+    public Task MinimizedTheLoopIdlesUntilWoken() =>
+        IdlesUntilWoken(Minimized());
+
+    [Test]
+    public Task LockedTheLoopIdlesUntilWoken() =>
+        IdlesUntilWoken(Locked());
+
+    static async Task IdlesUntilWoken(SessionState state)
+    {
+        var cache = new ScreenCache();
+        cache.Get(state, now, out _);
+        await Assert.That(cache.UntilTick(now)).IsNull();
+        await Assert.That(MonitorProgram.Idle(cache, state, now)).IsEqualTo(MonitorProgram.LongestIdle);
+    }
+
     [Test]
     public async Task ShowingRebuildsWithTheClock()
     {

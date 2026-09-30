@@ -207,7 +207,8 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
             TrayItem: input.ClickedTrayItem >= 0 &&
                       input.ClickedTrayItem < payload.TrayItemIds.Count ? payload.TrayItemIds[input.ClickedTrayItem] : null,
             TrayIconClicked: input.TrayIconClicked != 0,
-            Placement: settler.Poll(Placement(input.Placement), Stopwatch.GetElapsedTime(opened)));
+            Placement: settler.Poll(Placement(input.Placement), Stopwatch.GetElapsedTime(opened)),
+            Minimized: input.Minimized != 0);
     }
 
     /// <summary>

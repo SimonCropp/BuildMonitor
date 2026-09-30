@@ -16,9 +16,10 @@ static class MonitorProgram
     public const string HiddenArgument = "--hidden";
 
     /// <summary>
-    /// How long the loop sleeps between frames when the window is hidden, for a head that cannot
-    /// <see cref="IMonitorWindow.Wait">idle</see>. Nothing is drawn, so the only thing to keep up
-    /// with is the tray, which does not need sixty a second.
+    /// How long the loop sleeps between frames when nobody can see the window, for a head that
+    /// cannot <see cref="IMonitorWindow.Wait">idle</see>: see <see cref="SessionState.Unseen"/>.
+    /// Nothing is drawn, so the only things to keep up with are the tray and a restore, neither of
+    /// which needs sixty a second.
     /// </summary>
     public static readonly TimeSpan HiddenFrame = TimeSpan.FromMilliseconds(100);
 
@@ -330,7 +331,7 @@ static class MonitorProgram
             input = input with {At = DateTimeOffset.UtcNow};
             host.Mutate(_ => InputApplier.Apply(_, input, actions, window));
             if (!idled &&
-                host.State.Hidden)
+                host.State.Unseen)
             {
                 Thread.Sleep(HiddenFrame);
             }

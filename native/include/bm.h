@@ -484,13 +484,19 @@ typedef struct BmInput {
      * window is hidden, minimized or full screen, none of which is a place to open at.
      */
     BmPlacement placement;
+    /*
+     * 1 while the window is minimized, every poll, as a state rather than an event. The managed
+     * side then stops the clock rebuilding the screen and idles as it does while hidden, rather than
+     * draw a frame a second and pump sixty for a window nobody can see.
+     */
+    int32_t minimized;
 } BmInput;
 
 /*
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 18
+#define BM_VERSION 19
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

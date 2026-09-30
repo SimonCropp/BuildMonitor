@@ -51,7 +51,9 @@ record SessionState(
     HoverState? Hover = null,
     // Set while the desktop session is locked: polling slows to PollSchedule.LockedInterval and
     // failures wait for the unlock to be announced. See LockWatcher.
-    LockedState? Locked = null)
+    LockedState? Locked = null,
+    // The window is minimized. Unlike Hidden it still has rows, which a restore shows at once.
+    bool Minimized = false)
 {
     public static SessionState Start(Settings settings) =>
         new(
@@ -80,6 +82,18 @@ record SessionState(
     /// </summary>
     public ImmutableDictionary<string, BranchVerdict> Verdicts { get; init; } = ImmutableDictionary<string, BranchVerdict>.Empty;
 
+    /// <summary>
+    /// Whether nobody can see the window: hidden, minimized, or behind a locked session. The loop
+    /// idles as it does while hidden and the clock stops rebuilding the screen, rather than build
+    /// and draw a frame every second, and on the native heads pump sixty a second, for nobody. The
+    /// loop never stops outright, since it is what answers the tray, the socket and the clipboard.
+    /// Only Hidden empties the rows: the others keep the last screen for when they end.
+    /// </summary>
+    public bool Unseen =>
+        Hidden ||
+        Minimized ||
+        Locked is not null;
+
     public ConnectionState? Connection(string id) =>
         Connections.FirstOrDefault(_ => _.Connection.Id == id);
 
@@ -89,13 +103,13 @@ record SessionState(
     /// holds its cycle back while this is true, rather than take the row the user is aiming at out
     /// from under the pointer. <see cref="ConnectionPoller.HoldLimit"/> caps how long.
     /// <para>
-    /// Never while hidden: nothing is on screen to be aimed at, and a window hidden with the
-    /// pointer on a chip reports no move off it, so the last hover would hold every poll back
-    /// until it timed out.
+    /// Never while <see cref="Unseen"/>: nothing is on screen to be aimed at, and a window hidden
+    /// with the pointer on a chip reports no move off it, so the last hover would hold every poll
+    /// back until it timed out.
     /// </para>
     /// </summary>
     public bool HoldsRows =>
-        !Hidden &&
+        !Unseen &&
         (Menu is not null ||
          Hover is {Clicked: false});
 }

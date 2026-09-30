@@ -45,6 +45,9 @@ readonly record struct MonitorInput(
     // it has settled rather than every frame of a drag, as each one is saved. Not counted in Any:
     // moving the window has not read the status line.
     WindowPlacement? Placement = null,
+    // Whether the window is minimized, reported every poll as a state rather than an event, or null
+    // from a head that does not say. Not counted in Any: minimizing has not read the status line.
+    bool? Minimized = null,
     // When the input was read, stamped by the loop rather than a head, so a click can be weighed
     // against how long ago a poll moved the row under it. A test that leaves it unset gets a time
     // before any poll, which no move is recent to.

@@ -346,6 +346,7 @@ sealed class MonitorForm : Form
             Search = header.DrainSearch(),
             CloseRequested = closeRequested,
             Placement = settled,
+            Minimized = WindowState == FormWindowState.Minimized,
             Columns = 120,
             Rows = Math.Max(1, canvas.VisibleRows) + ScreenBuilder.Chrome
         };

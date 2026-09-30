@@ -45,12 +45,12 @@ class ScreenCache
     /// <summary>
     /// How long from <paramref name="now"/> until the clock alone rebuilds the last screen, which is
     /// as long as the loop can idle without a moving time or a spinner falling behind. Null when the
-    /// clock never will, as while hidden.
+    /// clock never will, as while <see cref="SessionState.Unseen"/>.
     /// </summary>
     public TimeSpan? UntilTick(DateTimeOffset now)
     {
         if (screen is null ||
-            builtState is not { Hidden: false })
+            builtState is null or { Unseen: true })
         {
             return null;
         }
@@ -67,13 +67,13 @@ class ScreenCache
 
     /// <summary>
     /// Whether the clock has moved into another tick since <paramref name="built"/>. Never while
-    /// hidden: no one sees the screen, and the tray and the notification take no clock, yet a large
-    /// account rebuilt it four times a second, about 22 ms of CPU and 15 MB of garbage a second.
-    /// Showing the window changes the state, which rebuilds.
+    /// <see cref="SessionState.Unseen"/>: no one sees the screen, and the tray and the notification
+    /// take no clock, yet a large account rebuilt it four times a second, about 22 ms of CPU and
+    /// 15 MB of garbage a second. Showing, restoring or unlocking changes the state, which rebuilds.
     /// </summary>
     bool Ticked(Screen built, SessionState state, DateTimeOffset now)
     {
-        if (state.Hidden)
+        if (state.Unseen)
         {
             return false;
         }
