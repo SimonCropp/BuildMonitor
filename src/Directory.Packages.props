@@ -19,15 +19,15 @@
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.0" />
-    <PackageVersion Include="SkiaSharp" Version="4.153.0" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.153.0" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="4.153.0" />
+    <PackageVersion Include="SkiaSharp" Version="4.153.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.153.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="4.153.1" />
     <PackageVersion Include="Svg.Skia" Version="5.2.3" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <PackageVersion Include="Tmds.DBus.Protocol" Version="0.95.1" />
-    <PackageVersion Include="TUnit" Version="1.72.0" />
-    <PackageVersion Include="Verify" Version="33.1.5" />
-    <PackageVersion Include="Verify.TUnit" Version="33.1.5" />
+    <PackageVersion Include="TUnit" Version="1.72.4" />
+    <PackageVersion Include="Verify" Version="33.2.0" />
+    <PackageVersion Include="Verify.TUnit" Version="33.2.0" />
     <PackageVersion Include="Verify.WinForms" Version="6.0.0" />
   </ItemGroup>
 </Project>
