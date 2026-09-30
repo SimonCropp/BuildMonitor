@@ -33,22 +33,22 @@ static class Updater
     /// </summary>
     public static void Start()
     {
-        var info = StartInfo(ShimPath.Resolve(), AppPaths.UpdateOutcome, Environment.ProcessId);
+        var info = StartInfo(ShimPath.Resolve(), AppPaths.Head, AppPaths.UpdateOutcome, Environment.ProcessId);
         Log.Information("Updating with {File} {Arguments}", info.FileName, string.Join(' ', info.ArgumentList));
         using var process = Process.Start(info);
     }
 
-    public static ProcessStartInfo StartInfo(string shim, string outcome, int processId)
+    public static ProcessStartInfo StartInfo(string shim, string head, string outcome, int processId)
     {
         if (OperatingSystem.IsWindows())
         {
-            var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(WindowsScript(shim, StoreDirectory(shim), outcome, processId)));
+            var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(WindowsScript(shim, StoreDirectory(shim), head, outcome, processId)));
             var info = new ProcessStartInfo("powershell.exe")
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                // The head runs with its own directory under .store as the working directory, and
-                // this shell would inherit it. Windows will not delete a directory that is some
+                // A head started from the store, rather than from its copy, runs with its own
+                // directory under .store as the working directory, and this shell would inherit it. Windows will not delete a directory that is some
                 // process's working directory, so the uninstall the update starts with would be
                 // denied the very version it is replacing, by the shell doing the replacing.
                 WorkingDirectory = Path.GetTempPath()
@@ -82,21 +82,27 @@ static class Updater
     /// Then kills whatever still holds the installed version, because the uninstall the update
     /// starts with deletes the whole version directory and one open file under it fails all of it,
     /// as "Access to the path ... is denied". That is the shim running <c>buildmonitor mcp</c> for
-    /// an AI client, a head left over from a tray that outlasted the wait above, and anything else
-    /// started out of the store. They are matched on the shim's path and on the store directory,
-    /// the first being what <see cref="McpServers.Find"/> matches on, so the update page warns
-    /// about every server this stops. A client sees its server stop, and connecting it again starts
-    /// the new version.
+    /// an AI client, and anything else started out of the store. They are matched on the shim's
+    /// path and on the store directory, the first being what <see cref="McpServers.Find"/> matches
+    /// on, so the update page warns about every server this stops. A client sees its server stop,
+    /// and connecting it again starts the new version.
+    /// </para>
+    /// <para>
+    /// A head left over from a tray that outlasted the wait holds <see cref="HeadCopy"/> rather
+    /// than the store, and is matched on that directory. Left running, it would keep the port, so
+    /// the shim started at the end would show it rather than start the new version, and keep the
+    /// copy's files open, so the new version could not be copied over them.
     /// </para>
     /// </summary>
-    public static string WindowsScript(string shim, string store, string outcome, int processId)
+    public static string WindowsScript(string shim, string store, string head, string outcome, int processId)
     {
         var quotedShim = Quote(shim);
         var underStore = Quote($@"{store}\");
+        var underHead = Quote($@"{head}\");
         string[] steps =
         [
             $"Wait-Process -Id {processId} -Timeout {waitSeconds} -ErrorAction SilentlyContinue",
-            $$"""$locking = @(Get-Process | Where-Object { $_.Path -and ($_.Path -eq {{quotedShim}} -or $_.Path.StartsWith({{underStore}}, 'OrdinalIgnoreCase')) })""",
+            $$"""$locking = @(Get-Process | Where-Object { $_.Path -and ($_.Path -eq {{quotedShim}} -or $_.Path.StartsWith({{underStore}}, 'OrdinalIgnoreCase') -or $_.Path.StartsWith({{underHead}}, 'OrdinalIgnoreCase')) })""",
             "$locking | Stop-Process -Force -ErrorAction SilentlyContinue",
             $"$locking | Wait-Process -Timeout {killSeconds} -ErrorAction SilentlyContinue",
             $$"""$output = dotnet tool update {{PackageId}} --global --prerelease 2>&1 | ForEach-Object { "$_" }""",

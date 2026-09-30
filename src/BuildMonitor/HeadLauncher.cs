@@ -63,12 +63,15 @@ static class HeadLauncher
         var arguments = hidden ? MonitorProgram.HiddenArgument : "";
         if (OperatingSystem.IsWindows())
         {
-            var info = new ProcessStartInfo(head)
+            var shim = ShimPath.Resolve(head);
+            var started = HeadCopy.Prepare(head, AppPaths.Head);
+            var info = new ProcessStartInfo(started)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                WorkingDirectory = Path.GetDirectoryName(head)
+                WorkingDirectory = Path.GetDirectoryName(started)
             };
+            info.Environment[ShimPath.Variable] = shim;
             if (hidden)
             {
                 info.ArgumentList.Add(MonitorProgram.HiddenArgument);

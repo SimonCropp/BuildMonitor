@@ -6,7 +6,7 @@ record ToolStorePath(string PackageDirectory, string Version, string File)
 {
     /// <summary>
     /// Null for a path outside the store, such as a build run from its bin directory. Windows
-    /// paths ignore case, and the one Windows recorded need not have the case of the one started.
+    /// paths ignore case, and the store names a directory in the case the package was pushed in.
     /// </summary>
     public static ToolStorePath? Parse(string path)
     {
@@ -23,11 +23,4 @@ record ToolStorePath(string PackageDirectory, string Version, string File)
             segments[store + 2],
             segments[^1]);
     }
-
-    /// <summary>
-    /// The same file of the same package in the same store, whichever the version.
-    /// </summary>
-    public bool SameFile(ToolStorePath other) =>
-        string.Equals(PackageDirectory, other.PackageDirectory, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(File, other.File, StringComparison.OrdinalIgnoreCase);
 }

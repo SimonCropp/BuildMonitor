@@ -7,8 +7,10 @@ static class Logging
 
     static string currentDirectory { get; } = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
     /// <summary>
-    /// Beside the installed tool, so it moves with the version and the "Open logs" menu item
-    /// always finds the logs of the build that is running.
+    /// Beside the running head, so the "Open logs" menu item always finds the logs of the build
+    /// that is running. That is the installed version on macOS and Linux, whose logs go with it at
+    /// the next update, and on Windows the <see cref="HeadCopy"/> every version runs from, whose
+    /// logs carry on across updates.
     /// </summary>
     public static string LogsDirectory { get; } = Path.Combine(currentDirectory, "logs");
 

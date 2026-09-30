@@ -30,6 +30,26 @@ public class AppTests
         await Assert.That(ShimPath.Resolve(path)).IsEqualTo(path);
     }
 
+    /// <summary>
+    /// A head run from its copy on Windows has a path that says nothing about the shim, so it is
+    /// told instead, and the path it is told wins over its own.
+    /// </summary>
+    [Test]
+    [NotInParallel(nameof(ShimPath.Variable))]
+    public async Task ShimPathPassedByTheLauncher()
+    {
+        var shim = Path.Combine("C:", "Users", "simon", ".dotnet", "tools", "buildmonitor.exe");
+        Environment.SetEnvironmentVariable(ShimPath.Variable, shim);
+        try
+        {
+            await Assert.That(ShimPath.Resolve()).IsEqualTo(shim);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ShimPath.Variable, null);
+        }
+    }
+
     [Test]
     public async Task ToolStorePathFromAStorePath()
     {
@@ -81,8 +101,9 @@ public class AppTests
     public async Task UpdaterStartsThisPlatformsScript()
     {
         var shim = Path.Combine("tools", "buildmonitor");
+        var head = Path.Combine("home", "head");
         var outcome = Path.Combine("home", "update-outcome.log");
-        var info = Updater.StartInfo(shim, outcome, 4242);
+        var info = Updater.StartInfo(shim, head, outcome, 4242);
         if (OperatingSystem.IsWindows())
         {
             await Assert.That(info.FileName).IsEqualTo("powershell.exe");
@@ -90,7 +111,7 @@ public class AppTests
             // delete one that a running process is sitting in.
             await Assert.That(info.WorkingDirectory).IsEqualTo(Path.GetTempPath());
             var script = Encoding.Unicode.GetString(Convert.FromBase64String(info.ArgumentList.Last()));
-            await Assert.That(script).IsEqualTo(Updater.WindowsScript(shim, Updater.StoreDirectory(shim), outcome, 4242));
+            await Assert.That(script).IsEqualTo(Updater.WindowsScript(shim, Updater.StoreDirectory(shim), head, outcome, 4242));
         }
         else if (OperatingSystem.IsMacOS())
         {
@@ -113,9 +134,10 @@ public class AppTests
                 Updater.WindowsScript(
                     @"C:\Users\O'Brien\.dotnet\tools\buildmonitor.exe",
                     @"C:\Users\O'Brien\.dotnet\tools\.store\BuildMonitor",
+                    @"C:\Users\O'Brien\AppData\Local\BuildMonitor\head",
                     @"C:\Users\O'Brien\AppData\Local\BuildMonitor\update-outcome.log",
                     4242))
-            .Snapshot("""Wait-Process -Id 4242 -Timeout 30 -ErrorAction SilentlyContinue; $locking = @(Get-Process | Where-Object { $_.Path -and ($_.Path -eq 'C:\Users\O''Brien\.dotnet\tools\buildmonitor.exe' -or $_.Path.StartsWith('C:\Users\O''Brien\.dotnet\tools\.store\BuildMonitor\', 'OrdinalIgnoreCase')) }); $locking | Stop-Process -Force -ErrorAction SilentlyContinue; $locking | Wait-Process -Timeout 5 -ErrorAction SilentlyContinue; $output = dotnet tool update BuildMonitor --global --prerelease 2>&1 | ForEach-Object { "$_" }; $status = if ($LASTEXITCODE -eq 0) { 'ok' } else { 'failed' }; Set-Content -LiteralPath 'C:\Users\O''Brien\AppData\Local\BuildMonitor\update-outcome.log' -Value (@($status) + $output) -Encoding UTF8; & 'C:\Users\O''Brien\.dotnet\tools\buildmonitor.exe'""");
+            .Snapshot("""Wait-Process -Id 4242 -Timeout 30 -ErrorAction SilentlyContinue; $locking = @(Get-Process | Where-Object { $_.Path -and ($_.Path -eq 'C:\Users\O''Brien\.dotnet\tools\buildmonitor.exe' -or $_.Path.StartsWith('C:\Users\O''Brien\.dotnet\tools\.store\BuildMonitor\', 'OrdinalIgnoreCase') -or $_.Path.StartsWith('C:\Users\O''Brien\AppData\Local\BuildMonitor\head\', 'OrdinalIgnoreCase')) }); $locking | Stop-Process -Force -ErrorAction SilentlyContinue; $locking | Wait-Process -Timeout 5 -ErrorAction SilentlyContinue; $output = dotnet tool update BuildMonitor --global --prerelease 2>&1 | ForEach-Object { "$_" }; $status = if ($LASTEXITCODE -eq 0) { 'ok' } else { 'failed' }; Set-Content -LiteralPath 'C:\Users\O''Brien\AppData\Local\BuildMonitor\update-outcome.log' -Value (@($status) + $output) -Encoding UTF8; & 'C:\Users\O''Brien\.dotnet\tools\buildmonitor.exe'""");
 
     /// <summary>
     /// The store sits beside the shim, whatever the tools directory is, so the script can find the

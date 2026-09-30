@@ -32,9 +32,15 @@ static class AppPaths
     public static string Artifacts => Path.Combine(Directory, "artifacts");
 
     /// <summary>
+    /// The copy of the installed head that the launcher starts on Windows, see
+    /// <see cref="global::HeadCopy"/>.
+    /// </summary>
+    public static string Head => Path.Combine(Directory, "head");
+
+    /// <summary>
     /// What the update wrote about how it went, for <see cref="global::UpdateOutcome"/> to report.
-    /// Here rather than in the log directory, which sits inside the installed version and so is
-    /// deleted by the next update that works.
+    /// Here rather than in the log directory, which on macOS and Linux sits inside the installed
+    /// version and so is deleted by the next update that works.
     /// </summary>
     public static string UpdateOutcome => Path.Combine(Directory, "update-outcome.log");
 }
