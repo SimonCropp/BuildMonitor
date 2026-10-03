@@ -776,7 +776,10 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         // indented as well by the width of the arrow its group is drawn behind, and a group's
         // behind its arrow, with the mark where its row has one. Every name taken as a member's
         // gave the column an indent's width that no row drew in.
-        const float indent = screen.groupNameCount > 0 ? ImGui::CalcTextSize("v ").x : 0.0f;
+        // The indent is the open arrow's width, as it is drawn, and a group's name is measured
+        // apart from it, as it is drawn: sized as the one text "v name", the column was measured
+        // with a letter the row does not draw, and the name moved as the arrow changed.
+        const float indent = screen.groupNameCount > 0 ? ImGui::CalcTextSize("▼ ").x : 0.0f;
         float nameText = 0.0f;
         const BmString* sized = screen.names;
         for (int32_t i = 0; i < screen.nameCount; i++, sized++) {
@@ -784,7 +787,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         }
 
         for (int32_t i = 0; i < screen.groupNameCount; i++, sized++) {
-            nameText = std::max(nameText, ImGui::CalcTextSize(("v " + Str(screen, *sized)).c_str()).x);
+            nameText = std::max(nameText, indent + ImGui::CalcTextSize(Str(screen, *sized).c_str()).x);
         }
 
         // A member's blank cell draws nothing, so it wants no room.
@@ -795,7 +798,7 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         }
 
         for (int32_t i = 0; i < screen.markedGroupNameCount; i++, sized++) {
-            nameText = std::max(nameText, markWidth + ImGui::CalcTextSize(("v " + Str(screen, *sized)).c_str()).x);
+            nameText = std::max(nameText, markWidth + indent + ImGui::CalcTextSize(Str(screen, *sized).c_str()).x);
         }
 
         // The detail cell likewise, up to forty characters: past that a long pipeline or branch is cut
@@ -934,7 +937,9 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             // arrow already stands where the mark would, and a prefix group, which names no one
             // repository, read as an indented heading.
             const float rowMarkWidth = (!arrow.empty() && row.nameIcon.length == 0) ? 0.0f : markWidth;
-            bool nameDrawn = nameLink || rowMarkWidth > 0.0f;
+            // Nor a group's, which starts the indent after the arrow rather than where whichever
+            // arrow is drawn happens to end.
+            bool nameDrawn = nameLink || rowMarkWidth > 0.0f || group;
             std::string selectableLabel = (nameDrawn ? arrow : arrow + name) + "##row";
             // As tall as the cell, so a click anywhere on the row selects it. A click on a group
             // toggles it, so the second press of a double click is dropped, or it would close what
@@ -953,7 +958,9 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             }
 
             if (nameDrawn) {
-                float arrowWidth = arrow.empty() ? 0.0f : ImGui::CalcTextSize(arrow.c_str()).x;
+                // The indent rather than this arrow's own width, which is what the column was
+                // sized with, so the name does not move as the group opens and its arrow changes.
+                float arrowWidth = arrow.empty() ? 0.0f : indent;
                 float markLeft = nameAt.x + arrowWidth;
                 // The host's mark leads the name, and opens what the name does: it stands for the
                 // same page, so a click on it is not a click on nothing.
