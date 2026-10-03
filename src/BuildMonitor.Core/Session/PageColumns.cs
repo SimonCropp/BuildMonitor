@@ -19,4 +19,5 @@ sealed record PageColumns(
     List<string> AuthorNames,
     List<string> MemberNames,
     List<string> MarkedGroupNames,
-    List<string> MarkedDetails);
+    List<string> MarkedDetails,
+    (bool Name, bool Detail, bool Provider) Marks);

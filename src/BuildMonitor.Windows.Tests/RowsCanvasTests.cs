@@ -310,6 +310,28 @@ public class RowsCanvasTests
         await Assert.That(actual).IsEqualTo(expected);
     }
 
+    /// <summary>
+    /// The room for the mark leading the second cell is reserved while any row of the page has
+    /// one, in view or not. Read from the rows in view, a list scrolled to rows without one closed
+    /// the room up, and every column after it moved as a row with a mark came back.
+    /// </summary>
+    [Test]
+    public async Task ARowKeepsItsPlaceWhenTheRowsWithMarksAreOutOfView()
+    {
+        var page = ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now).Builds!;
+        await Assert.That(page.Rows[0].DetailIcon).IsEmpty();
+        using var whole = Drawn(1000);
+        using var scrolled = new RowsCanvas
+        {
+            Size = new(1000, 400)
+        };
+        scrolled.Apply(page with { Rows = [page.Rows[0]] }, null);
+        using var bitmap = new Bitmap(1000, 400);
+        scrolled.DrawToBitmap(bitmap, new(0, 0, 1000, 400));
+
+        await Assert.That(LinkSpan(scrolled, 0, ChipKind.Pipeline)).IsEqualTo(LinkSpan(whole, 0, ChipKind.Pipeline));
+    }
+
     static Build Passing(string name, string workflow, string run) =>
         Fixtures.Build(
             Fixtures.GitHub.Id,

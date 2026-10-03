@@ -78,7 +78,7 @@ static class ScreenBuilder
         return new(
             Title,
             Page.Builds,
-            new(Header(state, counts), composed, top, rows.Length, selected, counts.Failing, counts.Running, columns.Names, columns.GroupNames, columns.Details, loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), columns.AuthorNames, columns.MemberNames, columns.MarkedGroupNames, columns.MarkedDetails),
+            new(Header(state, counts), composed, top, rows.Length, selected, counts.Failing, counts.Running, columns.Names, columns.GroupNames, columns.Details, loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), columns.AuthorNames, columns.MemberNames, columns.MarkedGroupNames, columns.MarkedDetails, columns.Marks.Name, columns.Marks.Detail, columns.Marks.Provider),
             null,
             Buttons(state),
             status,
@@ -127,7 +127,8 @@ static class ScreenBuilder
             authors.Values.Distinct().ToList(),
             Names(sized, RowKind.Member),
             Names(sized, RowKind.Group, marked: true),
-            markedDetails);
+            markedDetails,
+            Marks(sized));
         lastColumns = columns;
         return columns;
     }
@@ -393,6 +394,41 @@ static class ScreenBuilder
     /// </summary>
     static string GroupMarkOf(Row row) =>
         RepoHosts.MarkOf(RowTooltips.Shared(row.Members));
+
+    /// <summary>
+    /// Whether any of the rows has a mark before its name, a mark leading its second cell, or a
+    /// provider to name, by the rules the composed row is given them. Of every row the columns are
+    /// sized from rather than of those in view, so the room a head reserves for each does not come
+    /// and go while scrolling.
+    /// </summary>
+    static (bool Name, bool Detail, bool Provider) Marks(ImmutableArray<Row> rows)
+    {
+        var name = false;
+        var detail = false;
+        var provider = false;
+        foreach (var row in rows)
+        {
+            if (name &&
+                detail &&
+                provider)
+            {
+                break;
+            }
+
+            if (row.Build is null)
+            {
+                name = name || GroupMarkOf(row).Length > 0;
+                continue;
+            }
+
+            var descriptor = ProviderDescriptors.Get(row.Connection!.Connection.ProviderId);
+            provider = true;
+            name = name || NameIconOf(row, descriptor).Length > 0;
+            detail = detail || DetailIconOf(row, descriptor).Icon.Length > 0;
+        }
+
+        return (name, detail, provider);
+    }
 
     /// <summary>
     /// The distinct second cells, and those of them that carry the branch's mark, in one pass over

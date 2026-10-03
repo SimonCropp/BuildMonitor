@@ -276,21 +276,12 @@ sealed class RowsCanvas : Control
         Same(previous.MemberNames ?? [], next.MemberNames ?? []) &&
         Same(previous.MarkedGroupNames ?? [], next.MarkedGroupNames ?? []) &&
         Same(previous.MarkedDetails ?? [], next.MarkedDetails ?? []) &&
-        Marks(previous) == Marks(next);
+        previous.NameMarks == next.NameMarks &&
+        previous.DetailMarks == next.DetailMarks;
 
     static bool Same(IReadOnlyList<string> previous, IReadOnlyList<string> next) =>
         ReferenceEquals(previous, next) ||
         previous.SequenceEqual(next);
-
-    /// <summary>
-    /// Which marks the page draws at all: the one leading the second cell, the one before the name,
-    /// and one inside a run of the second cell. Room for each is reserved on every row once any row
-    /// has one, so a row gaining or losing a mark can move them all.
-    /// </summary>
-    static (bool Detail, bool Name, bool Span) Marks(BuildsPage page) =>
-        (page.Rows.Any(_ => _.DetailIcon.Length > 0),
-            page.Rows.Any(_ => _.NameIcon.Length > 0),
-            page.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)));
 
     Rectangle RowBounds(int row) =>
         new(0, row * RowHeight, Width, RowHeight);
@@ -436,10 +427,11 @@ sealed class RowsCanvas : Control
 
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps
         // its name in line with the rows under it. The same for the host's mark before the name,
-        // which a row whose provider gave no repository URL does not have.
+        // which a row whose provider gave no repository URL does not have. Any row of the page
+        // rather than of those in view, or the columns move as a row with one scrolls in or out.
         var logo = LogoSize + LogicalToDeviceUnits(padding);
-        var iconWidth = page.Rows.Any(_ => _.DetailIcon.Length > 0) ? logo : 0;
-        var markWidth = page.Rows.Any(_ => _.NameIcon.Length > 0) ? logo : 0;
+        var iconWidth = page.DetailMarks ? logo : 0;
+        var markWidth = page.NameMarks ? logo : 0;
         // A detail's runs are measured as the text so far, which differs by row, so the widths would
         // grow without end as builds come and go. Emptied once they hold several times what the
         // columns measure, which leaves room for every row's runs, and here rather than as they

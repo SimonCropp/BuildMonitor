@@ -39,4 +39,10 @@ record BuildsPage(
     // branch's mark. Null where a head is given no rows.
     IReadOnlyList<string>? MemberNames = null,
     IReadOnlyList<string>? MarkedGroupNames = null,
-    IReadOnlyList<string>? MarkedDetails = null);
+    IReadOnlyList<string>? MarkedDetails = null,
+    // Whether any row, in view or not, has a mark before its name, a mark leading its second cell,
+    // or a provider to name. A head reserves the room for each on every row once any row has one,
+    // and read from the rows in view the columns moved as a row with one scrolled in or out.
+    bool NameMarks = false,
+    bool DetailMarks = false,
+    bool Providers = false);

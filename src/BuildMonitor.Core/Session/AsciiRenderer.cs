@@ -89,18 +89,24 @@ static class AsciiRenderer
             return [page.Loading ? $"{page.Empty}..." : page.Empty];
         }
 
-        // "[-] " leads a group's name, and a member is indented by as much. The indent is reserved
-        // wherever the page has a group at all, open or closed, so the column does not shift under
-        // the rows as one is opened.
-        var names = page.Names.Select(_ => _.Length).DefaultIfEmpty().Max();
-        var groups = page.GroupNames.Select(_ => _.Length + indent).DefaultIfEmpty().Max();
-        var longestName = Math.Max(page.GroupNames.Count > 0 ? names + indent : names, groups);
-        // The details are text alone, so the mark's width is added once any row draws one, as the
+        // "[-] " leads a group's name, and a member is indented by as much. Each name as the kind
+        // of row that shows it: indenting every name wherever the page had a group made the column
+        // wider than anything written in it. A member's blank cell needs no room.
+        var longestName = page.Names
+            .Select(_ => _.Length)
+            .Concat((page.MemberNames ?? []).Where(_ => _.Length > 0).Select(_ => _.Length + indent))
+            .Concat(page.GroupNames.Select(_ => _.Length + indent))
+            .DefaultIfEmpty()
+            .Max();
+        // The details are text alone, so the mark's width is added to those that carry one, as the
         // pixel heads add the width of its picture.
-        var marks = page.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)) ? DetailSpan.BranchIconText.Length : 0;
-        var longestDetail = page.Details.Select(_ => _.Length).DefaultIfEmpty().Max() + marks;
+        var longestDetail = page.Details
+            .Select(_ => _.Length)
+            .Concat((page.MarkedDetails ?? []).Select(_ => _.Length + DetailSpan.BranchIconText.Length))
+            .DefaultIfEmpty()
+            .Max();
         var author = Math.Min((page.Authors ?? []).Select(_ => _.Length).DefaultIfEmpty().Max(), maximumAuthor);
-        var layout = Layout(inner, page.Rows.Any(_ => _.Provider.Length > 0), longestName, longestDetail, author);
+        var layout = Layout(inner, page.Providers, longestName, longestDetail, author);
         return page.Rows.Select(_ => RowLine(_, layout)).ToList();
     }
 
