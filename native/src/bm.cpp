@@ -757,32 +757,60 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
     } else if (screen.rowCount == 0) {
         ImGui::TextColored(dim, "%s", Str(screen, screen.empty).c_str());
     } else if (ImGui::BeginTable("rows", 6, flags)) {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        // Short of the row's height rather than the sixteen a chip's icon is: the marks carry
+        // detail, a Jenkins butler's face and the play badge on the Actions mark, that a sixteen
+        // pixel square turned to a smudge.
+        const float iconSize = rowHeight - 6.0f;
+        // Reserved on every row once any row has one, so a group's row, which has no provider
+        // logo, keeps its name in line with the rows under it, and the names line up where a
+        // provider gave no repository URL to read a host mark from. Any row of the page rather
+        // than of those in view, or the columns move as a row with one scrolls in or out.
+        const bool anyIcon = screen.detailMarks != 0;
+        const bool anyMark = screen.nameMarks != 0;
+        const float markWidth = anyMark ? iconSize + style.ItemSpacing.x : 0.0f;
+
         // The name cell starts with a status square a row height wide, then is as wide as the widest
         // name across every row, not only those on screen, so it does not shift while scrolling.
-        // A member is indented by the width of the arrow its group is drawn behind, and the room
-        // for it is reserved wherever the page has a group at all, open or closed, so the column
-        // does not shift under the rows as one is opened.
+        // Each name as the kind of row that shows it: a build's behind the mark, a member's
+        // indented as well by the width of the arrow its group is drawn behind, and a group's
+        // behind its arrow, with the mark where its row has one. Every name taken as a member's
+        // gave the column an indent's width that no row drew in.
         const float indent = screen.groupNameCount > 0 ? ImGui::CalcTextSize("v ").x : 0.0f;
         float nameText = 0.0f;
-        for (int32_t i = 0; i < screen.nameCount + screen.groupNameCount; i++) {
-            std::string name = Str(screen, screen.names[i]);
-            float wanted = indent;
-            if (i >= screen.nameCount) {
-                name = "v " + name;
-                wanted = 0.0f;
-            }
+        const BmString* sized = screen.names;
+        for (int32_t i = 0; i < screen.nameCount; i++, sized++) {
+            nameText = std::max(nameText, markWidth + ImGui::CalcTextSize(Str(screen, *sized).c_str()).x);
+        }
 
-            nameText = std::max(nameText, wanted + ImGui::CalcTextSize(name.c_str()).x);
+        for (int32_t i = 0; i < screen.groupNameCount; i++, sized++) {
+            nameText = std::max(nameText, ImGui::CalcTextSize(("v " + Str(screen, *sized)).c_str()).x);
+        }
+
+        // A member's blank cell draws nothing, so it wants no room.
+        for (int32_t i = 0; i < screen.memberNameCount; i++, sized++) {
+            if (sized->length > 0) {
+                nameText = std::max(nameText, markWidth + indent + ImGui::CalcTextSize(Str(screen, *sized).c_str()).x);
+            }
+        }
+
+        for (int32_t i = 0; i < screen.markedGroupNameCount; i++, sized++) {
+            nameText = std::max(nameText, markWidth + ImGui::CalcTextSize(("v " + Str(screen, *sized)).c_str()).x);
         }
 
         // The detail cell likewise, up to forty characters: past that a long pipeline or branch is cut
-        // short rather than pushing every row's chips into the drop down.
+        // short rather than pushing every row's chips into the drop down. The details are text
+        // alone, so the branch's mark is added to those that carry one.
+        const float longestDetail = ImGui::CalcTextSize("0000000000000000000000000000000000000000").x;
         float detailText = 0.0f;
         for (int32_t i = 0; i < screen.detailCount; i++) {
-            detailText = std::max(detailText, ImGui::CalcTextSize(Str(screen, screen.details[i]).c_str()).x);
+            detailText = std::max(detailText, std::min(longestDetail, ImGui::CalcTextSize(Str(screen, screen.details[i]).c_str()).x));
         }
 
-        detailText = std::min(detailText, ImGui::CalcTextSize("0000000000000000000000000000000000000000").x);
+        for (int32_t i = 0; i < screen.markedDetailCount; i++) {
+            const std::string detail = Str(screen, screen.details[screen.detailCount + i]);
+            detailText = std::max(detailText, SpanIconWidth() + std::min(longestDetail, ImGui::CalcTextSize(detail.c_str()).x));
+        }
 
         // The author of a failed build, as wide as the widest name up to twenty characters, and no
         // width when no failed build names anyone.
@@ -793,28 +821,6 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
         authorWidth = std::min(authorWidth, ImGui::CalcTextSize("00000000000000000000").x);
 
-        // Short of the row's height rather than the sixteen a chip's icon is: the marks carry
-        // detail, a Jenkins butler's face and the play badge on the Actions mark, that a sixteen
-        // pixel square turned to a smudge.
-        const float iconSize = rowHeight - 6.0f;
-        // Reserved on every row once any row has one, so a group's row, which has no provider
-        // logo, keeps its name in line with the rows under it, and the names line up where a
-        // provider gave no repository URL to read a host mark from.
-        bool anyIcon = false;
-        bool anyMark = false;
-        for (int32_t i = 0; i < screen.rowCount; i++) {
-            anyIcon = anyIcon || screen.rows[i].detailIcon.length > 0;
-            anyMark = anyMark || screen.rows[i].nameIcon.length > 0;
-        }
-
-        // The details are text alone, so the branch's mark is added on top of them once any row
-        // draws one.
-        bool anySpanIcon = false;
-        for (int32_t i = 0; i < screen.spanCount; i++) {
-            anySpanIcon = anySpanIcon || screen.spans[i].icon.length > 0;
-        }
-
-        const ImGuiStyle& style = ImGui::GetStyle();
         // Measured rather than fixed, so each cell holds its widest text at whatever size the font
         // was loaded: a countdown past an hour, and the widest set of chips a row carries.
         const float barWidth = 104.0f;
@@ -833,9 +839,8 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         // Each boundary between the six columns carries cell padding on both sides of it. What is
         // left, the name, the detail, the bar and the chips share.
         const float shared = tableWidth - timingWidth - authorWidth - 5.0f * 2.0f * style.CellPadding.x;
-        const float markWidth = anyMark ? iconSize + style.ItemSpacing.x : 0.0f;
-        const float nameWanted = rowHeight + style.ItemSpacing.x + markWidth + nameText + 2.0f * style.CellPadding.x;
-        const float detailWanted = (anyIcon ? iconSize + style.ItemSpacing.x : 0.0f) + (anySpanIcon ? SpanIconWidth() : 0.0f) + detailText;
+        const float nameWanted = rowHeight + style.ItemSpacing.x + nameText + 2.0f * style.CellPadding.x;
+        const float detailWanted = (anyIcon ? iconSize + style.ItemSpacing.x : 0.0f) + detailText;
         // The bar gives way before anything else, since the timing beside it says the same: it shows
         // only while the names, the detail and every chip still fit. Hidden, its column is kept at no
         // width, so the columns after it keep their indexes.

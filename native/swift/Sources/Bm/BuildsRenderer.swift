@@ -201,9 +201,10 @@ final class BuildsRenderer {
         let overflowWidth = chipWidth("", overflowLabel)
         // Reserved on every row once any row has one, so a group's row, which has no provider
         // logo, keeps its name in line with the rows under it, and the names line up where a
-        // provider gave no repository URL to read a host mark from.
-        let iconWidth: CGFloat = frame.rows.contains { !$0.detailIcon.isEmpty } ? logoSize + gap : 0
-        let markWidth: CGFloat = frame.rows.contains { !$0.nameIcon.isEmpty } ? logoSize + gap : 0
+        // provider gave no repository URL to read a host mark from. Any row of the page rather
+        // than of those in view, or the columns move as a row with one scrolls in or out.
+        let iconWidth: CGFloat = frame.detailMarks ? logoSize + gap : 0
+        let markWidth: CGFloat = frame.nameMarks ? logoSize + gap : 0
         // The author of a failed build, as wide as the widest name up to twenty characters, and gone
         // with its gap when no failed build names anyone.
         let authorWidth = min(frame.authors.map { measure($0).rounded(.up) }.max() ?? 0, measure(String(repeating: "0", count: 20)))
@@ -214,18 +215,22 @@ final class BuildsRenderer {
         // As wide as the widest name across every row, not only those on screen, so it does not shift
         // while scrolling; the detail likewise, up to forty characters, past which a long pipeline or
         // branch is cut short rather than pushing every row's chips into the drop down.
-        // A member is indented by the width of the arrow its group is drawn behind, and the room
-        // for it is reserved wherever the page has a group at all, open or closed, so the column
-        // does not shift under the rows as one is opened.
+        // Each name as the kind of row that shows it, by the parts it is drawn from: a build's
+        // behind the mark, a member's indented as well by the width of the arrow its group is
+        // drawn behind, and a group's behind that arrow, with the mark where its row has one. A
+        // member's blank cell draws nothing, so it wants no room. Every name taken as a member's
+        // gave the column an indent's width that no row drew in.
         let indent: CGFloat = frame.groupNames.isEmpty ? 0 : measure("▼ ").rounded(.up)
-        let nameWanted = markWidth + max(
-            indent + (frame.names.map { measure($0).rounded(.up) }.max() ?? 0),
-            frame.groupNames.map { measure("▼ " + $0).rounded(.up) }.max() ?? 0)
-        // The details are text alone, so the branch's mark is added on top once any row draws one.
-        let spanIcons: CGFloat = frame.rows.contains { $0.spans.contains { !$0.icon.isEmpty } } ? spanIconWidth : 0
-        let detailWanted = iconWidth + spanIcons + min(
-            frame.details.map { measure($0).rounded(.up) }.max() ?? 0,
-            measure(String(repeating: "0", count: 40)))
+        let nameWanted: CGFloat = max(
+            frame.names.map { markWidth + measure($0).rounded(.up) }.max() ?? 0,
+            frame.memberNames.filter { !$0.isEmpty }.map { markWidth + indent + measure($0).rounded(.up) }.max() ?? 0,
+            frame.groupNames.map { indent + measure($0).rounded(.up) }.max() ?? 0,
+            frame.markedGroupNames.map { markWidth + indent + measure($0).rounded(.up) }.max() ?? 0)
+        // The details are text alone, so the branch's mark is added to those that carry one.
+        let longestDetail = measure(String(repeating: "0", count: 40))
+        let detailWanted: CGFloat = iconWidth + max(
+            frame.details.map { min(measure($0).rounded(.up), longestDetail) }.max() ?? 0,
+            frame.markedDetails.map { spanIconWidth + min(measure($0).rounded(.up), longestDetail) }.max() ?? 0)
         // The bar gives way before anything else, since the timing beside it says the same: it shows
         // only while the names, the detail and every chip still fit.
         let showBar = shared - barWidth - gap - nameWanted - detailWanted >= widestChips
@@ -279,7 +284,9 @@ final class BuildsRenderer {
             let arrow = groupArrow(row)
             if !arrow.isEmpty {
                 drawText(arrow, at: CGPoint(x: nameX, y: textY), font: font, colour: Palette.text, width: nameRoom)
-                let arrowWidth = min(measure(arrow).rounded(.up), nameRoom)
+                // The indent rather than this arrow's own width, which is what the column was
+                // sized with, so the name does not move as the group opens and its arrow changes.
+                let arrowWidth = min(indent, nameRoom)
                 nameX += arrowWidth
                 nameRoom -= arrowWidth
             }

@@ -108,9 +108,17 @@ struct Frame {
     let totalRows: Int32
     let selectedRow: Int32
     let loading: Bool
+    /// Whether any row, in view or not, has a mark before its name, and one leading its detail.
+    let nameMarks: Bool
+    let detailMarks: Bool
     let names: [String]
     let groupNames: [String]
+    /// The names that are a member's, the group names whose row carries a mark, and the details
+    /// that carry the branch's mark: which of the texts above are drawn wider than the rest.
+    let memberNames: [String]
+    let markedGroupNames: [String]
     let details: [String]
+    let markedDetails: [String]
     let authors: [String]
     let search: String
     let searchTooltip: String
@@ -210,8 +218,15 @@ struct Frame {
                 separator: $0.flags & Int32(BM_TRAY_SEPARATOR.rawValue) != 0)
         }
 
-        let allNames = UnsafeBufferPointer(start: screen.names, count: Int(screen.nameCount + screen.groupNameCount)).map(text)
-        let details = UnsafeBufferPointer(start: screen.details, count: Int(screen.detailCount)).map(text)
+        // One run each: the names, the group names, the member names and the marked group names,
+        // and the details then the marked ones.
+        let nameCount = Int(screen.nameCount)
+        let groupNameCount = Int(screen.groupNameCount)
+        let memberNameCount = Int(screen.memberNameCount)
+        let markedGroupNameCount = Int(screen.markedGroupNameCount)
+        let allNames = UnsafeBufferPointer(start: screen.names, count: nameCount + groupNameCount + memberNameCount + markedGroupNameCount).map(text)
+        let detailCount = Int(screen.detailCount)
+        let allDetails = UnsafeBufferPointer(start: screen.details, count: detailCount + Int(screen.markedDetailCount)).map(text)
         let authors = UnsafeBufferPointer(start: screen.authors, count: Int(screen.authorCount)).map(text)
 
         return Frame(
@@ -225,9 +240,14 @@ struct Frame {
             totalRows: screen.totalRows,
             selectedRow: screen.selectedRow,
             loading: screen.loading != 0,
-            names: Array(allNames.prefix(Int(screen.nameCount))),
-            groupNames: Array(allNames.dropFirst(Int(screen.nameCount))),
-            details: details,
+            nameMarks: screen.nameMarks != 0,
+            detailMarks: screen.detailMarks != 0,
+            names: Array(allNames.prefix(nameCount)),
+            groupNames: Array(allNames.dropFirst(nameCount).prefix(groupNameCount)),
+            memberNames: Array(allNames.dropFirst(nameCount + groupNameCount).prefix(memberNameCount)),
+            markedGroupNames: Array(allNames.dropFirst(nameCount + groupNameCount + memberNameCount)),
+            details: Array(allDetails.prefix(detailCount)),
+            markedDetails: Array(allDetails.dropFirst(detailCount)),
             authors: authors,
             search: text(screen.search),
             searchTooltip: text(screen.searchTooltip),

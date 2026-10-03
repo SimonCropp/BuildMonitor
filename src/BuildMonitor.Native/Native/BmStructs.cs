@@ -112,11 +112,16 @@ struct BmScreen
     public int TotalRows;
     public int SelectedRow;
     public int Loading;
+    public int NameMarks;
+    public int DetailMarks;
     public BmString* Names;
     public int NameCount;
     public int GroupNameCount;
+    public int MemberNameCount;
+    public int MarkedGroupNameCount;
     public BmString* Details;
     public int DetailCount;
+    public int MarkedDetailCount;
     public BmString* Authors;
     public int AuthorCount;
     public BmChip* Chips;
