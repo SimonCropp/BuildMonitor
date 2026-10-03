@@ -292,6 +292,24 @@ public class RowsCanvasTests
         await Assert.That(LinkWidth(canvas, group, ChipKind.Repo)).IsEqualTo(mark + text);
     }
 
+    /// <summary>
+    /// Only a member is drawn indented, so a group on the page moves no build's second cell: every
+    /// name sized as a member's, the column was an indent wider than anything drawn in it wherever
+    /// a build's name was the widest.
+    /// </summary>
+    [Test]
+    public async Task AGroupOnThePageDoesNotIndentTheBuilds()
+    {
+        const string key = "gh/Verify/test.yml/feature/inline";
+        var alone = Fixtures.WithBuilds();
+        var grouped = Fixtures.WithTwoFailures();
+        using var aloneCanvas = Drawn(1000, alone);
+        using var groupedCanvas = Drawn(1000, grouped);
+        var expected = LinkSpan(aloneCanvas, Fixtures.RowOf(alone, _ => _.Build?.Key == key), ChipKind.Branch).Left;
+        var actual = LinkSpan(groupedCanvas, Fixtures.RowOf(grouped, _ => _.Build?.Key == key), ChipKind.Branch).Left;
+        await Assert.That(actual).IsEqualTo(expected);
+    }
+
     static Build Passing(string name, string workflow, string run) =>
         Fixtures.Build(
             Fixtures.GitHub.Id,

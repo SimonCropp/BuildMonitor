@@ -30,4 +30,13 @@ record BuildsPage(
     string Empty,
     // Every distinct author shown across all failed builds, to size the author column from. Null or
     // empty when no failed build names anyone, and then the column is not drawn.
-    IReadOnlyList<string>? Authors = null);
+    IReadOnlyList<string>? Authors = null,
+    // Which of the texts above are drawn wider than the rest, so a head that sizes a column from
+    // what each cell holds does not give every cell the room of the widest kind: a build's name
+    // was sized with a member's indent, and "2 passing" with a branch's mark. Each is a subset, of
+    // Names, GroupNames and Details in turn: the names that are a member's, drawn indented under
+    // its group, the groups whose row carries the host's mark, and the details that carry the
+    // branch's mark. Null where a head is given no rows.
+    IReadOnlyList<string>? MemberNames = null,
+    IReadOnlyList<string>? MarkedGroupNames = null,
+    IReadOnlyList<string>? MarkedDetails = null);

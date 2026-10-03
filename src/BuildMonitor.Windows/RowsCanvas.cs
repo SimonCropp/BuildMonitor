@@ -273,6 +273,9 @@ sealed class RowsCanvas : Control
         Same(previous.GroupNames, next.GroupNames) &&
         Same(previous.Details, next.Details) &&
         Same(previous.Authors ?? [], next.Authors ?? []) &&
+        Same(previous.MemberNames ?? [], next.MemberNames ?? []) &&
+        Same(previous.MarkedGroupNames ?? [], next.MarkedGroupNames ?? []) &&
+        Same(previous.MarkedDetails ?? [], next.MarkedDetails ?? []) &&
         Marks(previous) == Marks(next);
 
     static bool Same(IReadOnlyList<string> previous, IReadOnlyList<string> next) =>
@@ -499,25 +502,29 @@ sealed class RowsCanvas : Control
         // After the status square, a gap after each of the name, detail, timing and chips, and the
         // author and its gap when shown.
         var available = Width - RowHeight - TimingWidth() - 5 * gap - (authorWidth > 0 ? authorWidth + gap : 0);
-        // The widest cell DrawName can make of any name, from the parts it draws. The page does not
-        // say which names sit under a group or which have a mark, so each is taken as a member
-        // with one wherever the page has a group at all, which also keeps the column from shifting
-        // as a group is opened.
-        var nameKind = builds.GroupNames.Count > 0 ? RowKind.Member : RowKind.Build;
+        // The widest cell DrawName makes of any name, from the parts it draws, each name as the
+        // kind of row that shows it: every name as a build's, those that are a member's indented
+        // as well, every group behind its arrow, and those with a mark with its width as well. A
+        // member's blank cell draws nothing, so it wants no room. Taking every name as a member
+        // with a mark gave the column an indent's width that no row drew in.
         var nameWanted = builds.Names
-            .Select(_ => NameCell(_, nameKind, true, markWidth))
-            .Concat(builds.GroupNames.Select(_ => NameCell(_, RowKind.Group, true, markWidth)))
+            .Select(_ => NameCell(_, RowKind.Build, true, markWidth))
+            .Concat((builds.MemberNames ?? []).Where(_ => _.Length > 0).Select(_ => NameCell(_, RowKind.Member, true, markWidth)))
+            .Concat(builds.GroupNames.Select(_ => NameCell(_, RowKind.Group, false, markWidth)))
+            .Concat((builds.MarkedGroupNames ?? []).Select(_ => NameCell(_, RowKind.Group, true, markWidth)))
             .Select(_ => _.Indent + _.Mark + _.Text)
             .DefaultIfEmpty()
             .Max();
-        // Where DrawDetail ends the widest detail, by the offsets it draws at. Forty characters at
-        // most: past that a long pipeline or branch is cut short rather than pushing every row's
-        // chips into the drop down. The details are text alone, without saying which carry the
-        // branch's mark, so each is taken to once any row draws one.
-        var marks = builds.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)) ? 1 : 0;
-        var detailWanted = iconWidth + Math.Min(
-            builds.Details.Select(_ => DetailOffset(_, marks)).DefaultIfEmpty().Max(),
-            DetailOffset(new('0', 40), marks));
+        // Where DrawDetail ends the widest detail, by the offsets it draws at: every detail as
+        // text alone, and those that carry the branch's mark with it. Forty characters at most:
+        // past that a long pipeline or branch is cut short rather than pushing every row's chips
+        // into the drop down.
+        var longest = new string('0', 40);
+        var detailWanted = iconWidth + builds.Details
+            .Select(_ => Math.Min(DetailOffset(_, 0), DetailOffset(longest, 0)))
+            .Concat((builds.MarkedDetails ?? []).Select(_ => Math.Min(DetailOffset(_, 1), DetailOffset(longest, 1))))
+            .DefaultIfEmpty()
+            .Max();
         var widest = WidestChips();
         var bar = LogicalToDeviceUnits(barLength);
         var barWidth = available - bar - gap - nameWanted - detailWanted >= widest ? bar : 0;
