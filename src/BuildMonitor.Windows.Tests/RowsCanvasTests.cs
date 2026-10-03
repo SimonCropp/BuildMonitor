@@ -257,6 +257,74 @@ public class RowsCanvasTests
     }
 
     /// <summary>
+    /// The name column is as wide as its widest name, so the group with that name is the one row
+    /// with no slack: sized as one text and drawn as two, arrow then name, it was cut short with an
+    /// ellipsis beside an empty column. The link is as wide as what was drawn of the name, and the
+    /// mark's share of it is read from a row with room to spare, because both depend on the fonts
+    /// of the machine running the test.
+    /// </summary>
+    [Test]
+    public async Task TheWidestGroupNameIsDrawnInFull()
+    {
+        const string name = "FluentDateTimeOffset";
+        const string repo = $"VerifyTests/{name}";
+        var state = MonitorSession.ApplyPoll(
+            Fixtures.WithBuilds(),
+            Fixtures.GitHub.Id,
+            [
+                ..Fixtures.GitHubPipelines,
+                new($"{name}/test.yml", "test.yml", repo, repo, $"https://github.com/{repo}"),
+                new($"{name}/docs.yml", "docs.yml", repo, repo, $"https://github.com/{repo}")
+            ],
+            [
+                ..Fixtures.GitHubBuilds(),
+                Passing(name, "test.yml", "7"),
+                Passing(name, "docs.yml", "8")
+            ],
+            Fixtures.Now - TimeSpan.FromSeconds(12));
+        using var canvas = Drawn(1000, state);
+        using var bold = new Font(canvas.Font, FontStyle.Bold);
+        var group = Fixtures.RowOf(state, _ => _.Kind == RowKind.Group);
+        var settled = Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/docs.yml/main");
+
+        var mark = LinkWidth(canvas, settled, ChipKind.Repo) - TextRenderer.MeasureText("DiffEngine", canvas.Font, Size.Empty, TextFormatFlags.NoPrefix).Width;
+        var text = TextRenderer.MeasureText(name, bold, Size.Empty, TextFormatFlags.NoPrefix).Width;
+        await Assert.That(LinkWidth(canvas, group, ChipKind.Repo)).IsEqualTo(mark + text);
+    }
+
+    static Build Passing(string name, string workflow, string run) =>
+        Fixtures.Build(
+            Fixtures.GitHub.Id,
+            $"{name}/{workflow}",
+            workflow,
+            $"VerifyTests/{name}",
+            "main",
+            run,
+            BuildStatus.Succeeded,
+            started: Fixtures.Now - TimeSpan.FromHours(3),
+            finished: Fixtures.Now - TimeSpan.FromHours(3) + TimeSpan.FromMinutes(2),
+            branchUrl: $"https://github.com/VerifyTests/{name}/tree/main");
+
+    /// <summary>
+    /// How far along a row a link runs, from the first pixel that reports it to the last.
+    /// </summary>
+    static int LinkWidth(RowsCanvas canvas, int row, ChipKind link)
+    {
+        var y = canvas.RowHeight * row + canvas.RowHeight / 2;
+        var reported = new List<int>();
+        for (var x = 0; x < canvas.Width; x++)
+        {
+            Click(canvas, MouseButtons.Left, x, y);
+            if (canvas.Drain().ClickedChip == link)
+            {
+                reported.Add(x);
+            }
+        }
+
+        return reported.Max() - reported.Min() + 1;
+    }
+
+    /// <summary>
     /// The mark before the name opens what the name does, which is the run on a row that broke
     /// and the repository on a settled one. A picture standing for the same page as the link
     /// beside it, and doing nothing, reads as a link that failed.

@@ -497,13 +497,15 @@ sealed class RowsCanvas : Control
         // After the status square, a gap after each of the name, detail, timing and chips, and the
         // author and its gap when shown.
         var available = Width - RowHeight - TimingWidth() - 5 * gap - (authorWidth > 0 ? authorWidth + gap : 0);
-        // With the padding Draw leaves, so the widest text fits without an ellipsis. A member is
-        // indented by the arrow its group is drawn behind, and the room for it is reserved wherever
-        // the page has a group at all, so the column does not shift as one is opened.
-        var indent = builds.GroupNames.Count > 0 ? Indent() : 0;
-        var nameWanted = markWidth + builds.Names
-            .Select(_ => indent + MeasureName(_, Font))
-            .Concat(builds.GroupNames.Select(_ => MeasureName($"▼ {_}", bold)))
+        // The widest cell DrawName can make of any name, from the parts it draws. The page does not
+        // say which names sit under a group or which have a mark, so each is taken as a member
+        // with one wherever the page has a group at all, which also keeps the column from shifting
+        // as a group is opened.
+        var nameKind = builds.GroupNames.Count > 0 ? RowKind.Member : RowKind.Build;
+        var nameWanted = builds.Names
+            .Select(_ => NameCell(_, nameKind, true, markWidth))
+            .Concat(builds.GroupNames.Select(_ => NameCell(_, RowKind.Group, true, markWidth)))
+            .Select(_ => _.Indent + _.Mark + _.Text)
             .DefaultIfEmpty()
             .Max();
         // Forty characters at most: past that a long pipeline or branch is cut short rather than
@@ -530,8 +532,30 @@ sealed class RowsCanvas : Control
     }
 
     /// <summary>
+    /// The parts of a name's cell, left to right: the indent, the host's mark, and the name in the
+    /// font it is drawn in, with the padding Draw leaves. <see cref="ColumnWidths"/> sizes the
+    /// column from these and <see cref="DrawName"/> draws at them, so what is measured is what is
+    /// drawn. Each working it out for itself, the column sized a group as the one text "▼ name"
+    /// while the arrow and the name were drawn as two, and the widest group's name came out a
+    /// text's padding short: cut off with an ellipsis beside an empty column.
+    /// </summary>
+    (int Indent, int Mark, int Text) NameCell(string name, RowKind kind, bool marked, int markWidth)
+    {
+        // A group's arrow is drawn in the indent, and a member starts past it, where its group's
+        // name does, under the group rather than beside it.
+        var indent = kind == RowKind.Build ? 0 : Indent();
+        // The mark's width is reserved on every row once any row has one, so the names still line
+        // up where a provider gave no repository URL to read a host from. Not on a group with no
+        // mark of its own: its arrow already stands where the mark would, and a prefix group,
+        // which names no one repository, read as an indented heading.
+        var mark = kind == RowKind.Group && !marked ? 0 : markWidth;
+        return (indent, mark, MeasureName(name, NameFont(kind)));
+    }
+
+    /// <summary>
     /// How far a member's first cell is pushed in: the width of the arrow its group is drawn
     /// behind, so its mark starts where the group's name does and the rows read as being under it.
+    /// The open arrow's, whichever is drawn, so a group's name does not move as it opens.
     /// </summary>
     int Indent() =>
         MeasureName("▼ ", bold);
@@ -562,9 +586,9 @@ sealed class RowsCanvas : Control
             LogicalToDeviceUnits(minimumTiming),
             Progress.Widest.Select(_ => MeasureName(_, Font)).Max());
 
-    Font NameFont(BuildRow row)
+    Font NameFont(RowKind kind)
     {
-        if (row.Kind == RowKind.Group)
+        if (kind == RowKind.Group)
         {
             return bold;
         }
@@ -654,14 +678,9 @@ sealed class RowsCanvas : Control
     {
         // Through NameFont, so a group's name keeps the weight that makes it read as a heading
         // while it takes the link colour, and the hit rectangle is measured in the font drawn.
-        var font = NameFont(row);
-        // A member starts where its group's name does, under the group rather than beside it.
-        if (row.Kind == RowKind.Member)
-        {
-            var indent = Math.Min(Indent(), width);
-            x += indent;
-            width -= indent;
-        }
+        var font = NameFont(row.Kind);
+        // The same parts the column was sized from, so the name has the room that was measured.
+        var cell = NameCell(row.Name, row.Kind, row.NameIcon.Length > 0, markWidth);
 
         // The arrow is drawn before the name but is no part of it: it is what opens and closes the
         // group, so it stays in the ordinary colour and outside the link's rectangle, and a click
@@ -670,28 +689,21 @@ sealed class RowsCanvas : Control
         if (arrow.Length > 0)
         {
             Draw(graphics, arrow, font, x, bounds, width, Palette.Text);
-            var arrowWidth = Math.Min(MeasureName(arrow, font), width);
-            x += arrowWidth;
-            width -= arrowWidth;
         }
 
-        // The host's mark leads the name, in a width reserved on every row once any row has one,
-        // so the names still line up where a provider gave no repository URL to read a host from.
-        // Not on a group with no mark of its own: its arrow already stands where the mark would,
-        // and a prefix group, which names no one repository, read as an indented heading.
+        var indent = Math.Min(cell.Indent, width);
+        x += indent;
+        width -= indent;
+
         var markLeft = x;
-        if (markWidth > 0 &&
-            (arrow.Length == 0 || row.NameIcon.Length > 0))
+        if (row.NameIcon.Length > 0)
         {
-            if (row.NameIcon.Length > 0)
-            {
-                var side = LogoSize;
-                Icons.Draw(graphics, row.NameIcon, new(x, bounds.Top + (bounds.Height - side) / 2, side, side), logoSource);
-            }
-
-            x += markWidth;
-            width -= markWidth;
+            var side = LogoSize;
+            Icons.Draw(graphics, row.NameIcon, new(x, bounds.Top + (bounds.Height - side) / 2, side, side), logoSource);
         }
+
+        x += cell.Mark;
+        width -= cell.Mark;
 
         if (row.NameLink == ChipKind.None)
         {
@@ -699,7 +711,7 @@ sealed class RowsCanvas : Control
             return;
         }
 
-        var link = LinkBounds(x, Math.Min(MeasureName(row.Name, font), width), bounds);
+        var link = LinkBounds(x, Math.Min(cell.Text, width), bounds);
         if (row.NameIcon.Length > 0)
         {
             // The mark opens what the name does, so the two are one target rather than a link with
