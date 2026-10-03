@@ -32,7 +32,7 @@ Failed to uninstall tool package 'buildmonitor': Access to the path '...\.store\
 Update stops BuildMonitor's [MCP servers](mcp.md#updating) before it starts, but an assistant session opened in the meantime can start another one. From the command line nothing is stopped for you: quit the tray with `buildmonitor quit`, close the AI assistants using the MCP server, then update:
 
 ```
-dotnet tool update --global BuildMonitor --prerelease
+dotnet tool update --global BuildMonitor
 ```
 
 
