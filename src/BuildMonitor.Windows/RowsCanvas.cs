@@ -32,12 +32,14 @@ sealed class RowsCanvas : Control
     const int tipDuration = 20000;
     // Clear of the pointer, so the text is not under the hand that asked for it.
     const int tipOffset = 18;
-    // Without padding, so each run of the detail starts where the text before it ended.
+    // The flags that decide how wide a run of the detail is, which it is both measured and drawn
+    // with. Without padding, so each run starts where the text before it ended.
+    const TextFormatFlags runWidthFlags = TextFormatFlags.NoPrefix |
+                                          TextFormatFlags.NoPadding;
     const TextFormatFlags runFlags = TextFormatFlags.Left |
                                      TextFormatFlags.VerticalCenter |
                                      TextFormatFlags.EndEllipsis |
-                                     TextFormatFlags.NoPrefix |
-                                     TextFormatFlags.NoPadding;
+                                     runWidthFlags;
     // Stands in for the chips a row has no room for, and opens the drop down that holds them.
     const string overflowLabel = "…";
     // Between a chip's icon and the text after it, where it has both.
@@ -508,13 +510,14 @@ sealed class RowsCanvas : Control
             .Select(_ => _.Indent + _.Mark + _.Text)
             .DefaultIfEmpty()
             .Max();
-        // Forty characters at most: past that a long pipeline or branch is cut short rather than
-        // pushing every row's chips into the drop down. The details are text alone, so the branch's
-        // mark is added on top once any row draws one.
-        var spanIcons = builds.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)) ? SpanIconWidth() : 0;
-        var detailWanted = iconWidth + spanIcons + Math.Min(
-            builds.Details.Select(_ => MeasureName(_, Font)).DefaultIfEmpty().Max(),
-            MeasureName(new('0', 40), Font));
+        // Where DrawDetail ends the widest detail, by the offsets it draws at. Forty characters at
+        // most: past that a long pipeline or branch is cut short rather than pushing every row's
+        // chips into the drop down. The details are text alone, without saying which carry the
+        // branch's mark, so each is taken to once any row draws one.
+        var marks = builds.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)) ? 1 : 0;
+        var detailWanted = iconWidth + Math.Min(
+            builds.Details.Select(_ => DetailOffset(_, marks)).DefaultIfEmpty().Max(),
+            DetailOffset(new('0', 40), marks));
         var widest = WidestChips();
         var bar = LogicalToDeviceUnits(barLength);
         var barWidth = available - bar - gap - nameWanted - detailWanted >= widest ? bar : 0;
@@ -749,10 +752,10 @@ sealed class RowsCanvas : Control
     {
         var right = x + width;
         var before = "";
-        var icons = 0;
+        var marks = 0;
         foreach (var span in row.Detail)
         {
-            var left = x + icons + Measure(before);
+            var left = x + DetailOffset(before, marks);
             if (left >= right)
             {
                 return;
@@ -771,10 +774,10 @@ sealed class RowsCanvas : Control
                 }
 
                 Icons.Draw(graphics, span.Icon, new(left, bounds.Top + (bounds.Height - side) / 2, side, side));
-                icons += SpanIconWidth();
+                marks++;
             }
 
-            var textLeft = x + icons + Measure(before);
+            var textLeft = x + DetailOffset(before, marks);
             before += span.Text;
             var cell = new Rectangle(textLeft, bounds.Top, Math.Max(0, right - textLeft), bounds.Height);
             if (span.Link == ChipKind.None)
@@ -783,11 +786,31 @@ sealed class RowsCanvas : Control
                 continue;
             }
 
-            var link = LinkBounds(left, Math.Min(x + icons + Measure(before), right) - left, bounds);
+            var link = LinkBounds(left, Math.Min(x + DetailOffset(before, marks), right) - left, bounds);
             TextRenderer.DrawText(graphics, span.Text, link == hoverLink ? underline : Font, cell, Palette.ChipText, runFlags);
             chips.Add((index, span.Link, false, link));
             Tip(index, link, row.Tooltip(span.Link == ChipKind.Branch ? RowPart.Branch : RowPart.Pipeline));
         }
+    }
+
+    /// <summary>
+    /// How far into its cell a detail has got once <paramref name="text"/> is drawn behind
+    /// <paramref name="marks"/> of its runs' icons. <see cref="ColumnWidths"/> sizes the column
+    /// from where this puts the end of each detail and <see cref="DrawDetail"/> starts each run at
+    /// it, so the column is as wide as what is drawn in it. Measured with the flags that decide a
+    /// run's width as it is drawn: the column was sized with the padding the runs leave out, and
+    /// the runs placed by a measure that read an ampersand as a mnemonic, so the branch of a
+    /// pipeline named "Build &amp; Test" was drawn over the end of it.
+    /// </summary>
+    int DetailOffset(string text, int marks)
+    {
+        var offset = marks * SpanIconWidth();
+        if (text.Length == 0)
+        {
+            return offset;
+        }
+
+        return offset + TextWidth(text, Font, runWidthFlags);
     }
 
     /// <summary>

@@ -306,9 +306,134 @@ public class RowsCanvasTests
             branchUrl: $"https://github.com/VerifyTests/{name}/tree/main");
 
     /// <summary>
+    /// While the chips are giving way the detail column is exactly as wide as it was sized, so the
+    /// row with the widest detail has no slack, as the widest name has none in its column. Compared
+    /// as pixels with the same row drawn with room to spare, because an ellipsis moves no link, and
+    /// at a width found by narrowing the canvas, because where the chips start to give way depends
+    /// on the fonts of the machine running the test.
+    /// </summary>
+    [Test]
+    public async Task TheWidestDetailIsDrawnInFullWhileTheChipsGiveWay()
+    {
+        var state = Fixtures.WithBuilds();
+        var row = FailedRow();
+        var page = ScreenBuilder.Build(state, Fixtures.Now).Builds!;
+        using var roomy = Drawn(1000, state);
+        var widest = page.Details.MaxBy(_ => TextRenderer.MeasureText(_, roomy.Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width);
+        await Assert.That(string.Concat(page.Rows[row].Detail.Select(_ => _.Text))).IsEqualTo(widest);
+
+        using var squeezed = Squeezed(state, row, page.Rows[row].Chips[0].Kind);
+        var pipeline = LinkSpan(roomy, row, ChipKind.Pipeline);
+        var branch = LinkSpan(roomy, row, ChipKind.Branch);
+        await Assert.That(LinkSpan(squeezed, row, ChipKind.Branch)).IsEqualTo(branch);
+
+        var strip = new Rectangle(pipeline.Left, roomy.RowHeight * row, branch.Right - pipeline.Left + 1, roomy.RowHeight);
+        await Assert.That(Pixels(squeezed, strip).SequenceEqual(Pixels(roomy, strip))).IsTrue();
+    }
+
+    /// <summary>
+    /// A run's link is as wide as the run was measured, and the next run starts where it ends.
+    /// Measured without the flag it is drawn with, an ampersand was read as a mnemonic and left out
+    /// of the width, so the link stopped short and the branch was drawn over the pipeline's end.
+    /// </summary>
+    [Test]
+    public async Task ARunWithAnAmpersandIsMeasuredAsItIsDrawn()
+    {
+        const string pipeline = "Build & Test";
+        var state = MonitorSession.ApplyPoll(
+            Fixtures.WithBuilds(),
+            Fixtures.GitHub.Id,
+            [],
+            [
+                ..Fixtures.GitHubBuilds(),
+                Fixtures.Build(
+                    Fixtures.GitHub.Id,
+                    "Reports/build.yml",
+                    pipeline,
+                    "VerifyTests/Reports",
+                    "main",
+                    "9",
+                    BuildStatus.Failed,
+                    started: Fixtures.Now - TimeSpan.FromMinutes(10),
+                    finished: Fixtures.Now - TimeSpan.FromMinutes(8),
+                    branchUrl: "https://github.com/VerifyTests/Reports/tree/main")
+            ],
+            Fixtures.Now - TimeSpan.FromSeconds(12));
+        using var canvas = Drawn(1000, state);
+        var row = Fixtures.RowOf(state, _ => _.Build?.PipelineName == pipeline);
+        var text = TextRenderer.MeasureText(pipeline, canvas.Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+        await Assert.That(LinkWidth(canvas, row, ChipKind.Pipeline)).IsEqualTo(text);
+    }
+
+    /// <summary>
+    /// The canvas narrowed until the row keeps its first chip and puts the rest behind the overflow
+    /// chip: the chips column has given up some of its width and still has some left, which is when
+    /// the name and detail columns are exactly as wide as they were sized.
+    /// </summary>
+    static RowsCanvas Squeezed(SessionState state, int row, ChipKind first)
+    {
+        for (var width = 1000; width > 300; width -= 4)
+        {
+            var canvas = Drawn(width, state);
+            var from = OverflowFrom(canvas, row);
+            if (from != ChipKind.None &&
+                from != first)
+            {
+                return canvas;
+            }
+
+            canvas.Dispose();
+        }
+
+        throw new("No width puts some of the row's chips behind the overflow chip");
+    }
+
+    /// <summary>
+    /// The first of the chips the row's overflow chip stands in for, or none where it has no
+    /// overflow chip.
+    /// </summary>
+    static ChipKind OverflowFrom(RowsCanvas canvas, int row)
+    {
+        var y = canvas.RowHeight * row + canvas.RowHeight / 2;
+        for (var x = canvas.Width - 1; x >= 0; x -= 2)
+        {
+            Click(canvas, MouseButtons.Left, x, y);
+            var input = canvas.Drain();
+            if (input.ClickedOverflowRow == row)
+            {
+                return input.OverflowFrom;
+            }
+        }
+
+        return ChipKind.None;
+    }
+
+    static List<int> Pixels(RowsCanvas canvas, Rectangle area)
+    {
+        using var bitmap = new Bitmap(canvas.Width, canvas.Height);
+        canvas.DrawToBitmap(bitmap, new(0, 0, canvas.Width, canvas.Height));
+        var pixels = new List<int>();
+        for (var y = area.Top; y < area.Bottom; y++)
+        {
+            for (var x = area.Left; x < area.Right; x++)
+            {
+                pixels.Add(bitmap.GetPixel(x, y).ToArgb());
+            }
+        }
+
+        return pixels;
+    }
+
+    /// <summary>
     /// How far along a row a link runs, from the first pixel that reports it to the last.
     /// </summary>
     static int LinkWidth(RowsCanvas canvas, int row, ChipKind link)
+    {
+        var (left, right) = LinkSpan(canvas, row, link);
+        return right - left + 1;
+    }
+
+    static (int Left, int Right) LinkSpan(RowsCanvas canvas, int row, ChipKind link)
     {
         var y = canvas.RowHeight * row + canvas.RowHeight / 2;
         var reported = new List<int>();
@@ -321,7 +446,7 @@ public class RowsCanvasTests
             }
         }
 
-        return reported.Max() - reported.Min() + 1;
+        return (reported.Min(), reported.Max());
     }
 
     /// <summary>
