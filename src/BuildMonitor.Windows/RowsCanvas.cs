@@ -501,9 +501,12 @@ sealed class RowsCanvas : Control
         // indented by the arrow its group is drawn behind, and the room for it is reserved wherever
         // the page has a group at all, so the column does not shift as one is opened.
         var indent = builds.GroupNames.Count > 0 ? Indent() : 0;
+        // The arrow and the name are measured apart, as DrawName draws them: measured as one
+        // string they carry one text's padding rather than two, and the widest group's name was
+        // cut short by the difference.
         var nameWanted = markWidth + builds.Names
             .Select(_ => indent + MeasureName(_, Font))
-            .Concat(builds.GroupNames.Select(_ => MeasureName($"▼ {_}", bold)))
+            .Concat(builds.GroupNames.Select(_ => indent + MeasureName(_, bold)))
             .DefaultIfEmpty()
             .Max();
         // Forty characters at most: past that a long pipeline or branch is cut short rather than
@@ -670,7 +673,9 @@ sealed class RowsCanvas : Control
         if (arrow.Length > 0)
         {
             Draw(graphics, arrow, font, x, bounds, width, Palette.Text);
-            var arrowWidth = Math.Min(MeasureName(arrow, font), width);
+            // The indent rather than this arrow's own width, which is what the column was sized
+            // with, so the name does not move as the group opens and its arrow changes.
+            var arrowWidth = Math.Min(Indent(), width);
             x += arrowWidth;
             width -= arrowWidth;
         }
