@@ -78,7 +78,7 @@ static class ScreenBuilder
         return new(
             Title,
             Page.Builds,
-            new(Header(state, counts), composed, top, rows.Length, selected, counts.Failing, counts.Running, columns.Names, columns.GroupNames, columns.Details, loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), columns.AuthorNames),
+            new(Header(state, counts), composed, top, rows.Length, selected, counts.Failing, counts.Running, columns.Names, columns.GroupNames, columns.Details, loading, state.Search, SearchTooltip, Empty(state, rows.Length, loading), columns.AuthorNames, columns.MemberNames, columns.MarkedGroupNames, columns.MarkedDetails, columns.Marks.Name, columns.Marks.Detail, columns.Marks.Provider),
             null,
             Buttons(state),
             status,
@@ -116,14 +116,19 @@ static class ScreenBuilder
         var authors = AuthorNames.Of(shown.Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
         var siblings = SiblingPipelines(shown);
         var sized = Sized(state, pipelines, projected.Rows);
+        var (details, markedDetails) = Details(sized, siblings);
         var columns = new PageColumns(
             projected,
             authors,
             siblings,
             Names(sized, RowKind.Build),
             Names(sized, RowKind.Group),
-            Details(sized, siblings),
-            authors.Values.Distinct().ToList());
+            details,
+            authors.Values.Distinct().ToList(),
+            Names(sized, RowKind.Member),
+            Names(sized, RowKind.Group, marked: true),
+            markedDetails,
+            Marks(sized));
         lastColumns = columns;
         return columns;
     }
@@ -197,9 +202,10 @@ static class ScreenBuilder
     /// <summary>
     /// The distinct first cells a column of that kind is sized from. A member is measured with the
     /// builds rather than the groups: its cell is drawn like a build's, and under a prefix group it
-    /// holds a repository name the column has to have room for.
+    /// holds a repository name the column has to have room for. The members are also given on
+    /// their own, and the groups that carry a mark, for a head that sizes each cell as it is drawn.
     /// </summary>
-    static List<string> Names(ImmutableArray<Row> rows, RowKind kind)
+    static List<string> Names(ImmutableArray<Row> rows, RowKind kind, bool marked = false)
     {
         var names = new List<string>();
         var seen = new HashSet<string>().GetAlternateLookup<CharSpan>();
@@ -207,6 +213,12 @@ static class ScreenBuilder
         {
             if (row.Kind != kind &&
                 !(kind == RowKind.Build && row.Kind == RowKind.Member))
+            {
+                continue;
+            }
+
+            if (marked &&
+                GroupMarkOf(row).Length == 0)
             {
                 continue;
             }
@@ -375,23 +387,72 @@ static class ScreenBuilder
     static bool NamedAfterProject(Build build) =>
         BuildExtensions.ShortRepoName(build.RepoName.AsSpan()).Equals(build.PipelineName, StringComparison.OrdinalIgnoreCase);
 
-    static List<string> Details(ImmutableArray<Row> rows, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
+    /// <summary>
+    /// The mark before a group's name: the host of the repository its members share, and nothing
+    /// for a group whose members do not share one. One rule for the composed row and for the
+    /// groups the column is sized as carrying a mark.
+    /// </summary>
+    static string GroupMarkOf(Row row) =>
+        RepoHosts.MarkOf(RowTooltips.Shared(row.Members));
+
+    /// <summary>
+    /// Whether any of the rows has a mark before its name, a mark leading its second cell, or a
+    /// provider to name, by the rules the composed row is given them. Of every row the columns are
+    /// sized from rather than of those in view, so the room a head reserves for each does not come
+    /// and go while scrolling.
+    /// </summary>
+    static (bool Name, bool Detail, bool Provider) Marks(ImmutableArray<Row> rows)
     {
-        var details = new List<string>();
-        var seen = new HashSet<string>().GetAlternateLookup<CharSpan>();
+        var name = false;
+        var detail = false;
+        var provider = false;
         foreach (var row in rows)
         {
-            AddDetail(seen, details, row, siblings);
+            if (name &&
+                detail &&
+                provider)
+            {
+                break;
+            }
+
+            if (row.Build is null)
+            {
+                name = name || GroupMarkOf(row).Length > 0;
+                continue;
+            }
+
+            var descriptor = ProviderDescriptors.Get(row.Connection!.Connection.ProviderId);
+            provider = true;
+            name = name || NameIconOf(row, descriptor).Length > 0;
+            detail = detail || DetailIconOf(row, descriptor).Icon.Length > 0;
         }
 
-        return details;
+        return (name, detail, provider);
+    }
+
+    /// <summary>
+    /// The distinct second cells, and those of them that carry the branch's mark, in one pass over
+    /// the rows.
+    /// </summary>
+    static (List<string> Details, List<string> Marked) Details(ImmutableArray<Row> rows, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
+    {
+        var details = new List<string>();
+        var marked = new List<string>();
+        var seen = new HashSet<string>().GetAlternateLookup<CharSpan>();
+        var seenMarked = new HashSet<string>();
+        foreach (var row in rows)
+        {
+            AddDetail(seen, details, seenMarked, marked, row, siblings);
+        }
+
+        return (details, marked);
     }
 
     /// <summary>
     /// The text <see cref="DetailOf"/> gives the row, written on the stack rather than as runs that
-    /// are then joined.
+    /// are then joined. Marked where it names a branch, which is the run DetailOf gives the mark.
     /// </summary>
-    static void AddDetail(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> details, Row row, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
+    static void AddDetail(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> details, HashSet<string> seenMarked, List<string> marked, Row row, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
         if (row.Build is null)
         {
@@ -405,6 +466,13 @@ static class ScreenBuilder
         var text = length <= 256 ? stackalloc char[length] : new char[length];
         text.TryWrite($"{pipeline}{separator}{branch}", out _);
         AddDistinct(seen, details, text);
+        // The string already made for the text, rather than another of the same.
+        if (branch.Length > 0 &&
+            seen.TryGetValue(text, out var added) &&
+            seenMarked.Add(added))
+        {
+            marked.Add(added);
+        }
     }
 
     /// <summary>
@@ -697,7 +765,7 @@ static class ScreenBuilder
             // A member's own first cell is blank, so this row is the only place the repository is
             // named. Without the link a group would hide the repository of every row inside it.
             repo is null ? ChipKind.None : ChipKind.Repo,
-            RepoHosts.MarkOf(repo),
+            GroupMarkOf(row),
             ChipKind.None,
             DetailOf(row, siblings),
             "",

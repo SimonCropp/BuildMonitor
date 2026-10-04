@@ -82,14 +82,24 @@ sealed unsafe class ScreenPayload
             screen.Search = Add(builds.Search);
             screen.SearchTooltip = Add(builds.SearchTooltip);
             screen.Empty = Add(builds.Empty);
+            screen.NameMarks = builds.NameMarks ? 1 : 0;
+            screen.DetailMarks = builds.DetailMarks ? 1 : 0;
+            var memberNames = builds.MemberNames ?? [];
+            var markedGroupNames = builds.MarkedGroupNames ?? [];
+            var markedDetails = builds.MarkedDetails ?? [];
             screen.NameCount = builds.Names.Count;
             screen.GroupNameCount = builds.GroupNames.Count;
-            foreach (var name in builds.Names.Concat(builds.GroupNames))
+            screen.MemberNameCount = memberNames.Count;
+            screen.MarkedGroupNameCount = markedGroupNames.Count;
+            foreach (var name in builds.Names.Concat(builds.GroupNames).Concat(memberNames).Concat(markedGroupNames))
             {
                 names.Add(Add(name));
             }
 
-            foreach (var detail in builds.Details)
+            // The marked ones after the rest, as the member and marked group names follow the names.
+            screen.DetailCount = builds.Details.Count;
+            screen.MarkedDetailCount = markedDetails.Count;
+            foreach (var detail in builds.Details.Concat(markedDetails))
             {
                 details.Add(Add(detail));
             }
@@ -284,7 +294,6 @@ sealed unsafe class ScreenPayload
             frame.RowCount = rows.Count;
             frame.Names = namePointer;
             frame.Details = detailPointer;
-            frame.DetailCount = details.Count;
             frame.Authors = authorPointer;
             frame.AuthorCount = authors.Count;
             frame.Chips = chipPointer;
@@ -313,7 +322,7 @@ sealed unsafe class ScreenPayload
     public string Describe()
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"page: {screen.Page} rows: {rows.Count} details: {details.Count} chips: {chips.Count} spans: {spans.Count} fields: {fields.Count} options: {options.Count} buttons: {buttons.Count} menu: {menu.Count} tray: {trayItems.Count} strings: {strings.Count} bytes");
+        builder.AppendLine($"page: {screen.Page} rows: {rows.Count} details: {screen.DetailCount} chips: {chips.Count} spans: {spans.Count} fields: {fields.Count} options: {options.Count} buttons: {buttons.Count} menu: {menu.Count} tray: {trayItems.Count} strings: {strings.Count} bytes");
         var blob = strings.ToArray();
         string Text(BmString value) => Encoding.UTF8.GetString(blob, value.Offset, value.Length);
         builder.AppendLine($"search='{Text(screen.Search)}' tip='{Text(screen.SearchTooltip)}' empty='{Text(screen.Empty)}'");

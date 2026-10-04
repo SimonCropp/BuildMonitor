@@ -80,6 +80,23 @@ public class PixelTests
     public Task Lanes() =>
         Capture(Fixtures.WithLanes());
 
+    // A closed group with the host's mark, behind its arrow, among builds that are not indented
+    // for it. The other baselines show no group, so nothing else draws how these heads size and
+    // place one.
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 8)]
+    public Task Groups() =>
+        Capture(Fixtures.WithTwoFailures());
+
+    // A prefix group, open: it names no one repository, so its row has no mark, and its members
+    // are indented under it, one naming the repository it came from.
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 9)]
+    public Task PrefixGroup() =>
+        Capture(MonitorSession.ToggleGroup(Fixtures.WithPrefixGroup(), Fixtures.VerifyPassing));
+
     static async Task Capture(SessionState state)
     {
         // Pinned rather than System, so a capture does not depend on the theme of whoever ran it.

@@ -311,16 +311,28 @@ typedef struct BmScreen {
     /* 1 when there are no rows yet because a connection has not finished its first poll: draw a
        spinner rather than an empty page. */
     int32_t loading;
+    /* 1 when any row, in view or not, has a mark before its name, and when any has one leading its
+       detail. Room for each is reserved on every row once any row has one; read from the rows in
+       view, the columns moved as a row with one scrolled in or out. */
+    int32_t nameMarks;
+    int32_t detailMarks;
     /* Every distinct first column name across all rows, not only the visible slice, to size the
-       column from: nameCount build names, then groupNameCount group names, drawn behind an arrow. */
+       column from: nameCount build names, then groupNameCount group names, drawn behind an arrow.
+       Then which of those are drawn wider, so each is sized as its row draws it rather than all as
+       the widest kind: memberNameCount of the names that are a member's, drawn indented under its
+       group, and markedGroupNameCount of the group names whose row carries a mark. */
     const BmString* names;
     int32_t nameCount;
     int32_t groupNameCount;
+    int32_t memberNameCount;
+    int32_t markedGroupNameCount;
     /* Every distinct detail across all rows, to size that column from. The chips give way to the
-       width these want, up to a readable maximum, before the details are cut short. Text only: once
-       any row's spans carry an icon, add its width and gap to these. */
+       width these want, up to a readable maximum, before the details are cut short. Text only:
+       after the detailCount of them come markedDetailCount of those that carry the branch's mark,
+       to which its width and gap are added. */
     const BmString* details;
     int32_t detailCount;
+    int32_t markedDetailCount;
     /* Every distinct author across all failed builds, to size the author column from. With none the
        column is not drawn. */
     const BmString* authors;
@@ -496,7 +508,7 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 19
+#define BM_VERSION 20
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

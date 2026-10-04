@@ -32,12 +32,14 @@ sealed class RowsCanvas : Control
     const int tipDuration = 20000;
     // Clear of the pointer, so the text is not under the hand that asked for it.
     const int tipOffset = 18;
-    // Without padding, so each run of the detail starts where the text before it ended.
+    // The flags that decide how wide a run of the detail is, which it is both measured and drawn
+    // with. Without padding, so each run starts where the text before it ended.
+    const TextFormatFlags runWidthFlags = TextFormatFlags.NoPrefix |
+                                          TextFormatFlags.NoPadding;
     const TextFormatFlags runFlags = TextFormatFlags.Left |
                                      TextFormatFlags.VerticalCenter |
                                      TextFormatFlags.EndEllipsis |
-                                     TextFormatFlags.NoPrefix |
-                                     TextFormatFlags.NoPadding;
+                                     runWidthFlags;
     // Stands in for the chips a row has no room for, and opens the drop down that holds them.
     const string overflowLabel = "…";
     // Between a chip's icon and the text after it, where it has both.
@@ -271,21 +273,15 @@ sealed class RowsCanvas : Control
         Same(previous.GroupNames, next.GroupNames) &&
         Same(previous.Details, next.Details) &&
         Same(previous.Authors ?? [], next.Authors ?? []) &&
-        Marks(previous) == Marks(next);
+        Same(previous.MemberNames ?? [], next.MemberNames ?? []) &&
+        Same(previous.MarkedGroupNames ?? [], next.MarkedGroupNames ?? []) &&
+        Same(previous.MarkedDetails ?? [], next.MarkedDetails ?? []) &&
+        previous.NameMarks == next.NameMarks &&
+        previous.DetailMarks == next.DetailMarks;
 
     static bool Same(IReadOnlyList<string> previous, IReadOnlyList<string> next) =>
         ReferenceEquals(previous, next) ||
         previous.SequenceEqual(next);
-
-    /// <summary>
-    /// Which marks the page draws at all: the one leading the second cell, the one before the name,
-    /// and one inside a run of the second cell. Room for each is reserved on every row once any row
-    /// has one, so a row gaining or losing a mark can move them all.
-    /// </summary>
-    static (bool Detail, bool Name, bool Span) Marks(BuildsPage page) =>
-        (page.Rows.Any(_ => _.DetailIcon.Length > 0),
-            page.Rows.Any(_ => _.NameIcon.Length > 0),
-            page.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)));
 
     Rectangle RowBounds(int row) =>
         new(0, row * RowHeight, Width, RowHeight);
@@ -431,10 +427,11 @@ sealed class RowsCanvas : Control
 
         // Reserved on every row once any row has an icon, so a group's row, which has none, keeps
         // its name in line with the rows under it. The same for the host's mark before the name,
-        // which a row whose provider gave no repository URL does not have.
+        // which a row whose provider gave no repository URL does not have. Any row of the page
+        // rather than of those in view, or the columns move as a row with one scrolls in or out.
         var logo = LogoSize + LogicalToDeviceUnits(padding);
-        var iconWidth = page.Rows.Any(_ => _.DetailIcon.Length > 0) ? logo : 0;
-        var markWidth = page.Rows.Any(_ => _.NameIcon.Length > 0) ? logo : 0;
+        var iconWidth = page.DetailMarks ? logo : 0;
+        var markWidth = page.NameMarks ? logo : 0;
         // A detail's runs are measured as the text so far, which differs by row, so the widths would
         // grow without end as builds come and go. Emptied once they hold several times what the
         // columns measure, which leaves room for every row's runs, and here rather than as they
@@ -497,22 +494,29 @@ sealed class RowsCanvas : Control
         // After the status square, a gap after each of the name, detail, timing and chips, and the
         // author and its gap when shown.
         var available = Width - RowHeight - TimingWidth() - 5 * gap - (authorWidth > 0 ? authorWidth + gap : 0);
-        // With the padding Draw leaves, so the widest text fits without an ellipsis. A member is
-        // indented by the arrow its group is drawn behind, and the room for it is reserved wherever
-        // the page has a group at all, so the column does not shift as one is opened.
-        var indent = builds.GroupNames.Count > 0 ? Indent() : 0;
-        var nameWanted = markWidth + builds.Names
-            .Select(_ => indent + MeasureName(_, Font))
-            .Concat(builds.GroupNames.Select(_ => MeasureName($"▼ {_}", bold)))
+        // The widest cell DrawName makes of any name, from the parts it draws, each name as the
+        // kind of row that shows it: every name as a build's, those that are a member's indented
+        // as well, every group behind its arrow, and those with a mark with its width as well. A
+        // member's blank cell draws nothing, so it wants no room. Taking every name as a member
+        // with a mark gave the column an indent's width that no row drew in.
+        var nameWanted = builds.Names
+            .Select(_ => NameCell(_, RowKind.Build, true, markWidth))
+            .Concat((builds.MemberNames ?? []).Where(_ => _.Length > 0).Select(_ => NameCell(_, RowKind.Member, true, markWidth)))
+            .Concat(builds.GroupNames.Select(_ => NameCell(_, RowKind.Group, false, markWidth)))
+            .Concat((builds.MarkedGroupNames ?? []).Select(_ => NameCell(_, RowKind.Group, true, markWidth)))
+            .Select(_ => _.Indent + _.Mark + _.Text)
             .DefaultIfEmpty()
             .Max();
-        // Forty characters at most: past that a long pipeline or branch is cut short rather than
-        // pushing every row's chips into the drop down. The details are text alone, so the branch's
-        // mark is added on top once any row draws one.
-        var spanIcons = builds.Rows.Any(_ => _.Detail.Any(_ => _.Icon.Length > 0)) ? SpanIconWidth() : 0;
-        var detailWanted = iconWidth + spanIcons + Math.Min(
-            builds.Details.Select(_ => MeasureName(_, Font)).DefaultIfEmpty().Max(),
-            MeasureName(new('0', 40), Font));
+        // Where DrawDetail ends the widest detail, by the offsets it draws at: every detail as
+        // text alone, and those that carry the branch's mark with it. Forty characters at most:
+        // past that a long pipeline or branch is cut short rather than pushing every row's chips
+        // into the drop down.
+        var longest = new string('0', 40);
+        var detailWanted = iconWidth + builds.Details
+            .Select(_ => Math.Min(DetailOffset(_, 0), DetailOffset(longest, 0)))
+            .Concat((builds.MarkedDetails ?? []).Select(_ => Math.Min(DetailOffset(_, 1), DetailOffset(longest, 1))))
+            .DefaultIfEmpty()
+            .Max();
         var widest = WidestChips();
         var bar = LogicalToDeviceUnits(barLength);
         var barWidth = available - bar - gap - nameWanted - detailWanted >= widest ? bar : 0;
@@ -530,8 +534,30 @@ sealed class RowsCanvas : Control
     }
 
     /// <summary>
+    /// The parts of a name's cell, left to right: the indent, the host's mark, and the name in the
+    /// font it is drawn in, with the padding Draw leaves. <see cref="ColumnWidths"/> sizes the
+    /// column from these and <see cref="DrawName"/> draws at them, so what is measured is what is
+    /// drawn. Each working it out for itself, the column sized a group as the one text "▼ name"
+    /// while the arrow and the name were drawn as two, and the widest group's name came out a
+    /// text's padding short: cut off with an ellipsis beside an empty column.
+    /// </summary>
+    (int Indent, int Mark, int Text) NameCell(string name, RowKind kind, bool marked, int markWidth)
+    {
+        // A group's arrow is drawn in the indent, and a member starts past it, where its group's
+        // name does, under the group rather than beside it.
+        var indent = kind == RowKind.Build ? 0 : Indent();
+        // The mark's width is reserved on every row once any row has one, so the names still line
+        // up where a provider gave no repository URL to read a host from. Not on a group with no
+        // mark of its own: its arrow already stands where the mark would, and a prefix group,
+        // which names no one repository, read as an indented heading.
+        var mark = kind == RowKind.Group && !marked ? 0 : markWidth;
+        return (indent, mark, MeasureName(name, NameFont(kind)));
+    }
+
+    /// <summary>
     /// How far a member's first cell is pushed in: the width of the arrow its group is drawn
     /// behind, so its mark starts where the group's name does and the rows read as being under it.
+    /// The open arrow's, whichever is drawn, so a group's name does not move as it opens.
     /// </summary>
     int Indent() =>
         MeasureName("▼ ", bold);
@@ -562,9 +588,9 @@ sealed class RowsCanvas : Control
             LogicalToDeviceUnits(minimumTiming),
             Progress.Widest.Select(_ => MeasureName(_, Font)).Max());
 
-    Font NameFont(BuildRow row)
+    Font NameFont(RowKind kind)
     {
-        if (row.Kind == RowKind.Group)
+        if (kind == RowKind.Group)
         {
             return bold;
         }
@@ -654,14 +680,9 @@ sealed class RowsCanvas : Control
     {
         // Through NameFont, so a group's name keeps the weight that makes it read as a heading
         // while it takes the link colour, and the hit rectangle is measured in the font drawn.
-        var font = NameFont(row);
-        // A member starts where its group's name does, under the group rather than beside it.
-        if (row.Kind == RowKind.Member)
-        {
-            var indent = Math.Min(Indent(), width);
-            x += indent;
-            width -= indent;
-        }
+        var font = NameFont(row.Kind);
+        // The same parts the column was sized from, so the name has the room that was measured.
+        var cell = NameCell(row.Name, row.Kind, row.NameIcon.Length > 0, markWidth);
 
         // The arrow is drawn before the name but is no part of it: it is what opens and closes the
         // group, so it stays in the ordinary colour and outside the link's rectangle, and a click
@@ -670,28 +691,21 @@ sealed class RowsCanvas : Control
         if (arrow.Length > 0)
         {
             Draw(graphics, arrow, font, x, bounds, width, Palette.Text);
-            var arrowWidth = Math.Min(MeasureName(arrow, font), width);
-            x += arrowWidth;
-            width -= arrowWidth;
         }
 
-        // The host's mark leads the name, in a width reserved on every row once any row has one,
-        // so the names still line up where a provider gave no repository URL to read a host from.
-        // Not on a group with no mark of its own: its arrow already stands where the mark would,
-        // and a prefix group, which names no one repository, read as an indented heading.
+        var indent = Math.Min(cell.Indent, width);
+        x += indent;
+        width -= indent;
+
         var markLeft = x;
-        if (markWidth > 0 &&
-            (arrow.Length == 0 || row.NameIcon.Length > 0))
+        if (row.NameIcon.Length > 0)
         {
-            if (row.NameIcon.Length > 0)
-            {
-                var side = LogoSize;
-                Icons.Draw(graphics, row.NameIcon, new(x, bounds.Top + (bounds.Height - side) / 2, side, side), logoSource);
-            }
-
-            x += markWidth;
-            width -= markWidth;
+            var side = LogoSize;
+            Icons.Draw(graphics, row.NameIcon, new(x, bounds.Top + (bounds.Height - side) / 2, side, side), logoSource);
         }
+
+        x += cell.Mark;
+        width -= cell.Mark;
 
         if (row.NameLink == ChipKind.None)
         {
@@ -699,7 +713,7 @@ sealed class RowsCanvas : Control
             return;
         }
 
-        var link = LinkBounds(x, Math.Min(MeasureName(row.Name, font), width), bounds);
+        var link = LinkBounds(x, Math.Min(cell.Text, width), bounds);
         if (row.NameIcon.Length > 0)
         {
             // The mark opens what the name does, so the two are one target rather than a link with
@@ -737,10 +751,10 @@ sealed class RowsCanvas : Control
     {
         var right = x + width;
         var before = "";
-        var icons = 0;
+        var marks = 0;
         foreach (var span in row.Detail)
         {
-            var left = x + icons + Measure(before);
+            var left = x + DetailOffset(before, marks);
             if (left >= right)
             {
                 return;
@@ -759,10 +773,10 @@ sealed class RowsCanvas : Control
                 }
 
                 Icons.Draw(graphics, span.Icon, new(left, bounds.Top + (bounds.Height - side) / 2, side, side));
-                icons += SpanIconWidth();
+                marks++;
             }
 
-            var textLeft = x + icons + Measure(before);
+            var textLeft = x + DetailOffset(before, marks);
             before += span.Text;
             var cell = new Rectangle(textLeft, bounds.Top, Math.Max(0, right - textLeft), bounds.Height);
             if (span.Link == ChipKind.None)
@@ -771,11 +785,31 @@ sealed class RowsCanvas : Control
                 continue;
             }
 
-            var link = LinkBounds(left, Math.Min(x + icons + Measure(before), right) - left, bounds);
+            var link = LinkBounds(left, Math.Min(x + DetailOffset(before, marks), right) - left, bounds);
             TextRenderer.DrawText(graphics, span.Text, link == hoverLink ? underline : Font, cell, Palette.ChipText, runFlags);
             chips.Add((index, span.Link, false, link));
             Tip(index, link, row.Tooltip(span.Link == ChipKind.Branch ? RowPart.Branch : RowPart.Pipeline));
         }
+    }
+
+    /// <summary>
+    /// How far into its cell a detail has got once <paramref name="text"/> is drawn behind
+    /// <paramref name="marks"/> of its runs' icons. <see cref="ColumnWidths"/> sizes the column
+    /// from where this puts the end of each detail and <see cref="DrawDetail"/> starts each run at
+    /// it, so the column is as wide as what is drawn in it. Measured with the flags that decide a
+    /// run's width as it is drawn: the column was sized with the padding the runs leave out, and
+    /// the runs placed by a measure that read an ampersand as a mnemonic, so the branch of a
+    /// pipeline named "Build &amp; Test" was drawn over the end of it.
+    /// </summary>
+    int DetailOffset(string text, int marks)
+    {
+        var offset = marks * SpanIconWidth();
+        if (text.Length == 0)
+        {
+            return offset;
+        }
+
+        return offset + TextWidth(text, Font, runWidthFlags);
     }
 
     /// <summary>

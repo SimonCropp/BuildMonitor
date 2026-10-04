@@ -257,6 +257,239 @@ public class RowsCanvasTests
     }
 
     /// <summary>
+    /// The name column is as wide as its widest name, so the group with that name is the one row
+    /// with no slack: sized as one text and drawn as two, arrow then name, it was cut short with an
+    /// ellipsis beside an empty column. The link is as wide as what was drawn of the name, and the
+    /// mark's share of it is read from a row with room to spare, because both depend on the fonts
+    /// of the machine running the test.
+    /// </summary>
+    [Test]
+    public async Task TheWidestGroupNameIsDrawnInFull()
+    {
+        const string name = "FluentDateTimeOffset";
+        const string repo = $"VerifyTests/{name}";
+        var state = MonitorSession.ApplyPoll(
+            Fixtures.WithBuilds(),
+            Fixtures.GitHub.Id,
+            [
+                ..Fixtures.GitHubPipelines,
+                new($"{name}/test.yml", "test.yml", repo, repo, $"https://github.com/{repo}"),
+                new($"{name}/docs.yml", "docs.yml", repo, repo, $"https://github.com/{repo}")
+            ],
+            [
+                ..Fixtures.GitHubBuilds(),
+                Passing(name, "test.yml", "7"),
+                Passing(name, "docs.yml", "8")
+            ],
+            Fixtures.Now - TimeSpan.FromSeconds(12));
+        using var canvas = Drawn(1000, state);
+        using var bold = new Font(canvas.Font, FontStyle.Bold);
+        var group = Fixtures.RowOf(state, _ => _.Kind == RowKind.Group);
+        var settled = Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/docs.yml/main");
+
+        var mark = LinkWidth(canvas, settled, ChipKind.Repo) - TextRenderer.MeasureText("DiffEngine", canvas.Font, Size.Empty, TextFormatFlags.NoPrefix).Width;
+        var text = TextRenderer.MeasureText(name, bold, Size.Empty, TextFormatFlags.NoPrefix).Width;
+        await Assert.That(LinkWidth(canvas, group, ChipKind.Repo)).IsEqualTo(mark + text);
+    }
+
+    /// <summary>
+    /// Only a member is drawn indented, so a group on the page moves no build's second cell: every
+    /// name sized as a member's, the column was an indent wider than anything drawn in it wherever
+    /// a build's name was the widest.
+    /// </summary>
+    [Test]
+    public async Task AGroupOnThePageDoesNotIndentTheBuilds()
+    {
+        const string key = "gh/Verify/test.yml/feature/inline";
+        var alone = Fixtures.WithBuilds();
+        var grouped = Fixtures.WithTwoFailures();
+        using var aloneCanvas = Drawn(1000, alone);
+        using var groupedCanvas = Drawn(1000, grouped);
+        var expected = LinkSpan(aloneCanvas, Fixtures.RowOf(alone, _ => _.Build?.Key == key), ChipKind.Branch).Left;
+        var actual = LinkSpan(groupedCanvas, Fixtures.RowOf(grouped, _ => _.Build?.Key == key), ChipKind.Branch).Left;
+        await Assert.That(actual).IsEqualTo(expected);
+    }
+
+    /// <summary>
+    /// The room for the mark leading the second cell is reserved while any row of the page has
+    /// one, in view or not. Read from the rows in view, a list scrolled to rows without one closed
+    /// the room up, and every column after it moved as a row with a mark came back.
+    /// </summary>
+    [Test]
+    public async Task ARowKeepsItsPlaceWhenTheRowsWithMarksAreOutOfView()
+    {
+        var page = ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now).Builds!;
+        await Assert.That(page.Rows[0].DetailIcon).IsEmpty();
+        using var whole = Drawn(1000);
+        using var scrolled = new RowsCanvas
+        {
+            Size = new(1000, 400)
+        };
+        scrolled.Apply(page with { Rows = [page.Rows[0]] }, null);
+        using var bitmap = new Bitmap(1000, 400);
+        scrolled.DrawToBitmap(bitmap, new(0, 0, 1000, 400));
+
+        await Assert.That(LinkSpan(scrolled, 0, ChipKind.Pipeline)).IsEqualTo(LinkSpan(whole, 0, ChipKind.Pipeline));
+    }
+
+    static Build Passing(string name, string workflow, string run) =>
+        Fixtures.Build(
+            Fixtures.GitHub.Id,
+            $"{name}/{workflow}",
+            workflow,
+            $"VerifyTests/{name}",
+            "main",
+            run,
+            BuildStatus.Succeeded,
+            started: Fixtures.Now - TimeSpan.FromHours(3),
+            finished: Fixtures.Now - TimeSpan.FromHours(3) + TimeSpan.FromMinutes(2),
+            branchUrl: $"https://github.com/VerifyTests/{name}/tree/main");
+
+    /// <summary>
+    /// While the chips are giving way the detail column is exactly as wide as it was sized, so the
+    /// row with the widest detail has no slack, as the widest name has none in its column. Compared
+    /// as pixels with the same row drawn with room to spare, because an ellipsis moves no link, and
+    /// at a width found by narrowing the canvas, because where the chips start to give way depends
+    /// on the fonts of the machine running the test.
+    /// </summary>
+    [Test]
+    public async Task TheWidestDetailIsDrawnInFullWhileTheChipsGiveWay()
+    {
+        var state = Fixtures.WithBuilds();
+        var row = FailedRow();
+        var page = ScreenBuilder.Build(state, Fixtures.Now).Builds!;
+        using var roomy = Drawn(1000, state);
+        var widest = page.Details.MaxBy(_ => TextRenderer.MeasureText(_, roomy.Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width);
+        await Assert.That(string.Concat(page.Rows[row].Detail.Select(_ => _.Text))).IsEqualTo(widest);
+
+        using var squeezed = Squeezed(state, row, page.Rows[row].Chips[0].Kind);
+        var pipeline = LinkSpan(roomy, row, ChipKind.Pipeline);
+        var branch = LinkSpan(roomy, row, ChipKind.Branch);
+        await Assert.That(LinkSpan(squeezed, row, ChipKind.Branch)).IsEqualTo(branch);
+
+        var strip = new Rectangle(pipeline.Left, roomy.RowHeight * row, branch.Right - pipeline.Left + 1, roomy.RowHeight);
+        await Assert.That(Pixels(squeezed, strip).SequenceEqual(Pixels(roomy, strip))).IsTrue();
+    }
+
+    /// <summary>
+    /// A run's link is as wide as the run was measured, and the next run starts where it ends.
+    /// Measured without the flag it is drawn with, an ampersand was read as a mnemonic and left out
+    /// of the width, so the link stopped short and the branch was drawn over the pipeline's end.
+    /// </summary>
+    [Test]
+    public async Task ARunWithAnAmpersandIsMeasuredAsItIsDrawn()
+    {
+        const string pipeline = "Build & Test";
+        var state = MonitorSession.ApplyPoll(
+            Fixtures.WithBuilds(),
+            Fixtures.GitHub.Id,
+            [],
+            [
+                ..Fixtures.GitHubBuilds(),
+                Fixtures.Build(
+                    Fixtures.GitHub.Id,
+                    "Reports/build.yml",
+                    pipeline,
+                    "VerifyTests/Reports",
+                    "main",
+                    "9",
+                    BuildStatus.Failed,
+                    started: Fixtures.Now - TimeSpan.FromMinutes(10),
+                    finished: Fixtures.Now - TimeSpan.FromMinutes(8),
+                    branchUrl: "https://github.com/VerifyTests/Reports/tree/main")
+            ],
+            Fixtures.Now - TimeSpan.FromSeconds(12));
+        using var canvas = Drawn(1000, state);
+        var row = Fixtures.RowOf(state, _ => _.Build?.PipelineName == pipeline);
+        var text = TextRenderer.MeasureText(pipeline, canvas.Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+        await Assert.That(LinkWidth(canvas, row, ChipKind.Pipeline)).IsEqualTo(text);
+    }
+
+    /// <summary>
+    /// The canvas narrowed until the row keeps its first chip and puts the rest behind the overflow
+    /// chip: the chips column has given up some of its width and still has some left, which is when
+    /// the name and detail columns are exactly as wide as they were sized.
+    /// </summary>
+    static RowsCanvas Squeezed(SessionState state, int row, ChipKind first)
+    {
+        for (var width = 1000; width > 300; width -= 4)
+        {
+            var canvas = Drawn(width, state);
+            var from = OverflowFrom(canvas, row);
+            if (from != ChipKind.None &&
+                from != first)
+            {
+                return canvas;
+            }
+
+            canvas.Dispose();
+        }
+
+        throw new("No width puts some of the row's chips behind the overflow chip");
+    }
+
+    /// <summary>
+    /// The first of the chips the row's overflow chip stands in for, or none where it has no
+    /// overflow chip.
+    /// </summary>
+    static ChipKind OverflowFrom(RowsCanvas canvas, int row)
+    {
+        var y = canvas.RowHeight * row + canvas.RowHeight / 2;
+        for (var x = canvas.Width - 1; x >= 0; x -= 2)
+        {
+            Click(canvas, MouseButtons.Left, x, y);
+            var input = canvas.Drain();
+            if (input.ClickedOverflowRow == row)
+            {
+                return input.OverflowFrom;
+            }
+        }
+
+        return ChipKind.None;
+    }
+
+    static List<int> Pixels(RowsCanvas canvas, Rectangle area)
+    {
+        using var bitmap = new Bitmap(canvas.Width, canvas.Height);
+        canvas.DrawToBitmap(bitmap, new(0, 0, canvas.Width, canvas.Height));
+        var pixels = new List<int>();
+        for (var y = area.Top; y < area.Bottom; y++)
+        {
+            for (var x = area.Left; x < area.Right; x++)
+            {
+                pixels.Add(bitmap.GetPixel(x, y).ToArgb());
+            }
+        }
+
+        return pixels;
+    }
+
+    /// <summary>
+    /// How far along a row a link runs, from the first pixel that reports it to the last.
+    /// </summary>
+    static int LinkWidth(RowsCanvas canvas, int row, ChipKind link)
+    {
+        var (left, right) = LinkSpan(canvas, row, link);
+        return right - left + 1;
+    }
+
+    static (int Left, int Right) LinkSpan(RowsCanvas canvas, int row, ChipKind link)
+    {
+        var y = canvas.RowHeight * row + canvas.RowHeight / 2;
+        var reported = new List<int>();
+        for (var x = 0; x < canvas.Width; x++)
+        {
+            Click(canvas, MouseButtons.Left, x, y);
+            if (canvas.Drain().ClickedChip == link)
+            {
+                reported.Add(x);
+            }
+        }
+
+        return (reported.Min(), reported.Max());
+    }
+
+    /// <summary>
     /// The mark before the name opens what the name does, which is the run on a row that broke
     /// and the repository on a settled one. A picture standing for the same page as the link
     /// beside it, and doing nothing, reads as a link that failed.
