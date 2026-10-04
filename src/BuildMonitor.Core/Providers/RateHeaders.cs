@@ -74,7 +74,7 @@ static class RateHeaders
             var span = text.AsSpan();
             var end = span.IndexOfAny(',', ';');
             var number = end < 0 ? span : span[..end];
-            if (double.TryParse(number.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            if (double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
             {
                 return value;
             }

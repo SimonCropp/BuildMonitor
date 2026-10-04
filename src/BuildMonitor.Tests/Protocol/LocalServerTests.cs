@@ -224,7 +224,7 @@ public class LocalServerTests
         {
             await Assert.That(LocalServer.TryBind(0, out var server)).IsTrue();
             using var cancel = new CancelSource();
-            var listening = server!.Listen(_ => Task.FromResult(Response.Success("")), cancel.Token);
+            var listening = server!.Listen(_ => Task.FromResult(Response.Success()), cancel.Token);
             await cancel.CancelAsync();
             server.Dispose();
             await listening;
@@ -238,7 +238,7 @@ public class LocalServerTests
         using (server)
         {
             using var cancel = new CancelSource();
-            var listening = server!.Listen(_ => Task.FromResult(Response.Success("")), cancel.Token);
+            var listening = server!.Listen(_ => Task.FromResult(Response.Success()), cancel.Token);
             await cancel.CancelAsync();
             await listening;
         }

@@ -69,9 +69,12 @@ static class HeadLauncher
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                WorkingDirectory = Path.GetDirectoryName(started)
+                WorkingDirectory = Path.GetDirectoryName(started),
+                Environment =
+                {
+                    [ShimPath.Variable] = shim
+                }
             };
-            info.Environment[ShimPath.Variable] = shim;
             if (hidden)
             {
                 info.ArgumentList.Add(MonitorProgram.HiddenArgument);

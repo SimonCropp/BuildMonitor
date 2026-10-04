@@ -35,7 +35,7 @@ static class ConnectionDraft
         var server = ServerAddress.Normalize(form.Value(FormFields.Server));
         var user = form.Value(FormFields.User).Trim();
         var clientId = form.Value(FormFields.ClientId).Trim();
-        var callbackPort = int.TryParse(form.Value(FormFields.CallbackPort).Trim(), out var parsedPort) ? parsedPort : (int?) null;
+        var callbackPort = int.TryParse(form.Value(FormFields.CallbackPort), out var parsedPort) ? parsedPort : (int?) null;
         return new()
         {
             Id = form.ConnectionId,
@@ -71,7 +71,7 @@ static class ConnectionDraft
     {
         var descriptor = form.Descriptor;
         if (descriptor is {SelfHosted: true, DefaultServer: null} &&
-            form.Value(FormFields.Server).Trim().Length == 0)
+            string.IsNullOrWhiteSpace(form.Value(FormFields.Server)))
         {
             return new("Enter the server URL.", FormFields.Server);
         }
@@ -87,14 +87,14 @@ static class ConnectionDraft
         foreach (var scope in descriptor.Scopes.Where(_ => _.Required))
         {
             var id = FormFields.Scope(scope.Id);
-            if (form.Value(id).Trim().Length == 0)
+            if (string.IsNullOrWhiteSpace(form.Value(id)))
             {
                 return Required(scope.Label, id);
             }
         }
 
         if (descriptor.UserLabel is not null &&
-            form.Value(FormFields.User).Trim().Length == 0)
+            string.IsNullOrWhiteSpace(form.Value(FormFields.User)))
         {
             return Required(descriptor.UserLabel, FormFields.User);
         }
