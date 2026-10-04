@@ -175,6 +175,27 @@ public class GitLabProviderTests
     }
 
     [Test]
+    public async Task ANullListOfProjectsIsFetchedOverRest()
+    {
+        // The schema allows null where a connection's nodes go, which covers no project.
+        var handler = Rest(Handler().Get(graph, """{"data":{"projects":{"nodes":null}}}"""));
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
+        await Assert.That(builds.Count).IsEqualTo(2);
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/pipelines?per_page=5"))).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AProjectWhoseListOfPipelinesIsNullHasNoneAndIsNotAskedAgainOverRest()
+    {
+        var handler = Handler()
+            .Get(graph, """{"data":{"projects":{"nodes":[{"id":"gid://gitlab/Project/77","pipelines":{"nodes":null}}]}}}""")
+            .Get(mainPipelines, "[]");
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("gitlab", ProviderTestHelpers.Context("gitlab", handler));
+        await Assert.That(builds).IsEmpty();
+        await Assert.That(handler.Requests.Count(_ => _.Contains("/pipelines?per_page=5"))).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task ProjectsAreAskedForFiftyAtATime()
     {
         var pipelines = Enumerable.Range(1, 51)

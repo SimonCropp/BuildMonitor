@@ -106,7 +106,7 @@ sealed class GitLabProvider : ProviderBase
     /// </summary>
     static TimeSpan graphRetry = TimeSpan.FromHours(1);
 
-    const string graphFailed = "gitlab.graph-failed";
+    internal const string graphFailed = "gitlab.graph-failed";
 
     public override async Task<IReadOnlyList<Build>> FetchBuilds(ProviderContext context, IReadOnlyList<Pipeline> pipelines, int perPipeline, Cancel cancel)
     {
@@ -237,12 +237,14 @@ sealed class GitLabProvider : ProviderBase
 
             covered.Add(pipeline.Id);
             var pipelinesNodes = project.Pipelines?.Nodes;
-            if (pipelinesNodes != null)
+            if (pipelinesNodes == null)
             {
-                foreach (var node in pipelinesNodes)
-                {
-                    builds.Add(Convert(context.Connection.Id, pipeline, Run(node, pipeline), node.User?.Name, node.MergeRequest));
-                }
+                continue;
+            }
+
+            foreach (var node in pipelinesNodes)
+            {
+                builds.Add(Convert(context.Connection.Id, pipeline, Run(node, pipeline), node.User?.Name, node.MergeRequest));
             }
         }
 

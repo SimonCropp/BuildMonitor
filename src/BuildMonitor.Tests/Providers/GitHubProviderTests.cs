@@ -208,6 +208,24 @@ public class GitHubProviderTests
     }
 
     [Test]
+    public async Task ARunWhosePullRequestsAreNullIsStillShown()
+    {
+        // The API's schema allows null where the list of pull requests goes, and reading the first
+        // of a null list failed the whole fetch.
+        var handler = Handler()
+            .Get(
+                "https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5",
+                """
+                {"total_count":1,"workflow_runs":[
+                  {"id":499,"workflow_id":10,"run_number":1233,"status":"completed","conclusion":"failure","head_branch":"main","head_sha":"fedcba9876543210","display_title":"Feature","html_url":"https://github.com/VerifyTests/DiffEngine/actions/runs/499","created_at":"2026-01-01T11:00:00Z","updated_at":"2026-01-01T11:05:00Z","run_started_at":"2026-01-01T11:00:30Z","pull_requests":null}
+                ]}
+                """);
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", ProviderTestHelpers.Context("github", handler));
+        await Assert.That(builds.Select(_ => _.RunNumber)).IsEquivalentTo(["1233"]);
+        await Assert.That(builds[0].PullRequestNumber).IsNull();
+    }
+
+    [Test]
     public async Task ASkippedWorkflowRunRunHidesItsBranch()
     {
         // A workflow_run run is about the run that triggered it, one pull request's, so a failure

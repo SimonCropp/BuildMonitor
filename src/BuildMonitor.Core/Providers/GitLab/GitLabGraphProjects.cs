@@ -1,4 +1,4 @@
 class GitLabGraphProjects
 {
-    public List<GitLabGraphProject> Nodes { get; set; } = [];
+    public List<GitLabGraphProject>? Nodes { get; set; }
 }

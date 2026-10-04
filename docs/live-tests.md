@@ -25,6 +25,8 @@ They live in `src/BuildMonitor.Tests/Providers/Live`. Both classes are `[Explici
 | `Fetch` | Builds for the sandbox's poll group and up to five others. Every build belongs to a pipeline that was asked for, links to an absolute URL, and carries what a retry, cancel or log needs. No state the sandbox goes through maps to Unknown. |
 | `ConditionalFetch` | A second fetch through the same cache revalidates every ETag the first received. When every answer is a 304, the builds are unchanged. |
 | `RecentActivity` | The activity probe answers with tokens for real poll groups, and the tokens hold still while nothing changes. GitLab and Octopus have no probe. |
+| `RecentSuccesses` | The successes that seed a pipeline's duration history, asked of the sandbox and two others, are passed runs of the pipeline asked about. Only GitHub has a call for them, and a sandbox that only fails has none. |
+| `FetchOverRest` | GitLab only. A fetch with GraphQL marked as failed sends nothing to GraphQL and finds builds over REST where GraphQL found them. |
 | `FailedBuildLog` | The newest failed build has a log, and a sandbox's log contains the marker `BuildMonitor live test`. |
 | `Artifacts` | The newest failed build's files are listed, and the one `BUILDMONITOR_{ID}_ARTIFACT` names downloads, with the count returned matching what was written and a cap past it throwing rather than writing the file in full. The bytes are not read for the marker: several services answer with a zip of the build's files rather than the file itself. |
 | `PollCycles` | Two cycles of the app's own poller, two minutes apart on its clock, both end healthy. |

@@ -223,6 +223,95 @@ public class LiveReadTests
     }
 
     /// <summary>
+    /// The successes the poller seeds a pipeline's duration history from, asked of the sandbox and
+    /// two others. A sandbox that only fails has none, so what comes back is checked rather than
+    /// required: the poller records each as a success of the pipeline it asked about.
+    /// </summary>
+    [Test]
+    [MethodDataSource(typeof(LiveSettings), nameof(LiveSettings.ProviderIds))]
+    [Timeout(LiveSettings.ReadTimeout)]
+    public async Task RecentSuccesses(string providerId, Cancel cancel)
+    {
+        var live = LiveConnection.Require(providerId);
+        var session = await LiveSessions.Get(live, cancel);
+        var context = session.Context();
+        var asked = session.Groups(3)
+            .Select(_ => _.Pipelines[0])
+            .ToList();
+        // The sandbox's group comes first, and the sandbox need not be the first pipeline in it.
+        if (session.Sandbox is { } sandbox &&
+            asked.Count > 0)
+        {
+            asked[0] = sandbox;
+        }
+
+        var total = 0;
+        foreach (var pipeline in asked)
+        {
+            var successes = await live.Provider.RecentSuccesses(context, pipeline, cancel);
+            total += successes.Count;
+            LiveLog.Line($"{providerId}: {successes.Count} recent successes of {pipeline.Name}");
+            var foreign = successes.Count(_ => _.ConnectionId != live.Connection.Id ||
+                                               _.PipelineId != pipeline.Id);
+            await Assert.That(foreign).IsEqualTo(0).Because($"{providerId}: a success of another pipeline would seed this one's durations with its own");
+            var unsuccessful = successes.Count(_ => _.Status != BuildStatus.Succeeded);
+            await Assert.That(unsuccessful).IsEqualTo(0).Because($"{providerId}: a run that did not pass is no measure of how long a pass takes");
+            var unlinked = successes.Count(_ => !Absolute(_.BuildUrl));
+            await Assert.That(unlinked).IsEqualTo(0).Because($"{providerId}: a build link that is not an absolute http(s) URL opens nothing");
+        }
+
+        if (total == 0)
+        {
+            LiveLog.Warning($"{providerId}: no recent success among {asked.Count} pipelines, so nothing of one was checked");
+        }
+    }
+
+    /// <summary>
+    /// GitLab's fetch with GraphQL marked as failed, as it is for an hour after a server answers
+    /// it with an error. A gitlab.com run otherwise never takes the REST route, and a change to it
+    /// would first show on a self-hosted server without GraphQL.
+    /// </summary>
+    [Test]
+    [MethodDataSource(typeof(LiveSettings), nameof(LiveSettings.ProviderIds))]
+    [Timeout(LiveSettings.ReadTimeout)]
+    public async Task FetchOverRest(string providerId, Cancel cancel)
+    {
+        var live = LiveConnection.Require(providerId);
+        if (providerId != "gitlab")
+        {
+            Skip.Test($"{providerId}: the provider has one route to its builds.");
+        }
+
+        var session = await LiveSessions.Get(live, cancel);
+        var groups = session.Groups(6);
+        var overGraph = await session.Fetch(session.Context(), groups, cancel);
+        var memory = new ProviderMemory();
+        memory.Set(GitLabProvider.graphFailed, DateTimeOffset.UtcNow);
+        using var counting = new CountingHandler(LiveConnection.Handler);
+        var overRest = await session.Fetch(live.Context(memory, through: counting, access: session.Access), groups, cancel);
+        LiveLog.Line($"{providerId}: {overRest.Count} builds over REST in {counting.Requests} requests, {overGraph.Count} over GraphQL: {LiveLog.Counts(overRest)}");
+        var graphRequests = counting.Requested.Keys.Count(_ => _.Contains("/graphql", StringComparison.Ordinal));
+        await Assert.That(graphRequests).IsEqualTo(0).Because($"{providerId}: GraphQL marked as failed should not be asked again within the hour");
+        var unlinked = overRest.Count(_ => !Absolute(_.BuildUrl));
+        await Assert.That(unlinked).IsEqualTo(0).Because($"{providerId}: a build link that is not an absolute http(s) URL opens nothing");
+        var unactionable = overRest.Count(_ => _.ProviderRef.Length == 0);
+        await Assert.That(unactionable).IsEqualTo(0).Because($"{providerId}: a build without a ProviderRef cannot be retried, cancelled or have its log read");
+        // A pipeline starting between the two fetches is in one and not the other, so the
+        // difference is reported rather than failed on.
+        var graphRuns = overGraph.Select(_ => $"{_.PipelineId}/{_.ProviderRef}").ToHashSet();
+        var restRuns = overRest.Select(_ => $"{_.PipelineId}/{_.ProviderRef}").ToHashSet();
+        if (!graphRuns.SetEquals(restRuns))
+        {
+            LiveLog.Warning($"{providerId}: the two routes disagree about {graphRuns.Except(restRuns).Count()} builds only GraphQL gave and {restRuns.Except(graphRuns).Count()} only REST gave");
+        }
+
+        if (overGraph.Count > 0)
+        {
+            await Assert.That(overRest.Count).IsGreaterThan(0).Because($"{providerId}: REST found nothing where GraphQL found builds");
+        }
+    }
+
+    /// <summary>
     /// What became of each failed branch among the builds fetched, asked as the poller asks, of a
     /// service that holds repositories. Which answer is right depends on what happened to the
     /// branches, so they are logged rather than checked; none may throw, since a question that
