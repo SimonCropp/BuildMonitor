@@ -41,7 +41,12 @@ sealed class JenkinsProvider : ProviderBase
 
     static async Task Walk(ProviderContext context, JenkinsNode node, List<string> path, JenkinsNode? multibranch, List<Pipeline> pipelines, Cancel cancel)
     {
-        foreach (var job in node.Jobs ?? [])
+        if (node.Jobs is null)
+        {
+            return;
+        }
+
+        foreach (var job in node.Jobs)
         {
             var name = job.DisplayName ?? job.Name;
             var container = IsContainer(job.Class);
@@ -125,7 +130,12 @@ sealed class JenkinsProvider : ProviderBase
 
     static void Collect(JenkinsNode node, ImmutableDictionary<string, string>.Builder tokens)
     {
-        foreach (var job in node.Jobs ?? [])
+        if (node.Jobs is null)
+        {
+            return;
+        }
+
+        foreach (var job in node.Jobs)
         {
             if (IsContainer(job.Class))
             {

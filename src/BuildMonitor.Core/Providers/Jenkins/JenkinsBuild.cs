@@ -14,9 +14,29 @@
     /// declared it called it. A build's parameters arrive in one of its actions, among actions
     /// that carry none.
     /// </summary>
-    public string? Parameter(string name) =>
-        (Actions ?? [])
-        .SelectMany(_ => _.Parameters ?? [])
-        .FirstOrDefault(_ => string.Equals(_.Name, name, StringComparison.OrdinalIgnoreCase))
-        ?.Value;
+    public string? Parameter(string name)
+    {
+        if (Actions is null)
+        {
+            return null;
+        }
+
+        foreach (var action in Actions)
+        {
+            if (action.Parameters is null)
+            {
+                continue;
+            }
+
+            foreach (var parameter in action.Parameters)
+            {
+                if (string.Equals(parameter.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return parameter.Value;
+                }
+            }
+        }
+
+        return null;
+    }
 }

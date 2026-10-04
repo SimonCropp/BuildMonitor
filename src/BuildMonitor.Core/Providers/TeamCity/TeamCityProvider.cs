@@ -82,10 +82,14 @@ sealed class TeamCityProvider : ProviderBase
                     continue;
                 }
 
-                var kept = (type.Builds?.Build ?? [])
-                    .Where(_ => !RemovedFromQueue(_))
-                    .Take(perPipeline)
-                    .ToList();
+                var kept = new List<TeamCityBuild>();
+                if (type.Builds?.Build is { } typeBuilds)
+                {
+                    kept.AddRange(typeBuilds
+                        .Where(_ => !RemovedFromQueue(_))
+                        .Take(perPipeline));
+                }
+
                 var defaultBranch = DefaultBranch(context, pipeline, kept);
                 builds.AddRange(kept.Select(_ => Convert(context, pipeline, _) with { DefaultBranch = defaultBranch }));
                 if (MissesDefaultRun(context, pipeline, kept, defaultBranch))

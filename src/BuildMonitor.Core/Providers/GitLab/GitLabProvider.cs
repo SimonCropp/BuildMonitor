@@ -213,15 +213,22 @@ sealed class GitLabProvider : ProviderBase
             return [];
         }
 
-        if (response.Errors is { Count: > 0 } errors)
+        if (response.Errors is {Count: > 0} errors)
         {
             Log.Warning("GitLab GraphQL answered with an error; fetching over REST for an hour: {Error}", errors[0].Message);
             context.Memory.Set(graphFailed, DateTimeOffset.UtcNow);
             return [];
         }
 
+
+        var nodes = response.Data?.Projects?.Nodes;
+        if (nodes == null)
+        {
+            return [];
+        }
+
         var covered = new HashSet<string>();
-        foreach (var project in response.Data?.Projects?.Nodes ?? [])
+        foreach (var project in nodes)
         {
             if (!byGlobalId.TryGetValue(project.Id, out var pipeline))
             {
@@ -229,9 +236,13 @@ sealed class GitLabProvider : ProviderBase
             }
 
             covered.Add(pipeline.Id);
-            foreach (var node in project.Pipelines?.Nodes ?? [])
+            var pipelinesNodes = project.Pipelines?.Nodes;
+            if (pipelinesNodes != null)
             {
-                builds.Add(Convert(context.Connection.Id, pipeline, Run(node, pipeline), node.User?.Name, node.MergeRequest));
+                foreach (var node in pipelinesNodes)
+                {
+                    builds.Add(Convert(context.Connection.Id, pipeline, Run(node, pipeline), node.User?.Name, node.MergeRequest));
+                }
             }
         }
 
@@ -253,7 +264,12 @@ sealed class GitLabProvider : ProviderBase
         var onBranch = branch is null ? "" : $"&ref={Encode(branch)}";
         // A project deleted since discovery answers with a 404, which would fail the whole fetch;
         // it has no builds until the next discovery drops it.
-        var runs = await GetOrNone(context, $"projects/{pipeline.Id}/pipelines?per_page={perPipeline}{onBranch}{updated}", GitLabContext.Default.ListGitLabPipeline, cancel) ?? [];
+        var runs = await GetOrNone(context, $"projects/{pipeline.Id}/pipelines?per_page={perPipeline}{onBranch}{updated}", GitLabContext.Default.ListGitLabPipeline, cancel);
+        if (runs is null)
+        {
+            return builds;
+        }
+
         foreach (var run in runs)
         {
             // The listing carries no timings; only a live run is worth the second call. They go on a

@@ -262,7 +262,15 @@ sealed class DbusMenuHandler(SniTray owner) : IPathMethodHandler
                 break;
             case "icon-data":
                 writer.WriteSignature("ay");
-                writer.WriteArray(node.IconPng ?? []);
+                if (node.IconPng is { } icon)
+                {
+                    writer.WriteArray(icon);
+                }
+                else
+                {
+                    writer.WriteArray(Array.Empty<byte>());
+                }
+
                 break;
         }
     }

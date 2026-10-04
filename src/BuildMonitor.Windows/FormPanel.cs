@@ -149,9 +149,13 @@ sealed class FormPanel : Panel
             {
                 var select = new SelectControl
                 {
-                    Options = field.Options ?? [],
                     Margin = DpiScale.Spacing(this, 3, 4, 3, 4)
                 };
+                if (field.Options is { } options)
+                {
+                    select.Options = options;
+                }
+
                 select.ValueChanged += (_, _) => Changed(field.Id, select.Value);
                 return (Label(field.Label), select);
             }

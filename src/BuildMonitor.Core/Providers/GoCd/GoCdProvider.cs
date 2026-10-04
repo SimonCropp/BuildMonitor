@@ -96,12 +96,31 @@ sealed class GoCdProvider : ProviderBase
         var tokens = ImmutableDictionary.CreateBuilder<string, string>();
         foreach (var pipeline in dashboard.Pipelines)
         {
-            var instances = (pipeline.Embedded?.Instances ?? [])
-                .Select(_ => $"{_.Counter}:{string.Join(',', (_.Embedded?.Stages ?? []).Select(stage => $"{stage.Name}={stage.Status}"))}");
-            tokens[pipeline.Name] = string.Join(';', instances);
+            var instances = pipeline.Embedded?.Instances;
+            if (instances == null)
+            {
+                tokens[pipeline.Name] = "";
+            }
+            else
+            {
+                var instanceTokens = instances
+                    .Select(_ => $"{_.Counter}:{StageTokens(_)}");
+                tokens[pipeline.Name] = string.Join(';', instanceTokens);
+            }
         }
 
         return tokens.ToImmutable();
+    }
+
+    static string StageTokens(GoCdDashboardInstance instance)
+    {
+        var stages = instance.Embedded?.Stages;
+        if (stages is null)
+        {
+            return "";
+        }
+
+        return string.Join(',', stages.Select(_ => $"{_.Name}={_.Status}"));
     }
 
     static string Server(ProviderContext context) =>
@@ -243,13 +262,16 @@ sealed class GoCdProvider : ProviderBase
 
     public override Task Retry(ProviderContext context, Build build, Cancel cancel)
     {
+        var http = context.Http;
+
         var parts = Split(build);
+
         if (parts[2].Length > 0)
         {
-            return context.Http.Send(HttpMethod.Post, $"stages/{Encode(parts[0])}/{parts[1]}/{Encode(parts[2])}/{parts[3]}/run-failed-jobs", null, cancel, [confirm]);
+            return http.Send(HttpMethod.Post, $"stages/{Encode(parts[0])}/{parts[1]}/{Encode(parts[2])}/{parts[3]}/run-failed-jobs", null, cancel, [confirm]);
         }
 
-        return context.Http.Send(HttpMethod.Post, $"pipelines/{Encode(parts[0])}/schedule", HttpJson.Json("{}"), cancel, [confirm]);
+        return http.Send(HttpMethod.Post, $"pipelines/{Encode(parts[0])}/schedule", HttpJson.Json("{}"), cancel, [confirm]);
     }
 
     public override Task Cancel(ProviderContext context, Build build, Cancel cancel)

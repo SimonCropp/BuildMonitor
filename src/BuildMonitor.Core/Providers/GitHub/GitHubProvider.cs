@@ -381,32 +381,36 @@ sealed class GitHubProvider : ProviderBase
             $"repos/{repository}/actions/workflows/{workflowId}/runs?branch={Encode(branch)}&per_page={perPipeline}",
             GitHubContext.Default.GitHubRuns,
             cancel);
-        foreach (var run in runs?.WorkflowRuns ?? [])
+        var workflowRuns = runs?.WorkflowRuns;
+        if (workflowRuns != null)
         {
-            if (IsIgnoredSkip(run))
+            foreach (var run in workflowRuns)
             {
-                continue;
-            }
+                if (IsIgnoredSkip(run))
+                {
+                    continue;
+                }
 
-            var build = Convert(context.Connection.Id, repository, pipeline, run, change);
-            if (build.Branch != branch)
-            {
-                continue;
-            }
+                var build = Convert(context.Connection.Id, repository, pipeline, run, change);
+                if (build.Branch != branch)
+                {
+                    continue;
+                }
 
-            if (context.Since is { } since &&
-                !HistoryCutoff.Keeps(build, since))
-            {
-                break;
-            }
+                if (context.Since is { } since &&
+                    !HistoryCutoff.Keeps(build, since))
+                {
+                    break;
+                }
 
-            DefaultRunMemory.Found(memory, pipeline.Id, branch);
-            if (IsHiddenSkip(run))
-            {
-                return null;
-            }
+                DefaultRunMemory.Found(memory, pipeline.Id, branch);
+                if (IsHiddenSkip(run))
+                {
+                    return null;
+                }
 
-            return build;
+                return build;
+            }
         }
 
         DefaultRunMemory.None(memory, pipeline.Id, branch, now);
@@ -445,9 +449,14 @@ sealed class GitHubProvider : ProviderBase
             $"repos/{pipeline.RepoName}/actions/workflows/{workflowId}/runs?status=success&per_page=10",
             GitHubContext.Default.GitHubRuns,
             cancel);
-        return runs?
+        if (runs is null)
+        {
+            return [];
+        }
+
+        return runs
             .WorkflowRuns
-            .Select(_ => Convert(context.Connection.Id, pipeline.RepoName, pipeline, _, false)).ToList() ?? [];
+            .Select(_ => Convert(context.Connection.Id, pipeline.RepoName, pipeline, _, false)).ToList();
     }
 
     static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRun run, bool change)

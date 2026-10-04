@@ -272,16 +272,35 @@ sealed class RowsCanvas : Control
         Same(previous.Names, next.Names) &&
         Same(previous.GroupNames, next.GroupNames) &&
         Same(previous.Details, next.Details) &&
-        Same(previous.Authors ?? [], next.Authors ?? []) &&
-        Same(previous.MemberNames ?? [], next.MemberNames ?? []) &&
-        Same(previous.MarkedGroupNames ?? [], next.MarkedGroupNames ?? []) &&
-        Same(previous.MarkedDetails ?? [], next.MarkedDetails ?? []) &&
+        Same(previous.Authors, next.Authors) &&
+        Same(previous.MemberNames, next.MemberNames) &&
+        Same(previous.MarkedGroupNames, next.MarkedGroupNames) &&
+        Same(previous.MarkedDetails, next.MarkedDetails) &&
         previous.NameMarks == next.NameMarks &&
         previous.DetailMarks == next.DetailMarks;
 
-    static bool Same(IReadOnlyList<string> previous, IReadOnlyList<string> next) =>
-        ReferenceEquals(previous, next) ||
-        previous.SequenceEqual(next);
+    /// <summary>
+    /// A list that is absent sizes its column as an empty one does, so the two are the same.
+    /// </summary>
+    static bool Same(IReadOnlyList<string>? previous, IReadOnlyList<string>? next)
+    {
+        if (ReferenceEquals(previous, next))
+        {
+            return true;
+        }
+
+        if (previous is null)
+        {
+            return next!.Count == 0;
+        }
+
+        if (next is null)
+        {
+            return previous.Count == 0;
+        }
+
+        return previous.SequenceEqual(next);
+    }
 
     Rectangle RowBounds(int row) =>
         new(0, row * RowHeight, Width, RowHeight);
@@ -488,9 +507,14 @@ sealed class RowsCanvas : Control
         var gap = LogicalToDeviceUnits(padding);
         // As wide as the widest name shown, up to twenty characters, and gone with its gap when no
         // failed build names anyone.
-        var authorWidth = Math.Min(
-            (builds.Authors ?? []).Select(_ => MeasureName(_, Font)).DefaultIfEmpty().Max(),
-            MeasureName(new('0', 20), Font));
+        var authorWidth = 0;
+        if (builds.Authors is { } authors)
+        {
+            authorWidth = Math.Min(
+                authors.Select(_ => MeasureName(_, Font)).DefaultIfEmpty().Max(),
+                MeasureName(new('0', 20), Font));
+        }
+
         // After the status square, a gap after each of the name, detail, timing and chips, and the
         // author and its gap when shown.
         var available = Width - RowHeight - TimingWidth() - 5 * gap - (authorWidth > 0 ? authorWidth + gap : 0);
@@ -499,11 +523,20 @@ sealed class RowsCanvas : Control
         // as well, every group behind its arrow, and those with a mark with its width as well. A
         // member's blank cell draws nothing, so it wants no room. Taking every name as a member
         // with a mark gave the column an indent's width that no row drew in.
-        var nameWanted = builds.Names
+        var nameCells = builds.Names
             .Select(_ => NameCell(_, RowKind.Build, true, markWidth))
-            .Concat((builds.MemberNames ?? []).Where(_ => _.Length > 0).Select(_ => NameCell(_, RowKind.Member, true, markWidth)))
-            .Concat(builds.GroupNames.Select(_ => NameCell(_, RowKind.Group, false, markWidth)))
-            .Concat((builds.MarkedGroupNames ?? []).Select(_ => NameCell(_, RowKind.Group, true, markWidth)))
+            .Concat(builds.GroupNames.Select(_ => NameCell(_, RowKind.Group, false, markWidth)));
+        if (builds.MemberNames is { } memberNames)
+        {
+            nameCells = nameCells.Concat(memberNames.Where(_ => _.Length > 0).Select(_ => NameCell(_, RowKind.Member, true, markWidth)));
+        }
+
+        if (builds.MarkedGroupNames is { } markedGroupNames)
+        {
+            nameCells = nameCells.Concat(markedGroupNames.Select(_ => NameCell(_, RowKind.Group, true, markWidth)));
+        }
+
+        var nameWanted = nameCells
             .Select(_ => _.Indent + _.Mark + _.Text)
             .DefaultIfEmpty()
             .Max();
@@ -512,9 +545,14 @@ sealed class RowsCanvas : Control
         // past that a long pipeline or branch is cut short rather than pushing every row's chips
         // into the drop down.
         var longest = new string('0', 40);
-        var detailWanted = iconWidth + builds.Details
-            .Select(_ => Math.Min(DetailOffset(_, 0), DetailOffset(longest, 0)))
-            .Concat((builds.MarkedDetails ?? []).Select(_ => Math.Min(DetailOffset(_, 1), DetailOffset(longest, 1))))
+        var detailOffsets = builds.Details
+            .Select(_ => Math.Min(DetailOffset(_, 0), DetailOffset(longest, 0)));
+        if (builds.MarkedDetails is { } markedDetails)
+        {
+            detailOffsets = detailOffsets.Concat(markedDetails.Select(_ => Math.Min(DetailOffset(_, 1), DetailOffset(longest, 1))));
+        }
+
+        var detailWanted = iconWidth + detailOffsets
             .DefaultIfEmpty()
             .Max();
         var widest = WidestChips();

@@ -84,29 +84,53 @@ sealed unsafe class ScreenPayload
             screen.Empty = Add(builds.Empty);
             screen.NameMarks = builds.NameMarks ? 1 : 0;
             screen.DetailMarks = builds.DetailMarks ? 1 : 0;
-            var memberNames = builds.MemberNames ?? [];
-            var markedGroupNames = builds.MarkedGroupNames ?? [];
-            var markedDetails = builds.MarkedDetails ?? [];
             screen.NameCount = builds.Names.Count;
             screen.GroupNameCount = builds.GroupNames.Count;
-            screen.MemberNameCount = memberNames.Count;
-            screen.MarkedGroupNameCount = markedGroupNames.Count;
-            foreach (var name in builds.Names.Concat(builds.GroupNames).Concat(memberNames).Concat(markedGroupNames))
+            foreach (var name in builds.Names.Concat(builds.GroupNames))
             {
                 names.Add(Add(name));
             }
 
+            if (builds.MemberNames is { } memberNames)
+            {
+                screen.MemberNameCount = memberNames.Count;
+                foreach (var name in memberNames)
+                {
+                    names.Add(Add(name));
+                }
+            }
+
+            if (builds.MarkedGroupNames is { } markedGroupNames)
+            {
+                screen.MarkedGroupNameCount = markedGroupNames.Count;
+                foreach (var name in markedGroupNames)
+                {
+                    names.Add(Add(name));
+                }
+            }
+
             // The marked ones after the rest, as the member and marked group names follow the names.
             screen.DetailCount = builds.Details.Count;
-            screen.MarkedDetailCount = markedDetails.Count;
-            foreach (var detail in builds.Details.Concat(markedDetails))
+            foreach (var detail in builds.Details)
             {
                 details.Add(Add(detail));
             }
 
-            foreach (var author in builds.Authors ?? [])
+            if (builds.MarkedDetails is { } markedDetails)
             {
-                authors.Add(Add(author));
+                screen.MarkedDetailCount = markedDetails.Count;
+                foreach (var detail in markedDetails)
+                {
+                    details.Add(Add(detail));
+                }
+            }
+
+            if (builds.Authors is { } authorNames)
+            {
+                foreach (var author in authorNames)
+                {
+                    authors.Add(Add(author));
+                }
             }
 
             foreach (var row in builds.Rows)

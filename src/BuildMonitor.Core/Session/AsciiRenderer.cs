@@ -92,20 +92,35 @@ static class AsciiRenderer
         // "[-] " leads a group's name, and a member is indented by as much. Each name as the kind
         // of row that shows it: indenting every name wherever the page had a group made the column
         // wider than anything written in it. A member's blank cell needs no room.
-        var longestName = page.Names
+        var nameLengths = page.Names
             .Select(_ => _.Length)
-            .Concat((page.MemberNames ?? []).Where(_ => _.Length > 0).Select(_ => _.Length + indent))
-            .Concat(page.GroupNames.Select(_ => _.Length + indent))
+            .Concat(page.GroupNames.Select(_ => _.Length + indent));
+        if (page.MemberNames is { } memberNames)
+        {
+            nameLengths = nameLengths.Concat(memberNames.Where(_ => _.Length > 0).Select(_ => _.Length + indent));
+        }
+
+        var longestName = nameLengths
             .DefaultIfEmpty()
             .Max();
         // The details are text alone, so the mark's width is added to those that carry one, as the
         // pixel heads add the width of its picture.
-        var longestDetail = page.Details
-            .Select(_ => _.Length)
-            .Concat((page.MarkedDetails ?? []).Select(_ => _.Length + DetailSpan.BranchIconText.Length))
+        var detailLengths = page.Details
+            .Select(_ => _.Length);
+        if (page.MarkedDetails is { } markedDetails)
+        {
+            detailLengths = detailLengths.Concat(markedDetails.Select(_ => _.Length + DetailSpan.BranchIconText.Length));
+        }
+
+        var longestDetail = detailLengths
             .DefaultIfEmpty()
             .Max();
-        var author = Math.Min((page.Authors ?? []).Select(_ => _.Length).DefaultIfEmpty().Max(), maximumAuthor);
+        var author = 0;
+        if (page.Authors is { } authors)
+        {
+            author = Math.Min(authors.Select(_ => _.Length).DefaultIfEmpty().Max(), maximumAuthor);
+        }
+
         var layout = Layout(inner, page.Providers, longestName, longestDetail, author);
         return page.Rows.Select(_ => RowLine(_, layout)).ToList();
     }

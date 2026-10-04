@@ -278,8 +278,14 @@ sealed class AppVeyorProvider : ProviderBase
     {
         var version = Split(build)[1];
         var detail = await context.Http.Get($"api/projects/{build.PipelineId}/build/{Encode(version)}", AppVeyorContext.Default.AppVeyorBuildDetail, cancel);
+        var detailBuild = detail.Build;
+        if (detailBuild == null)
+        {
+            return "";
+        }
+
         var logs = new List<(string Name, string Log)>();
-        foreach (var job in detail.Build?.Jobs.Where(_ => _.Status == "failed") ?? [])
+        foreach (var job in detailBuild.Jobs.Where(_ => _.Status == "failed"))
         {
             var name = string.IsNullOrEmpty(job.Name) ? job.JobId : job.Name;
             logs.Add((name, await context.Http.GetLog($"api/buildjobs/{job.JobId}/log", cancel)));
@@ -306,11 +312,18 @@ sealed class AppVeyorProvider : ProviderBase
     public override async Task<IReadOnlyList<BuildArtifact>> ListArtifacts(ProviderContext context, Build build, Cancel cancel)
     {
         var version = Split(build)[1];
-        var detail = await context.Http.Get($"api/projects/{build.PipelineId}/build/{Encode(version)}", AppVeyorContext.Default.AppVeyorBuildDetail, cancel);
+        var http = context.Http;
+        var detail = await http.Get($"api/projects/{build.PipelineId}/build/{Encode(version)}", AppVeyorContext.Default.AppVeyorBuildDetail, cancel);
         var artifacts = new List<BuildArtifact>();
-        foreach (var job in (detail.Build?.Jobs ?? []).Take(maxArtifactJobs))
+        var jobs = detail.Build?.Jobs;
+        if (jobs is null)
         {
-            var listed = await context.Http.Get($"api/buildjobs/{job.JobId}/artifacts", AppVeyorContext.Default.ListAppVeyorArtifact, cancel);
+            return [];
+        }
+
+        foreach (var job in jobs.Take(maxArtifactJobs))
+        {
+            var listed = await http.Get($"api/buildjobs/{job.JobId}/artifacts", AppVeyorContext.Default.ListAppVeyorArtifact, cancel);
             // The job id travels with the file name, because a download is addressed by both and a
             // build's artifacts come from several jobs.
             artifacts.AddRange(listed.Select(_ => new BuildArtifact($"{job.JobId}|{_.FileName}", _.FileName, _.Size)));

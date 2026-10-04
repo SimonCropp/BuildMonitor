@@ -271,11 +271,12 @@ sealed class TravisProvider : ProviderBase
     /// </summary>
     public override async Task<string> FetchLog(ProviderContext context, Build build, Cancel cancel)
     {
-        var jobs = await context.Http.Get($"build/{build.ProviderRef}/jobs", TravisContext.Default.TravisJobs, cancel);
+        var http = context.Http;
+        var jobs = await http.Get($"build/{build.ProviderRef}/jobs", TravisContext.Default.TravisJobs, cancel);
         var logs = new List<(string Name, string Log)>();
         foreach (var job in jobs.Jobs.Where(_ => _ is { State: "failed" or "errored", AllowFailure: false }))
         {
-            logs.Add(($"Job {job.Number}", await context.Http.GetLog($"job/{job.Id}/log.txt", cancel)));
+            logs.Add(($"Job {job.Number}", await http.GetLog($"job/{job.Id}/log.txt", cancel)));
         }
 
         return Sections(logs);
