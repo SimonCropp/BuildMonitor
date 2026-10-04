@@ -1,4 +1,4 @@
 ﻿class TeamCityRevisions
 {
-    public List<TeamCityRevision> Revision { get; set; } = [];
+    public List<TeamCityRevision>? Revision { get; set; }
 }

@@ -9,5 +9,5 @@ class GoCdArtifactEntry
     public string? Type { get; set; }
     public string? Url { get; set; }
     public long? Size { get; set; }
-    public List<GoCdArtifactEntry> Files { get; set; } = [];
+    public List<GoCdArtifactEntry>? Files { get; set; }
 }

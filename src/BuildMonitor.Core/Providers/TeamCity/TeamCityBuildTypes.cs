@@ -1,4 +1,4 @@
 ﻿class TeamCityBuildTypes
 {
-    public List<TeamCityBuildType> BuildType { get; set; } = [];
+    public List<TeamCityBuildType>? BuildType { get; set; }
 }

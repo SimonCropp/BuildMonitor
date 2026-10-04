@@ -45,6 +45,11 @@ sealed class TeamCityProvider : ProviderBase
             $"buildTypes?locator=affectedProject:(id:{Encode(Project(context))})&fields=buildType(id,name,projectName,projectId,webUrl)",
             TeamCityContext.Default.TeamCityBuildTypes,
             cancel);
+        if (types.BuildType is null)
+        {
+            return [];
+        }
+
         return types.BuildType
             .Select(_ => new Pipeline(_.Id, $"{_.ProjectName} / {_.Name}", _.ProjectName, _.ProjectId, _.WebUrl))
             .ToList();
@@ -69,13 +74,13 @@ sealed class TeamCityProvider : ProviderBase
                 $"buildTypes?locator={locator}&fields=buildType(id,builds($locator(branch:default:any,state:any,canceled:any,failedToStart:any,count:{perPipeline}),{buildFields}))",
                 TeamCityContext.Default.TeamCityBuildTypes,
                 cancel);
-            if (response is null)
+            if (response?.BuildType is not { } buildTypes)
             {
                 continue;
             }
 
             var missing = new List<Pipeline>();
-            foreach (var type in response.BuildType)
+            foreach (var type in buildTypes)
             {
                 if (!byType.TryGetValue(type.Id, out var pipeline))
                 {
@@ -160,9 +165,9 @@ sealed class TeamCityProvider : ProviderBase
         foreach (var pipeline in missing)
         {
             context.Memory.TryGet<string>($"default-branch|{pipeline.Id}", out var remembered);
-            var run = response?.BuildType
+            var run = response?.BuildType?
                 .FirstOrDefault(_ => _.Id == pipeline.Id)?
-                .Builds?.Build
+                .Builds?.Build?
                 .FirstOrDefault(_ => !RemovedFromQueue(_) && _.DefaultBranch == true);
             if (run?.BranchName is not { } branch)
             {
@@ -214,8 +219,15 @@ sealed class TeamCityProvider : ProviderBase
             $"builds?locator=affectedProject:(id:{Encode(Project(context))}),branch:default:any,state:any,canceled:any,failedToStart:any,{filter}&fields=build(id,buildTypeId)",
             TeamCityContext.Default.TeamCityBuilds,
             cancel);
+        // TeamCity leaves the list out when no build is newer.
+        var changed = response.Build;
+        if (changed is null)
+        {
+            return previous;
+        }
+
         var tokens = previous.ToBuilder();
-        foreach (var build in response.Build)
+        foreach (var build in changed)
         {
             newest = Math.Max(newest, build.Id);
             if (build.BuildTypeId is null ||
@@ -231,7 +243,7 @@ sealed class TeamCityProvider : ProviderBase
             }
         }
 
-        if (response.Build.Count > 0)
+        if (changed.Count > 0)
         {
             context.Memory.Set(newestBuild, newest);
         }
@@ -289,7 +301,7 @@ sealed class TeamCityProvider : ProviderBase
             null,
             pullRequest,
             null,
-            build.Revisions?.Revision.FirstOrDefault()?.Version,
+            build.Revisions?.Revision?.FirstOrDefault()?.Version,
             build.StatusText,
             Author(context, build),
             CanRetry: build.State == "finished",
@@ -412,6 +424,11 @@ sealed class TeamCityProvider : ProviderBase
             $"{path}?fields=file(name,size,content(href),children(href))",
             TeamCityContext.Default.TeamCityArtifacts,
             cancel);
+        if (listed.File is null)
+        {
+            return;
+        }
+
         foreach (var entry in listed.File)
         {
             var name = prefix.Length == 0 ? entry.Name : $"{prefix}/{entry.Name}";

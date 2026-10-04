@@ -155,7 +155,7 @@ sealed class AppVeyorProvider : ProviderBase
         var tokens = ImmutableDictionary.CreateBuilder<string, string>();
         foreach (var project in projects)
         {
-            if (project.Builds.FirstOrDefault() is { } build)
+            if (project.Builds?.FirstOrDefault() is { } build)
             {
                 tokens[$"{project.AccountName}/{project.Slug}"] = $"{build.BuildId}|{build.Status}|{build.Updated?.ToString("O", CultureInfo.InvariantCulture)}";
             }
@@ -278,14 +278,14 @@ sealed class AppVeyorProvider : ProviderBase
     {
         var version = Split(build)[1];
         var detail = await context.Http.Get($"api/projects/{build.PipelineId}/build/{Encode(version)}", AppVeyorContext.Default.AppVeyorBuildDetail, cancel);
-        var detailBuild = detail.Build;
-        if (detailBuild == null)
+        var jobs = detail.Build?.Jobs;
+        if (jobs is null)
         {
             return "";
         }
 
         var logs = new List<(string Name, string Log)>();
-        foreach (var job in detailBuild.Jobs.Where(_ => _.Status == "failed"))
+        foreach (var job in jobs.Where(_ => _.Status == "failed"))
         {
             var name = string.IsNullOrEmpty(job.Name) ? job.JobId : job.Name;
             logs.Add((name, await context.Http.GetLog($"api/buildjobs/{job.JobId}/log", cancel)));

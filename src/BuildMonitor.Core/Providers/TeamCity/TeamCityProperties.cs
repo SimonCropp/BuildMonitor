@@ -5,5 +5,5 @@
 /// </summary>
 class TeamCityProperties
 {
-    public List<TeamCityProperty> Property { get; set; } = [];
+    public List<TeamCityProperty>? Property { get; set; }
 }

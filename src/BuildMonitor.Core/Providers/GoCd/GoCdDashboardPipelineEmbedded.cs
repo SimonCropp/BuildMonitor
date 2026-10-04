@@ -1,4 +1,4 @@
 class GoCdDashboardPipelineEmbedded
 {
-    public List<GoCdDashboardInstance> Instances { get; set; } = [];
+    public List<GoCdDashboardInstance>? Instances { get; set; }
 }

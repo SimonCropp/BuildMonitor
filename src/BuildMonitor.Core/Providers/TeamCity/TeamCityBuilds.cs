@@ -1,4 +1,4 @@
 ﻿class TeamCityBuilds
 {
-    public List<TeamCityBuild> Build { get; set; } = [];
+    public List<TeamCityBuild>? Build { get; set; }
 }

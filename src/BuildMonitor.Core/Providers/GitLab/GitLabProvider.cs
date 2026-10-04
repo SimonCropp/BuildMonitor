@@ -570,8 +570,13 @@ sealed class GitLabProvider : ProviderBase
         return ByScopes(token.Scopes);
     }
 
-    static BuildAccess ByScopes(List<string> scopes)
+    static BuildAccess ByScopes(List<string>? scopes)
     {
+        if (scopes is null)
+        {
+            return BuildAccess.Unknown;
+        }
+
         if (scopes.Contains("api"))
         {
             return BuildAccess.Change;

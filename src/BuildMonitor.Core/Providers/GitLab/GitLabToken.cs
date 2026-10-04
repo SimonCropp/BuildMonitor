@@ -3,7 +3,7 @@
 /// </summary>
 class GitLabToken
 {
-    public List<string> Scopes { get; set; } = [];
+    public List<string>? Scopes { get; set; }
     // A granular token holds its rights outside its scopes.
     public bool Granular { get; set; }
 }

@@ -26,7 +26,7 @@
     /// configuration that declared it called it.
     /// </summary>
     public string? Property(string name) =>
-        Properties?.Property
+        Properties?.Property?
             .FirstOrDefault(_ => string.Equals(_.Name, name, StringComparison.OrdinalIgnoreCase))
             ?.Value;
 }

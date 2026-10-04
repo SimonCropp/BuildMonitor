@@ -37,6 +37,11 @@ sealed class GoCdProvider : ProviderBase
         var server = Server(context);
         foreach (var group in dashboard.PipelineGroups)
         {
+            if (group.Pipelines is null)
+            {
+                continue;
+            }
+
             pipelines.AddRange(group.Pipelines.Select(_ => new Pipeline(_, _, group.Name, group.Name, $"{server}/go/pipeline/activity/{Encode(_)}")));
         }
 
@@ -150,7 +155,13 @@ sealed class GoCdProvider : ProviderBase
 
     static Build Convert(string connectionId, string server, Pipeline pipeline, GoCdInstance instance, (bool Group, bool FirstStage) rights)
     {
+        // An instance with no stages is still a row, one that reads as scheduled.
         var stages = instance.Stages;
+        if (stages is null)
+        {
+            stages = [];
+        }
+
         var scheduled = stages.Where(_ => _.Scheduled).ToList();
         BuildStatus status;
         string text;
@@ -187,17 +198,26 @@ sealed class GoCdProvider : ProviderBase
         // schedules the pipeline when none did, which needs its first. A cancel stops the last
         // stage scheduled, which needs that one.
         var retryStage = failed is null ? rights.FirstStage : failed.OperatePermission != false;
-        var modification = instance.BuildCause?.MaterialRevisions
-            .SelectMany(_ => _.Modifications)
-            .FirstOrDefault();
-        var branch = instance.BuildCause?.MaterialRevisions
+        var revisions = instance.BuildCause?.MaterialRevisions;
+        var modification = revisions?
+            .Select(_ => _.Modifications?.FirstOrDefault())
+            .FirstOrDefault(_ => _ is not null);
+        var branch = revisions?
             .Select(_ => Part(_.Material?.Description, "Branch: "))
             .FirstOrDefault(_ => _ is not null);
-        var repo = instance.BuildCause?.MaterialRevisions
+        var repo = revisions?
             .Select(_ => Part(_.Material?.Description, "URL: "))
             .FirstOrDefault(_ => _ is not null);
         var started = instance.ScheduledDate is { } date ? DateTimeOffset.FromUnixTimeMilliseconds(date) : (DateTimeOffset?) null;
-        var jobDates = stages.SelectMany(_ => _.Jobs).Select(_ => _.ScheduledDate).Where(_ => _ is not null).ToList();
+        var jobDates = new List<long?>();
+        foreach (var stage in stages)
+        {
+            if (stage.Jobs is { } jobs)
+            {
+                jobDates.AddRange(jobs.Select(_ => _.ScheduledDate).Where(_ => _ is not null));
+            }
+        }
+
         DateTimeOffset? finished = status is BuildStatus.Running or BuildStatus.Queued || jobDates.Count == 0
             ? null
             : DateTimeOffset.FromUnixTimeMilliseconds(jobDates.Max()!.Value);
@@ -291,8 +311,18 @@ sealed class GoCdProvider : ProviderBase
         var pipeline = Encode(parts[0]);
         var instance = await context.Http.Get($"pipelines/{pipeline}/{parts[1]}", GoCdContext.Default.GoCdInstance, cancel);
         var logs = new List<(string Name, string Log)>();
+        if (instance.Stages is null)
+        {
+            return "";
+        }
+
         foreach (var stage in instance.Stages.Where(_ => _.Result == "Failed"))
         {
+            if (stage.Jobs is null)
+            {
+                continue;
+            }
+
             foreach (var job in stage.Jobs.Where(_ => _.Result == "Failed"))
             {
                 var path = $"../files/{pipeline}/{parts[1]}/{Encode(stage.Name)}/{stage.Counter}/{Encode(job.Name)}/cruise-output/console.log";
@@ -318,8 +348,18 @@ sealed class GoCdProvider : ProviderBase
         var pipeline = Encode(parts[0]);
         var instance = await context.Http.Get($"pipelines/{pipeline}/{parts[1]}", GoCdContext.Default.GoCdInstance, cancel);
         var artifacts = new List<BuildArtifact>();
+        if (instance.Stages is null)
+        {
+            return artifacts;
+        }
+
         foreach (var stage in instance.Stages.Where(_ => _.Result == "Failed"))
         {
+            if (stage.Jobs is null)
+            {
+                continue;
+            }
+
             foreach (var job in stage.Jobs.Where(_ => _.Result == "Failed"))
             {
                 var path = $"../files/{pipeline}/{parts[1]}/{Encode(stage.Name)}/{stage.Counter}/{Encode(job.Name)}.json";
@@ -347,7 +387,10 @@ sealed class GoCdProvider : ProviderBase
                 continue;
             }
 
-            Collect(entry.Files, name, artifacts);
+            if (entry.Files is { } files)
+            {
+                Collect(files, name, artifacts);
+            }
         }
     }
 

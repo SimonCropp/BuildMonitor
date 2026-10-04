@@ -1,4 +1,4 @@
 class GoCdDashboardInstanceEmbedded
 {
-    public List<GoCdDashboardStage> Stages { get; set; } = [];
+    public List<GoCdDashboardStage>? Stages { get; set; }
 }

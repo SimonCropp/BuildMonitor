@@ -3,5 +3,5 @@
 /// </summary>
 class GitLabTokenInfo
 {
-    public List<string> Scope { get; set; } = [];
+    public List<string>? Scope { get; set; }
 }

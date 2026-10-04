@@ -4,5 +4,5 @@
 /// </summary>
 class TeamCityArtifacts
 {
-    public List<TeamCityArtifact> File { get; set; } = [];
+    public List<TeamCityArtifact>? File { get; set; }
 }

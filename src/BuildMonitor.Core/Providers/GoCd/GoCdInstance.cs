@@ -5,5 +5,5 @@
     public string? Label { get; set; }
     public long? ScheduledDate { get; set; }
     public GoCdBuildCause? BuildCause { get; set; }
-    public List<GoCdStage> Stages { get; set; } = [];
+    public List<GoCdStage>? Stages { get; set; }
 }
