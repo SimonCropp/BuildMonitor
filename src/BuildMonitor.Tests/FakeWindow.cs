@@ -45,7 +45,7 @@ class FakeWindow : IMonitorWindow
     /// What the chooser returns next, or null for a cancel, which is the default so a test that
     /// never sets one cannot accidentally pick a directory.
     /// </summary>
-    public string? Picked { get; set; }
+    public string? Picked { get; init; }
 
     public string? PickDirectory(string? start)
     {

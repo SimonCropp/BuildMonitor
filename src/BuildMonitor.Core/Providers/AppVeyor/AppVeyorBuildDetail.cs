@@ -1,4 +1,4 @@
 class AppVeyorBuildDetail
 {
-    public AppVeyorBuild? Build { get; set; }
+    public AppVeyorBuild? Build { get; init; }
 }

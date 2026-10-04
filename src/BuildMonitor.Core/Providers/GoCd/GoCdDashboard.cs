@@ -1,5 +1,5 @@
 ﻿class GoCdDashboard
 {
     [JsonPropertyName("_embedded")]
-    public GoCdDashboardEmbedded? Embedded { get; set; }
+    public GoCdDashboardEmbedded? Embedded { get; init; }
 }

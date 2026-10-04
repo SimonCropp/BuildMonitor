@@ -1,5 +1,5 @@
 ﻿class JenkinsCrumb
 {
-    public string CrumbRequestField { get; set; } = "Jenkins-Crumb";
-    public string Crumb { get; set; } = "";
+    public string CrumbRequestField { get; init; } = "Jenkins-Crumb";
+    public string Crumb { get; init; } = "";
 }

@@ -1,8 +1,8 @@
 class GitLabProject
 {
-    public long Id { get; set; }
-    public string PathWithNamespace { get; set; } = "";
-    public string WebUrl { get; set; } = "";
+    public long Id { get; init; }
+    public string PathWithNamespace { get; init; } = "";
+    public string WebUrl { get; init; } = "";
     // In the simple listing too, so knowing it costs no request.
-    public string? DefaultBranch { get; set; }
+    public string? DefaultBranch { get; init; }
 }

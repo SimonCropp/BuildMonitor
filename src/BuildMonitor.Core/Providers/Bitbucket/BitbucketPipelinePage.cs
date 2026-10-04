@@ -1,4 +1,4 @@
 ﻿class BitbucketPipelinePage
 {
-    public required List<BitbucketPipeline> Values { get; set; }
+    public required List<BitbucketPipeline> Values { get; init; }
 }

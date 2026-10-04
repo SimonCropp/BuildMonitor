@@ -3,24 +3,24 @@
 /// </summary>
 class TokenResponse
 {
-    public string? AccessToken { get; set; }
-    public string? RefreshToken { get; set; }
-    public int? ExpiresIn { get; set; }
-    public string? Error { get; set; }
-    public string? ErrorDescription { get; set; }
-    public int? Interval { get; set; }
+    public string? AccessToken { get; init; }
+    public string? RefreshToken { get; init; }
+    public int? ExpiresIn { get; init; }
+    public string? Error { get; init; }
+    public string? ErrorDescription { get; init; }
+    public int? Interval { get; init; }
 }
 
 class DeviceCodeResponse
 {
-    public string? DeviceCode { get; set; }
-    public string? UserCode { get; set; }
-    public string? VerificationUri { get; set; }
-    public string? VerificationUriComplete { get; set; }
-    public int? ExpiresIn { get; set; }
-    public int? Interval { get; set; }
-    public string? Error { get; set; }
-    public string? ErrorDescription { get; set; }
+    public string? DeviceCode { get; init; }
+    public string? UserCode { get; init; }
+    public string? VerificationUri { get; init; }
+    public string? VerificationUriComplete { get; init; }
+    public int? ExpiresIn { get; init; }
+    public int? Interval { get; init; }
+    public string? Error { get; init; }
+    public string? ErrorDescription { get; init; }
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true)]

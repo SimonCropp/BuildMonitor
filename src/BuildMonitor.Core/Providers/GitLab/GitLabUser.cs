@@ -1,6 +1,6 @@
 ﻿class GitLabUser
 {
-    public string Username { get; set; } = "";
+    public string Username { get; init; } = "";
     // Sent only to an administrator.
-    public bool IsAdmin { get; set; }
+    public bool IsAdmin { get; init; }
 }

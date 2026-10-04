@@ -1,7 +1,7 @@
 class OctopusDashboard
 {
-    public required List<OctopusDashboardItem> Items { get; set; }
-    public required List<OctopusEnvironment> Environments { get; set; }
+    public required List<OctopusDashboardItem> Items { get; init; }
+    public required List<OctopusEnvironment> Environments { get; init; }
     // Set when a large space returned fewer projects than asked for.
-    public int? ProjectLimit { get; set; }
+    public int? ProjectLimit { get; init; }
 }

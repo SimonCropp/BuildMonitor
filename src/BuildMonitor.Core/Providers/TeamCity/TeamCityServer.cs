@@ -1,4 +1,4 @@
 ﻿class TeamCityServer
 {
-    public string? Version { get; set; }
+    public string? Version { get; init; }
 }

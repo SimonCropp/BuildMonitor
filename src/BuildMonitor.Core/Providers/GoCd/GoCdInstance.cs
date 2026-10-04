@@ -1,9 +1,9 @@
 ﻿class GoCdInstance
 {
-    public string Name { get; set; } = "";
-    public long Counter { get; set; }
-    public string? Label { get; set; }
-    public long? ScheduledDate { get; set; }
-    public GoCdBuildCause? BuildCause { get; set; }
+    public string Name { get; init; } = "";
+    public long Counter { get; init; }
+    public string? Label { get; init; }
+    public long? ScheduledDate { get; init; }
+    public GoCdBuildCause? BuildCause { get; init; }
     public List<GoCdStage>? Stages { get; set; }
 }

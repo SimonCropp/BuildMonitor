@@ -4,6 +4,6 @@
 /// </summary>
 class GitLabGraphResponse
 {
-    public GitLabGraphData? Data { get; set; }
-    public List<GitLabGraphError>? Errors { get; set; }
+    public GitLabGraphData? Data { get; init; }
+    public List<GitLabGraphError>? Errors { get; init; }
 }

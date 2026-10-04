@@ -10,12 +10,12 @@ class RecordingActions
     /// What the update page is told is running. Nothing by default: listing the machine's real
     /// processes would make a test depend on whatever else happens to be up.
     /// </summary>
-    public McpServers Servers { get; set; } = McpServers.None;
+    public McpServers Servers { get; init; } = McpServers.None;
 
     /// <summary>
     /// Why run at login could not be set, or null for the usual case where it could.
     /// </summary>
-    public string? RunAtLoginError { get; set; }
+    public string? RunAtLoginError { get; init; }
 
     public MonitorActions Actions =>
         new(

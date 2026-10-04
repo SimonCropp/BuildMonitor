@@ -1,8 +1,8 @@
 ﻿class JenkinsJob
 {
-    public required List<JenkinsBuild> Builds { get; set; }
+    public required List<JenkinsBuild> Builds { get; init; }
     // Its number and estimate only, as the one build an estimate is asked of.
-    public JenkinsBuild? LastBuild { get; set; }
-    public bool InQueue { get; set; }
-    public JenkinsQueueItem? QueueItem { get; set; }
+    public JenkinsBuild? LastBuild { get; init; }
+    public bool InQueue { get; init; }
+    public JenkinsQueueItem? QueueItem { get; init; }
 }

@@ -1,4 +1,4 @@
 ﻿class GoCdUser
 {
-    public string? LoginName { get; set; }
+    public string? LoginName { get; init; }
 }

@@ -3,5 +3,5 @@
 /// </summary>
 class GitLabRef
 {
-    public string Name { get; set; } = "";
+    public string Name { get; init; } = "";
 }

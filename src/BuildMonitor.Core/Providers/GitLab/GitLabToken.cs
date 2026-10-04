@@ -5,5 +5,5 @@ class GitLabToken
 {
     public List<string>? Scopes { get; set; }
     // A granular token holds its rights outside its scopes.
-    public bool Granular { get; set; }
+    public bool Granular { get; init; }
 }

@@ -4,6 +4,6 @@
 /// </summary>
 class GitLabArtifactsFile
 {
-    public string? Filename { get; set; }
-    public long? Size { get; set; }
+    public string? Filename { get; init; }
+    public long? Size { get; init; }
 }

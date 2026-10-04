@@ -4,6 +4,6 @@
 /// </summary>
 class OctopusRelease
 {
-    public string Id { get; set; } = "";
-    public string? ReleaseNotes { get; set; }
+    public string Id { get; init; } = "";
+    public string? ReleaseNotes { get; init; }
 }

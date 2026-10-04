@@ -1,4 +1,4 @@
 ﻿class OctopusTaskDetails
 {
-    public OctopusProgress? Progress { get; set; }
+    public OctopusProgress? Progress { get; init; }
 }

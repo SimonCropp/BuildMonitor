@@ -1,15 +1,15 @@
 ﻿record GitLabPipeline
 {
-    public long Id { get; set; }
-    public long Iid { get; set; }
-    public string Status { get; set; } = "";
-    public string? Source { get; set; }
-    public string? Ref { get; set; }
-    public string? Sha { get; set; }
-    public string? Name { get; set; }
-    public string WebUrl { get; set; } = "";
-    public DateTimeOffset? CreatedAt { get; set; }
-    public DateTimeOffset? UpdatedAt { get; set; }
-    public DateTimeOffset? StartedAt { get; set; }
-    public DateTimeOffset? FinishedAt { get; set; }
+    public long Id { get; init; }
+    public long Iid { get; init; }
+    public string Status { get; init; } = "";
+    public string? Source { get; init; }
+    public string? Ref { get; init; }
+    public string? Sha { get; init; }
+    public string? Name { get; init; }
+    public string WebUrl { get; init; } = "";
+    public DateTimeOffset? CreatedAt { get; init; }
+    public DateTimeOffset? UpdatedAt { get; init; }
+    public DateTimeOffset? StartedAt { get; init; }
+    public DateTimeOffset? FinishedAt { get; init; }
 }
