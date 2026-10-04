@@ -1,4 +1,4 @@
 ﻿class TravisBuilds
 {
-    public List<TravisBuild> Builds { get; set; } = [];
+    public required List<TravisBuild> Builds { get; set; }
 }

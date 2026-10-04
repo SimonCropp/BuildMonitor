@@ -1,4 +1,4 @@
 ﻿class TravisRepositories
 {
-    public List<TravisRepository> Repositories { get; set; } = [];
+    public required List<TravisRepository> Repositories { get; set; }
 }

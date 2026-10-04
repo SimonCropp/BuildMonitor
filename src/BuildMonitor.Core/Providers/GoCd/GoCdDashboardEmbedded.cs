@@ -1,5 +1,5 @@
 class GoCdDashboardEmbedded
 {
-    public List<GoCdPipelineGroup> PipelineGroups { get; set; } = [];
-    public List<GoCdDashboardPipeline> Pipelines { get; set; } = [];
+    public required List<GoCdPipelineGroup> PipelineGroups { get; set; }
+    public required List<GoCdDashboardPipeline> Pipelines { get; set; }
 }

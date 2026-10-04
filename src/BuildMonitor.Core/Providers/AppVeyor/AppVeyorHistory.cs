@@ -1,4 +1,4 @@
 ﻿class AppVeyorHistory
 {
-    public List<AppVeyorBuild> Builds { get; set; } = [];
+    public required List<AppVeyorBuild> Builds { get; set; }
 }

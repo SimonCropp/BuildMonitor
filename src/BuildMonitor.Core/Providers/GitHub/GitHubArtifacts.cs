@@ -1,4 +1,4 @@
 class GitHubArtifacts
 {
-    public List<GitHubArtifact> Artifacts { get; set; } = [];
+    public required List<GitHubArtifact> Artifacts { get; set; }
 }

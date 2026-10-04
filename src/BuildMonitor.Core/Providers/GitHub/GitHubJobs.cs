@@ -1,4 +1,4 @@
 class GitHubJobs
 {
-    public List<GitHubJob> Jobs { get; set; } = [];
+    public required List<GitHubJob> Jobs { get; set; }
 }

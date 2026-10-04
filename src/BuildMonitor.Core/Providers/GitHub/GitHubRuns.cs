@@ -1,4 +1,4 @@
 ﻿class GitHubRuns
 {
-    public List<GitHubRun> WorkflowRuns { get; set; } = [];
+    public required List<GitHubRun> WorkflowRuns { get; set; }
 }

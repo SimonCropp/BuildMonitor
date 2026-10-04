@@ -1,4 +1,4 @@
 class JenkinsArtifacts
 {
-    public List<JenkinsArtifact> Artifacts { get; set; } = [];
+    public required List<JenkinsArtifact> Artifacts { get; set; }
 }

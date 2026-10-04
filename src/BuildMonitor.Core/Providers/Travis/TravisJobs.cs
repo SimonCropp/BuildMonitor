@@ -1,4 +1,4 @@
 class TravisJobs
 {
-    public List<TravisJob> Jobs { get; set; } = [];
+    public required List<TravisJob> Jobs { get; set; }
 }

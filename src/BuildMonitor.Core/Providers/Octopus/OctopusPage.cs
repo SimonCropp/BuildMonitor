@@ -1,4 +1,4 @@
 ﻿class OctopusPage<T>
 {
-    public List<T> Items { get; set; } = [];
+    public required List<T> Items { get; set; }
 }

@@ -1,4 +1,4 @@
 ﻿class AzureDevOpsList<T>
 {
-    public List<T> Value { get; set; } = [];
+    public required List<T> Value { get; set; }
 }

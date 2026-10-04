@@ -1,4 +1,4 @@
 class AzureDevOpsTimeline
 {
-    public List<AzureDevOpsTimelineRecord> Records { get; set; } = [];
+    public required List<AzureDevOpsTimelineRecord> Records { get; set; }
 }
