@@ -841,14 +841,19 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
         const float overflowWidth = ChipWidth(nullptr, overflowLabel);
         // Each boundary between the six columns carries cell padding on both sides of it. What is
         // left, the name, the detail, the bar and the chips share.
-        const float shared = tableWidth - timingWidth - authorWidth - 5.0f * 2.0f * style.CellPadding.x;
+        // A column asked to be no width is still given the table's minimum, which is the frame
+        // padding. Left out of the sums, the bar's column, hidden, and the author's, with no one
+        // to name, took that much from the detail, the one column that stretches, and the widest
+        // detail was cut short by it: "feature/inline" lost its last letter.
+        const float minimumColumn = std::max(1.0f, style.FramePadding.x);
+        const float shared = tableWidth - timingWidth - std::max(authorWidth, minimumColumn) - 5.0f * 2.0f * style.CellPadding.x;
         const float nameWanted = rowHeight + style.ItemSpacing.x + nameText + 2.0f * style.CellPadding.x;
         const float detailWanted = (anyIcon ? iconSize + style.ItemSpacing.x : 0.0f) + detailText;
         // The bar gives way before anything else, since the timing beside it says the same: it shows
         // only while the names, the detail and every chip still fit. Hidden, its column is kept at no
         // width, so the columns after it keep their indexes.
         const bool showBar = shared - barWidth - nameWanted - detailWanted >= widestChips;
-        const float available = showBar ? shared - barWidth : shared;
+        const float available = showBar ? shared - barWidth : shared - minimumColumn;
         // Then the chips: a row without room for all of them puts the last behind an
         // overflow chip, rather than the names being cut short. Only once no chip but that one fits
         // do the names shrink.
