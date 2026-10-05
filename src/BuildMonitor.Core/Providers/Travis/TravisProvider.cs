@@ -184,7 +184,9 @@ sealed class TravisProvider : ProviderBase
             cancel);
         return repositories.Repositories
             .Where(_ => _.LastStartedBuild is not null)
-            .ToImmutableDictionary(_ => _.Slug, _ => $"{_.LastStartedBuild!.Id}|{_.LastStartedBuild.State}");
+            .ToImmutableDictionary(
+                _ => _.Slug,
+                _ => $"{_.LastStartedBuild!.Id}|{_.LastStartedBuild.State}");
     }
 
     static Build Convert(ProviderContext context, Pipeline pipeline, TravisBuild build)

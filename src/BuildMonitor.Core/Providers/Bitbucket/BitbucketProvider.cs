@@ -129,7 +129,9 @@ sealed class BitbucketProvider : ProviderBase
             cancel);
         return page.Values
             .Where(_ => _.UpdatedOn is not null)
-            .ToImmutableDictionary(_ => _.Slug, _ => _.UpdatedOn!.Value.ToString("O", CultureInfo.InvariantCulture));
+            .ToImmutableDictionary(
+                _ => _.Slug,
+                _ => _.UpdatedOn!.Value.ToString("O", CultureInfo.InvariantCulture));
     }
 
     static Build Convert(string connectionId, Pipeline pipeline, BitbucketPipeline run)

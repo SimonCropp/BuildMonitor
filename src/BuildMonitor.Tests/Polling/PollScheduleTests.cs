@@ -329,7 +329,9 @@ public class PollScheduleTests
     {
         var groups = Enumerable.Range(0, 300).Select(_ => Group($"repo{_}", $"pipeline{_}")).ToList();
         var builds = groups.Select(_ => Finished(_.Pipelines[0].Id, BuildStatus.Succeeded, TimeSpan.FromDays(1)));
-        var memory = groups.ToImmutableDictionary(_ => _.Key, _ => Fetched(TimeSpan.Zero, _.Pipelines[0].Id));
+        var memory = groups.ToImmutableDictionary(
+            _ => _.Key,
+            _ => Fetched(TimeSpan.Zero, _.Pipelines[0].Id));
         var plan = PollSchedule.Plan(Input(groups, builds, memory));
         var due = plan.Groups.Select(_ => _.DueAt).ToList();
         await Assert.That(due.Max() - due.Min()).IsGreaterThan(TimeSpan.FromSeconds(50));
@@ -373,7 +375,9 @@ public class PollScheduleTests
         // Last fetched across the whole idle cap, as after running for a while.
         var memory = groups
             .Select((group, index) => (group, index))
-            .ToImmutableDictionary(_ => _.group.Key, _ => Fetched(TimeSpan.FromSeconds(_.index * 300d / 158), _.group.Pipelines[0].Id));
+            .ToImmutableDictionary(
+                _ => _.group.Key,
+                _ => Fetched(TimeSpan.FromSeconds(_.index * 300d / 158), _.group.Pipelines[0].Id));
         var input = Input(groups, builds, memory);
         var at = now;
         var cycles = 0;

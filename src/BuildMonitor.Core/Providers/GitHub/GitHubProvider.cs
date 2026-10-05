@@ -230,7 +230,9 @@ sealed class GitHubProvider : ProviderBase
         // organization first every time would pay its 404 on every probe of a user.
         var listing = listings.FirstOrDefault(_ => context.Http.IsCached($"{_}&page=1")) ?? listings[0];
         var repositories = await context.Http.Get($"{listing}&page=1", GitHubContext.Default.ListGitHubRepository, cancel);
-        return repositories.ToImmutableDictionary(_ => _.FullName, _ => $"{_.PushedAt:O}");
+        return repositories.ToImmutableDictionary(
+            _ => _.FullName,
+            _ => $"{_.PushedAt:O}");
     }
 
     static async Task<List<GitHubRepository>> Pages(ProviderContext context, string path, Cancel cancel)

@@ -629,7 +629,9 @@ sealed class ConnectionPoller
         }
         var previous = memory
             .Where(_ => _.Value.SeenActivity is not null)
-            .ToImmutableDictionary(_ => _.Key, _ => _.Value.SeenActivity!);
+            .ToImmutableDictionary(
+                _ => _.Key,
+                _ => _.Value.SeenActivity!);
         ImmutableDictionary<string, string>? activity;
         try
         {

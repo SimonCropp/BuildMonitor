@@ -10,7 +10,9 @@ static class ProviderTestHelpers
             Server = server,
             User = user,
             Auth = auth,
-            Scope = scope.ToImmutableDictionary(_ => _.Id, _ => _.Value)
+            Scope = scope.ToImmutableDictionary(
+                _ => _.Id,
+                _ => _.Value)
         };
         return Providers.Context(connection, "secret", handler);
     }
