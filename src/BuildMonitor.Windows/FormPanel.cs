@@ -161,16 +161,11 @@ sealed class FormPanel : Panel
             }
             case FieldKind.Button:
             {
-                var button = new FormsButton
+                var button = new ThemedButton
                 {
                     Text = field.Label,
-                    AutoSize = true,
-                    FlatStyle = FlatStyle.Flat,
-                    ForeColor = Palette.Text,
-                    BackColor = Palette.Chip,
                     Margin = DpiScale.Spacing(this, 3, 8, 3, 8)
                 };
-                button.FlatAppearance.BorderColor = Palette.Border;
                 button.Click += (_, _) => clickedField = field.Id;
                 return (null, button);
             }
@@ -215,16 +210,11 @@ sealed class FormPanel : Panel
                     Margin = DpiScale.Spacing(this, 0, 4, 8, 4)
                 };
                 path.TextChanged += (_, _) => Changed(field.Id, path.Text);
-                var browse = new FormsButton
+                var browse = new ThemedButton
                 {
                     Text = "Browse",
-                    AutoSize = true,
-                    FlatStyle = FlatStyle.Flat,
-                    ForeColor = Palette.Text,
-                    BackColor = Palette.Chip,
                     Margin = DpiScale.Spacing(this, 0, 2, 0, 2)
                 };
-                browse.FlatAppearance.BorderColor = Palette.Border;
                 // The whole field is the click target: a Directory reports edits from its box and
                 // a click from its button, so the applier needs no id of its own for the button.
                 browse.Click += (_, _) => clickedField = field.Id;

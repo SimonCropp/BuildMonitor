@@ -6,7 +6,7 @@ sealed class FooterPanel : Panel
 {
     FlowLayoutPanel buttons;
     LiveLabel status;
-    List<FormsButton> pool = [];
+    List<ThemedButton> pool = [];
     string signature = "";
     int clicked = -1;
     bool statusClicked;
@@ -50,16 +50,12 @@ sealed class FooterPanel : Panel
             while (pool.Count < model.Count)
             {
                 var index = pool.Count;
-                var button = new FormsButton
+                var button = new ThemedButton
                 {
-                    AutoSize = true,
-                    FlatStyle = FlatStyle.Flat,
-                    ForeColor = Palette.Text,
-                    BackColor = Palette.Chip,
                     Margin = DpiScale.Spacing(this, 4, 2, 4, 2),
-                    MinimumSize = LogicalToDeviceUnits(new Size(80, 30))
+                    Padding = DpiScale.Spacing(this, 6, 0, 6, 0),
+                    MinimumSize = LogicalToDeviceUnits(new Size(0, 30))
                 };
-                button.FlatAppearance.BorderColor = Palette.Border;
                 button.Click += (_, _) => clicked = index;
                 pool.Add(button);
             }
@@ -86,9 +82,7 @@ sealed class FooterPanel : Panel
         status.ForeColor = Palette.Dim;
         foreach (var button in pool)
         {
-            button.ForeColor = Palette.Text;
-            button.BackColor = Palette.Chip;
-            button.FlatAppearance.BorderColor = Palette.Border;
+            button.Retheme();
         }
     }
 

@@ -89,8 +89,33 @@ public class MonitorFormTests
     public Task Narrow() =>
         Capture(Fixtures.WithBuilds(), width: 760);
 
+    // No page disables a form button yet, so the field is disabled here: WinForms draws a disabled
+    // flat button's label near black on the dark chip, and nothing else would show that returning.
+    [Test]
+    public Task DisabledFormButton() =>
+        Capture(Fixtures.Filters(), adjust: DisableButtons);
+
+    static Screen DisableButtons(Screen screen) =>
+        screen with
+        {
+            Form = screen.Form! with
+            {
+                Fields = [.. screen.Form.Fields.Select(Disable)]
+            }
+        };
+
+    static Field Disable(Field field)
+    {
+        if (field.Kind == FieldKind.Button)
+        {
+            return field with { Enabled = false };
+        }
+
+        return field;
+    }
+
     // Pinned rather than System, so a capture does not depend on the theme of whoever ran it.
-    static async Task Capture(SessionState state, Theme theme = Theme.Dark, int width = 1000)
+    static async Task Capture(SessionState state, Theme theme = Theme.Dark, int width = 1000, Func<Screen, Screen>? adjust = null)
     {
         state = state
             with
@@ -107,7 +132,13 @@ public class MonitorFormTests
         form.StartPosition = FormStartPosition.Manual;
         form.Location = new(-20000, -20000);
         form.Show();
-        form.Apply(ScreenBuilder.Build(state, Fixtures.Now));
+        var screen = ScreenBuilder.Build(state, Fixtures.Now);
+        if (adjust is not null)
+        {
+            screen = adjust(screen);
+        }
+
+        form.Apply(screen);
         Application.DoEvents();
         await Verify(form);
         form.AllowClose = true;
