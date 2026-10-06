@@ -211,14 +211,13 @@ static class TriagePrompt
     /// The answer every user gets until they set a code directory, so it names the option rather
     /// than reporting that there is nothing to do, which would read as a clean build list.
     /// </summary>
-    static string NoneLocal(IReadOnlyList<BuildDto> failing, string scope)
-    {
-        var builder = new StringBuilder();
-        builder.Append($"{Count(failing.Count, "failing build")}{scope}, none with a repository checked out locally, so there is no code here to work through.\n\n");
-        builder.Append(List(failing));
-        builder.Append("\nEither the code directory option is not set, or no checkout under it matched these repositories. Tell the user to set it from the tray's options, then run this again.");
-        return builder.ToString();
-    }
+    static string NoneLocal(IReadOnlyList<BuildDto> failing, string scope) =>
+        $"""
+         {Count(failing.Count, "failing build")}{scope}, none with a repository checked out locally, so there is no code here to work through.
+
+         {List(failing)}
+         Either the code directory option is not set, or no checkout under it matched these repositories. Tell the user to set it from the tray's options, then run this again.
+         """;
 
     /// <summary>
     /// Pipelines holding more than one build first: they are the ones where reading a single log
@@ -322,17 +321,15 @@ static class TriagePrompt
     /// </summary>
     const string Reproduce = "Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch.";
 
-    static string Procedure(bool fix)
-    {
-        var builder = new StringBuilder();
-        builder.Append("1. Read each build's log with `get_build_log`, taking the key from its entry above. Where a log points at a file the run published, such as a test report, a coverage file or a crash dump, call `download_build_artifacts` for that build and read it from the directory that comes back.\n");
-        builder.Append("2. Group the failures by what the logs say before investigating any. Repositories failing on one shared workflow, action, dependency or template are one fix, and the pipeline groupings above are only a guess at that.\n");
-        builder.Append($"3. {Reproduce} Do this per group, before deciding what it is.\n");
-        builder.Append($"4. {Fixing(fix, "each group", " per group")}");
-        builder.Append("\nIf a group isn't code (expired credential, runner or agent problem, outage), say so instead.\n");
-        builder.Append(Next());
-        return builder.ToString();
-    }
+    static string Procedure(bool fix) =>
+        $"""
+         1. Read each build's log with `get_build_log`, taking the key from its entry above. Where a log points at a file the run published, such as a test report, a coverage file or a crash dump, call `download_build_artifacts` for that build and read it from the directory that comes back.
+         2. Group the failures by what the logs say before investigating any. Repositories failing on one shared workflow, action, dependency or template are one fix, and the pipeline groupings above are only a guess at that.
+         3. {Reproduce} Do this per group, before deciding what it is.
+         4. {Fixing(fix, "each group", " per group")}
+         If a group isn't code (expired credential, runner or agent problem, outage), say so instead.
+         {Next()}
+         """;
 
     /// <summary>
     /// The last thing both prompts say. Triage ends at a decision the user owns, such as which
