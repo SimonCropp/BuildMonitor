@@ -200,7 +200,7 @@ static class TriagePrompt
             builder.Append($"{step++}. Read the log, then whatever it points at.\n");
         }
 
-        builder.Append($"{step++}. {Reproduce}\n");
+        builder.Append($"{step++}. {reproduce}\n");
         builder.Append($"{step}. {Fixing(fix, "it", "")}");
         builder.Append("\nIf it isn't code (expired credential, runner or agent problem, outage), say so instead.\n");
         builder.Append(Next());
@@ -319,13 +319,13 @@ static class TriagePrompt
     /// assistant that finds work in progress in it stops and says so rather than switching the
     /// branch over it: a switch, a stash or a discard can lose what nothing here knows is there.
     /// </summary>
-    const string Reproduce = "Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch.";
+    const string reproduce = "Reproduce the failure in the `code:` directory. If it has uncommitted work, stop and tell the user to resolve it before continuing. Otherwise check out the build's branch.";
 
     static string Procedure(bool fix) =>
         $"""
          1. Read each build's log with `get_build_log`, taking the key from its entry above. Where a log points at a file the run published, such as a test report, a coverage file or a crash dump, call `download_build_artifacts` for that build and read it from the directory that comes back.
          2. Group the failures by what the logs say before investigating any. Repositories failing on one shared workflow, action, dependency or template are one fix, and the pipeline groupings above are only a guess at that.
-         3. {Reproduce} Do this per group, before deciding what it is.
+         3. {reproduce} Do this per group, before deciding what it is.
          4. {Fixing(fix, "each group", " per group")}
          If a group isn't code (expired credential, runner or agent problem, outage), say so instead.
          {Next()}
@@ -359,13 +359,13 @@ static class TriagePrompt
     /// Named rather than dropped: a list that silently answers for some of the failures reads as
     /// though it answered for all of them.
     /// </summary>
-    static string SkippedNote(List<BuildDto> skipped)
-    {
-        var builder = new StringBuilder();
-        builder.Append($"\n{Count(skipped.Count, "other failing build")} {Have(skipped.Count)} no checkout under the code directory and {(skipped.Count == 1 ? "is" : "are")} left out above:\n\n");
-        builder.Append(List(skipped));
-        return builder.ToString();
-    }
+    static string SkippedNote(List<BuildDto> skipped) =>
+        $"""
+
+         {Count(skipped.Count, "other failing build")} {Have(skipped.Count)} no checkout under the code directory and {(skipped.Count == 1 ? "is" : "are")} left out above:
+
+         {List(skipped)}
+         """;
 
     static string List(IReadOnlyList<BuildDto> builds)
     {
@@ -416,7 +416,8 @@ static class TriagePrompt
     /// </summary>
     public static string? Filter(string? value)
     {
-        if (value?.Trim() is { Length: > 0 } text && text != "*")
+        if (value?.Trim() is { Length: > 0 } text &&
+            text != "*")
         {
             return text;
         }
