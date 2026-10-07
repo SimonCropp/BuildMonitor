@@ -18,7 +18,7 @@
     <PackageVersion Include="ProjectDefaults" Version="1.0.184" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageVersion Include="SimpleInfoName" Version="3.2.0" />
+    <PackageVersion Include="SimpleInfoName" Version="3.2.1" />
     <PackageVersion Include="SkiaSharp" Version="4.153.1" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.153.1" />
     <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="4.153.1" />
