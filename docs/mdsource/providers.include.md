@@ -1,6 +1,7 @@
  * [AppVeyor](/docs/providers/appveyor.md)
  * [Azure DevOps](/docs/providers/azure-devops.md)
  * [Bitbucket Pipelines](/docs/providers/bitbucket.md)
+ * [CircleCI](/docs/providers/circleci.md)
  * [GitHub Actions](/docs/providers/github.md)
  * [GitLab CI](/docs/providers/gitlab.md)
  * [GoCD](/docs/providers/gocd.md)

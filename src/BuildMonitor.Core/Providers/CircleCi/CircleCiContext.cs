@@ -1,0 +1,12 @@
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(List<CircleCiFollowedProject>))]
+[JsonSerializable(typeof(List<CircleCiCollaboration>))]
+[JsonSerializable(typeof(CircleCiProject))]
+[JsonSerializable(typeof(CircleCiPipelines))]
+[JsonSerializable(typeof(CircleCiWorkflows))]
+[JsonSerializable(typeof(CircleCiJobs))]
+[JsonSerializable(typeof(CircleCiJobDetail))]
+[JsonSerializable(typeof(CircleCiArtifacts))]
+[JsonSerializable(typeof(CircleCiRerun))]
+[JsonSerializable(typeof(CircleCiUser))]
+partial class CircleCiContext : JsonSerializerContext;

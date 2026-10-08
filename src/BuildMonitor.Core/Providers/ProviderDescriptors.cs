@@ -276,6 +276,36 @@ static class ProviderDescriptors
         ActionPermission: "write:pipeline:bitbucket",
         HostsRepositories: true);
 
+    public static readonly ProviderDescriptor CircleCi = new(
+        Id: "circleci",
+        Name: "CircleCI",
+        PipelineNoun: "project",
+        BrowserSignIn: false,
+        DeviceSignIn: false,
+        SelfHosted: true,
+        DefaultServer: "https://circleci.com",
+        TokenLabel: "Personal API token",
+        TokenHelpUrl: "https://app.circleci.com/settings/user/tokens",
+        Scheme: AuthScheme.HeaderCircleToken,
+        UserLabel: null,
+        Scopes:
+        [
+            new("organization", "Organization", Required: false, Hint: "Leave empty for every organization you are in")
+        ],
+        HasEstimate: false,
+        HasBranches: true,
+        HasPullRequests: true,
+        HasArtifacts: true,
+        OrgNoun: "org",
+        TokenNote: "A personal token, from User Settings: the API refuses a project token.",
+        FetchConcurrency: Concurrently.Limit,
+        // The probe fetches a project with a new pipeline at once, so a quiet one need not be
+        // fetched every five minutes, which costs a request for each of its last pipelines.
+        IdleCap: TimeSpan.FromMinutes(30),
+        // Every probe is a full list for each organization, so once a minute rather than every
+        // poll interval.
+        ProbeInterval: TimeSpan.FromMinutes(1));
+
     public static readonly ProviderDescriptor Octopus = new(
         Id: "octopus",
         Name: "Octopus Deploy",
@@ -304,6 +334,7 @@ static class ProviderDescriptors
         AppVeyor,
         AzureDevOps,
         Bitbucket,
+        CircleCi,
         GitHub,
         GitLab,
         GoCd,

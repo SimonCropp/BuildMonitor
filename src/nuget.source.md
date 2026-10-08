@@ -26,7 +26,7 @@ An assistant stays on the old version of the MCP server until it [connects it ag
 
 ## Supported services
 
-AppVeyor, Azure DevOps, Bitbucket Pipelines, GitHub Actions, GitLab CI, GoCD, Jenkins, Octopus Deploy, TeamCity and Travis CI.
+AppVeyor, Azure DevOps, Bitbucket Pipelines, CircleCI, GitHub Actions, GitLab CI, GoCD, Jenkins, Octopus Deploy, TeamCity and Travis CI.
 
 Each takes a token or API key created in that service's own UI, and GitHub, GitLab and Azure DevOps can also sign in through the browser. Credentials are kept in the platform's secret store: the Windows Data Protection API, the macOS login Keychain, or the Secret Service on Linux. settings.json never holds one.
 

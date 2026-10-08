@@ -5,7 +5,7 @@
 /// </summary>
 public enum FetchUnit
 {
-    // A request per pipeline: AppVeyor, Bitbucket, GoCD, Jenkins, Travis.
+    // A request per pipeline: AppVeyor, Bitbucket, CircleCI, GoCD, Jenkins, Travis.
     Pipeline,
 
     // A request covers every pipeline sharing a RepoName: a GitHub repository, an Azure DevOps project.

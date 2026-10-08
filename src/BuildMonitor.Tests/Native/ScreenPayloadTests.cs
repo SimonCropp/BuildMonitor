@@ -28,15 +28,15 @@ public class ScreenPayloadTests
         return Verify(payload.Describe())
             .Snapshot(
                 """
-                page: 1 rows: 0 details: 0 chips: 0 spans: 0 fields: 6 options: 10 buttons: 4 menu: 0 tray: 9 strings: 726 bytes
+                page: 1 rows: 0 details: 0 chips: 0 spans: 0 fields: 6 options: 11 buttons: 4 menu: 0 tray: 9 strings: 734 bytes
                 search='' tip='' empty=''
                 status='Polled 5s ago' tip=''
-                field kind=5 flags=1 'provider' 'Provider' 'AppVeyor' options=0+10
-                field kind=2 flags=1 'name' 'Name' '' options=10+0
-                field kind=2 flags=1 'scope:account' 'Account (optional)' '' options=10+0
-                field kind=3 flags=1 'token' 'API token' '' options=10+0
-                field kind=7 flags=1 'tokenHelp' 'How to get an API token' 'https://ci.appveyor.com/api-keys' options=10+0
-                field kind=7 flags=1 'providerDocs' 'AppVeyor documentation' 'https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/appveyor.md' options=10+0
+                field kind=5 flags=1 'provider' 'Provider' 'AppVeyor' options=0+11
+                field kind=2 flags=1 'name' 'Name' '' options=11+0
+                field kind=2 flags=1 'scope:account' 'Account (optional)' '' options=11+0
+                field kind=3 flags=1 'token' 'API token' '' options=11+0
+                field kind=7 flags=1 'tokenHelp' 'How to get an API token' 'https://ci.appveyor.com/api-keys' options=11+0
+                field kind=7 flags=1 'providerDocs' 'AppVeyor documentation' 'https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/appveyor.md' options=11+0
                 button flags=0 'Sign in' tip=''
                 button flags=1 'Test' tip='Check the server and credential without saving'
                 button flags=1 'Save' tip=''

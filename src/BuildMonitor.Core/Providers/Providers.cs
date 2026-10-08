@@ -8,6 +8,7 @@ static class Providers
         new AppVeyorProvider(),
         new AzureDevOpsProvider(),
         new BitbucketProvider(),
+        new CircleCiProvider(),
         new GitHubProvider(),
         new GitLabProvider(),
         new GoCdProvider(),

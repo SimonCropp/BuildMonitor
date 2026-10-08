@@ -120,6 +120,39 @@
     DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/bitbucket.md
   },
   {
+    Id: circleci,
+    Name: CircleCI,
+    PipelineNoun: project,
+    BrowserSignIn: false,
+    DeviceSignIn: false,
+    SelfHosted: true,
+    DefaultServer: https://circleci.com,
+    TokenLabel: Personal API token,
+    TokenHelpUrl: https://app.circleci.com/settings/user/tokens,
+    Scheme: HeaderCircleToken,
+    Scopes: [
+      {
+        Id: organization,
+        Label: Organization,
+        Required: false,
+        Hint: Leave empty for every organization you are in
+      }
+    ],
+    HasEstimate: false,
+    HasBranches: true,
+    HasPullRequests: true,
+    HasArtifacts: true,
+    HasQueuePriority: false,
+    OrgNoun: org,
+    CustomClientId: false,
+    TokenNote: A personal token, from User Settings: the API refuses a project token.,
+    FetchConcurrency: 8,
+    IdleCap: 00:30:00,
+    ProbeInterval: 00:01:00,
+    HostsRepositories: false,
+    DocsUrl: https://github.com/SimonCropp/BuildMonitor/blob/main/docs/providers/circleci.md
+  },
+  {
     Id: github,
     Name: GitHub Actions,
     PipelineNoun: action,

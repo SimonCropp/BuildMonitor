@@ -105,7 +105,7 @@ Where the checkouts live. Browse picks it, or a path can be typed. Every git rep
 
 <img src="../src/BuildMonitor.Windows.Tests/MonitorFormTests.LocalRepos.verified.png">
 
-A checkout is matched to a pipeline by its `origin` remote first: `git@github.com:VerifyTests/DiffEngine.git` matches the repository GitHub Actions, Travis CI, Bitbucket Pipelines and AppVeyor name, and GitLab CI's namespaced path. Where that does not match, the folder's own name does, which is all there is to go on for Azure DevOps, TeamCity, Octopus Deploy, GoCd and Jenkins, none of which report a repository. A folder never wins a row from a checkout whose remote matched it.
+A checkout is matched to a pipeline by its `origin` remote first: `git@github.com:VerifyTests/DiffEngine.git` matches the repository GitHub Actions, Travis CI, CircleCI, Bitbucket Pipelines and AppVeyor name, and GitLab CI's namespaced path. Where that does not match, the folder's own name does, which is all there is to go on for Azure DevOps, TeamCity, Octopus Deploy, GoCd and Jenkins, none of which report a repository. A folder never wins a row from a checkout whose remote matched it.
 
 Scanning stops at a checkout rather than going through it, so a submodule or a vendored dependency is not listed as a repository of its own. Nothing in the checkout is read but `.git/config`, and nothing is written.
 

@@ -46,6 +46,7 @@ An assistant stays on the old version of the MCP server until it [connects it ag
  * [AppVeyor](/docs/providers/appveyor.md)<!-- include: providers. path: /docs/mdsource/providers.include.md -->
  * [Azure DevOps](/docs/providers/azure-devops.md)
  * [Bitbucket Pipelines](/docs/providers/bitbucket.md)
+ * [CircleCI](/docs/providers/circleci.md)
  * [GitHub Actions](/docs/providers/github.md)
  * [GitLab CI](/docs/providers/gitlab.md)
  * [GoCD](/docs/providers/gocd.md)

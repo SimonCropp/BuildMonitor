@@ -8,6 +8,7 @@ How each CI service limits requests, whether it answers conditional requests, an
 | [AppVeyor](appveyor.md#api-notes) | Unpublished | None | No | Projects list carries each latest build | Latest build only |
 | [Azure DevOps](azure-devops.md#api-notes) | 200 TSTU per five minutes | `X-RateLimit-Cost` always, the rest near the limit | No | Builds since `minTime`, per project | `maxBuildsPerDefinition`, per project |
 | [Bitbucket Pipelines](bitbucket.md#api-notes) | 1,000 an hour | `X-RateLimit-*`, reset in seconds | Yes; whether a 304 counts is undocumented | Repositories sorted by `-updated_on` | None |
+| [CircleCI](circleci.md#api-notes) | Unpublished | `Retry-After` on most 429s | Not documented | Newest pipelines, per organization | None |
 | [GitHub Actions](github.md#api-notes) | 5,000 an hour, 900 points a minute | `x-ratelimit-*` | Yes; a 304 is free against the hourly limit | Repositories sorted by `pushed` | GraphQL |
 | [GitLab CI](gitlab.md#api-notes) | 2,000 a minute on GitLab.com | `RateLimit-*` | Yes; a 304 still counts | Push events | GraphQL over GET |
 | [GoCD](gocd.md#api-notes) | None | None | Dashboard only | Dashboard | None |
@@ -26,6 +27,7 @@ Whether a build already waiting in the service's queue can be moved to the front
 | [AppVeyor](appveyor.md#api-notes) | No |
 | [Azure DevOps](azure-devops.md#queue-order) | `PATCH build/builds/{id}` with `queuePosition`, which is what the run's page calls Run next |
 | [Bitbucket Pipelines](bitbucket.md#api-notes) | No |
+| [CircleCI](circleci.md#api-notes) | No |
 | [GitHub Actions](github.md#api-notes) | No |
 | [GitLab CI](gitlab.md#api-notes) | No; job priority is an open feature request |
 | [GoCD](gocd.md#api-notes) | No |
@@ -46,6 +48,7 @@ Whether a failed branch's pull request was merged or closed, or the branch delet
 | [AppVeyor](appveyor.md#rows) | A GitHub connection, for a project on GitHub |
 | [Azure DevOps](azure-devops.md#branches-and-pull-requests) | Itself for Azure Repos: `pullrequests/{id}` and `refs?filter=heads/{branch}`; a GitHub connection for a repository on GitHub |
 | [Bitbucket Pipelines](bitbucket.md#branches-and-pull-requests) | Itself: `pullrequests/{id}`, and `refs/branches/{name}` then `refs/tags/{name}` |
+| [CircleCI](circleci.md#rows) | A GitHub connection, for a project on GitHub |
 | [GitHub Actions](github.md#branches-and-pull-requests) | Itself, for its own repositories and every other service's builds of one: `pulls/{number}`, `pulls?head={owner}:{branch}` for a fork's branch, and `branches/{branch}` then `git/matching-refs/tags/{name}` |
 | [GitLab CI](gitlab.md#branches-and-merge-requests) | Itself: `merge_requests/{iid}`, and `repository/branches/{branch}` then `repository/tags/{name}` |
 | [GoCD](gocd.md#api-notes) | A GitHub connection, for a git material on GitHub |

@@ -9,6 +9,7 @@ public class DeletedPipelineTests
     [Arguments("appveyor", null, "simon/gone", null, "https://ci.appveyor.com/project/simon/gone")]
     [Arguments("azure-devops", null, "Gone/1", "Gone", "https://dev.azure.com/org/Gone/_build?definitionId=1")]
     [Arguments("bitbucket", null, "gone", null, "https://bitbucket.org/simon/gone")]
+    [Arguments("circleci", null, "gh/simon/gone", null, "https://app.circleci.com/pipelines/github/simon/gone")]
     [Arguments("github", null, "SimonCropp/Gone/1", null, "https://github.com/SimonCropp/Gone/actions")]
     [Arguments("gitlab", null, "1", null, "https://gitlab.com/simon/gone")]
     [Arguments("gocd", "https://gocd.example.com/go", "gone", null, "https://gocd.example.com/go/pipeline/activity/gone")]

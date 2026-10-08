@@ -16,6 +16,7 @@ Where that name comes from is the provider's own:
 | AppVeyor | The commit's author |
 | Azure DevOps | Whoever the build was queued for |
 | Bitbucket Pipelines | Whoever started the pipeline |
+| CircleCI | Whoever triggered the pipeline |
 | GitHub Actions | The run's actor |
 | GitLab CI | Whoever started the pipeline |
 | GoCD | The author of the change that set it off |
@@ -37,7 +38,7 @@ Its value is the person's name, or the id of one, which is named as below. Octop
 
 None of this is something a service writes on its own, so no run carries one by accident, and one that does not is named as it was before.
 
-The rest have nowhere to put it: GitHub Actions, Bitbucket Pipelines, GitLab CI, AppVeyor, Travis CI and GoCD send nothing with a run that a pipeline can write and this can read.
+The rest have nowhere to put it: GitHub Actions, Bitbucket Pipelines, CircleCI, GitLab CI, AppVeyor, Travis CI and GoCD send nothing with a run that a pipeline can write and this can read.
 
 
 ## Ids shared between connections

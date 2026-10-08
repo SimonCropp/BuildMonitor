@@ -18,5 +18,7 @@ public enum AuthScheme
     // tokens, which GitLab does not look for here.
     HeaderPrivateToken,
     // X-Octopus-ApiKey: {token}.
-    HeaderOctopusApiKey
+    HeaderOctopusApiKey,
+    // Circle-Token: {token}. CircleCI personal API tokens, on both versions of its API.
+    HeaderCircleToken
 }

@@ -6,13 +6,14 @@ static class Credential
     /// <summary>
     /// Every header <see cref="Apply"/> can put the secret in, for <see cref="RedirectingHandler"/>
     /// to strip when a redirect leaves the service. Authorization is the only one the transport
-    /// knew to drop; the other two are as secret and used to cross with the request.
+    /// knew to drop; the others are as secret and used to cross with the request.
     /// </summary>
     public static readonly string[] Headers =
     [
         "Authorization",
         "PRIVATE-TOKEN",
-        "X-Octopus-ApiKey"
+        "X-Octopus-ApiKey",
+        "Circle-Token"
     ];
 
     public static void Apply(HttpRequestHeaders headers, AuthScheme scheme, string secret, string? user)
@@ -41,6 +42,10 @@ static class Credential
             case AuthScheme.HeaderOctopusApiKey:
                 headers.Remove("X-Octopus-ApiKey");
                 headers.TryAddWithoutValidation("X-Octopus-ApiKey", secret);
+                break;
+            case AuthScheme.HeaderCircleToken:
+                headers.Remove("Circle-Token");
+                headers.TryAddWithoutValidation("Circle-Token", secret);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(scheme), scheme, null);

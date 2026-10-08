@@ -127,7 +127,7 @@ static class Program
     /// <summary>
     /// Provider logos from Simple Icons, keyed by provider id. Iconify carries the shapes but not
     /// the brand colours, so those are transcribed from simple-icons. A brand that is near black,
-    /// GitHub and TeamCity, is drawn in the glyph grey instead, or it would vanish on a dark theme.
+    /// GitHub, TeamCity and CircleCI, is drawn in the glyph grey instead, or it would vanish on a dark theme.
     /// </summary>
     static (string Id, Icon Icon, SKColor Colour)[] providers =
     [
@@ -140,6 +140,7 @@ static class Program
         ("gitlab", SimpleIcons.Gitlab, new(0xFC, 0x6D, 0x26)),
         ("gocd", SimpleIcons.Gocd, new(0x94, 0x39, 0x9E)),
         ("bitbucket", SimpleIcons.Bitbucket, new(0x00, 0x52, 0xCC)),
+        ("circleci", SimpleIcons.Circleci, glyphColour),
         ("octopus", SimpleIcons.Octopusdeploy, new(0x2F, 0x93, 0xE0))
     ];
 
