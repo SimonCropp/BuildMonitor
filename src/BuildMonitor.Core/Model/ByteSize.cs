@@ -9,7 +9,7 @@ static class ByteSize
 
     /// <summary>
     /// One decimal place below ten of a unit and none above it, so a size reads at the precision it
-    /// was chosen at: a limit set at 20 MB is worth saying to the megabyte, and 2.1 GB against it
+    /// was chosen at: a limit set at 100 MB is worth saying to the megabyte, and 2.1 GB against it
     /// is worth the tenth that says how far past it went.
     /// </summary>
     public static string Human(long bytes)

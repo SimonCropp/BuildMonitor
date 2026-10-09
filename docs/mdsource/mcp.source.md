@@ -129,7 +129,7 @@ Downloads a failed build's artifacts to a local directory and writes its whole l
 
 The files go under the [app's own directory](#where-the-files-go), not the operating system's temp directory, and are deleted after 24 hours.
 
-A total of 50 MB is downloaded per build, at most 20 MB of any one file and at most 20 files, taking test reports, logs, approval output, screenshots and coverage before anything else, and smallest first within each of those. Anything left out is named with its size and the reason, so a report that was skipped is never mistaken for one that was never published. Jenkins reports no size for an artifact, so those are fetched under the per-file limit and stopped if they run past it.
+A total of 250 MB is downloaded per build, at most 100 MB of any one file and at most 20 files, taking test reports, logs, approval output, screenshots and coverage before anything else, and smallest first within each of those. Anything left out is named with its size and the reason, so a report that was skipped is never mistaken for one that was never published. Jenkins reports no size for an artifact, so those are fetched under the per-file limit and stopped if they run past it.
 
 Bitbucket and Travis have no artifact API: Bitbucket does not expose a pipeline's artifacts, and Travis stores none of its own. For a build on either, the call answers with the log alone and says which service it could not ask, rather than reporting that the run published nothing.
 

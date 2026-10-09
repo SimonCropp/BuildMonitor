@@ -12,16 +12,20 @@ record ArtifactPlan(ImmutableArray<BuildArtifact> Take, ImmutableArray<SkippedAr
     /// How much one triage downloads in total. The consumer is an assistant reading files, and
     /// everything that actually explains a failure — a test report, a junit file, a log, an
     /// approval diff, a screenshot — is kilobytes to a few megabytes. This takes all of those and a
-    /// couple of medium archives, in seconds to tens of seconds, without the tray noticing.
+    /// couple of large archives, without the tray noticing. Two and a half times
+    /// <see cref="DefaultPerFile"/>, so one file at its cap still leaves room for the reports
+    /// beside it.
     /// </summary>
-    public const long DefaultBudget = 50 * 1024 * 1024;
+    public const long DefaultBudget = 250 * 1024 * 1024;
 
     /// <summary>
-    /// The most one file may take. An artifact larger than this is nearly always a build output —
-    /// an installer, a container layer, a published binary — and reading it explains nothing, while
-    /// downloading it would spend the whole budget on one file.
+    /// The most one file may take. Wide enough for a zip of test results with their dumps and
+    /// screenshots, which a failing suite pushes into the tens of megabytes. An artifact larger
+    /// than this is nearly always a build output — an installer, a container layer, a published
+    /// binary — and reading it explains nothing, while downloading it would spend most of the
+    /// budget on one file.
     /// </summary>
-    public const long DefaultPerFile = 20 * 1024 * 1024;
+    public const long DefaultPerFile = 100 * 1024 * 1024;
 
     /// <summary>
     /// How many files at most. A wide matrix uploads one artifact per leg, and the twenty first

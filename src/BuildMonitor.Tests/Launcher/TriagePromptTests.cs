@@ -227,8 +227,8 @@ public class TriagePromptTests
                 "/home/simon/.local/share/BuildMonitor/artifacts/Verify-412-3f9a1c02",
                 ["log.txt"],
                 [
-                    new("runner-image.tar", 2254857830, "2.1 GB, over the 20 MB limit for one file"),
-                    new("dumps.zip", 356515840, "340 MB, over the 20 MB limit for one file")
+                    new("runner-image.tar", 2254857830, "2.1 GB, over the 100 MB limit for one file"),
+                    new("dumps.zip", 356515840, "340 MB, over the 100 MB limit for one file")
                 ]),
             fix: true));
 
