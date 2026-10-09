@@ -17,8 +17,8 @@ This directory is made for triage, outside the repository: never commit it. Unpa
 
 2 artifacts left out:
 
-- `runner-image.tar`: 2.1 GB, over the 20 MB limit for one file
-- `dumps.zip`: 340 MB, over the 20 MB limit for one file
+- `runner-image.tar`: 2.1 GB, over the 100 MB limit for one file
+- `dumps.zip`: 340 MB, over the 100 MB limit for one file
 
 Fetch from the run's page if the log points at one.
 
