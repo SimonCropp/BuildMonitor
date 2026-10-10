@@ -83,11 +83,23 @@ static class NativeResolver
         yield return Path.Combine(root, file);
     }
 
-    static IEnumerable<string> Rids()
+    static IEnumerable<string> Rids() =>
+        Rids(RuntimeInformation.RuntimeIdentifier);
+
+    public static IEnumerable<string> Rids(string runtimeIdentifier)
     {
         // The exact RID first. On Alpine that is linux-musl-x64, which we do not ship, so the
         // probe simply misses rather than loading a glibc binary and hard crashing.
-        yield return RuntimeInformation.RuntimeIdentifier;
+        yield return runtimeIdentifier;
+
+        // And nothing else, or the synthesised RID below undoes that: linux-{arch} is the glibc
+        // build. A load that fails is reported and the head exits, but one that succeeded would
+        // leave a crash to come later, in whichever call first met a libc that is not the one the
+        // library was built against.
+        if (runtimeIdentifier.Contains("-musl-", StringComparison.Ordinal))
+        {
+            yield break;
+        }
 
         var architecture = RuntimeInformation.OSArchitecture switch
         {
