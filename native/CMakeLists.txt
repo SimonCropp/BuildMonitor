@@ -62,6 +62,16 @@ target_include_directories(buildmonitor_ui PRIVATE include ${imgui_SOURCE_DIR})
 target_compile_definitions(buildmonitor_ui PRIVATE IMGUI_USE_WCHAR32)
 target_link_libraries(buildmonitor_ui PRIVATE raylib)
 
+# Only the libraries something is actually called in are recorded as needed. raylib hands on
+# everything CMake's FindX11 found, which includes libSM and libICE wherever their headers are
+# installed, and nothing here or in raylib calls either. A library recorded as needed has to be
+# on the machine for this one to load at all, and a stock Ubuntu has neither of those two.
+# Ubuntu's own compiler passes this by default, so a library built on the runner never recorded
+# them. The manylinux container build-native builds in does not pass it.
+if(UNIX AND NOT APPLE)
+  target_link_options(buildmonitor_ui PRIVATE LINKER:--as-needed)
+endif()
+
 # The managed side probes for a bare name; keep it identical on every platform apart from the
 # platform's own prefix and extension.
 set_target_properties(buildmonitor_ui PROPERTIES

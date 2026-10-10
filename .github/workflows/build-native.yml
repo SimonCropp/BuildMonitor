@@ -47,22 +47,59 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Install build dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build \
-            libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
-            libgl1-mesa-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev
-
-      - name: Configure
-        if: matrix.rid != 'osx'
-        run: cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-
+      # In a manylinux_2_28 container rather than on the runner, for its glibc 2.28, which is
+      # RHEL 8's. A library records the glibc symbol versions of the headers it was compiled
+      # against, and the loader refuses it anywhere older. Built on the runner's own Ubuntu 24.04
+      # it needed GLIBC_2.38, so the Linux head could not load it on Ubuntu 22.04, Debian 12, or
+      # RHEL 8 or 9, and BuildMonitor exited there without opening a window.
       - name: Build
-        if: matrix.rid != 'osx'
-        run: cmake --build build --config Release
+        if: runner.os == 'Linux'
+        run: docker run --rm -v "$PWD:/src" -w /src "quay.io/pypa/manylinux_2_28_$(uname -m)" bash native/build-linux.sh
+
+      # The floor the container is there to hold, checked rather than trusted, since nothing else
+      # would notice until a user on an older distribution did.
+      - name: Check glibc floor
+        if: runner.os == 'Linux'
+        env:
+          GLIBC_FLOOR: GLIBC_2.28
+        run: |
+          highest=$(objdump -T build/libbuildmonitor_ui.so | grep -o 'GLIBC_[0-9][0-9.]*' | sort -uV | tail -n 1)
+          echo "Highest glibc symbol version required: $highest"
+          if [ "$(printf '%s\n' "$GLIBC_FLOOR" "$highest" | sort -V | tail -n 1)" != "$GLIBC_FLOOR" ]; then
+            echo "::error::libbuildmonitor_ui.so requires $highest, above the $GLIBC_FLOOR floor"
+            exit 1
+          fi
+          # libGL.so.1 is on every machine with a GL driver; libOpenGL.so.0 is not
+          if objdump -p build/libbuildmonitor_ui.so | grep -q 'NEEDED.*libOpenGL'; then
+            echo "::error::libbuildmonitor_ui.so links libOpenGL.so.0 rather than libGL.so.1"
+            exit 1
+          fi
+
+      # Everything recorded as needed has to be on a machine for the library to load at all, so
+      # the list is held to what any machine that runs .NET and has a display already has. The
+      # container's linker records every library it is handed, used or not, and raylib hands on
+      # libSM and libICE, which a stock Ubuntu lacks. native/CMakeLists.txt links with --as-needed
+      # so that neither is recorded, and this is what notices the list growing by any other route.
+      - name: Check needed libraries
+        if: runner.os == 'Linux'
+        env:
+          ALLOWED: >-
+            libc.so.6 libm.so.6 libdl.so.2 libpthread.so.0 librt.so.1 libstdc++.so.6 libgcc_s.so.1
+            libX11.so.6 libGL.so.1 ld-linux-x86-64.so.2 ld-linux-aarch64.so.1
+        run: |
+          needed=$(objdump -p build/libbuildmonitor_ui.so | awk '$1 == "NEEDED" { print $2 }')
+          echo "Needed:" $needed
+          failed=0
+          for library in $needed; do
+            case " $ALLOWED " in
+              *" $library "*) ;;
+              *)
+                echo "::error::libbuildmonitor_ui.so needs $library, which is not in the list of libraries it may need"
+                failed=1
+                ;;
+            esac
+          done
+          exit $failed
 
       # macOS draws with AppKit and Core Text rather than raylib and ImGui, so it is a Swift
       # package rather than a CMake project. Both --arch flags in one invocation produce a
@@ -91,7 +128,7 @@ jobs:
           }
           case "${{ matrix.rid }}" in
             linux-*)
-              strip build/libbuildmonitor_ui.so
+              # Already stripped, inside the container that owns the build directory
               collect BuildMonitor.Native "${{ matrix.rid }}" build/libbuildmonitor_ui.so
               ;;
             osx)
