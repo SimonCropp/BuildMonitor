@@ -1576,7 +1576,12 @@ BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const u
     SetTraceLogLevel(LOG_WARNING);
     // Always made hidden, and shown once it is where it was left: made visible, it would first
     // appear centred and then jump.
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT | FLAG_WINDOW_HIDDEN);
+    // ALWAYS_RUN because PollInputEvents otherwise waits for an event for as long as the window is
+    // minimised, and every bm_present makes that call. The managed loop stopped there with it:
+    // the tray's icon and menu stood still, no notification was shown, a click on the tray went
+    // unread, and a show asked for over the socket, which is what starting BuildMonitor again
+    // sends, waited until something else brought the window back.
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT | FLAG_WINDOW_HIDDEN | FLAG_WINDOW_ALWAYS_RUN);
     InitWindow(width, height, title != nullptr ? title : "BuildMonitor");
     if (!IsWindowReady()) {
         return 0;

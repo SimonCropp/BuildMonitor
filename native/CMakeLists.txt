@@ -27,8 +27,54 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
+# raylib 6.0 reads every SUPPORT_ flag in its config.h into an option that defaults to ON, the ones
+# config.h defines as 0 included (raysan5/raylib#5844, fixed after 6.0), and CUSTOMIZE_BUILD skips
+# config.h's own values. So each of those is on unless it is switched off here.
+# SUPPORT_CUSTOM_FRAME_CONTROL was: EndDrawing then neither puts the frame on the screen, reads
+# input nor waits for the next frame, and bm_present leaves all three to it for every frame it
+# draws. So the Linux window stayed black, and from the first input bm_present drew one frame
+# after another with no wait between them and read nothing more. A capture draws into a texture
+# and never gets that far, which is why the pixel snapshots passed throughout;
+# PixelTests.PresentWaitsForTheNextFrame is what notices. The busy wait loop was on the same way,
+# and WaitTime is how bm_present waits out a frame it does not draw, so a tray with its window
+# hidden spun through every one of them: a seventh of a core, for as long as it ran. The rest are
+# formats and features nothing here uses.
+foreach(flag IN ITEMS
+    SUPPORT_CUSTOM_FRAME_CONTROL
+    SUPPORT_BUSY_WAIT_LOOP
+    SUPPORT_GPU_SKINNING
+    SUPPORT_FILEFORMAT_TGA
+    SUPPORT_FILEFORMAT_JPG
+    SUPPORT_FILEFORMAT_PSD
+    SUPPORT_FILEFORMAT_HDR
+    SUPPORT_FILEFORMAT_PIC
+    SUPPORT_FILEFORMAT_PNM
+    SUPPORT_FILEFORMAT_KTX
+    SUPPORT_FILEFORMAT_ASTC
+    SUPPORT_FILEFORMAT_PKM
+    SUPPORT_FILEFORMAT_PVR
+    SUPPORT_FILEFORMAT_BDF
+    SUPPORT_FILEFORMAT_FLAC)
+  set(${flag} OFF CACHE BOOL "" FORCE)
+endforeach()
+# raylib spins for the last part of every wait by default, for timing precision nothing here
+# needs: most of a millisecond of a core per frame, for as long as the tray runs.
+set(SUPPORT_PARTIALBUSY_WAIT_LOOP OFF CACHE BOOL "" FORCE)
+# F12 saves a screenshot into the working directory, which is wherever the tray was started from.
+# raylib looks for the key at the end of a frame it has drawn, so that is F12 pressed while frames
+# are being drawn, as they are for as long as the pointer is crossing the window.
+set(SUPPORT_SCREEN_CAPTURE OFF CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RMODELS OFF CACHE BOOL "" FORCE)
+# PNG is the one picture format anything here reads or writes: a row's icons arrive as PNG, and a
+# capture is saved as one. The other four that config.h has on, nothing here loads or saves.
+foreach(flag IN ITEMS
+    SUPPORT_FILEFORMAT_BMP
+    SUPPORT_FILEFORMAT_GIF
+    SUPPORT_FILEFORMAT_QOI
+    SUPPORT_FILEFORMAT_DDS)
+  set(${flag} OFF CACHE BOOL "" FORCE)
+endforeach()
 set(SUPPORT_FILEFORMAT_PNG ON CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
