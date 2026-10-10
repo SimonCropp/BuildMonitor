@@ -8,6 +8,13 @@ import ImageIO
 ///
 /// The header is imported for its struct layouts only, with BM_TYPES_ONLY, so these are the
 /// definitions of those symbols rather than a second declaration of them.
+///
+/// Every one that touches AppKit runs inside its own autorelease pool. `NSApplication.run` drains
+/// a pool per event, but this app never calls it: the managed loop calls in instead, and with no
+/// pool pushed objc4 parks everything autoreleased in one it creates for the thread, which drains
+/// only when the thread exits. That is the main thread, so everything a frame autoreleased - the
+/// events, the attributed strings, the drawing - stayed until the process did, and a tray is a
+/// process that runs for days.
 
 @_cdecl("bm_version")
 public func bmVersion() -> Int32 {
@@ -27,6 +34,20 @@ public func bmInit(
     _ fontLength: Int32,
     _ emojiTtf: UnsafePointer<UInt8>?,
     _ emojiLength: Int32,
+    _ fontSize: Float,
+    _ placement: UnsafePointer<BmPlacement>?,
+    _ hidden: Int32) -> Int32 {
+    autoreleasepool {
+        initialise(width, height, title, fontTtf, fontLength, fontSize, placement, hidden)
+    }
+}
+
+private func initialise(
+    _ width: Int32,
+    _ height: Int32,
+    _ title: UnsafePointer<CChar>?,
+    _ fontTtf: UnsafePointer<UInt8>?,
+    _ fontLength: Int32,
     _ fontSize: Float,
     _ placement: UnsafePointer<BmPlacement>?,
     _ hidden: Int32) -> Int32 {
@@ -53,17 +74,19 @@ public func bmPresent(_ screen: UnsafePointer<BmScreen>?) -> Int32 {
         return 0
     }
 
-    // The managed side presents every frame, and a screen it has not rebuilt comes with the same
-    // generation. Decoded and drawn anyway, every string was copied and every row drawn sixty times
-    // a second to put the same pixels on screen.
-    let generation = screen.pointee.generation
-    if generation == runtime.presentedGeneration {
-        runtime.pumpUnchanged()
-        return 1
+    autoreleasepool {
+        // The managed side presents every frame, and a screen it has not rebuilt comes with the
+        // same generation. Decoded and drawn anyway, every string was copied and every row drawn
+        // sixty times a second to put the same pixels on screen.
+        let generation = screen.pointee.generation
+        if generation == runtime.presentedGeneration {
+            runtime.pumpUnchanged()
+        } else {
+            runtime.presentedGeneration = generation
+            runtime.present(Frame.decode(screen))
+        }
     }
 
-    runtime.presentedGeneration = generation
-    runtime.present(Frame.decode(screen))
     return 1
 }
 
@@ -74,12 +97,14 @@ public func bmPollInput(_ input: UnsafeMutablePointer<BmInput>?) {
     }
 
     let runtime = Runtime.shared
-    if runtime.initialised {
-        runtime.measure()
-        runtime.drainEdit()
-        runtime.samplePlacement()
-        runtime.sampleMinimized()
-        runtime.sampleHover()
+    autoreleasepool {
+        if runtime.initialised {
+            runtime.measure()
+            runtime.drainEdit()
+            runtime.samplePlacement()
+            runtime.sampleMinimized()
+            runtime.sampleHover()
+        }
     }
 
     input.pointee = runtime.input
@@ -88,16 +113,20 @@ public func bmPollInput(_ input: UnsafeMutablePointer<BmInput>?) {
 
 @_cdecl("bm_set_hidden")
 public func bmSetHidden(_ hidden: Int32) {
-    if hidden == 0 {
-        Runtime.shared.show()
-    } else {
-        Runtime.shared.hide()
+    autoreleasepool {
+        if hidden == 0 {
+            Runtime.shared.show()
+        } else {
+            Runtime.shared.hide()
+        }
     }
 }
 
 @_cdecl("bm_focus")
 public func bmFocus() {
-    Runtime.shared.show()
+    autoreleasepool {
+        Runtime.shared.show()
+    }
 }
 
 @_cdecl("bm_set_clipboard")
@@ -106,9 +135,11 @@ public func bmSetClipboard(_ text: UnsafePointer<CChar>?) {
         return
     }
 
-    let board = NSPasteboard.general
-    board.clearContents()
-    board.setString(String(cString: text), forType: .string)
+    autoreleasepool {
+        let board = NSPasteboard.general
+        board.clearContents()
+        board.setString(String(cString: text), forType: .string)
+    }
 }
 
 @_cdecl("bm_pick_directory")
@@ -122,8 +153,10 @@ public func bmPickDirectory(
         return 0
     }
 
-    let picked = Runtime.shared.pickDirectory(start: start.map { String(cString: $0) })
-    return writePicked(picked, into: buffer, length: bufferLength)
+    return autoreleasepool { () -> Int32 in
+        let picked = Runtime.shared.pickDirectory(start: start.map { String(cString: $0) })
+        return writePicked(picked, into: buffer, length: bufferLength)
+    }
 }
 
 /// The answer as the managed side reads it back: the path as UTF-8 with no terminator, and how many
@@ -154,6 +187,12 @@ public func bmTrayAvailable() -> Int32 {
 
 @_cdecl("bm_tray_init")
 public func bmTrayInit() -> Int32 {
+    autoreleasepool {
+        initialiseTray()
+    }
+}
+
+private func initialiseTray() -> Int32 {
     let runtime = Runtime.shared
     if runtime.tray != nil {
         return 1
@@ -172,42 +211,61 @@ public func bmTrayInit() -> Int32 {
 
 @_cdecl("bm_tray_set_icon")
 public func bmTraySetIcon(_ kind: Int32, _ png: UnsafePointer<UInt8>?, _ length: Int32) {
-    guard let png, length > 0 else {
+    guard let png, length > 0, let tray = Runtime.shared.tray else {
         return
     }
 
-    Runtime.shared.tray?.setIcon(kind: kind, png: Data(bytes: png, count: Int(length)))
+    autoreleasepool {
+        tray.setIcon(kind: kind, png: Data(bytes: png, count: Int(length)))
+    }
 }
 
 @_cdecl("bm_tray_set_menu_icon")
 public func bmTraySetMenuIcon(_ name: UnsafePointer<CChar>?, _ png: UnsafePointer<UInt8>?, _ length: Int32) {
-    guard let name, let png, length > 0 else {
+    guard let name, let png, length > 0, let tray = Runtime.shared.tray else {
         return
     }
 
-    Runtime.shared.tray?.setMenuIcon(name: String(cString: name), png: Data(bytes: png, count: Int(length)))
+    autoreleasepool {
+        tray.setMenuIcon(name: String(cString: name), png: Data(bytes: png, count: Int(length)))
+    }
 }
 
 @_cdecl("bm_set_row_icon")
 public func bmSetRowIcon(_ name: UnsafePointer<CChar>?, _ png: UnsafePointer<UInt8>?, _ length: Int32) {
-    guard let name, let png, length > 0,
-          let image = NSImage(data: Data(bytes: png, count: Int(length))) else {
+    guard let name, let png, length > 0 else {
         return
     }
 
-    image.size = NSSize(width: 16, height: 16)
-    RowIcons.images[String(cString: name)] = image
+    autoreleasepool {
+        if let image = NSImage(data: Data(bytes: png, count: Int(length))) {
+            image.size = NSSize(width: 16, height: 16)
+            RowIcons.images[String(cString: name)] = image
+        }
+    }
 }
 
 @_cdecl("bm_shutdown")
 public func bmShutdown() {
-    Runtime.shared.shutdown()
+    autoreleasepool {
+        Runtime.shared.shutdown()
+    }
 }
 
 /// Renders into a bitmap of this side's own making, with scale, colour space and font smoothing
 /// pinned, so a committed baseline matches on any display. No window is needed.
 @_cdecl("bm_capture")
 public func bmCapture(
+    _ screen: UnsafePointer<BmScreen>?,
+    _ width: Int32,
+    _ height: Int32,
+    _ pngPath: UnsafePointer<CChar>?) -> Int32 {
+    autoreleasepool {
+        capture(screen, width, height, pngPath)
+    }
+}
+
+private func capture(
     _ screen: UnsafePointer<BmScreen>?,
     _ width: Int32,
     _ height: Int32,

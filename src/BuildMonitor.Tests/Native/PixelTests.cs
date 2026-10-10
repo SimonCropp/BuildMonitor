@@ -97,6 +97,61 @@ public class PixelTests
     public Task PrefixGroup() =>
         Capture(MonitorSession.ToggleGroup(Fixtures.WithPrefixGroup(), Fixtures.VerifyPassing));
 
+    /// <summary>
+    /// raylib does three things at the end of a frame it has drawn, behind one flag: puts it on the
+    /// screen, reads input, and waits for the next frame. raylib 6.0's CMake turned that flag on, and
+    /// bm_present leaves all three to raylib, so a frame it drew never reached the window. A capture
+    /// draws into a texture and never gets that far, so every snapshot above kept passing. The wait
+    /// is the one of the three that can be timed from here, so it stands for all of them.
+    /// <para>
+    /// Timed in the window, shown for as long as this takes, with every present a screen that is
+    /// not the one before it. bm_present draws only into a window that is showing, and only a
+    /// screen that is new to it, and a frame it does not draw it waits out by itself, whatever the
+    /// flag. Last in the order, so the frames drawn here come after every capture rather than
+    /// between two of them.
+    /// </para>
+    /// <para>
+    /// Linux only. The macOS head waits for the next frame in its event pump rather than after
+    /// drawing one, and its window can only be made on the main thread, which a test host does not
+    /// run its tests on.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [RunOn(TUnit.Core.Enums.OS.Linux)]
+    [NotInParallel(nameof(PixelTests), Order = 10)]
+    public async Task PresentWaitsForTheNextFrame()
+    {
+        // The same rows built twice. The head tells one screen from the next by whether it is the
+        // instance it was last handed, so taking turns makes every present a screen to draw.
+        Screen[] screens =
+        [
+            ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now),
+            ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now)
+        ];
+        var watch = new Stopwatch();
+        window!.SetHidden(false);
+        try
+        {
+            // So the timing starts on a frame boundary
+            window.Present(screens[1]);
+            watch.Start();
+            for (var frame = 0; frame < 60; frame++)
+            {
+                window.Present(screens[frame % 2]);
+            }
+
+            watch.Stop();
+        }
+        finally
+        {
+            window.SetHidden(true);
+        }
+
+        // Sixty frames at sixty a second. Unpaced, they went by as fast as each could be drawn.
+        await Assert.That(watch.Elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
+    }
+
     static async Task Capture(SessionState state)
     {
         // Pinned rather than System, so a capture does not depend on the theme of whoever ran it.
