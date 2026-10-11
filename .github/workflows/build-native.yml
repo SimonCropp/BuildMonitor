@@ -7,6 +7,12 @@ name: Build native
 # They are committed rather than built during a normal build so that a plain
 # `dotnet build src --configuration Release` produces a shippable package on any machine, and
 # contributors never need a C++ toolchain. Run this whenever native/ changes.
+#
+# The work is PlatformHeads' build-native workflow, which DiffEngine's viewer is built by too: the
+# Linux library built in a manylinux_2_28 container and checked for the glibc it needs and the
+# libraries it records as needed, the universal dylib, and the pull request with the binaries.
+# Each of those was once a copy here, and a fix made to the other copy did not reach this one.
+# The tag is the one native/CMakeLists.txt fetches and Directory.Packages.props names.
 on:
   push:
     paths:
@@ -27,206 +33,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: ${{ matrix.rid }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # No Windows entries. That head renders with WinForms and loads no native library.
-          - rid: linux-x64
-            os: ubuntu-24.04
-          - rid: linux-arm64
-            os: ubuntu-24.04-arm
-          # One universal binary covers both macOS RIDs; it is copied into each below.
-          - rid: osx
-            os: macos-14
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      # In a manylinux_2_28 container rather than on the runner, for its glibc 2.28, which is
-      # RHEL 8's. A library records the glibc symbol versions of the headers it was compiled
-      # against, and the loader refuses it anywhere older. Built on the runner's own Ubuntu 24.04
-      # it needed GLIBC_2.38, so the Linux head could not load it on Ubuntu 22.04, Debian 12, or
-      # RHEL 8 or 9, and BuildMonitor exited there without opening a window.
-      - name: Build
-        if: runner.os == 'Linux'
-        run: docker run --rm -v "$PWD:/src" -w /src "quay.io/pypa/manylinux_2_28_$(uname -m)" bash native/build-linux.sh
-
-      # The floor the container is there to hold, checked rather than trusted, since nothing else
-      # would notice until a user on an older distribution did.
-      - name: Check glibc floor
-        if: runner.os == 'Linux'
-        env:
-          GLIBC_FLOOR: GLIBC_2.28
-        run: |
-          highest=$(objdump -T build/libbuildmonitor_ui.so | grep -o 'GLIBC_[0-9][0-9.]*' | sort -uV | tail -n 1)
-          echo "Highest glibc symbol version required: $highest"
-          if [ "$(printf '%s\n' "$GLIBC_FLOOR" "$highest" | sort -V | tail -n 1)" != "$GLIBC_FLOOR" ]; then
-            echo "::error::libbuildmonitor_ui.so requires $highest, above the $GLIBC_FLOOR floor"
-            exit 1
-          fi
-          # libGL.so.1 is on every machine with a GL driver; libOpenGL.so.0 is not
-          if objdump -p build/libbuildmonitor_ui.so | grep -q 'NEEDED.*libOpenGL'; then
-            echo "::error::libbuildmonitor_ui.so links libOpenGL.so.0 rather than libGL.so.1"
-            exit 1
-          fi
-
-      # Everything recorded as needed has to be on a machine for the library to load at all, so
-      # the list is held to what any machine that runs .NET and has a display already has. The
-      # container's linker records every library it is handed, used or not, and raylib hands on
-      # libSM and libICE, which a stock Ubuntu lacks. native/CMakeLists.txt links with --as-needed
-      # so that neither is recorded, and this is what notices the list growing by any other route.
-      - name: Check needed libraries
-        if: runner.os == 'Linux'
-        env:
-          ALLOWED: >-
-            libc.so.6 libm.so.6 libdl.so.2 libpthread.so.0 librt.so.1 libstdc++.so.6 libgcc_s.so.1
-            libX11.so.6 libGL.so.1 ld-linux-x86-64.so.2 ld-linux-aarch64.so.1
-        run: |
-          needed=$(objdump -p build/libbuildmonitor_ui.so | awk '$1 == "NEEDED" { print $2 }')
-          echo "Needed:" $needed
-          failed=0
-          for library in $needed; do
-            case " $ALLOWED " in
-              *" $library "*) ;;
-              *)
-                echo "::error::libbuildmonitor_ui.so needs $library, which is not in the list of libraries it may need"
-                failed=1
-                ;;
-            esac
-          done
-          exit $failed
-
-      # macOS draws with AppKit and Core Text rather than raylib and ImGui, so it is a Swift
-      # package rather than a CMake project. Both --arch flags in one invocation produce a
-      # universal binary, so there is no separate lipo step.
-      - name: Build
-        if: matrix.rid == 'osx'
-        run: swift build -c release --arch arm64 --arch x86_64 --package-path native/swift
-
-      # The folder panel, and turning AppKit's frames into the ABI's placements, are what this head
-      # decides by itself rather than drawing from a screen the managed side built, so they are
-      # what has tests here. A scratch path of its
-      # own, because a test build is debug and for this machine's architecture alone: left in .build
-      # its dylib would be among the candidates the collect step below merges.
-      - name: Test
-        if: matrix.rid == 'osx'
-        run: swift test --package-path native/swift --scratch-path native/swift/.build-tests
-
-      - name: Collect
-        shell: bash
-        run: |
-          # Laid out as src/{head}/runtimes/{rid}/native, so the propose job below can merge every
-          # artifact straight into src and the binaries land in the head that loads them.
-          collect() {
-            mkdir -p "artifacts/$1/runtimes/$2/native"
-            cp "$3" "artifacts/$1/runtimes/$2/native/"
-          }
-          case "${{ matrix.rid }}" in
-            linux-*)
-              # Already stripped, inside the container that owns the build directory
-              collect BuildMonitor.Native "${{ matrix.rid }}" build/libbuildmonitor_ui.so
-              ;;
-            osx)
-              # swift build leaves a per architecture dylib in more than one place. Every candidate
-              # is checked, and if none is already universal they are merged, so the only thing
-              # that can be collected is a fat binary. The dSYM holds a DWARF file of the same
-              # name which is also universal, so it is excluded by path.
-              candidates=$(find native/swift/.build -name libbuildmonitor_ui.dylib -not -path '*.dSYM/*')
-              if [ -z "$candidates" ]; then
-                echo "::error::swift build produced no libbuildmonitor_ui.dylib"
-                exit 1
-              fi
-
-              dylib=""
-              for candidate in $candidates; do
-                archs=$(lipo -archs "$candidate" 2>/dev/null || echo "")
-                if [[ "$archs" == *x86_64* && "$archs" == *arm64* ]]; then
-                  dylib="$candidate"
-                  break
-                fi
-              done
-
-              if [ -z "$dylib" ]; then
-                dylib=universal/libbuildmonitor_ui.dylib
-                mkdir -p universal
-                # shellcheck disable=SC2086
-                lipo -create $candidates -output "$dylib"
-              fi
-
-              archs=$(lipo -archs "$dylib")
-              echo "collecting $dylib: $archs"
-              for arch in x86_64 arm64; do
-                case " $archs " in
-                  *" $arch "*) ;;
-                  *) echo "::error::$dylib is missing the $arch slice"; exit 1 ;;
-                esac
-              done
-
-              strip -x "$dylib"
-              # The dylib is universal, so both macOS RIDs get the same file.
-              collect BuildMonitor.Native osx-x64 "$dylib"
-              collect BuildMonitor.Native osx-arm64 "$dylib"
-              ;;
-          esac
-          ls -lhR artifacts
-
-      - name: Upload
-        uses: actions/upload-artifact@v7
-        with:
-          name: native-${{ matrix.rid }}
-          path: artifacts/
-          retention-days: 7
-
-  propose:
-    name: propose update
-    needs: build
-    # Also on push, not just manual dispatch. workflow_dispatch does not appear in the Actions UI
-    # until the workflow is on the default branch, so on a feature branch a push is the only way
-    # to trigger this.
-    #
-    # Branches only. Never on pull_request, which would mean opening a PR from a PR, and never on
-    # a tag: a tag checkout is a detached HEAD with no base branch to target.
-    if: >-
-      github.event_name != 'pull_request' &&
-      startsWith(github.ref, 'refs/heads/') &&
-      (github.event_name != 'workflow_dispatch' || inputs.commit)
-    runs-on: ubuntu-latest
+  native:
+    uses: SimonCropp/PlatformHeads/.github/workflows/build-native.yml@0.1.0
     permissions:
       contents: write
       pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Download
-        uses: actions/download-artifact@v8
-        with:
-          pattern: native-*
-          merge-multiple: true
-          path: src
-
-      - name: Show what changed
-        run: |
-          ls -lhR src/BuildMonitor.Native/runtimes
-          git status --short
-
-      # A PR rather than a direct push: these are binaries, so the diff is not reviewable and the
-      # change deserves an explicit approval.
-      - name: Open pull request
-        uses: peter-evans/create-pull-request@v8
-        with:
-          branch: native-binaries-${{ github.ref_name }}
-          title: 'Rebuild native UI binaries'
-          commit-message: 'Rebuild native UI binaries'
-          body: |
-            Rebuilt `buildmonitor_ui` from `native/` for the four RIDs that load one.
-            Windows is not among them: that head renders with WinForms.
-
-            Produced by the `build-native` workflow from ${{ github.sha }}.
-          add-paths: |
-            src/BuildMonitor.Native/runtimes
+    with:
+      library: buildmonitor_ui
+      linux-runtimes: src/BuildMonitor.Native/runtimes
+      swift-package: native/swift
+      mac-runtimes: src/BuildMonitor.Native/runtimes
+      # The folder panel, and turning AppKit's frames into the ABI's placements, are what the
+      # macOS head decides by itself rather than drawing from a screen the managed side built, so
+      # they are what has tests there.
+      swift-test: true
+      # Also on push, not just manual dispatch. workflow_dispatch does not appear in the Actions
+      # UI until the workflow is on the default branch, so on a feature branch a push is the only
+      # way to trigger this.
+      propose: ${{ github.event_name != 'workflow_dispatch' || inputs.commit }}
+      pull-request-title: Rebuild native UI binaries
