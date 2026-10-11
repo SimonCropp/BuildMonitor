@@ -43,7 +43,7 @@
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
     <!--
-    Ordering only. PublishHeads shells out to dotnet publish for the heads, so without this a
+    Ordering only. PlatformHeads shells out to dotnet publish for the heads, so without this a
     solution build can have two processes building a head at once. Every piece of metadata is
     load bearing: a plain reference would copy the head's output into this package.
     -->
@@ -58,78 +58,37 @@
   </ItemGroup>
 
   <!--
-  Bundles a head per RID, so one install works on every platform. One framework dependent
-  publish per RID gives a real apphost per platform. Off by default, like DiffEngine's
-  bundling, so a Debug build and a test run do not pay for the nested publishes; a Release
-  build, which packs, always bundles. Set BuildMonitor_Head to run a head from a Debug build.
+  Bundles a head per RID, so one install works on every platform, by PlatformHeads' targets: one
+  framework dependent publish per RID, which gives a real apphost per platform, staged and then
+  packed beside the launcher. They were this project's own targets, and DiffEngine's own beside
+  them, each a copy of the other.
+
+  Each RID names the head that renders on it. Every head produces a BuildMonitor.Tray apphost,
+  so heads/{rid} keeps one shape and HeadLocator does not know which project it came from.
+  Native says the head's renderer is a library committed under its runtimes folder, and one that
+  is missing for a RID is warned of as PH0001.
   -->
+  <ItemGroup>
+    <PackageReference Include="PlatformHeads" PrivateAssets="all" />
+    <PlatformHead Include="win-x64" Project="..\BuildMonitor.Windows\BuildMonitor.Windows.csproj" Apphost="BuildMonitor.Tray.exe" />
+    <PlatformHead Include="win-arm64" Project="..\BuildMonitor.Windows\BuildMonitor.Windows.csproj" Apphost="BuildMonitor.Tray.exe" />
+    <PlatformHead Include="linux-x64" Project="..\BuildMonitor.Native\BuildMonitor.Native.csproj" Apphost="BuildMonitor.Tray" Native="true" />
+    <PlatformHead Include="linux-arm64" Project="..\BuildMonitor.Native\BuildMonitor.Native.csproj" Apphost="BuildMonitor.Tray" Native="true" />
+    <PlatformHead Include="osx-x64" Project="..\BuildMonitor.Native\BuildMonitor.Native.csproj" Apphost="BuildMonitor.Tray" Native="true" />
+    <PlatformHead Include="osx-arm64" Project="..\BuildMonitor.Native\BuildMonitor.Native.csproj" Apphost="BuildMonitor.Tray" Native="true" />
+  </ItemGroup>
+
   <PropertyGroup>
-    <HeadStageDir>$(MSBuildProjectDirectory)\obj\heads\</HeadStageDir>
-    <BundleHeads Condition="'$(BundleHeads)' == '' And '$(GeneratePackageOnBuild)' == 'true'">true</BundleHeads>
-    <GenerateNuspecDependsOn Condition="'$(BundleHeads)' == 'true'">AddHeadsToPackage;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
+    <!--
+    PackAsTool packs the publish directory into tools/$(TargetFramework)/any, so the heads go
+    beside it, each under its RID.
+    -->
+    <PlatformHeadsPackagePath>tools\$(TargetFramework)\any\heads</PlatformHeadsPackagePath>
+    <!--
+    Also into bin, so a Release build run from bin resolves a head the same way an installed tool
+    does. Only for a build that packs, which a Release build is: a Debug build and a test run do
+    not pay for the nested publishes. Set BuildMonitor_Head to run a head from a Debug build.
+    -->
+    <PlatformHeadsOutputPath Condition="'$(GeneratePackageOnBuild)' == 'true'">heads</PlatformHeadsOutputPath>
   </PropertyGroup>
-
-  <Target Name="PublishHeads" Condition="'$(BundleHeads)' == 'true'">
-    <!--
-    Each RID names the head that renders on it. Every head produces a BuildMonitor.Tray apphost,
-    so heads/{rid} keeps one shape and HeadLocator does not know which project it came from.
-    Inside the target rather than at the top level: a top level item whose Include is not a path
-    shows in the IDE's project tree as a missing file.
-    -->
-    <ItemGroup>
-      <HeadRid Include="win-x64" Head="BuildMonitor.Windows" Native="false" Apphost="BuildMonitor.Tray.exe" />
-      <HeadRid Include="win-arm64" Head="BuildMonitor.Windows" Native="false" Apphost="BuildMonitor.Tray.exe" />
-      <HeadRid Include="linux-x64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
-      <HeadRid Include="linux-arm64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
-      <HeadRid Include="osx-x64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
-      <HeadRid Include="osx-arm64" Head="BuildMonitor.Native" Native="true" Apphost="BuildMonitor.Tray" />
-    </ItemGroup>
-    <RemoveDir Directories="$(HeadStageDir)" />
-    <Warning Condition="'%(HeadRid.Native)' == 'true' And !Exists('$(MSBuildThisFileDirectory)..\%(HeadRid.Head)\runtimes\%(HeadRid.Identity)\native')"
-             Code="BM0001"
-             Text="No native renderer for %(HeadRid.Identity). The package will not work on that platform. Run the build-native workflow." />
-    <!--
-    A separate process per RID rather than the MSBuild task. Each publish needs its own restore,
-    and Restore plus Publish in one MSBuild task invocation do not see each other's results.
-    GeneratePackageOnBuild is switched off so the per-RID publish does not also try to pack.
-    -->
-    <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\%(HeadRid.Head)\%(HeadRid.Head).csproj&quot; --configuration $(Configuration) --runtime %(HeadRid.Identity) --self-contained false --output &quot;$(HeadStageDir)%(HeadRid.Identity)&quot; -p:GeneratePackageOnBuild=false"
-          StandardOutputImportance="low" />
-    <ItemGroup>
-      <_RidWithoutApphost Include="@(HeadRid)"
-                          Condition="!Exists('$(HeadStageDir)%(HeadRid.Identity)\%(HeadRid.Apphost)')" />
-    </ItemGroup>
-    <Error Condition="'@(_RidWithoutApphost)' != ''"
-           Code="BM0002"
-           Text="No BuildMonitor.Tray apphost was staged for: @(_RidWithoutApphost, ', '). Packing now would ship a launcher with nothing to launch." />
-  </Target>
-
-  <!--
-  Also into bin, so a Release build run from bin resolves a head the same way an installed tool
-  does.
-  -->
-  <Target Name="CopyHeadsToOutput"
-          AfterTargets="Build"
-          DependsOnTargets="PublishHeads"
-          Condition="'$(BundleHeads)' == 'true'">
-    <ItemGroup>
-      <_HeadFile Include="$(HeadStageDir)**\*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_HeadFile)"
-          DestinationFiles="@(_HeadFile->'$(OutDir)heads\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="AddHeadsToPackage" DependsOnTargets="PublishHeads">
-    <ItemGroup>
-      <!--
-      PackAsTool packs the publish directory into tools/$(TargetFramework)/any, so the heads go
-      beside it. NuGet appends each file's path relative to the wildcard, which keeps the RID
-      folder.
-      -->
-      <_PackageFiles Include="$(HeadStageDir)**\*"
-                     BuildAction="None"
-                     PackagePath="tools\$(TargetFramework)\any\heads" />
-    </ItemGroup>
-  </Target>
 </Project>
