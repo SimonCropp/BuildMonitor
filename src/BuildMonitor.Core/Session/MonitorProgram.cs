@@ -16,25 +16,6 @@ static class MonitorProgram
     public const string HiddenArgument = "--hidden";
 
     /// <summary>
-    /// How long the loop sleeps between frames when nobody can see the window, for a head that
-    /// cannot <see cref="IMonitorWindow.Wait">idle</see>: see <see cref="SessionState.Unseen"/>.
-    /// Nothing is drawn, so the only things to keep up with are the tray and a restore, neither of
-    /// which needs sixty a second.
-    /// </summary>
-    public static readonly TimeSpan HiddenFrame = TimeSpan.FromMilliseconds(100);
-
-    /// <summary>
-    /// The longest the loop idles with nothing to wake it. Everything that changes the state or
-    /// sends a command sets the wake, so this only bounds what a wake that never came would cost.
-    /// </summary>
-    public static readonly TimeSpan LongestIdle = TimeSpan.FromSeconds(1);
-
-    /// <summary>
-    /// One frame at sixty a second, which is as often as the loop ever ran before it could idle.
-    /// </summary>
-    public static readonly TimeSpan Frame = TimeSpan.FromMilliseconds(16);
-
-    /// <summary>
     /// What the run starts from. <paramref name="hidden"/> wins over ShowWindowAtStart, and does it
     /// on the state rather than on the settings: the setting is the user's, and one written back
     /// here would be saved for good by the next save of the options page.
@@ -124,8 +105,7 @@ static class MonitorProgram
             });
         var windowCommands = new ConcurrentQueue<WindowCommand>();
         // Set off the loop's thread, so an idle loop draws a poll's rows or answers the socket at once.
-        using var wake = new AutoResetEvent(false);
-        host.Changed += Wake;
+        using var wake = new LoopWake<SessionState>(host);
         var signIn = new SignInCoordinator(host, secrets, handler);
         var runAtLogin = RunAtLogin.ForPlatform();
         host.Mutate(_ => MonitorSession.ApplyMedians(_, history.Medians()));
@@ -141,7 +121,7 @@ static class MonitorProgram
             host.Mutate(MonitorSession.Show);
         }
 
-        var window = openWindow(ScreenBuilder.Title, WindowWidth, WindowHeight, host.State.Settings.Window, host.State.Hidden, out var windowError);
+        var window = openWindow(ScreenBuilder.Title, WindowWidth, WindowHeight, host.State.Hidden, host.State.Settings.Window, out var windowError);
         if (window is null)
         {
             Log.Fatal("Could not open a window: {Error}", windowError);
@@ -181,13 +161,11 @@ static class MonitorProgram
             using (tray)
             using (window)
             {
-                Loop(host, window, tray, actions, windowCommands, wake, args);
+                Loop(host, window, tray, actions, windowCommands, wake.Handle, args);
             }
         }
         finally
         {
-            // First, so a poll finishing while the rest shuts down does not set a disposed handle.
-            host.Changed -= Wake;
             cancel.Cancel();
             try
             {
@@ -205,9 +183,6 @@ static class MonitorProgram
 
         return 0;
 
-        void Wake() =>
-            wake.Set();
-
         void Command(WindowCommand command)
         {
             windowCommands.Enqueue(command);
@@ -220,21 +195,8 @@ static class MonitorProgram
     /// until the clock would rebuild the screen, one frame while the clipboard pump has a copy to
     /// offer again, and otherwise until something wakes it.
     /// </summary>
-    public static TimeSpan Idle(ScreenCache screens, SessionState state, DateTimeOffset now)
-    {
-        if (state.Clipboard is not null)
-        {
-            return Frame;
-        }
-
-        if (screens.UntilTick(now) is { } tick &&
-            tick < LongestIdle)
-        {
-            return tick;
-        }
-
-        return LongestIdle;
-    }
+    public static TimeSpan Idle(ScreenCache screens, SessionState state, DateTimeOffset now) =>
+        Pacing.Idle(screens.UntilTick(now), retrying: state.Clipboard is not null);
 
     static void Loop(SessionHost host, IMonitorWindow window, ITray? tray, MonitorActions actions, ConcurrentQueue<WindowCommand> windowCommands, WaitHandle wake, string[] args)
     {
@@ -243,7 +205,7 @@ static class MonitorProgram
             host.Mutate(MonitorSession.OpenOptions);
         }
 
-        var screens = new ScreenCache();
+        var screens = Screens.Cache();
         var clipboard = new ClipboardPump();
         while (true)
         {
@@ -302,7 +264,7 @@ static class MonitorProgram
             {
                 // Not cleared before the window is asked, unlike the notification: see
                 // ClipboardPump, which owns the clearing and the few frames of retry.
-                clipboard.Push(host, window, copy);
+                ClipboardCopy.Offer(clipboard, host, window, copy);
             }
 
             if (!window.Present(screen))
@@ -333,7 +295,7 @@ static class MonitorProgram
             if (!idled &&
                 host.State.Unseen)
             {
-                Thread.Sleep(HiddenFrame);
+                Thread.Sleep(Pacing.HiddenFrame);
             }
         }
     }

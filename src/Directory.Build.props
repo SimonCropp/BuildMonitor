@@ -30,4 +30,15 @@
     <Using Include="System.Reflection" />
     <Using Include="System.ReadOnlySpan&lt;System.Char&gt;" Alias="CharSpan" />
   </ItemGroup>
+  <!--
+  The kernel PlatformHeads.Core shares with DiffEngine's viewer, for every project that sees
+  BuildMonitor.Core. Its types are generic over a state and a screen, and these name them for
+  this app's.
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'IconBuilder' and '$(MSBuildProjectName)' != 'Packaging.Tests'">
+    <Using Include="PlatformHeads" />
+    <Using Include="PlatformHeads.SessionHost&lt;SessionState&gt;" Alias="SessionHost" />
+    <Using Include="PlatformHeads.ScreenCache&lt;SessionState, Screen&gt;" Alias="ScreenCache" />
+    <Using Include="PlatformHeads.OpenWindow&lt;IMonitorWindow&gt;" Alias="OpenWindow" />
+  </ItemGroup>
 </Project>

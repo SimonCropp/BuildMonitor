@@ -19,8 +19,8 @@ public class PixelTests
             return;
         }
 
-        NativeResolver.Register();
-        window = NativeMonitorWindow.Open("BuildMonitor", width, height, null, hidden: true, out var error);
+        Bm.Resolve();
+        window = NativeMonitorWindow.Open("BuildMonitor", width, height, hidden: true, null, out var error);
         if (window is null)
         {
             throw new(error!);

@@ -10,7 +10,7 @@ public class NativeTests
     [NativeTest]
     public async Task VersionMatches()
     {
-        NativeResolver.Register();
+        Bm.Resolve();
         await Assert.That(Bm.Version()).IsEqualTo(Bm.ExpectedVersion);
     }
 
@@ -18,7 +18,7 @@ public class NativeTests
     [NativeTest]
     public async Task TrayAvailabilityMatchesThePlatform()
     {
-        NativeResolver.Register();
+        Bm.Resolve();
         await Assert.That(Bm.TrayAvailable()).IsEqualTo(OperatingSystem.IsMacOS() ? 1 : 0);
     }
 
@@ -36,7 +36,7 @@ public class NativeTests
     [NativeTest]
     public async Task OnlyLinuxSendsTheAppOffToFindAChooser()
     {
-        NativeResolver.Register();
+        Bm.Resolve();
         await Assert.That(PanelAnswer()).IsEqualTo(OperatingSystem.IsMacOS() ? 0 : -1);
     }
 
@@ -55,7 +55,7 @@ public class NativeTests
     [NativeTest]
     public async Task EveryEntryPointIsExported()
     {
-        NativeResolver.TryFind(out var path);
+        NativeResolver.TryFind(Bm.Library, out var path);
         var library = NativeLibrary.Load(path!);
         var imported = typeof(Bm)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)

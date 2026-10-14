@@ -1,4 +1,4 @@
-public class ClipboardPumpTests
+public class ClipboardCopyTests
 {
     const string prompt = "The triage prompt";
 
@@ -7,7 +7,7 @@ public class ClipboardPumpTests
     {
         var window = new FakeWindow();
         var host = Pending(out var copy);
-        new ClipboardPump().Push(host, window, copy);
+        ClipboardCopy.Offer(new(), host, window, copy);
 
         await Assert.That(window.Calls).IsEquivalentTo(["SetClipboard The triage prompt"]);
         await Assert.That(host.State.Clipboard).IsNull();
@@ -21,7 +21,7 @@ public class ClipboardPumpTests
     {
         var window = new FakeWindow { ClipboardBusy = true };
         var host = Pending(out var copy);
-        new ClipboardPump().Push(host, window, copy);
+        ClipboardCopy.Offer(new(), host, window, copy);
 
         await Assert.That(host.State.Clipboard?.Text).IsEqualTo(prompt);
         await Assert.That(host.State.Status).IsEqualTo("Copied a triage prompt");
@@ -33,9 +33,9 @@ public class ClipboardPumpTests
         var window = new FakeWindow { ClipboardBusy = true };
         var host = Pending(out var copy);
         var pump = new ClipboardPump();
-        pump.Push(host, window, copy);
+        ClipboardCopy.Offer(pump, host, window, copy);
         window.ClipboardBusy = false;
-        pump.Push(host, window, copy);
+        ClipboardCopy.Offer(pump, host, window, copy);
 
         await Assert.That(window.Calls.Count).IsEqualTo(2);
         await Assert.That(host.State.Clipboard).IsNull();
@@ -52,7 +52,7 @@ public class ClipboardPumpTests
         var pump = new ClipboardPump();
         for (var attempt = 0; attempt < ClipboardPump.Attempts; attempt++)
         {
-            pump.Push(host, window, copy);
+            ClipboardCopy.Offer(pump, host, window, copy);
         }
 
         await Assert.That(window.Calls.Count).IsEqualTo(ClipboardPump.Attempts);
@@ -70,11 +70,11 @@ public class ClipboardPumpTests
         var pump = new ClipboardPump();
         for (var attempt = 0; attempt < ClipboardPump.Attempts - 1; attempt++)
         {
-            pump.Push(host, window, copy);
+            ClipboardCopy.Offer(pump, host, window, copy);
         }
 
         var second = host.Mutate(_ => MonitorSession.Copy(_, "The log", "Copied the log")).Clipboard!;
-        pump.Push(host, window, second);
+        ClipboardCopy.Offer(pump, host, window, second);
 
         await Assert.That(host.State.Clipboard?.Text).IsEqualTo("The log");
         await Assert.That(host.State.Status).IsEqualTo("Copied the log");
@@ -88,11 +88,11 @@ public class ClipboardPumpTests
         var window = new FakeWindow { ClipboardBusy = true };
         var host = Triaged(out var copy);
         var pump = new ClipboardPump();
-        pump.Push(host, window, copy);
+        ClipboardCopy.Offer(pump, host, window, copy);
         await Assert.That(host.State.Notification).IsNull();
 
         window.ClipboardBusy = false;
-        pump.Push(host, window, copy);
+        ClipboardCopy.Offer(pump, host, window, copy);
         await Assert.That(host.State.Notification?.Title).IsEqualTo("Ready to paste");
     }
 
@@ -104,7 +104,7 @@ public class ClipboardPumpTests
         var pump = new ClipboardPump();
         for (var attempt = 0; attempt < ClipboardPump.Attempts; attempt++)
         {
-            pump.Push(host, window, copy);
+            ClipboardCopy.Offer(pump, host, window, copy);
         }
 
         await Assert.That(host.State.Notification?.Title).IsEqualTo("Triage prompt not copied");
