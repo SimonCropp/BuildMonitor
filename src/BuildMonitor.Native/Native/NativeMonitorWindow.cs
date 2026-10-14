@@ -32,7 +32,7 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     {
     }
 
-    public static IMonitorWindow? Open(string title, int width, int height, WindowPlacement? placement, bool hidden, out string? error)
+    public static IMonitorWindow? Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
     {
         error = null;
         int version;
@@ -115,18 +115,18 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
     /// </summary>
     public static BmPlacement Placement(WindowPlacement? placement)
     {
-        if (placement is null)
+        if (placement is not { } known)
         {
             return default;
         }
 
         return new()
         {
-            X = placement.X,
-            Y = placement.Y,
-            Width = placement.Width,
-            Height = placement.Height,
-            Maximized = placement.Maximized ? 1 : 0,
+            X = known.X,
+            Y = known.Y,
+            Width = known.Width,
+            Height = known.Height,
+            Maximized = known.Maximized ? 1 : 0,
             Known = 1
         };
     }

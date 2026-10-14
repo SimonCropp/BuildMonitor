@@ -30,9 +30,9 @@ sealed class MonitorForm : Form
         ClientSize = LogicalToDeviceUnits(new Size(width, height));
         MinimumSize = LogicalToDeviceUnits(new Size(560, 320));
         StartPosition = FormStartPosition.CenterScreen;
-        if (placement is not null)
+        if (placement is { } known)
         {
-            Place(placement);
+            Place(known);
         }
 
         DoubleBuffered = true;

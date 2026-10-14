@@ -2,7 +2,7 @@ static class Program
 {
     static int Main(string[] args)
     {
-        NativeResolver.Register();
+        Bm.Resolve();
         try
         {
             if (OperatingSystem.IsMacOS())

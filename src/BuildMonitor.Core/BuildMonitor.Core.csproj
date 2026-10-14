@@ -38,6 +38,7 @@
     <InternalsVisibleTo Include="BuildMonitor.Tests" />
     <InternalsVisibleTo Include="BuildMonitor.Windows.Tests" />
     <InternalsVisibleTo Include="BuildMonitor.Benchmarks" />
+    <PackageReference Include="PlatformHeads.Core" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />

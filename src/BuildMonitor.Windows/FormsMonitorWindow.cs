@@ -16,7 +16,7 @@ sealed class FormsMonitorWindow : IMonitorWindow
     FormsMonitorWindow(MonitorForm form) =>
         this.form = form;
 
-    public static IMonitorWindow? Open(string title, int width, int height, WindowPlacement? placement, bool hidden, out string? error)
+    public static IMonitorWindow? Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
     {
         error = null;
         try
@@ -57,9 +57,9 @@ sealed class FormsMonitorWindow : IMonitorWindow
     public bool Wait(TimeSpan timeout, WaitHandle wake)
     {
         var since = Stopwatch.GetElapsedTime(lastFrame);
-        if (since < MonitorProgram.Frame)
+        if (since < Pacing.Frame)
         {
-            var rest = MonitorProgram.Frame - since;
+            var rest = Pacing.Frame - since;
             Thread.Sleep(rest);
             timeout -= rest;
         }
