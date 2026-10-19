@@ -37,8 +37,8 @@
 /// <param name="Expanded">Whether a group's members follow its row.</param>
 /// <param name="Chips">The buttons, in the order they are drawn. Empty for a group's own row:
 /// which of its builds they would act on is ambiguous.</param>
-/// <param name="Author">Who broke a failed build, as <see cref="AuthorNames"/> calls them; empty
-/// for any other row.</param>
+/// <param name="Author">Who the build is for, as <see cref="AuthorNames"/> calls them; empty when
+/// the service names no one, and for a group's own row.</param>
 /// <param name="Tooltips">What each part of the row says on hover, by the part a head is drawing.
 /// A row now has five things a click can open, and without this each head would have to name them
 /// itself. <see cref="RowPart.Row"/> is what the rest of the row says.</param>
