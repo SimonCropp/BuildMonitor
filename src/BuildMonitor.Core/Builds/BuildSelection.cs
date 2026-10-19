@@ -16,7 +16,8 @@
 /// merged or closed, or whose branch was deleted, as the service holding the repository says, folds
 /// into the pipeline's hover: a Dependabot update closed for a newer one otherwise sat red for as
 /// long as its run stayed in the history. Where no connection can ask that service, the branch folds
-/// once the default branch has built since it failed instead.
+/// once the default branch has built since it failed instead. A branch the default branch has built
+/// since stays folded until the service answers.
 /// </para>
 /// </summary>
 static class BuildSelection
@@ -24,7 +25,8 @@ static class BuildSelection
     /// <param name="verdicts">What the services holding repositories said about failed branches,
     /// by <see cref="BranchVerdicts.KeyOf(Build)"/>.</param>
     /// <param name="askable">Whether a connection can ask the service holding a build's repository
-    /// about its branch. A failed branch that can be asked keeps its row until the answer comes.</param>
+    /// about its branch. A failed branch that can be asked and that the default branch has built since has
+    /// no row until the answer comes.</param>
     public static ImmutableArray<PipelineBuilds> Select(IEnumerable<Build> builds, bool showOtherBranches, ImmutableDictionary<string, BranchVerdict> verdicts, Func<Build, bool> askable)
     {
         var runs = ByPipeline(builds, out var counts);
@@ -262,9 +264,10 @@ static class BuildSelection
     }
 
     /// <summary>
-    /// Why a branch's newest run gets no row, or null where it gets one. A failed run waits for the
-    /// answer where its repository can be asked, rather than folding on a guess that the answer then
-    /// takes back.
+    /// Why a branch's newest run gets no row, or null where it gets one. A failed run the default
+    /// branch has built since stays folded until the answer comes where its repository can be asked:
+    /// given a row meanwhile, every closed Dependabot branch showed red at start-up and then went. One
+    /// that failed since keeps its row while asking, being most likely a pull request still open.
     /// </summary>
     static FoldReason? FoldOf(Build head, Build lane, ImmutableDictionary<string, BranchVerdict> verdicts, Func<Build, bool> askable)
     {
@@ -291,13 +294,18 @@ static class BuildSelection
                 return FoldReason.Deleted;
         }
 
-        if ((verdict is not null || !askable(lane)) &&
-            Superseded(head, lane))
+        if (!Superseded(head, lane))
         {
-            return FoldReason.Superseded;
+            return null;
         }
 
-        return null;
+        if (verdict is null &&
+            askable(lane))
+        {
+            return FoldReason.Asking;
+        }
+
+        return FoldReason.Superseded;
     }
 
     /// <summary>

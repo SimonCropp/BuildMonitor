@@ -240,14 +240,15 @@ public class BuildSelectionTests
     }
 
     /// <summary>
-    /// A branch that can be asked about keeps its row until the answer comes, rather than folding on
-    /// a guess the answer might take back.
+    /// A branch that can be asked about, and that main has built since, is held back until the answer
+    /// comes: given a row meanwhile, every closed Dependabot branch flashed red at start-up.
     /// </summary>
     [Test]
-    public async Task AFailedBranchWaitingOnItsAnswerKeepsItsRow()
+    public async Task AFailedBranchWaitingOnItsAnswerIsHeldBack()
     {
         var verify = VerifyPipeline(Select(WithMainBuiltSince(), [], _ => true));
-        await Assert.That(Describe(verify.Lanes)).IsEqualTo("feature/inline #77 Failed");
+        await Assert.That(verify.Lanes).IsEmpty();
+        await Assert.That(verify.Folded.Single().Reason).IsEqualTo(FoldReason.Asking);
     }
 
     /// <summary>

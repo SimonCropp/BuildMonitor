@@ -13,5 +13,9 @@ public enum FoldReason
     Deleted,
     // It failed, nothing could say whether its branch is still there, and the pipeline's default
     // branch has built since.
-    Superseded
+    Superseded,
+    // It failed, the pipeline's default branch has built since, and the service holding its
+    // repository has yet to say whether its branch is still there. Most such branches are a Dependabot update closed long since, and every one of them
+    // otherwise flashed red at start-up until the answers came.
+    Asking
 }
