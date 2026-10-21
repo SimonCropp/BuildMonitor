@@ -48,7 +48,6 @@ public class MonitorFormPlacementTests
         await Assert.That(form.Drain().Placement).IsEqualTo(PlacementOf(bounds));
         // Once, as each report is a save.
         await Assert.That(form.Drain().Placement).IsNull();
-        form.AllowClose = true;
     }
 
     /// <summary>
@@ -63,7 +62,6 @@ public class MonitorFormPlacementTests
         form.Bounds = bounds;
         form.WindowState = FormWindowState.Maximized;
         await Assert.That(form.Drain().Placement).IsEqualTo(PlacementOf(bounds, maximized: true));
-        form.AllowClose = true;
     }
 
     /// <summary>
@@ -76,7 +74,6 @@ public class MonitorFormPlacementTests
         form.Drain();
         form.WindowState = FormWindowState.Minimized;
         await Assert.That(form.Drain().Placement).IsNull();
-        form.AllowClose = true;
     }
 
     /// <summary>

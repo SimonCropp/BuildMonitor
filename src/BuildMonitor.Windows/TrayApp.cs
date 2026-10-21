@@ -1,23 +1,17 @@
+/// <summary>
+/// The process wide WinForms setup, through the shell's <see cref="FormsApp"/>, with this app's
+/// palette chosen before the colour mode it decides.
+/// </summary>
 static class TrayApp
 {
-    static bool configured;
-
     public static void Configure()
     {
-        if (configured)
-        {
-            return;
-        }
-
-        configured = true;
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         // Decided once, here: SetColorMode after windows exist hangs, so a theme change on save
         // repaints the palette immediately but native parts (check boxes, scroll bars) follow on
         // the next start.
-        Palette.Use(StartupTheme());
-        Application.SetColorMode(Palette.Light ? SystemColorMode.Classic : SystemColorMode.Dark);
+        var theme = StartupTheme();
+        Palette.Use(theme);
+        FormsApp.Configure(HighDpiMode.PerMonitorV2, Palette.Light ? SystemColorMode.Classic : SystemColorMode.Dark);
     }
 
     static Theme StartupTheme()
@@ -37,17 +31,6 @@ static class TrayApp
     /// For the snapshot tests: unscaled, so the captures describe the app rather than the display
     /// of whoever captured them.
     /// </summary>
-    public static void ConfigureUnscaled()
-    {
-        if (configured)
-        {
-            return;
-        }
-
-        configured = true;
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        Application.SetHighDpiMode(HighDpiMode.DpiUnaware);
-        Application.SetColorMode(SystemColorMode.Dark);
-    }
+    public static void ConfigureUnscaled() =>
+        FormsApp.Configure(HighDpiMode.DpiUnaware, SystemColorMode.Dark);
 }

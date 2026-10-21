@@ -5,13 +5,12 @@
 /// DoEvents is safe here because the state is behind <see cref="SessionHost"/>. The one thing that
 /// nests a loop is <see cref="PickDirectory"/>, and it is called from the applier rather than from a
 /// paint: the frame loop is simply stopped while the chooser is up, which is what a modal means.
+/// The waiting, the hiding and the raising are <see cref="HeadForm"/>'s.
 /// </summary>
 sealed class FormsMonitorWindow : IMonitorWindow
 {
     MonitorForm form;
     bool disposed;
-    // When the last Wait ended, which the next one keeps a frame from.
-    long lastFrame;
 
     FormsMonitorWindow(MonitorForm form) =>
         this.form = form;
@@ -48,25 +47,9 @@ sealed class FormsMonitorWindow : IMonitorWindow
         return !form.IsDisposed;
     }
 
-    /// <summary>
-    /// Idles on the message queue, then handles whatever ended it before <see cref="Poll"/> reads
-    /// it. No sooner than a frame after the last one ended, as when every frame slept for one: a
-    /// wheel or a drag sends messages far faster than sixty a second, and each frame they woke
-    /// would build the screen again for a change no one could see.
-    /// </summary>
     public bool Wait(TimeSpan timeout, WaitHandle wake)
     {
-        var since = Stopwatch.GetElapsedTime(lastFrame);
-        if (since < Pacing.Frame)
-        {
-            var rest = Pacing.Frame - since;
-            Thread.Sleep(rest);
-            timeout -= rest;
-        }
-
-        MessageWait.For(wake, timeout);
-        Application.DoEvents();
-        lastFrame = Stopwatch.GetTimestamp();
+        form.WaitForFrame(timeout, wake);
         return true;
     }
 
@@ -81,49 +64,24 @@ sealed class FormsMonitorWindow : IMonitorWindow
             return;
         }
 
-        form.Show();
-        if (form.WindowState == FormWindowState.Minimized)
-        {
-            form.WindowState = FormWindowState.Normal;
-        }
+        form.ShowRestored();
     }
 
-    public void Focus()
-    {
-        if (!form.Visible)
-        {
-            form.Show();
-        }
+    public void Focus() =>
+        form.Raise();
 
-        if (form.WindowState == FormWindowState.Minimized)
-        {
-            form.WindowState = FormWindowState.Normal;
-        }
-
-        form.Activate();
-    }
+    public WindowPlacement? Placement =>
+        form.Placement;
 
     public bool SetClipboard(string text)
     {
-        try
+        if (FormsClipboard.Set(text, out var failure))
         {
-            // SetText and not SetDataObject: the toolkit's own ten attempts over a second are most
-            // of what a clipboard another process has open needs, and ClipboardPump has the rest.
-            // SetText refuses empty text, and empty is how a triage clears the clipboard.
-            if (text.Length == 0)
-            {
-                Clipboard.Clear();
-                return true;
-            }
-
-            Clipboard.SetText(text);
             return true;
         }
-        catch (Exception exception)
-        {
-            Log.Warning(exception, "Could not put {Length} characters on the clipboard", text.Length);
-            return false;
-        }
+
+        Log.Warning(failure, "Could not put {Length} characters on the clipboard", text.Length);
+        return false;
     }
 
     public string? PickDirectory(string? start)
@@ -173,7 +131,11 @@ sealed class FormsMonitorWindow : IMonitorWindow
         }
 
         disposed = true;
-        form.AllowClose = true;
+        if (!form.IsDisposed)
+        {
+            form.CloseForReal();
+        }
+
         form.Dispose();
     }
 }
