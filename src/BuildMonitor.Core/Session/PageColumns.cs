@@ -4,7 +4,7 @@
 /// sized from. None of it reads the clock, so <see cref="ScreenBuilder"/> hands it back for as long
 /// as <see cref="Projected"/> stands.
 /// </summary>
-/// <param name="Authors">What the author column calls each person who broke a build, by the name
+/// <param name="Authors">What the author column calls each person a build is for, by the name
 /// the build gives them.</param>
 /// <param name="Siblings">The pipeline names of each repository among the builds shown.</param>
 /// <param name="AuthorNames">The distinct values of <paramref name="Authors"/>, which the author

@@ -110,10 +110,10 @@ static class ScreenBuilder
         }
 
         var projected = RowProjection.Projected(state, pipelines);
-        // Across every failed build rather than the visible rows, so a name does not grow and shrink
-        // while scrolling past someone who shares it. Lanes too: a failed lane names who broke it.
+        // Across every build rather than the visible rows, so a name does not grow and shrink
+        // while scrolling past someone who shares it. Lanes too: a lane names who started it.
         var shown = RowProjection.Builds(state);
-        var authors = AuthorNames.Of(shown.Where(_ => _.Status == BuildStatus.Failed).Select(_ => _.Author));
+        var authors = AuthorNames.Of(shown.Select(_ => _.Author));
         var siblings = SiblingPipelines(shown);
         var sized = Sized(state, pipelines, projected.Rows);
         var (details, markedDetails) = Details(sized, siblings);
@@ -717,8 +717,7 @@ static class ScreenBuilder
 
         var estimate = Estimator.Estimate(build, state.Medians);
         var (fraction, timing) = Progress.Compute(build, estimate, now);
-        // Only the build that broke names anyone: on a pass or a run the name says nothing wrong.
-        var author = build is {Status: BuildStatus.Failed, Author: not null} &&
+        var author = build is {Author: not null} &&
                      authors.TryGetValue(build.Author.Trim(), out var shown)
             ? shown
             : "";

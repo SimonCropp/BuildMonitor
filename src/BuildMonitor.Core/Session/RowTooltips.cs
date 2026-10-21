@@ -243,6 +243,7 @@ static class RowTooltips
             FoldReason.Closed => ", closed",
             FoldReason.Deleted => ", deleted",
             FoldReason.Superseded => $", {head.ShortBranchName()} built since",
+            FoldReason.Asking => ", checking whether it is still open",
             _ => ""
         };
 

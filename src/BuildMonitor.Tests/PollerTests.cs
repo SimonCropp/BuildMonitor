@@ -798,7 +798,8 @@
     public async Task AGitHubConnectionFoldsAnotherServicesMergedPullRequest()
     {
         var (host, secrets) = WithAppVeyorPullRequest();
-        await Assert.That(Shows(host, "DiffEngine-20.4.0")).IsTrue();
+        // Main has built since it failed, so it is held back while GitHub is asked.
+        await Assert.That(Shows(host, "DiffEngine-20.4.0")).IsFalse();
         var handler = GitHubHandler()
             .Get(markingsPullRequest, """{"number":205,"state":"closed","merged_at":"2026-01-01T10:00:00Z"}""");
         var poller = new ConnectionPoller(Fixtures.GitHub.Id, host, secrets, new(), handler, null, () => Fixtures.Now);
@@ -843,11 +844,12 @@
     }
 
     /// <summary>
-    /// A question that fails otherwise leaves the branch as it was and the connection healthy, and
-    /// backs the questions off rather than asking again every cycle.
+    /// A question that fails otherwise leaves the branch as it was, still held back as main has built
+    /// since, and the connection healthy, and backs the questions off rather than asking again every
+    /// cycle.
     /// </summary>
     [Test]
-    public async Task AFailedQuestionLeavesTheRowAndTheConnection()
+    public async Task AFailedQuestionLeavesTheBranchAndTheConnection()
     {
         var (host, secrets) = WithAppVeyorPullRequest();
         var now = Fixtures.Now;
@@ -859,7 +861,7 @@
 
         await Assert.That(health).IsEqualTo(ConnectionHealth.Ok);
         await Assert.That(host.State.Verdicts).IsEmpty();
-        await Assert.That(Shows(host, "DiffEngine-20.4.0")).IsTrue();
+        await Assert.That(Shows(host, "DiffEngine-20.4.0")).IsFalse();
 
         now += TimeSpan.FromSeconds(30);
         await poller.PollOnce(Cancel.None);
