@@ -1,9 +1,9 @@
 /// <summary>
 /// The one window. Header, a body that is either the owner drawn rows or the form controls,
-/// a footer of real buttons and a status label. Closing hides; only <see cref="AllowClose"/>
-/// lets it go, which the exit path sets.
+/// a footer of real buttons and a status label. Closing hides, as <see cref="HeadForm"/> has it:
+/// only <see cref="HeadForm.CloseForReal"/> lets it go, which the exit path calls.
 /// </summary>
-sealed class MonitorForm : Form
+sealed class MonitorForm : HeadForm
 {
     readonly HeaderPanel header;
     readonly RowsCanvas canvas;
@@ -11,29 +11,15 @@ sealed class MonitorForm : Form
     readonly FormPanel formPanel;
     readonly FooterPanel footer;
     Screen? last;
-    bool closeRequested;
     bool suppressScroll;
-    // Where the window settled, waiting for the next Drain to report it.
-    WindowPlacement? settled;
-    FormWindowState settledState;
 
-    [Browsable(false)]
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public bool AllowClose { get; set; }
-
-    public MonitorForm(string title, int width, int height, WindowPlacement? placement = null)
+    public MonitorForm(string title, int width, int height, WindowPlacement? placement = null) :
+        base(title, new(width, height), placement)
     {
-        Text = title;
         Icon = Icons.Window;
         BackColor = Palette.Background;
         ForeColor = Palette.Text;
-        ClientSize = LogicalToDeviceUnits(new Size(width, height));
         MinimumSize = LogicalToDeviceUnits(new Size(560, 320));
-        StartPosition = FormStartPosition.CenterScreen;
-        if (placement is { } known)
-        {
-            Place(known);
-        }
 
         DoubleBuffered = true;
         KeyPreview = true;
@@ -76,120 +62,6 @@ sealed class MonitorForm : Form
         Controls.Add(footer);
         Controls.Add(header);
         KeyDown += OnKeyDown;
-    }
-
-    /// <summary>
-    /// Opens where it was left, unless no screen can reach that any more: a monitor unplugged since,
-    /// or a laptop taken off its dock, would open it where it could be neither seen nor dragged
-    /// back. It opens centred at its first size then, as on a first start.
-    /// </summary>
-    void Place(WindowPlacement placement)
-    {
-        var bounds = new Rectangle(placement.X, placement.Y, placement.Width, placement.Height);
-        if (!Reachable(bounds))
-        {
-            return;
-        }
-
-        StartPosition = FormStartPosition.Manual;
-        Bounds = bounds;
-        if (placement.Maximized)
-        {
-            WindowState = FormWindowState.Maximized;
-        }
-
-        settledState = WindowState;
-    }
-
-    /// <summary>
-    /// Whether enough of the title bar is on a screen to drag the window by. The title bar rather
-    /// than any of the window: a window whose top is off every screen cannot be moved back.
-    /// </summary>
-    static bool Reachable(Rectangle bounds)
-    {
-        var caption = new Rectangle(bounds.X, bounds.Y, bounds.Width, SystemInformation.CaptionHeight);
-        foreach (var screen in System.Windows.Forms.Screen.AllScreens)
-        {
-            if (Rectangle.Intersect(screen.WorkingArea, caption) is { Width: >= 100, Height: > 0 })
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// The end of a drag, by the title bar or an edge. Not every frame of it: each report is a
-    /// save.
-    /// </summary>
-    protected override void OnResizeEnd(EventArgs e)
-    {
-        base.OnResizeEnd(e);
-        Settle();
-    }
-
-    /// <summary>
-    /// A maximize or a restore, which the caption buttons and a double click on the title bar do
-    /// without the drag that ends in <see cref="OnResizeEnd"/>.
-    /// </summary>
-    protected override void OnSizeChanged(EventArgs e)
-    {
-        base.OnSizeChanged(e);
-        if (WindowState != settledState)
-        {
-            Settle();
-        }
-    }
-
-    /// <summary>
-    /// A hide, which is how the window is left every time: it catches what the two above do not,
-    /// such as a snap to half the screen from the keyboard.
-    /// </summary>
-    protected override void OnVisibleChanged(EventArgs e)
-    {
-        base.OnVisibleChanged(e);
-        if (!Visible)
-        {
-            Settle();
-        }
-    }
-
-    /// <summary>
-    /// Notes where the window is for the next <see cref="Drain"/>: its bounds when not maximized,
-    /// which RestoreBounds holds while it is, so a restore after the next start goes back to the
-    /// size it had. A minimized window leaves the last placement standing, since opening minimized
-    /// would look like not opening at all.
-    /// </summary>
-    void Settle()
-    {
-        settledState = WindowState;
-        if (WindowState == FormWindowState.Minimized)
-        {
-            return;
-        }
-
-        var maximized = WindowState == FormWindowState.Maximized;
-        var bounds = Bounds;
-        if (maximized)
-        {
-            bounds = RestoreBounds;
-        }
-
-        settled = new(bounds.X, bounds.Y, bounds.Width, bounds.Height, maximized);
-    }
-
-    protected override void OnFormClosing(FormClosingEventArgs e)
-    {
-        if (!AllowClose &&
-            e.CloseReason == CloseReason.UserClosing)
-        {
-            e.Cancel = true;
-            closeRequested = true;
-            return;
-        }
-
-        base.OnFormClosing(e);
     }
 
     void OnKeyDown(object? sender, KeyEventArgs e)
@@ -344,14 +216,12 @@ sealed class MonitorForm : Form
             FieldChanges = formPanel.DrainChanges(),
             ClickedField = formPanel.DrainClickedField(),
             Search = header.DrainSearch(),
-            CloseRequested = closeRequested,
-            Placement = settled,
+            CloseRequested = TakeCloseRequest(),
+            Placement = TakeSettled(),
             Minimized = WindowState == FormWindowState.Minimized,
             Columns = 120,
             Rows = Math.Max(1, canvas.VisibleRows) + ScreenBuilder.Chrome
         };
-        closeRequested = false;
-        settled = null;
         return input;
     }
 }

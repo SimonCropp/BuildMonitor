@@ -141,7 +141,6 @@ public class MonitorFormTests
         form.Apply(screen);
         Application.DoEvents();
         await Verify(form);
-        form.AllowClose = true;
     }
 }
 #endif

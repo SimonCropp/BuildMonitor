@@ -20,8 +20,6 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RollForward>LatestMajor</RollForward>
     <ApplicationIcon>tray.ico</ApplicationIcon>
-    <!-- For the LibraryImport of MessageWait, whose generated marshalling pins the handle. -->
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
@@ -52,6 +50,7 @@
     <InternalsVisibleTo Include="BuildMonitor.Windows.Tests" />
     <InternalsVisibleTo Include="BuildMonitor.Benchmarks" />
     <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
+    <PackageReference Include="PlatformHeads.WindowsForms" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <None Remove="tray.ico" />
   </ItemGroup>
