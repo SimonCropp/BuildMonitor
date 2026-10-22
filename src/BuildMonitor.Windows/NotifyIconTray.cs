@@ -1,6 +1,7 @@
 /// <summary>
 /// The Windows tray icon. The menu is rebuilt from the last <see cref="TrayModel"/> each time it
-/// opens, which is when its contents matter, rather than on every frame.
+/// opens, which is when its contents matter, rather than on every frame: see
+/// <see cref="MenuOnOpening"/>.
 /// </summary>
 sealed class NotifyIconTray : ITray
 {
@@ -16,14 +17,7 @@ sealed class NotifyIconTray : ITray
     NotifyIconTray()
     {
         MenuTheme.Apply(menu);
-        // An empty ContextMenuStrip marks Opening cancelled before raising it, and the menu is
-        // empty until the first Rebuild, so without clearing that the first right click shows
-        // nothing.
-        menu.Opening += (_, arguments) =>
-        {
-            Rebuild();
-            arguments.Cancel = menu.Items.Count == 0;
-        };
+        MenuOnOpening.Rebuild(menu, Build);
         icon = new()
         {
             Text = ScreenBuilder.Title,
@@ -86,15 +80,8 @@ sealed class NotifyIconTray : ITray
         icon.ShowBalloonTip(5000, notification.Title, notification.Message, balloonIcon);
     }
 
-    void Rebuild()
+    void Build(ToolStripItemCollection items)
     {
-        // A snapshot: disposing an item removes it from menu.Items, which would break the enumerator.
-        foreach (var item in menu.Items.Cast<ToolStripItem>().ToList())
-        {
-            item.Dispose();
-        }
-
-        menu.Items.Clear();
         MenuTheme.Apply(menu);
         if (model is null)
         {
@@ -103,7 +90,7 @@ sealed class NotifyIconTray : ITray
 
         foreach (var item in model.Items)
         {
-            menu.Items.Add(Create(item));
+            items.Add(Create(item));
         }
     }
 
