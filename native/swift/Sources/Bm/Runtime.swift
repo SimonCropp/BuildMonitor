@@ -1,6 +1,7 @@
 import AppKit
 import CBm
 import Foundation
+import PlatformHeadsMac
 
 /// Process wide, because the ABI is: one window, addressed by free functions.
 ///
@@ -15,13 +16,24 @@ final class Runtime {
     /// Where the window was left, which the window is made at in place of centred.
     private var placement: BmPlacement?
     private var title = "BuildMonitor"
-    private var scroller: NSScroller?
+    private var scroller: KnobScroller?
     private var scrollerWidth: CGFloat = 0
     private var menuShown = false
     private var edits: [(Int32, String)] = []
     private var changedValue: [UInt8] = []
-    private var wheelAccumulator: CGFloat = 0
+    private var wheelNotches = WheelNotches()
     private lazy var target = ControlTarget(runtime: self)
+
+    /// A quit from the Dock or a logout, reported as the app menu's Quit is, so the managed side
+    /// leaves its loop and saves on its way out rather than AppKit ending the process from inside
+    /// the pump. Held here because `NSApplication.delegate` does not keep it alive.
+    private lazy var terminateGuard = TerminateGuard { [unowned self] in
+        self.input.key = Int32(BM_KEY_QUIT.rawValue)
+    }
+
+    /// A tray app spends most of its life with no window on screen, which is when App Nap would
+    /// coalesce the timers its polls and its socket answer on.
+    private let napGuard = NapGuard()
 
     var window: NSWindow?
     var view: MonitorView?
@@ -51,6 +63,7 @@ final class Runtime {
         }
 
         initialised = true
+        napGuard.begin(reason: "Watching builds")
 
         // A hidden start builds no window: NSWindow may only be made on the main thread, and a
         // test host captures from whatever thread it likes. Capture draws into a bitmap of its
@@ -69,31 +82,17 @@ final class Runtime {
             return
         }
 
-        let application = NSApplication.shared
-        application.setActivationPolicy(.regular)
-        application.appearance = NSAppearance(named: Palette.light ? .aqua : .darkAqua)
-        application.mainMenu = MainMenu.build(target)
-        application.finishLaunching()
+        NSApplication.shared.appearance = NSAppearance(named: Palette.light ? .aqua : .darkAqua)
+        HeadWindow.launch(menu: MainMenu.build(target), delegate: terminateGuard)
 
-        let bounds = NSRect(origin: .zero, size: size)
-        let view = MonitorView(renderer: renderer, runtime: self, frame: bounds)
-        let window = NSWindow(
-            contentRect: bounds,
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false)
+        let view = MonitorView(renderer: renderer, runtime: self, frame: NSRect(origin: .zero, size: size))
         let delegate = WindowDelegate(runtime: self)
-        window.title = title
-        window.contentView = view
-        window.delegate = delegate
-        window.isReleasedWhenClosed = false
+        let window = HeadWindow.make(view: view, size: size, title: title, delegate: delegate)
         window.minSize = NSSize(width: 700, height: 400)
-        window.center()
-        if let placement, let primary = NSScreen.screens.first {
-            let frame = WindowPlacement.frame(of: placement, primaryHeight: primary.frame.height)
-            if WindowPlacement.reachable(frame, screens: NSScreen.screens.map(\.visibleFrame)) {
-                window.setFrame(frame, display: false)
-            }
+        if let placement {
+            WindowPlacement.restore(
+                window,
+                to: WindowBounds(x: placement.x, y: placement.y, width: placement.width, height: placement.height))
         }
 
         self.view = view
@@ -102,17 +101,23 @@ final class Runtime {
         makeScroller(in: view, renderer)
     }
 
+    /// Before a tray with no window has been shown, a quit is still one to answer.
+    func guardTermination() {
+        NSApplication.shared.delegate = terminateGuard
+    }
+
+    /// The rows' scrollbar, a strip of its own beside them, whose knob is followed as it is
+    /// dragged: see `KnobScroller`.
     private func makeScroller(in view: MonitorView, _ renderer: BuildsRenderer) {
-        let width = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
-        let scroller = NSScroller(frame: NSRect(x: 0, y: 0, width: width, height: view.bounds.height))
-        scroller.scrollerStyle = .legacy
+        let scroller = KnobScroller.legacy(in: view, target: target, action: #selector(ControlTarget.scrolled(_:)))
         scroller.knobStyle = Palette.light ? .dark : .light
-        scroller.target = target
-        scroller.action = #selector(ControlTarget.scrolled(_:))
-        view.addSubview(scroller)
+        scroller.knobDragged = { [unowned self] in
+            self.knobDragged(to: $0)
+        }
+
         self.scroller = scroller
-        scrollerWidth = width
-        renderer.rightInset = width
+        scrollerWidth = scroller.frame.width
+        renderer.rightInset = scrollerWidth
     }
 
     func present(_ frame: Frame) {
@@ -130,6 +135,8 @@ final class Runtime {
         view.model = frame
         view.needsDisplay = true
         view.displayIfNeeded()
+        // After drawing, which is what places the rows the tips are over.
+        view.refreshToolTips()
         position(frame)
         pump()
         popMenu(frame)
@@ -138,13 +145,15 @@ final class Runtime {
 
     /// A frame with the generation last presented: nothing to decode, lay out or draw again, only
     /// events to pump. The spinner is the exception: it is drawn from the clock, so it turns only
-    /// while the view is drawn.
+    /// while the view is drawn. The tips are asked again all the same, since a resize draws inside
+    /// the pump and moves the rows under them with no new screen.
     func pumpUnchanged() {
         if let view, let model = view.model, !model.isForm, model.rows.isEmpty, model.loading {
             view.needsDisplay = true
             view.displayIfNeeded()
         }
 
+        view?.refreshToolTips()
         pump()
     }
 
@@ -169,36 +178,40 @@ final class Runtime {
         let hidden = frame.isForm || frame.totalRows <= frame.rows.count
         scroller.isHidden = hidden
         scroller.frame = NSRect(x: view.bounds.maxX - scrollerWidth, y: body.minY, width: scrollerWidth, height: max(1, body.height))
-        let visible = max(1, renderer.bodyRows)
-        let total = max(Int(frame.totalRows), visible)
-        let maximum = total - visible
-        scroller.knobProportion = CGFloat(visible) / CGFloat(total)
-        scroller.doubleValue = maximum <= 0 ? 0 : Double(frame.scrollTop) / Double(maximum)
+        // Assigned during a drag of the knob as at any other time: `KnobScroller` reports where a
+        // drag has got to without moving the knob, so this is what moves it.
+        travel(of: frame, renderer).apply(to: scroller)
     }
 
+    /// The rows as the scroller counts them.
+    private func travel(of frame: Frame, _ renderer: BuildsRenderer) -> ScrollerTravel {
+        ScrollerTravel(top: Int(frame.scrollTop), visible: renderer.bodyRows, total: Int(frame.totalRows))
+    }
+
+    /// Translates wherever the scroller was grabbed into a first visible row. What reaches here is
+    /// what AppKit tracked itself, which is a press in the slot.
     func scrolled(_ scroller: NSScroller) {
         guard let frame = view?.model, let renderer else {
             return
         }
 
-        let visible = max(1, renderer.bodyRows)
-        let maximum = max(0, Int(frame.totalRows) - visible)
-        switch scroller.hitPart {
-        case .decrementPage: input.scrollTo = Int32(max(0, Int(frame.scrollTop) - visible))
-        case .incrementPage: input.scrollTo = Int32(min(maximum, Int(frame.scrollTop) + visible))
-        case .decrementLine: input.scrollTo = Int32(max(0, Int(frame.scrollTop) - 1))
-        case .incrementLine: input.scrollTo = Int32(min(maximum, Int(frame.scrollTop) + 1))
-        default: input.scrollTo = Int32((scroller.doubleValue * Double(maximum)).rounded())
-        }
+        input.scrollTo = travel(of: frame, renderer).row(for: scroller.hitPart, value: scroller.doubleValue)
     }
 
-    func wheel(_ delta: CGFloat) {
-        wheelAccumulator += delta
-        let rows = Int32(wheelAccumulator.rounded(.towardZero))
-        if rows != 0 {
-            wheelAccumulator -= CGFloat(rows)
-            input.scrollDelta -= rows
+    /// The knob dragged to `value` of the way along its travel. AppKit's own tracking loop left
+    /// the rows still until the knob was let go.
+    private func knobDragged(to value: Double) {
+        guard let frame = view?.model, let renderer else {
+            return
         }
+
+        input.scrollTo = travel(of: frame, renderer).row(at: value)
+    }
+
+    /// Down the rows positive, as the ABI counts a scroll, where AppKit counts up the screen. One
+    /// slow click of a wheel is a row, which used to take ten.
+    func wheel(_ event: NSEvent, rowHeight: CGFloat) {
+        input.scrollDelta -= wheelNotches.take(event, pointsPerNotch: Double(rowHeight))
     }
 
     func queueEdit(field: Int, value: String) {
@@ -255,11 +268,33 @@ final class Runtime {
         }
     }
 
+    /// Drains what is queued and waits out the frame, returning as soon as an event leaves input
+    /// for the next poll, and waiting longer while the window is behind the tray: see `EventPump`.
+    /// It waited out the whole frame whatever arrived, so a key was answered a frame late, and
+    /// turned sixty times a second behind the tray for nobody. A tray whose window has never been
+    /// shown has none to see, and its menu's clicks are events, which end the wait at once.
     private func pump() {
-        let deadline = Date(timeIntervalSinceNow: 1.0 / 60.0)
-        while let event = NSApp.nextEvent(matching: .any, until: deadline, inMode: .default, dequeue: true) {
-            NSApp.sendEvent(event)
-        }
+        EventPump.pump(unseen: window == nil || EventPump.isUnseen(window)) { hasInput }
+    }
+
+    /// Something is waiting for the next poll to hand over, by the values `resetInput` clears
+    /// each to.
+    private var hasInput: Bool {
+        !edits.isEmpty ||
+            input.key != Int32(BM_KEY_NONE.rawValue) ||
+            input.clickedButton >= 0 ||
+            input.clickedRow >= 0 ||
+            input.clickedChipRow >= 0 ||
+            input.clickedOverflowRow >= 0 ||
+            input.rightClickedRow >= 0 ||
+            input.clickedMenuItem >= 0 ||
+            input.menuClosed != 0 ||
+            input.clickedField >= 0 ||
+            input.clickedTrayItem >= 0 ||
+            input.trayIconClicked != 0 ||
+            input.scrollDelta != 0 ||
+            input.scrollTo >= 0 ||
+            input.closeRequested != 0
     }
 
     func measure() {
@@ -279,13 +314,11 @@ final class Runtime {
     /// Where the window is, into the input every poll. Left as it was while the window is hidden,
     /// minimized or full screen, none of which is a place to open at.
     func samplePlacement() {
-        guard let window, window.isVisible, !window.isMiniaturized,
-              !window.styleMask.contains(.fullScreen),
-              let primary = NSScreen.screens.first else {
+        guard let window, window.isVisible, !window.isMiniaturized, let bounds = WindowPlacement.current(of: window) else {
             return
         }
 
-        input.placement = WindowPlacement.placement(of: window.frame, primaryHeight: primary.frame.height)
+        input.placement = BmPlacement(x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, maximized: 0, known: 1)
     }
 
     /// What the pointer is on, into the input every poll. Sampled rather than tracked through
@@ -311,8 +344,7 @@ final class Runtime {
     func show() {
         makeWindow()
         presentedGeneration = nil
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        HeadWindow.show(window)
     }
 
     func hide() {
@@ -368,9 +400,8 @@ final class Runtime {
     }
 
     func shutdown() {
-        window?.delegate = nil
-        window?.orderOut(nil)
-        window?.close()
+        napGuard.end()
+        HeadWindow.close(window)
         window = nil
         view = nil
         renderer = nil

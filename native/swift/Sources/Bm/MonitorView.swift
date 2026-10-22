@@ -1,5 +1,6 @@
 import AppKit
 import CBm
+import PlatformHeadsMac
 
 /// The window's content: the builds page and footer drawn by the renderer, with the form view
 /// laid over the body while a form page is up, and the filter box over the header while it is not.
@@ -13,10 +14,7 @@ final class MonitorView: NSView {
     /// last controls behind the footer where they cannot be reached.
     private let formScroll = NSScrollView()
 
-    /// The strings the registered tool tip rects read, held for as long as those rects stand
-    /// because AppKit does not retain a tool tip's owner. Replaced whole on every draw, with the
-    /// rects they belong to.
-    private var tooltipOwners: [NSString] = []
+    private let toolTips = ToolTipRegions()
 
     /// The filter box: a real search field, for the platform's editing. It is pushed the session's
     /// text only while it is not being edited, so a frame never fights the typist.
@@ -85,20 +83,14 @@ final class MonitorView: NSView {
         }
 
         search.toolTip = model.searchTooltip.isEmpty ? nil : model.searchTooltip
-        applyTooltips()
     }
 
-    /// The hover texts of the frame just drawn, as tool tip rects. Rebuilt on every draw because a
-    /// poll moves the rows under them, and a rect left behind would describe the row that used to
-    /// be there. AppKit owns the delay, which is the system's and not ours to set.
-    private func applyTooltips() {
-        removeAllToolTips()
-        // The owners, before any of them is registered: AppKit holds an owner weakly, so a string
-        // bridged at the call is freed the moment it returns and the tool tip reads a dead object.
-        tooltipOwners = renderer.tips.map { $0.text as NSString }
-        for (tip, owner) in zip(renderer.tips, tooltipOwners) {
-            _ = addToolTip(tip.rect, owner: owner, userData: nil)
-        }
+    /// The hover texts of the frame last drawn, as tool tip regions, asked for after every present
+    /// because a poll moves the rows under them, and a region left behind would describe the row
+    /// that used to be there. Registered again only when they changed: rebuilt on every draw, a
+    /// spinner's turns restarted the delay under a resting cursor. See `ToolTipRegions`.
+    func refreshToolTips() {
+        toolTips.apply(renderer.tips, to: self)
     }
 
     @objc private func searched(_ sender: NSSearchField) {
@@ -166,8 +158,7 @@ final class MonitorView: NSView {
             return
         }
 
-        let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY / renderer.rowHeight : event.scrollingDeltaY
-        runtime.wheel(delta)
+        runtime.wheel(event, rowHeight: renderer.rowHeight)
     }
 
     override func keyDown(with event: NSEvent) {

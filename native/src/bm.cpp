@@ -5,6 +5,7 @@
  * what was clicked.
  */
 #include "bm.h"
+#include "platformheads/runtime.h"
 
 #include "raylib.h"
 #include "rlgl.h"
@@ -35,7 +36,11 @@ struct State {
     float fontPixels = 20.0f;
     std::vector<unsigned char> font;
     std::vector<unsigned char> emoji;
-    Texture2D fontTexture{};
+    ImGuiContext* context = nullptr;
+    /* The embedded font alone, which a capture draws with, so a capture is the same picture on a
+       machine with every font installed and on one with none. The window's has the machine's
+       fonts merged in for the characters it lacks. */
+    ImFont* captureFont = nullptr;
     std::unordered_map<std::string, Texture2D> rowIcons;
     BmInput input{};
     std::deque<Edit> edits;
@@ -53,7 +58,6 @@ struct State {
     int32_t hoveredChipRow = -1;
     int32_t hoveredChip = BM_CHIP_NONE;
     int bodyRows = 1;
-    bool keyDown[ImGuiKey_NamedKey_END]{};
     /* The filter box's text. The screen's replaces it on every frame the box is not being typed in. */
     std::string search;
     bool searchActive = false;
@@ -62,22 +66,21 @@ struct State {
     /* The generation of the screen last drawn. The managed side hands over no such value, so the
        first screen is always drawn. */
     int64_t drawnGeneration = INT64_MIN;
-    /* Frames still to draw after the last reason to draw one, while ImGui settles: a hover it has
-       not shown yet, a popup or focus it was asked for, a click it acts on a frame late. */
-    int settling = 0;
+    /* A frame has been built for the window, which is what bodyRows is measured from. */
+    bool built = false;
     /* The last frame drawn left an item active, a box being typed in or a slider being dragged,
        which changes with no input at all: the caret blinks. */
     bool itemActive = false;
-    bool cursorOnScreen = false;
-    bool focused = false;
-    /* When a frame was last fed input, for ImGui's delta time. */
-    double fedAt = 0.0;
+    /* What the last frame built for the window left, which is what a key read between frames
+       is read against: whether a text field had the keyboard, and whether it was a form page. */
+    bool wantTextInput = false;
+    bool formPage = false;
+    /* What the wheel left over, in rows. A notch is three, and a touchpad sends a fraction of
+       one: truncating each frame's on its own threw all of them away. */
+    float wheel = 0.0f;
 };
 
 State g;
-
-// How many frames are drawn after the last reason to draw one.
-const int settleFrames = 3;
 
 // ImGui 1.92 keeps IM_PI in imgui_internal.h, so imgui.h alone no longer declares it.
 const float pi = 3.14159265f;
@@ -141,67 +144,39 @@ Color ClearColour() {
         255};
 }
 
+// Every string is an offset into the screen's one UTF-8 blob, read by the runtime and bounds
+// checked: a bad offset was a read past the end of the blob.
+const char none[] = "";
+
 const char* Begin(const BmScreen& screen, const BmString& value) {
-    return reinterpret_cast<const char*>(screen.strings) + value.offset;
+    const char* begin;
+    const char* end;
+    return ph::Slice(screen.strings, screen.stringsLength, value.offset, value.length, &begin, &end) ? begin : none;
 }
 
 const char* End(const BmScreen& screen, const BmString& value) {
-    return Begin(screen, value) + value.length;
+    const char* begin;
+    const char* end;
+    return ph::Slice(screen.strings, screen.stringsLength, value.offset, value.length, &begin, &end) ? end : none;
 }
 
 std::string Str(const BmScreen& screen, const BmString& value) {
-    return std::string(Begin(screen, value), static_cast<size_t>(value.length));
+    return ph::Copy(screen.strings, screen.stringsLength, value.offset, value.length);
 }
 
-/* Whether enough of the window's top edge is on a monitor to drag it by. A monitor unplugged since
-   it was left there, or a laptop taken off its dock, would otherwise open it where it could be
-   neither seen nor dragged back. */
-bool Reachable(const BmPlacement& placement) {
-    const int edge = 30;
-    for (int monitor = 0; monitor < GetMonitorCount(); monitor++) {
-        Vector2 origin = GetMonitorPosition(monitor);
-        int left = std::max(placement.x, static_cast<int>(origin.x));
-        int right = std::min(placement.x + placement.width, static_cast<int>(origin.x) + GetMonitorWidth(monitor));
-        int top = std::max(placement.y, static_cast<int>(origin.y));
-        int bottom = std::min(placement.y + edge, static_cast<int>(origin.y) + GetMonitorHeight(monitor));
-        if (right - left >= 100 && bottom > top) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/* Where the window is now, into BmInput.placement. GLFW gives no bounds back for a maximized
-   window other than the ones it fills, so those are kept from the last poll it was not maximized,
-   which is what a restore goes back to. Hidden and minimized leave it as it was: neither is a
-   place to open at. Whether it is minimized goes in on every poll. */
+/* Where the window goes back to, into BmInput.placement, as the runtime tracked it: GLFW gives no
+   bounds back for a maximized window other than the ones it fills, so those are kept from the
+   last present it was not maximized. Whether it is minimized goes in on every poll. */
 void Sample() {
     g.input.minimized = IsWindowMinimized() ? 1 : 0;
-    if (g.hidden || IsWindowMinimized()) {
-        return;
-    }
-
-    if (IsWindowMaximized()) {
-        g.input.placement.maximized = 1;
-        return;
-    }
-
-    Vector2 position = GetWindowPosition();
-    g.input.placement.x = static_cast<int32_t>(position.x);
-    g.input.placement.y = static_cast<int32_t>(position.y);
-    g.input.placement.width = GetScreenWidth();
-    g.input.placement.height = GetScreenHeight();
-    g.input.placement.maximized = 0;
-    g.input.placement.known = 1;
-}
-
-/* Brings a minimized window back. Only a minimized one: RestoreWindow also takes a maximized window
-   back to its bounds, which every show from the tray did, so a window left maximized never
-   stayed that way. */
-void UnMinimize() {
-    if (IsWindowMinimized()) {
-        RestoreWindow();
+    ph::Placement placement;
+    if (ph::GetPlacement(placement)) {
+        g.input.placement.x = placement.x;
+        g.input.placement.y = placement.y;
+        g.input.placement.width = placement.width;
+        g.input.placement.height = placement.height;
+        g.input.placement.maximized = placement.maximized ? 1 : 0;
+        g.input.placement.known = 1;
     }
 }
 
@@ -231,175 +206,85 @@ void ResetInput() {
     g.input.closeRequested = 0;
 }
 
-// Input: raylib to ImGui
-
-struct KeyMap {
-    int raylib;
-    ImGuiKey imgui;
-};
-
-const KeyMap keyMap[] = {
-    {KEY_TAB, ImGuiKey_Tab}, {KEY_LEFT, ImGuiKey_LeftArrow}, {KEY_RIGHT, ImGuiKey_RightArrow},
-    {KEY_UP, ImGuiKey_UpArrow}, {KEY_DOWN, ImGuiKey_DownArrow}, {KEY_PAGE_UP, ImGuiKey_PageUp},
-    {KEY_PAGE_DOWN, ImGuiKey_PageDown}, {KEY_HOME, ImGuiKey_Home}, {KEY_END, ImGuiKey_End},
-    {KEY_INSERT, ImGuiKey_Insert}, {KEY_DELETE, ImGuiKey_Delete}, {KEY_BACKSPACE, ImGuiKey_Backspace},
-    {KEY_SPACE, ImGuiKey_Space}, {KEY_ENTER, ImGuiKey_Enter}, {KEY_KP_ENTER, ImGuiKey_KeypadEnter},
-    {KEY_ESCAPE, ImGuiKey_Escape},
-    {KEY_LEFT_CONTROL, ImGuiKey_LeftCtrl}, {KEY_RIGHT_CONTROL, ImGuiKey_RightCtrl},
-    {KEY_LEFT_SHIFT, ImGuiKey_LeftShift}, {KEY_RIGHT_SHIFT, ImGuiKey_RightShift},
-    {KEY_LEFT_ALT, ImGuiKey_LeftAlt}, {KEY_RIGHT_ALT, ImGuiKey_RightAlt},
-    {KEY_LEFT_SUPER, ImGuiKey_LeftSuper}, {KEY_RIGHT_SUPER, ImGuiKey_RightSuper},
-    {KEY_A, ImGuiKey_A}, {KEY_C, ImGuiKey_C}, {KEY_V, ImGuiKey_V}, {KEY_X, ImGuiKey_X},
-    {KEY_Y, ImGuiKey_Y}, {KEY_Z, ImGuiKey_Z},
-};
-
-void FeedInput(ImGuiIO& io) {
-    io.AddMousePosEvent(static_cast<float>(GetMouseX()), static_cast<float>(GetMouseY()));
-    io.AddMouseButtonEvent(0, IsMouseButtonDown(MOUSE_BUTTON_LEFT));
-    io.AddMouseButtonEvent(1, IsMouseButtonDown(MOUSE_BUTTON_RIGHT));
-    io.AddMouseButtonEvent(2, IsMouseButtonDown(MOUSE_BUTTON_MIDDLE));
-
-    for (const KeyMap& map : keyMap) {
-        bool down = IsKeyDown(map.raylib);
-        bool& previous = g.keyDown[map.imgui - ImGuiKey_NamedKey_BEGIN];
-        if (down != previous) {
-            previous = down;
-            io.AddKeyEvent(map.imgui, down);
-        }
-    }
-
-    io.AddKeyEvent(ImGuiMod_Ctrl, IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL));
-    io.AddKeyEvent(ImGuiMod_Shift, IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT));
-    io.AddKeyEvent(ImGuiMod_Alt, IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT));
-    io.AddKeyEvent(ImGuiMod_Super, IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER));
-
-    for (int character = GetCharPressed(); character != 0; character = GetCharPressed()) {
-        io.AddInputCharacter(static_cast<unsigned int>(character));
-    }
+// Keys, read from the runtime's queue at every poll rather than off raylib's state while a frame
+// is built: a frame is built only when something could make it look different, so a key read
+// that way between two frames was lost, and so was any press and release that came between two
+// of raylib's readings. Letters are read as what the key types on the layout in use rather than
+// by where it is on a US keyboard, so Ctrl+Q on AZERTY is the key labelled Q. The filter box
+// keeps the keys editing needs, but Up, Down and the page keys still move through the rows it
+// leaves, so a match can be picked without leaving the box.
+bool Navigation(int key) {
+    return key == KEY_UP || key == KEY_DOWN || key == KEY_PAGE_UP || key == KEY_PAGE_DOWN;
 }
 
-// Whether the last poll brought anything ImGui must see: the pointer moving, entering or leaving the
-// window, a button, the wheel, a key, or the window resized or focused. Read without consuming
-// anything, so the frame drawn for it still finds the characters typed, which raylib keeps only
-// until the next poll.
-bool InputArrived() {
-    Vector2 moved = GetMouseDelta();
-    bool arrived = moved.x != 0.0f || moved.y != 0.0f || GetMouseWheelMove() != 0.0f || IsWindowResized();
-    for (int button = MOUSE_BUTTON_LEFT; button <= MOUSE_BUTTON_BACK && !arrived; button++) {
-        arrived = IsMouseButtonDown(button) || IsMouseButtonReleased(button);
+int32_t ShortcutOf(const ph::KeyPress& press) {
+    // A held key repeats moving through the rows and nothing else: a held Ctrl+R was a retry for
+    // every repeat the window system sent.
+    if (press.repeated && !Navigation(press.key)) {
+        return BM_KEY_NONE;
     }
 
-    for (int key = 1; key <= KEY_KB_MENU && !arrived; key++) {
-        arrived = IsKeyDown(key) || IsKeyReleased(key);
-    }
-
-    bool onScreen = IsCursorOnScreen();
-    bool focused = IsWindowFocused();
-    arrived = arrived || onScreen != g.cursorOnScreen || focused != g.focused;
-    g.cursorOnScreen = onScreen;
-    g.focused = focused;
-    return arrived;
-}
-
-// The keys the app owns, when no text field has the keyboard. The filter box keeps the keys editing
-// needs, but Up, Down and the page keys still move through the rows it leaves, so a match can be
-// picked without leaving the box.
-void ReadShortcuts(const ImGuiIO& io, bool formPage) {
-    if (io.WantTextInput) {
+    if (g.wantTextInput) {
         if (!g.searchActive) {
-            return;
+            return BM_KEY_NONE;
         }
 
-        if (IsKeyPressed(KEY_UP)) g.input.key = BM_KEY_PREVIOUS_ROW;
-        else if (IsKeyPressed(KEY_DOWN)) g.input.key = BM_KEY_NEXT_ROW;
-        else if (IsKeyPressed(KEY_PAGE_UP)) g.input.key = BM_KEY_PAGE_UP;
-        else if (IsKeyPressed(KEY_PAGE_DOWN)) g.input.key = BM_KEY_PAGE_DOWN;
-        return;
+        switch (press.key) {
+            case KEY_UP: return BM_KEY_PREVIOUS_ROW;
+            case KEY_DOWN: return BM_KEY_NEXT_ROW;
+            case KEY_PAGE_UP: return BM_KEY_PAGE_UP;
+            case KEY_PAGE_DOWN: return BM_KEY_PAGE_DOWN;
+            default: return BM_KEY_NONE;
+        }
     }
 
-    bool control = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
-    bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-    if (!formPage && control && IsKeyPressed(KEY_F)) g.focusSearch = true;
-    else if (IsKeyPressed(KEY_UP)) g.input.key = BM_KEY_PREVIOUS_ROW;
-    else if (IsKeyPressed(KEY_DOWN)) g.input.key = BM_KEY_NEXT_ROW;
-    else if (IsKeyPressed(KEY_PAGE_UP)) g.input.key = BM_KEY_PAGE_UP;
-    else if (IsKeyPressed(KEY_PAGE_DOWN)) g.input.key = BM_KEY_PAGE_DOWN;
-    else if (IsKeyPressed(KEY_HOME)) g.input.key = BM_KEY_HOME;
-    else if (IsKeyPressed(KEY_END)) g.input.key = BM_KEY_END;
-    else if (IsKeyPressed(KEY_F5)) g.input.key = BM_KEY_REFRESH;
-    else if (IsKeyPressed(KEY_ESCAPE)) g.input.key = formPage ? BM_KEY_BACK : BM_KEY_HIDE;
-    else if (control && IsKeyPressed(KEY_Q)) g.input.key = BM_KEY_QUIT;
-    else if (!formPage && control && IsKeyPressed(KEY_C)) g.input.key = BM_KEY_COPY;
-    else if (!formPage && IsKeyPressed(KEY_ENTER)) g.input.key = BM_KEY_OPEN_BUILD;
+    const bool control = (press.mods & ph::ModControl) != 0;
+    const bool shift = (press.mods & ph::ModShift) != 0;
+    const bool formPage = g.formPage;
+    const unsigned int letter = ph::LetterOf(press);
+    if (!formPage && control && letter == 'f') {
+        g.focusSearch = true;
+        return BM_KEY_NONE;
+    }
+
+    switch (press.key) {
+        case KEY_UP: return BM_KEY_PREVIOUS_ROW;
+        case KEY_DOWN: return BM_KEY_NEXT_ROW;
+        case KEY_PAGE_UP: return BM_KEY_PAGE_UP;
+        case KEY_PAGE_DOWN: return BM_KEY_PAGE_DOWN;
+        case KEY_HOME: return BM_KEY_HOME;
+        case KEY_END: return BM_KEY_END;
+        case KEY_F5: return BM_KEY_REFRESH;
+        case KEY_ESCAPE: return formPage ? BM_KEY_BACK : BM_KEY_HIDE;
+        default: break;
+    }
+
+    if (control && letter == 'q') return BM_KEY_QUIT;
+    if (formPage) return BM_KEY_NONE;
+    if (control && letter == 'c') return BM_KEY_COPY;
+    if (press.key == KEY_ENTER) return BM_KEY_OPEN_BUILD;
     // With Control, as every key that changes a service's builds is: R alone, typed into the rows
     // by someone who took the filter box to have the keyboard, reran the build.
-    else if (!formPage && control && IsKeyPressed(KEY_R)) g.input.key = BM_KEY_RETRY;
-    else if (!formPage && control && IsKeyPressed(KEY_PERIOD)) g.input.key = BM_KEY_CANCEL_BUILD;
-    else if (!formPage && control && IsKeyPressed(KEY_L)) g.input.key = BM_KEY_COPY_LOG;
-    else if (!formPage && control && IsKeyPressed(KEY_T)) g.input.key = BM_KEY_TRIAGE;
-    else if (!formPage && ((shift && IsKeyPressed(KEY_F10)) || IsKeyPressed(KEY_KB_MENU))) g.input.key = BM_KEY_OPEN_MENU;
+    if (control && letter == 'r') return BM_KEY_RETRY;
+    if (control && (letter == '.' || press.key == KEY_PERIOD)) return BM_KEY_CANCEL_BUILD;
+    if (control && letter == 'l') return BM_KEY_COPY_LOG;
+    if (control && letter == 't') return BM_KEY_TRIAGE;
+    if ((shift && press.key == KEY_F10) || press.key == KEY_KB_MENU) return BM_KEY_OPEN_MENU;
+    return BM_KEY_NONE;
 }
 
-// Rendering ImGui's draw lists through rlgl.
-
-void RenderDrawData(ImDrawData* data) {
-    rlDrawRenderBatchActive();
-    rlDisableBackfaceCulling();
-    for (int n = 0; n < data->CmdListsCount; n++) {
-        const ImDrawList* list = data->CmdLists[n];
-        const ImDrawVert* vertices = list->VtxBuffer.Data;
-        const ImDrawIdx* indices = list->IdxBuffer.Data;
-        for (int c = 0; c < list->CmdBuffer.Size; c++) {
-            const ImDrawCmd& cmd = list->CmdBuffer[c];
-            if (cmd.UserCallback != nullptr) {
-                cmd.UserCallback(list, &cmd);
-                continue;
-            }
-
-            if (cmd.ElemCount == 0) {
-                continue;
-            }
-
-            int clipX = static_cast<int>(cmd.ClipRect.x);
-            int clipY = static_cast<int>(cmd.ClipRect.y);
-            int clipWidth = static_cast<int>(cmd.ClipRect.z - cmd.ClipRect.x);
-            int clipHeight = static_cast<int>(cmd.ClipRect.w - cmd.ClipRect.y);
-            if (clipWidth <= 0 || clipHeight <= 0) {
-                continue;
-            }
-
-            BeginScissorMode(clipX, clipY, clipWidth, clipHeight);
-            unsigned int texture = static_cast<unsigned int>(cmd.GetTexID());
-            rlBegin(RL_TRIANGLES);
-            rlSetTexture(texture);
-            for (unsigned int i = 0; i < cmd.ElemCount; i += 3) {
-                if (rlCheckRenderBatchLimit(3)) {
-                    rlBegin(RL_TRIANGLES);
-                    rlSetTexture(texture);
-                }
-
-                for (unsigned int k = 0; k < 3; k++) {
-                    ImDrawIdx index = indices[cmd.IdxOffset + i + k];
-                    const ImDrawVert& vertex = vertices[cmd.VtxOffset + index];
-                    ImU32 colour = vertex.col;
-                    rlColor4ub(
-                        static_cast<unsigned char>(colour & 0xFF),
-                        static_cast<unsigned char>((colour >> 8) & 0xFF),
-                        static_cast<unsigned char>((colour >> 16) & 0xFF),
-                        static_cast<unsigned char>((colour >> 24) & 0xFF));
-                    rlTexCoord2f(vertex.uv.x, vertex.uv.y);
-                    rlVertex2f(vertex.pos.x, vertex.pos.y);
-                }
-            }
-
-            rlEnd();
-            rlSetTexture(0);
-            EndScissorMode();
+// The next key waiting that asks for anything. One a poll: the rest wait for the polls after it,
+// which is what keeps two keys pressed between two polls both acted on.
+int32_t ReadKey() {
+    ph::KeyPress press;
+    while (ph::PopKey(press)) {
+        const int32_t key = ShortcutOf(press);
+        if (key != BM_KEY_NONE) {
+            return key;
         }
     }
 
-    rlDrawRenderBatchActive();
-    rlEnableBackfaceCulling();
+    return BM_KEY_NONE;
 }
 
 // Widgets
@@ -734,10 +619,14 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
 
     ImGui::BeginChild("body", ImVec2(ImGui::GetContentRegionAvail().x - scrollbarWidth, body), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) {
-        float wheel = GetMouseWheelMove();
-        if (wheel != 0.0f) {
-            g.input.scrollDelta -= static_cast<int32_t>(wheel * 3);
-        }
+        // Three rows a notch, keeping the fraction: a touchpad sends a fraction of a notch at a
+        // time, and truncating each threw every one of them away.
+        g.wheel += ImGui::GetIO().MouseWheel * 3.0f;
+        const int32_t rows = static_cast<int32_t>(g.wheel);
+        g.wheel -= static_cast<float>(rows);
+        g.input.scrollDelta -= rows;
+    } else {
+        g.wheel = 0.0f;
     }
 
     ImGuiTableFlags flags = ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadOuterX;
@@ -945,11 +834,16 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
             // Nor a group's, which starts the indent after the arrow rather than where whichever
             // arrow is drawn happens to end.
             bool nameDrawn = nameLink || rowMarkWidth > 0.0f || group;
-            std::string selectableLabel = (nameDrawn ? arrow : arrow + name) + "##row";
+            const std::string shownLabel = nameDrawn ? arrow : arrow + name;
+            std::string selectableLabel = shownLabel + "##row";
             // As tall as the cell, so a click anywhere on the row selects it. A click on a group
             // toggles it, so the second press of a double click is dropped, or it would close what
             // the first opened.
-            if (ImGui::Selectable(selectableLabel.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap, ImVec2(0.0f, cellHeight)) &&
+            const ImGuiSelectableFlags rowFlags = ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap;
+            const bool rowPressed = ph::Marked(shownLabel)
+                ? ph::SelectableLabel(shownLabel, false, rowFlags, ImVec2(0.0f, cellHeight))
+                : ImGui::Selectable(selectableLabel.c_str(), false, rowFlags, ImVec2(0.0f, cellHeight));
+            if (rowPressed &&
                 !(group && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))) {
                 g.input.clickedRow = i;
             }
@@ -1157,7 +1051,8 @@ void DrawBuilds(const BmScreen& screen, float bodyHeight) {
                 }
 
                 ImGui::PushID(i);
-                if (ImGui::MenuItem(Str(screen, screen.menu[i].label).c_str())) {
+                const std::string menuLabel = Str(screen, screen.menu[i].label);
+                if (ph::Marked(menuLabel) ? ph::SelectableLabel(menuLabel) : ImGui::MenuItem(menuLabel.c_str())) {
                     g.input.clickedMenuItem = i;
                 }
 
@@ -1286,9 +1181,13 @@ void DrawForm(const BmScreen& screen, float bodyHeight) {
                 if (ImGui::BeginCombo("##select", value.c_str())) {
                     for (int32_t o = 0; o < field.optionCount; o++) {
                         std::string option = Str(screen, screen.options[field.optionOffset + o]);
-                        if (ImGui::Selectable(option.c_str(), option == value)) {
+                        // An identity of its own, or two options that read the same were one item.
+                        ImGui::PushID(o);
+                        if (ph::SelectableLabel(option, option == value)) {
                             g.edits.push_back({i, option});
                         }
+
+                        ImGui::PopID();
                     }
 
                     ImGui::EndCombo();
@@ -1401,15 +1300,11 @@ void DrawFooter(const BmScreen& screen) {
 
 void Frame(const BmScreen& screen, int width, int height, bool feed) {
     ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
-    io.DeltaTime = 1.0f / 60.0f;
-    if (feed) {
-        // From the clock rather than GetFrameTime, which is the length of the last frame drawn: after
-        // an idle stretch with no frames drawn, two clicks a second apart read as a double click.
-        double now = GetTime();
-        io.DeltaTime = static_cast<float>(std::clamp(now - g.fedAt, 0.001, 2.0));
-        g.fedAt = now;
-        FeedInput(io);
+    if (!feed) {
+        io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
+        io.DeltaTime = 1.0f / 60.0f;
+    } else {
+        // The size, the time and the input are the runtime's, fed before this: see bm_present.
         // What the pointer is on is decided again by this frame's items. Only on a frame with input
         // fed to it: a capture draws the screen with no pointer in it.
         g.hoveredChipRow = -1;
@@ -1435,21 +1330,23 @@ void Frame(const BmScreen& screen, int width, int height, bool feed) {
     DrawFooter(screen);
     ImGui::End();
     if (feed) {
-        ReadShortcuts(io, formPage);
+        g.wantTextInput = io.WantTextInput;
+        g.formPage = formPage;
         g.itemActive = ImGui::IsAnyItemActive();
     }
 
     ImGui::Render();
 }
 
-void ApplyStyle() {
+void ApplyStyle(float scale) {
+    ImGuiStyle& style = ImGui::GetStyle();
+    style = ImGuiStyle();
     if (lightPalette) {
         ImGui::StyleColorsLight();
     } else {
         ImGui::StyleColorsDark();
     }
 
-    ImGuiStyle& style = ImGui::GetStyle();
     style.WindowPadding = ImVec2(10.0f, 8.0f);
     style.FramePadding = ImVec2(8.0f, 4.0f);
     style.ItemSpacing = ImVec2(8.0f, 6.0f);
@@ -1479,6 +1376,13 @@ void ApplyStyle() {
     style.Colors[ImGuiCol_SliderGrab] = border;
     style.Colors[ImGuiCol_TableRowBg] = background;
     style.Colors[ImGuiCol_TableRowBgAlt] = background;
+
+    // Under X11 a pixel is a pixel whatever the display, so on one set to twice the size this head
+    // was half size beside everything else on the desktop. A capture is drawn at 1.
+    if (scale != 1.0f) {
+        style.ScaleAllSizes(scale);
+        style.FontScaleDpi = scale;
+    }
 }
 
 // There is no dependable way to ask a Linux desktop for its colour scheme from here, so System
@@ -1491,63 +1395,56 @@ void UseTheme(int32_t theme) {
 
     paletteSet = true;
     UsePalette(light);
-    ApplyStyle();
+    ApplyStyle(ph::WindowScale());
 }
 
-bool LoadFont() {
-    ImGuiIO& io = ImGui::GetIO();
-    io.Fonts->Clear();
-    if (g.font.empty()) {
-        io.Fonts->AddFontDefault();
-    } else {
-        // Latin, and the marks a row draws beyond it. Spelled out because a source added with
-        // no range of its own covers Latin alone, whatever else its cmap holds: the group
-        // arrows came out as this font's missing-glyph lozenge until they were named here.
+ImFont* AddFonts() {
+    ImFont* font = ph::AddEmbeddedFont(g.font.data(), static_cast<int32_t>(g.font.size()), g.fontPixels, 1.0f);
+    // Merged over the text font, so a row's marks come out of it where the text font has no glyph:
+    // the text font is a programming face with no emoji in it at all. Merged rather than drawn as
+    // a picture because the marks sit inside runs of text, in a branch name and in the author
+    // column. The build defines IMGUI_USE_WCHAR32, without which a codepoint above U+FFFF does not
+    // survive being decoded and no font could supply it.
+    if (font != nullptr && !g.emoji.empty()) {
+        // Bounded to the marks it actually carries, so it claims nothing the text font has.
         // Static, because the atlas keeps the pointer.
-        static const ImWchar textRange[] = {
-            0x0020, 0x00FF,
-            0x2026, 0x2026,
-            0x25B6, 0x25B6,
-            0x25BC, 0x25BC,
-            0
-        };
-        ImFontConfig config;
-        config.FontDataOwnedByAtlas = false;
-        config.GlyphRanges = textRange;
-        io.Fonts->AddFontFromMemoryTTF(g.font.data(), static_cast<int>(g.font.size()), g.fontPixels, &config);
-    }
-
-    // Merged over whatever went first, so a row's marks come out of it where the text font has no
-    // glyph: the text font is a programming face with no emoji in it at all. Merged rather than
-    // drawn as a picture because the marks sit inside runs of text, in a branch name and in the
-    // author column. The build defines IMGUI_USE_WCHAR32, without which a codepoint above U+FFFF
-    // does not survive being decoded and no font could supply it.
-    if (!g.emoji.empty()) {
-        // Bounded to the marks it actually carries. stb_truetype answers a codepoint it does not
-        // have with glyph zero rather than a miss, so an unbounded source claims everything the
-        // font before it did not supply and draws its own .notdef over it: the group arrows came
-        // out as this font's missing-glyph lozenge. Static, because the atlas keeps the pointer.
         static const ImWchar emojiRange[] = {0x1F916, 0x1F916, 0};
         ImFontConfig emojiConfig;
         emojiConfig.FontDataOwnedByAtlas = false;
         emojiConfig.MergeMode = true;
         emojiConfig.GlyphRanges = emojiRange;
-        io.Fonts->AddFontFromMemoryTTF(g.emoji.data(), static_cast<int>(g.emoji.size()), g.fontPixels, &emojiConfig);
+        ImGui::GetIO().Fonts->AddFontFromMemoryTTF(g.emoji.data(), static_cast<int>(g.emoji.size()), g.fontPixels, &emojiConfig);
     }
 
-    unsigned char* pixels = nullptr;
-    int width = 0;
-    int height = 0;
-    io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-    Image image{};
-    image.data = pixels;
-    image.width = width;
-    image.height = height;
-    image.mipmaps = 1;
-    image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-    g.fontTexture = LoadTextureFromImage(image);
-    io.Fonts->SetTexID(static_cast<ImTextureID>(g.fontTexture.id));
-    return g.fontTexture.id != 0;
+    return font;
+}
+
+bool LoadFont() {
+    ImGuiIO& io = ImGui::GetIO();
+    if (g.font.empty()) {
+        g.captureFont = io.Fonts->AddFontDefault();
+        return g.captureFont != nullptr;
+    }
+
+    // The capture's first, then the window's, which the machine's fonts are merged into for the
+    // characters the embedded one lacks: a merge goes into the font added before it.
+    g.captureFont = AddFonts();
+    ImFont* window = AddFonts();
+    if (window == nullptr) {
+        return false;
+    }
+
+    io.FontDefault = window;
+    ph::UseSystemFonts(window);
+    return true;
+}
+
+// Asks for a font for every character of a screen the window's font cannot draw: every string of
+// the frame is in the one blob.
+void FindFontsFor(const BmScreen& screen) {
+    if (screen.strings != nullptr && screen.stringsLength > 0) {
+        ph::FindFontsFor(reinterpret_cast<const char*>(screen.strings), static_cast<size_t>(screen.stringsLength));
+    }
 }
 
 } // namespace
@@ -1573,41 +1470,36 @@ BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const u
         g.emoji.assign(emojiTtf, emojiTtf + emojiLength);
     }
 
-    SetTraceLogLevel(LOG_WARNING);
-    // Always made hidden, and shown once it is where it was left: made visible, it would first
-    // appear centred and then jump.
-    // ALWAYS_RUN because PollInputEvents otherwise waits for an event for as long as the window is
-    // minimised, and every bm_present makes that call. The managed loop stopped there with it:
-    // the tray's icon and menu stood still, no notification was shown, a click on the tray went
-    // unread, and a show asked for over the socket, which is what starting BuildMonitor again
-    // sends, waited until something else brought the window back.
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT | FLAG_WINDOW_HIDDEN | FLAG_WINDOW_ALWAYS_RUN);
-    InitWindow(width, height, title != nullptr ? title : "BuildMonitor");
-    if (!IsWindowReady()) {
+    // Made hidden, placed where it was left and then shown, by the runtime: made visible, it would
+    // first appear centred and then jump. See ph::OpenWindow.
+    ph::WindowOptions options;
+    options.width = width;
+    options.height = height;
+    options.title = title != nullptr ? title : "BuildMonitor";
+    options.hidden = g.hidden;
+    ph::Placement remembered;
+    if (placement != nullptr && placement->known != 0) {
+        remembered.x = placement->x;
+        remembered.y = placement->y;
+        remembered.width = placement->width;
+        remembered.height = placement->height;
+        remembered.maximized = placement->maximized != 0;
+        options.placement = &remembered;
+    }
+
+    if (!ph::OpenWindow(options)) {
         return 0;
     }
 
-    // Monitors are only known once GLFW is, which is after the window is made.
-    if (placement != nullptr && placement->known != 0 && Reachable(*placement)) {
-        SetWindowSize(placement->width, placement->height);
-        SetWindowPosition(placement->x, placement->y);
-        g.input.placement = *placement;
-        if (placement->maximized != 0) {
-            MaximizeWindow();
-        }
-    }
-
-    if (!g.hidden) {
-        ClearWindowState(FLAG_WINDOW_HIDDEN);
-    }
-
-    SetExitKey(0);
-    SetTargetFPS(60);
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+    g.context = ImGui::CreateContext();
+    ImGui::SetCurrentContext(g.context);
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
+    // ImGui hands its textures, the font atlas among them, to the runtime's renderer to make, grow
+    // and drop, so glyphs are rasterised as they are first drawn rather than all up front.
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     UseTheme(BM_THEME_DARK);
     if (!LoadFont()) {
@@ -1615,6 +1507,7 @@ BM_API int32_t bm_init(int32_t width, int32_t height, const char* title, const u
     }
 
     ResetInput();
+    g.built = false;
     g.initialised = true;
     return 1;
 }
@@ -1625,35 +1518,51 @@ BM_API int32_t bm_present(const BmScreen* screen) {
     }
 
     UseTheme(screen->theme);
-    // A frame is drawn only when it could look different from the last: a screen of another
-    // generation, input from the last poll, an item still active, the spinner, or ImGui settling
-    // after any of those. Otherwise it only waits and polls, as EndDrawing would: an idle window drew
-    // a whole ImGui frame sixty times a second to put the same pixels on screen. The managed side
-    // rebuilds a visible window's screen at least once a second, which also redraws anything the
-    // desktop let go stale.
-    bool input = InputArrived();
-    bool spinner = screen->page == BM_PAGE_BUILDS && screen->rowCount == 0 && screen->loading != 0;
-    if (input || screen->generation != g.drawnGeneration || g.itemActive || spinner) {
-        g.settling = settleFrames;
-    }
-
-    if (g.hidden || g.settling == 0) {
-        WaitTime(1.0 / 60.0);
-        PollInputEvents();
-    } else {
-        g.settling--;
-        g.drawnGeneration = screen->generation;
-        BeginDrawing();
-        ClearBackground(ClearColour());
-        Frame(*screen, GetScreenWidth(), GetScreenHeight(), true);
-        RenderDrawData(ImGui::GetDrawData());
-        EndDrawing();
-    }
-
-    if (WindowShouldClose()) {
+    // Reported once, and cleared, so a window hidden on close can be shown again without closing
+    // itself on its first frame back.
+    if (ph::TakeCloseRequest()) {
         g.input.closeRequested = 1;
     }
 
+    const float elapsed = ph::BeginPresent(g.context);
+
+    // A frame is built only when it could look different from the last: a screen of another
+    // generation, input since the last present, a font merged, an item still active, the spinner,
+    // or ImGui settling after any of those. And drawn only when it does. Otherwise the present
+    // only waits and reads events: an idle window built a whole frame sixty times a second to put
+    // the same pixels on screen. Each of these is asked every time, since each takes what it finds.
+    bool arrived = ph::Arrived();
+    arrived = ph::TakeFonts() || arrived;
+    const bool changed = screen->generation != g.drawnGeneration;
+    g.drawnGeneration = screen->generation;
+    const bool spinner = screen->page == BM_PAGE_BUILDS && screen->rowCount == 0 && screen->loading != 0;
+    arrived = arrived || changed || g.itemActive || spinner;
+
+    // A hidden or minimized window is neither built nor drawn: being shown again marks it to be.
+    // Not before a frame has been built at all, since the rows the managed side slices by are
+    // measured from one.
+    if (ph::Hidden() && g.built) {
+        if (changed) {
+            FindFontsFor(*screen);
+        }
+
+        ph::Rest();
+        return 1;
+    }
+
+    if (ph::CanLeaveAlone(arrived)) {
+        ph::Rest();
+        return 1;
+    }
+
+    // Keys too: the form's fields and the filter box are ImGui's text fields.
+    ph::FeedImGui(elapsed, true);
+    FindFontsFor(*screen);
+    Frame(*screen, GetScreenWidth(), GetScreenHeight(), true);
+    g.built = true;
+    const Color clear = ClearColour();
+    ph::Show(ImGui::GetDrawData(), clear.r, clear.g, clear.b, arrived);
+    ph::Rest();
     return 1;
 }
 
@@ -1671,10 +1580,18 @@ BM_API void bm_poll_input(BmInput* input) {
         g.input.changedValueLength = static_cast<int32_t>(g.changedValue.size());
     }
 
+    // A key waits for a poll whose frame set no key of its own, such as a click on the status.
+    if (g.initialised && g.input.key == BM_KEY_NONE) {
+        g.input.key = ReadKey();
+    }
+
     g.input.rows = g.bodyRows;
     g.input.hoveredChipRow = g.hoveredChipRow;
     g.input.hoveredChip = g.hoveredChip;
-    Sample();
+    if (g.initialised) {
+        Sample();
+    }
+
     *input = g.input;
     ResetInput();
 }
@@ -1689,7 +1606,18 @@ BM_API int32_t bm_capture(const BmScreen* screen, int32_t width, int32_t height,
         return 0;
     }
 
+    ImGui::SetCurrentContext(g.context);
     UseTheme(screen->theme);
+    // At a scale of 1 and in the embedded font alone, whatever display and fonts the machine
+    // capturing has, so a capture describes the app and not that machine.
+    ImGuiIO& io = ImGui::GetIO();
+    ImFont* windowFont = io.FontDefault;
+    io.FontDefault = g.captureFont;
+    const float scale = ph::WindowScale();
+    if (scale != 1.0f) {
+        ApplyStyle(1.0f);
+    }
+
     // ImGui sizes a child's scrollbar from the content size of the previous frame, so a single
     // frame would draw a scrollbar the last capture needed and omit one this capture needs. The
     // first frame settles the layout and is discarded.
@@ -1697,13 +1625,20 @@ BM_API int32_t bm_capture(const BmScreen* screen, int32_t width, int32_t height,
     BeginTextureMode(target);
     ClearBackground(ClearColour());
     Frame(*screen, width, height, false);
-    RenderDrawData(ImGui::GetDrawData());
+    ph::RenderDrawData(ImGui::GetDrawData());
     EndTextureMode();
+    io.FontDefault = windowFont;
+    if (scale != 1.0f) {
+        ApplyStyle(scale);
+    }
+
     Image image = LoadImageFromTexture(target.texture);
     ImageFlipVertical(&image);
     bool exported = ExportImage(image, pngPath);
     UnloadImage(image);
     UnloadRenderTexture(target);
+    // The window's next frame is drawn whatever it comes out as: the capture's frames were not it.
+    ph::MarkStale();
     return exported ? 1 : 0;
 }
 
@@ -1712,15 +1647,9 @@ BM_API void bm_set_hidden(int32_t hidden) {
         return;
     }
 
+    // Shown, a minimized window is brought back, and left maximized if it was: see ph::SetHidden.
     g.hidden = hidden != 0;
-    if (g.hidden) {
-        SetWindowState(FLAG_WINDOW_HIDDEN);
-    } else {
-        ClearWindowState(FLAG_WINDOW_HIDDEN);
-        UnMinimize();
-        // Nothing is drawn while hidden, so what was drawn last may be long out of date.
-        g.drawnGeneration = INT64_MIN;
-    }
+    ph::SetHidden(g.hidden);
 }
 
 BM_API void bm_focus(void) {
@@ -1728,17 +1657,14 @@ BM_API void bm_focus(void) {
         return;
     }
 
-    // It shows the window too, and a window still marked hidden is never drawn.
+    // It shows the window too.
     g.hidden = false;
-    g.drawnGeneration = INT64_MIN;
-    ClearWindowState(FLAG_WINDOW_HIDDEN);
-    UnMinimize();
-    SetWindowFocused();
+    ph::Focus();
 }
 
 BM_API void bm_set_clipboard(const char* text) {
-    if (g.initialised && text != nullptr) {
-        SetClipboardText(text);
+    if (g.initialised) {
+        ph::SetClipboard(text);
     }
 }
 
@@ -1787,16 +1713,12 @@ BM_API void bm_set_row_icon(const char* name, const uint8_t* png, int32_t length
     }
 
     g.rowIcons[name] = texture;
+    ph::MarkStale();
 }
 
 BM_API void bm_shutdown(void) {
     if (!g.initialised) {
         return;
-    }
-
-    if (g.fontTexture.id != 0) {
-        UnloadTexture(g.fontTexture);
-        g.fontTexture = Texture2D{};
     }
 
     for (auto& icon : g.rowIcons) {
@@ -1805,8 +1727,12 @@ BM_API void bm_shutdown(void) {
 
     g.rowIcons.clear();
 
-    ImGui::DestroyContext();
-    CloseWindow();
+    ImGui::DestroyContext(g.context);
+    g.context = nullptr;
+    g.captureFont = nullptr;
+    // After the context, whose atlas was still reading glyphs out of the fonts merged in.
+    ph::StopFontFinder();
+    ph::CloseWindow();
     g.initialised = false;
     g.windowGone = true;
 }

@@ -9,13 +9,21 @@ let package = Package(
     products: [
         .library(name: "buildmonitor_ui", type: .dynamic, targets: ["Bm"])
     ],
+    dependencies: [
+        // What every AppKit head does underneath its drawing, shared with DiffEngine's viewer. The
+        // sixth pin of PlatformHeads, moved with the other five.
+        .package(url: "https://github.com/SimonCropp/PlatformHeads", branch: "native-runtime")
+    ],
     targets: [
         // Exists only to import the ABI. Swift does not guarantee struct layout, so the structs
         // have to come from the C header rather than being redeclared here.
         .target(name: "CBm"),
         .target(
             name: "Bm",
-            dependencies: ["CBm"],
+            dependencies: [
+                "CBm",
+                .product(name: "PlatformHeadsMac", package: "PlatformHeads")
+            ],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("CoreGraphics"),
@@ -23,7 +31,7 @@ let package = Package(
             ]),
         // The only head with tests of its own. Everything above a renderer is managed code and is
         // tested there; the folder panel is one of the few things this head decides by itself,
-        // because it is AppKit rather than a program the managed side could run and watch, and
-        // turning AppKit's frames into the ABI's placements is another.
+        // because it is AppKit rather than a program the managed side could run and watch.
+        // Turning AppKit's frames into placements is PlatformHeads', and tested there.
         .testTarget(name: "BmTests", dependencies: ["Bm"])
     ])
