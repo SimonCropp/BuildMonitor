@@ -1,5 +1,5 @@
 /// <summary>
-/// Opens a URL in the user's browser, on whichever desktop this is.
+/// Opens a URL in the user's browser, on whichever desktop this is: see <see cref="LinkOpener"/>.
 /// </summary>
 static class LinkLauncher
 {
@@ -10,30 +10,9 @@ static class LinkLauncher
 
     static void Launch(string url)
     {
-        try
+        if (!LinkOpener.TryOpen(url, out var error))
         {
-            if (OperatingSystem.IsWindows())
-            {
-                using var process = Process.Start(
-                    new ProcessStartInfo(url)
-                    {
-                        UseShellExecute = true
-                    });
-                return;
-            }
-
-            var opener = OperatingSystem.IsMacOS() ? "open" : "xdg-open";
-            using var unix = Process.Start(
-                new ProcessStartInfo(opener, [url])
-                {
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                });
-        }
-        catch (Exception exception)
-        {
-            Log.Error(exception, "Could not open {Url}", url);
+            Log.Error(error, "Could not open {Url}", url);
         }
     }
 }
