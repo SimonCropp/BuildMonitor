@@ -1,5 +1,6 @@
 import CBm
 import Foundation
+import PlatformHeadsMac
 
 /// One frame, copied out of the C structs into Swift values so nothing here outlives the call
 /// that handed it over.
@@ -138,15 +139,12 @@ struct Frame {
 
     static func decode(_ pointer: UnsafePointer<BmScreen>) -> Frame {
         let screen = pointer.pointee
-        let strings = UnsafeBufferPointer(start: screen.strings, count: Int(screen.stringsLength))
+        // Checked against the blob, and added in Int: an offset and a length added as Int32 could
+        // pass Int32.max and trap. See `StringBlob`.
+        let strings = StringBlob(screen.strings, length: screen.stringsLength)
 
         func text(_ value: BmString) -> String {
-            guard value.length > 0, value.offset >= 0, Int(value.offset + value.length) <= strings.count else {
-                return ""
-            }
-
-            let slice = UnsafeBufferPointer(start: strings.baseAddress! + Int(value.offset), count: Int(value.length))
-            return String(decoding: slice, as: UTF8.self)
+            strings.text(offset: value.offset, length: value.length)
         }
 
         let chips = UnsafeBufferPointer(start: screen.chips, count: Int(screen.chipCount)).map {

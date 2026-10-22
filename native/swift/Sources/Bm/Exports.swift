@@ -1,8 +1,7 @@
 import AppKit
 import CBm
-import CoreGraphics
 import Foundation
-import ImageIO
+import PlatformHeadsMac
 
 /// The entry points of native/include/bm.h, implemented over AppKit.
 ///
@@ -136,9 +135,7 @@ public func bmSetClipboard(_ text: UnsafePointer<CChar>?) {
     }
 
     autoreleasepool {
-        let board = NSPasteboard.general
-        board.clearContents()
-        board.setString(String(cString: text), forType: .string)
+        Clipboard.set(String(cString: text))
     }
 }
 
@@ -200,6 +197,7 @@ private func initialiseTray() -> Int32 {
 
     // Accessory until a window is shown: a tray app should not put an empty app in the Dock.
     NSApplication.shared.setActivationPolicy(.accessory)
+    runtime.guardTermination()
     let tray = Tray(runtime: runtime)
     guard tray.start() else {
         return 0
@@ -253,7 +251,7 @@ public func bmShutdown() {
 }
 
 /// Renders into a bitmap of this side's own making, with scale, colour space and font smoothing
-/// pinned, so a committed baseline matches on any display. No window is needed.
+/// pinned, so a committed baseline matches on any display: see `Capture`. No window is needed.
 @_cdecl("bm_capture")
 public func bmCapture(
     _ screen: UnsafePointer<BmScreen>?,
@@ -270,45 +268,18 @@ private func capture(
     _ width: Int32,
     _ height: Int32,
     _ pngPath: UnsafePointer<CChar>?) -> Int32 {
-    guard let screen,
-          let pngPath,
-          let renderer = Runtime.shared.renderer,
-          let space = CGColorSpace(name: CGColorSpace.sRGB),
-          let context = CGContext(
-              data: nil,
-              width: Int(width),
-              height: Int(height),
-              bitsPerComponent: 8,
-              bytesPerRow: 0,
-              space: space,
-              bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
-    else {
+    guard let screen, let pngPath, let renderer = Runtime.shared.renderer else {
         return 0
     }
 
-    context.setAllowsFontSmoothing(false)
-    context.setShouldSmoothFonts(false)
-    context.setAllowsFontSubpixelPositioning(false)
-    context.setShouldSubpixelPositionFonts(false)
-    context.setAllowsFontSubpixelQuantization(false)
-    context.setShouldSubpixelQuantizeFonts(false)
-
-    // Top-left origin like the view, so the capture and the window agree.
     _ = Palette.use(screen.pointee.theme)
-
-    context.translateBy(x: 0, y: CGFloat(height))
-    context.scaleBy(x: 1, y: -1)
-    renderer.draw(Frame.decode(screen), in: context, size: CGSize(width: CGFloat(width), height: CGFloat(height)), staticControls: true)
-
-    guard let image = context.makeImage() else {
-        return 0
+    let frame = Frame.decode(screen)
+    let written = Capture.png(width: width, height: height, path: String(cString: pngPath)) { context in
+        // Top-left origin like the view, so the capture and the window agree.
+        context.translateBy(x: 0, y: CGFloat(height))
+        context.scaleBy(x: 1, y: -1)
+        renderer.draw(frame, in: context, size: CGSize(width: CGFloat(width), height: CGFloat(height)), staticControls: true)
     }
 
-    let url = URL(fileURLWithPath: String(cString: pngPath)) as CFURL
-    guard let destination = CGImageDestinationCreateWithURL(url, "public.png" as CFString, 1, nil) else {
-        return 0
-    }
-
-    CGImageDestinationAddImage(destination, image, nil)
-    return CGImageDestinationFinalize(destination) ? 1 : 0
+    return written ? 1 : 0
 }
