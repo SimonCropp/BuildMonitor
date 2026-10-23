@@ -130,6 +130,11 @@ static class MonitorProgram
             return 4;
         }
 
+        if (window is ILoopHooks hooks)
+        {
+            hooks.SessionEnding = SessionEnding(history, AppPaths.History);
+        }
+
         using var cancel = new CancelSource();
         var poller = new Poller(host, secrets, history, handler, new(secrets, handler));
         using var repos = new LocalRepoWatcher(host);
@@ -207,9 +212,9 @@ static class MonitorProgram
 
         var screens = Screens.Cache();
         var clipboard = new ClipboardPump();
-        if (window is IModalFrames modal)
+        if (window is ILoopHooks hooks)
         {
-            modal.Frame = () => ModalFrame(host, window, actions, screens);
+            hooks.Frame = () => ModalFrame(host, window, actions, screens);
         }
 
         while (true)
@@ -306,7 +311,20 @@ static class MonitorProgram
     }
 
     /// <summary>
-    /// A frame from inside a head's modal loop (<see cref="IModalFrames.Frame"/>): what the loop
+    /// What a clean exit saves and a session ending would otherwise lose (<see cref="ILoopHooks.SessionEnding"/>):
+    /// the durations of the runs seen since the start, which the estimates and the polling interval
+    /// are made from. Saved only on the way out, so a tray that starts at login and goes with the
+    /// session, which is how one usually goes, had saved none of them.
+    /// </summary>
+    internal static Action SessionEnding(DurationHistory history, string path) =>
+        () =>
+        {
+            Log.Information("The session is ending. Saving the run history.");
+            history.Save(path);
+        };
+
+    /// <summary>
+    /// A frame from inside a head's modal loop (<see cref="ILoopHooks.Frame"/>): what the loop
     /// does with the window's input, without the present the head is already inside of. The tray
     /// is left to the loop: it is polled when the modal loop returns, and lost nothing meanwhile.
     /// </summary>
