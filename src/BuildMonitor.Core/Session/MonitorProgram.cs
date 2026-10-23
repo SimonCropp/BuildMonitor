@@ -207,6 +207,11 @@ static class MonitorProgram
 
         var screens = Screens.Cache();
         var clipboard = new ClipboardPump();
+        if (window is IModalFrames modal)
+        {
+            modal.Frame = () => ModalFrame(host, window, actions, screens);
+        }
+
         while (true)
         {
             // Socket driven window changes are applied on this thread rather than the listener's,
@@ -298,5 +303,17 @@ static class MonitorProgram
                 Thread.Sleep(Pacing.HiddenFrame);
             }
         }
+    }
+
+    /// <summary>
+    /// A frame from inside a head's modal loop (<see cref="IModalFrames.Frame"/>): what the loop
+    /// does with the window's input, without the present the head is already inside of. The tray
+    /// is left to the loop: it is polled when the modal loop returns, and lost nothing meanwhile.
+    /// </summary>
+    internal static Screen ModalFrame(SessionHost host, IMonitorWindow window, MonitorActions actions, ScreenCache screens)
+    {
+        var input = window.Poll() with {At = DateTimeOffset.UtcNow};
+        host.Mutate(_ => InputApplier.Apply(_, input, actions, window));
+        return screens.Get(host.State, DateTimeOffset.UtcNow, out _);
     }
 }

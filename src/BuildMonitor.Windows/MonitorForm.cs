@@ -43,12 +43,25 @@ sealed class MonitorForm : HeadForm
             TabStop = false,
             Visible = false
         };
-        scrollBar.Scroll += (_, _) =>
+        scrollBar.Scroll += (_, e) =>
         {
+            // NewValue rather than Value, which the bar sets only once this has been raised, so
+            // every move reported the position before it
             if (!suppressScroll)
             {
-                canvas.ScrollTo = scrollBar.Value;
+                canvas.ScrollTo = e.NewValue;
             }
+
+            // Every part of the bar is tracked in a modal loop of its own, from the press until the
+            // release: the thumb dragged, and an arrow or the trough held down. EndScroll is what
+            // the bar sends as that loop ends, whichever part it was, and ThumbPosition just ahead.
+            if (e.Type is ScrollEventType.ThumbPosition or ScrollEventType.EndScroll)
+            {
+                ExitModal();
+                return;
+            }
+
+            EnterModal();
         };
         formPanel = new()
         {
@@ -144,6 +157,29 @@ sealed class MonitorForm : HeadForm
     {
         e.Handled = true;
         e.SuppressKeyPress = true;
+    }
+
+    /// <summary>
+    /// One frame of the loop, for <see cref="HeadForm.ModalFrame"/> to run while user32 holds the
+    /// thread in a modal loop of its own. See <see cref="IModalFrames.Frame"/>.
+    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Func<Screen>? Frame
+    {
+        get;
+        set
+        {
+            field = value;
+            ModalFrame = value is null ? null : ModalStep;
+        }
+    }
+
+    void ModalStep()
+    {
+        if (Frame is { } frame)
+        {
+            Apply(frame());
+        }
     }
 
     public void Apply(Screen screen)

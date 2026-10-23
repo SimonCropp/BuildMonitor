@@ -68,8 +68,19 @@ final class Tray: NSObject, NSMenuDelegate {
         }
     }
 
+    /// A left click shows the window, as it does on the other heads, and the menu is the right
+    /// button's, or a control-click's, which is how a Mac without one asks for it. Both buttons
+    /// opened the menu, so trayIconClicked was never set and only the menu's Show reached the
+    /// window.
     @objc private func clicked(_ sender: Any?) {
         guard let item else {
+            return
+        }
+
+        let event = NSApp.currentEvent
+        let wantsMenu = event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true
+        guard wantsMenu else {
+            runtime?.input.trayIconClicked = 1
             return
         }
 
