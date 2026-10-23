@@ -1737,6 +1737,10 @@ BM_API void bm_shutdown(void) {
     g.windowGone = true;
 }
 
+BM_API void bm_on_display_lost(BmDisplayLost lost) {
+    ph::OnDisplayLost(lost);
+}
+
 BM_API int32_t bm_version(void) {
     return BM_VERSION;
 }

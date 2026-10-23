@@ -250,6 +250,12 @@ public func bmShutdown() {
     }
 }
 
+/// Never called here: a logout's quit is the app's own (TerminateGuard), which reaches the clean
+/// exit. Only the Linux head can lose its display out from under it.
+@_cdecl("bm_on_display_lost")
+public func bmOnDisplayLost(_ lost: BmDisplayLost?) {
+}
+
 /// Renders into a bitmap of this side's own making, with scale, colour space and font smoothing
 /// pinned, so a committed baseline matches on any display: see `Capture`. No window is needed.
 @_cdecl("bm_capture")

@@ -130,10 +130,16 @@ static class MonitorProgram
             return 4;
         }
 
+        var sessionEnding = SessionEnding(history, AppPaths.History);
         if (window is ILoopHooks hooks)
         {
-            hooks.SessionEnding = SessionEnding(history, AppPaths.History);
+            hooks.SessionEnding = sessionEnding;
         }
+
+        // What ends a macOS or Linux session's processes, where the window hears nothing of it: on
+        // Linux the X server going is heard through ILoopHooks, and these are the signals systemd
+        // sends. Nothing is registered on Windows.
+        using var signals = new SessionEndSignals(sessionEnding, _ => Log.Error(_, "Failed while the session was ending"));
 
         using var cancel = new CancelSource();
         var poller = new Poller(host, secrets, history, handler, new(secrets, handler));

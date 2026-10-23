@@ -15,7 +15,7 @@ static partial class Bm
     /// <summary>
     /// Keep in sync with BM_VERSION in bm.h.
     /// </summary>
-    public const int ExpectedVersion = 20;
+    public const int ExpectedVersion = 21;
 
     /// <summary>
     /// BmInput.ChangedField for an edit of the filter box, which is not one of BmScreen.Fields.
@@ -64,6 +64,9 @@ static partial class Bm
 
     [LibraryImport(Library, EntryPoint = "bm_shutdown")]
     public static partial void Shutdown();
+
+    [LibraryImport(Library, EntryPoint = "bm_on_display_lost")]
+    public static partial void OnDisplayLost(delegate* unmanaged<void> lost);
 
     [LibraryImport(Library, EntryPoint = "bm_version")]
     public static partial int Version();
