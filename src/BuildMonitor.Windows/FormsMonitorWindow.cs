@@ -9,9 +9,10 @@
 /// </summary>
 sealed class FormsMonitorWindow :
     IMonitorWindow,
-    IModalFrames
+    ILoopHooks
 {
     MonitorForm form;
+    SessionEndWindow? sessionEnd;
     bool disposed;
 
     FormsMonitorWindow(MonitorForm form) =>
@@ -54,6 +55,22 @@ sealed class FormsMonitorWindow :
     public Func<Screen>? Frame
     {
         set => form.Frame = value;
+    }
+
+    /// <summary>
+    /// Heard by a window of its own rather than through <see cref="HeadForm.SessionEnding"/>,
+    /// which is raised only as the form is closed: a tray started hidden may never have made the
+    /// form's window, and a window that does not exist is told nothing.
+    /// </summary>
+    public Action? SessionEnding
+    {
+        set
+        {
+            sessionEnd?.Dispose();
+            sessionEnd = value is null
+                ? null
+                : new SessionEndWindow(value, _ => Log.Error(_, "Failed while the session was ending"));
+        }
     }
 
     public bool Wait(TimeSpan timeout, WaitHandle wake)
@@ -140,6 +157,7 @@ sealed class FormsMonitorWindow :
         }
 
         disposed = true;
+        sessionEnd?.Dispose();
         if (!form.IsDisposed)
         {
             form.CloseForReal();

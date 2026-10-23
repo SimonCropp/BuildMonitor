@@ -161,7 +161,7 @@ sealed class MonitorForm : HeadForm
 
     /// <summary>
     /// One frame of the loop, for <see cref="HeadForm.ModalFrame"/> to run while user32 holds the
-    /// thread in a modal loop of its own. See <see cref="IModalFrames.Frame"/>.
+    /// thread in a modal loop of its own. See <see cref="ILoopHooks.Frame"/>.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Func<Screen>? Frame
