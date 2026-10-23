@@ -7,7 +7,9 @@
 /// paint: the frame loop is simply stopped while the chooser is up, which is what a modal means.
 /// The waiting, the hiding and the raising are <see cref="HeadForm"/>'s.
 /// </summary>
-sealed class FormsMonitorWindow : IMonitorWindow
+sealed class FormsMonitorWindow :
+    IMonitorWindow,
+    IModalFrames
 {
     MonitorForm form;
     bool disposed;
@@ -42,9 +44,16 @@ sealed class FormsMonitorWindow : IMonitorWindow
             return false;
         }
 
+        // The loop is here, so no modal loop is holding the thread: see HeadForm.LoopReturned.
+        form.LoopReturned();
         form.Apply(screen);
         Application.DoEvents();
         return !form.IsDisposed;
+    }
+
+    public Func<Screen>? Frame
+    {
+        set => form.Frame = value;
     }
 
     public bool Wait(TimeSpan timeout, WaitHandle wake)
