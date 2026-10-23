@@ -508,7 +508,10 @@ typedef struct BmInput {
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
  */
-#define BM_VERSION 20
+#define BM_VERSION 21
+
+/* What bm_on_display_lost calls. */
+typedef void (*BmDisplayLost)(void);
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -595,6 +598,15 @@ BM_API void bm_tray_set_menu_icon(const char* name, const uint8_t* png, int32_t 
 BM_API void bm_set_row_icon(const char* name, const uint8_t* png, int32_t length);
 
 BM_API void bm_shutdown(void);
+
+/*
+ * Has lost called once as the connection to the X server is lost, which is how a logoff ends the
+ * Linux head: Xlib ends the process with exit(1) as it returns, so it is the one chance to save what
+ * a clean exit would have. Called on the thread inside bm_present or bm_poll_input, from inside that
+ * call. NULL stops it. macOS never calls it: a logout's quit there is the app's own, which reaches
+ * the clean exit.
+ */
+BM_API void bm_on_display_lost(BmDisplayLost lost);
 
 BM_API int32_t bm_version(void);
 

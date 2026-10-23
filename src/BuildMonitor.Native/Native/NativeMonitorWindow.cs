@@ -6,8 +6,16 @@
 /// <see cref="Poll"/> too and <see cref="NativeTray"/> has nothing of its own to drain.
 /// </para>
 /// </summary>
-sealed unsafe class NativeMonitorWindow : IMonitorWindow
+sealed unsafe class NativeMonitorWindow :
+    IMonitorWindow,
+    ILoopHooks
 {
+    /// <summary>
+    /// What <see cref="DisplayLost"/> runs. Static, since the library calls back through a plain
+    /// function pointer, which carries no instance to find it on.
+    /// </summary>
+    static Action? sessionEnding;
+
     /// <summary>
     /// How long <see cref="PickDirectory"/> waits on the chooser between frames. One frame, so a
     /// window left up while the chooser is answered keeps up with the desktop.
@@ -253,6 +261,47 @@ sealed unsafe class NativeMonitorWindow : IMonitorWindow
 
     public void Focus() =>
         Bm.Focus();
+
+    /// <summary>
+    /// Nothing to run: neither library has a modal loop of its own that would hold the loop's
+    /// thread, as user32 does.
+    /// </summary>
+    public Func<Screen>? Frame
+    {
+        set
+        {
+        }
+    }
+
+    /// <summary>
+    /// Heard as the X server goes, which on Linux is how a logoff ends the process, from inside
+    /// whichever call was reading its events. The macOS library never calls it.
+    /// </summary>
+    public Action? SessionEnding
+    {
+        set
+        {
+            sessionEnding = value;
+            Bm.OnDisplayLost(value is null ? null : &DisplayLost);
+        }
+    }
+
+    /// <summary>
+    /// Nothing may be thrown back into the library, which would end the process before Xlib had
+    /// said why.
+    /// </summary>
+    [UnmanagedCallersOnly]
+    static void DisplayLost()
+    {
+        try
+        {
+            sessionEnding?.Invoke();
+        }
+        catch (Exception exception)
+        {
+            Log.Error(exception, "Failed while the session was ending");
+        }
+    }
 
     /// <summary>
     /// Always true: bm_set_clipboard returns void, and both backends own their pasteboard rather

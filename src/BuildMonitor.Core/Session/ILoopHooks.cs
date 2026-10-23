@@ -3,11 +3,13 @@
 /// <see cref="MonitorProgram"/> runs one frame per <see cref="IHeadWindow{TScreen, TInput}.Present"/>,
 /// and on Windows a present pumps messages, which is where user32 runs its own modal loops, for
 /// moving or sizing the window and for a scroll bar from a press to its release, and where a logoff
-/// ends the session. The loop's next step never comes in either case, so the head is handed those
-/// steps to run itself.
+/// ends the session. On Linux a present reads the X server's events, and a logoff ends the process
+/// from inside it as the server goes. The loop's next step never comes in any of these, so the head
+/// is handed those steps to run itself.
 /// <para>
-/// Optional, and only WinForms takes it. The native heads pump their own events, and the macOS one
-/// turns a logoff's quit into the app's own (TerminateGuard), which the loop leaves by as usual.
+/// Optional. WinForms takes both, the native head only <see cref="SessionEnding"/>: it has no modal
+/// loops, and the macOS one turns a logoff's quit into the app's own (TerminateGuard), which the
+/// loop leaves by as usual.
 /// </para>
 /// </summary>
 interface ILoopHooks
@@ -22,8 +24,9 @@ interface ILoopHooks
 
     /// <summary>
     /// The session is ending: save what only a clean exit would, before returning. Windows may end
-    /// the process as soon as a window has answered the message that says so, which is before the
-    /// loop would get as far as its own shutdown.
+    /// the process as soon as a window has answered the message that says so, and Xlib ends it as
+    /// soon as its handler for the lost server returns, both before the loop would get as far as its
+    /// own shutdown.
     /// </summary>
     Action? SessionEnding { set; }
 }
