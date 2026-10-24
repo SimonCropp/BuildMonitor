@@ -40,5 +40,9 @@
     <Using Include="PlatformHeads.SessionHost&lt;SessionState&gt;" Alias="SessionHost" />
     <Using Include="PlatformHeads.ScreenCache&lt;SessionState, Screen&gt;" Alias="ScreenCache" />
     <Using Include="PlatformHeads.OpenWindow&lt;IMonitorWindow&gt;" Alias="OpenWindow" />
+    <Using Include="PlatformHeads.ITray&lt;TrayIconKind&gt;" Alias="ITray" />
+    <Using Include="PlatformHeads.TrayModel&lt;TrayIconKind&gt;" Alias="TrayModel" />
+    <Using Include="PlatformHeads.TrayNotification" Alias="Notification" />
+    <Using Include="PlatformHeads.TrayNotificationKind" Alias="NotificationKind" />
   </ItemGroup>
 </Project>

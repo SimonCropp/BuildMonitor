@@ -6,7 +6,7 @@ static class Program
         TrayApp.Configure();
         try
         {
-            return MonitorProgram.Run(args, FormsMonitorWindow.Open, NotifyIconTray.Open);
+            return MonitorProgram.Run(args, FormsMonitorWindow.Open, WindowsTray.Open);
         }
         catch (Exception exception)
         {

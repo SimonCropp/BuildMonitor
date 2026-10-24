@@ -108,7 +108,7 @@ public class ScreenPayloadTests
     public Task DbusMenuLayout()
     {
         var tray = ScreenBuilder.Tray(Fixtures.WithBuilds());
-        var layout = global::DbusMenuLayout.Build(tray.Items);
+        var layout = PlatformHeads.DbusMenuLayout.Build(tray.Items, Images.Glyph);
         return Verify(layout.All.Select(_ => new { _.Id, _.ItemId, _.Label, _.Enabled, _.Separator, _.Icon, Properties = _.PropertyNames }));
     }
 }

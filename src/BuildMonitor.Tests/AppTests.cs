@@ -167,7 +167,7 @@ public class AppTests
 
     [Test]
     public Task LaunchAgentPlist() =>
-        Verify(LaunchAgent.Compose("/Users/simon/.dotnet/tools/buildmonitor"))
+        Verify(LaunchAgent.Compose(AppLogin.Item, "/Users/simon/.dotnet/tools/buildmonitor"))
             .Snapshot(
                 """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -191,7 +191,7 @@ public class AppTests
 
     [Test]
     public Task XdgDesktopEntry() =>
-        Verify(XdgAutostart.Compose("/home/simon/.dotnet/tools/buildmonitor"))
+        Verify(XdgAutostart.Compose(AppLogin.Item, "/home/simon/.dotnet/tools/buildmonitor"))
             .Snapshot(
                 """
                 [Desktop Entry]
