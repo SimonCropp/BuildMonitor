@@ -12,7 +12,7 @@ static class Program
 
             // Not in Core with the others: only this head has a D-Bus client.
             ISessionLock? sessionLock = OperatingSystem.IsLinux() ? new LoginSessionLock() : null;
-            return MonitorProgram.Run(args, NativeMonitorWindow.Open, SniTray.Open, sessionLock);
+            return MonitorProgram.Run(args, NativeMonitorWindow.Open, LinuxTray.Open, sessionLock);
         }
         catch (Exception exception)
         {

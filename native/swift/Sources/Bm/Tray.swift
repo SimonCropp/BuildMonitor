@@ -1,116 +1,47 @@
 import AppKit
+import PlatformHeadsMac
 
-/// The status bar item. The managed side sends the icon kind and the menu with every frame; this
-/// keeps the images it was handed at start and rebuilds the menu when the items change.
-final class Tray: NSObject, NSMenuDelegate {
-    private var item: NSStatusItem?
-    private var icons: [Int32: NSImage] = [:]
-    private var menuIcons: [String: NSImage] = [:]
-    private var lastIcon: Int32 = -1
-    private var lastItems: [Frame.TrayItem] = []
-    private var lastTooltip = ""
+/// The status bar item, which is PlatformHeads' `StatusItem`. The managed side sends the icon kind
+/// and the menu with every frame; this hands them over, and reports a click as the index of the
+/// item in the frame's list, which is what `BmInput.clickedTrayItem` carries.
+final class Tray {
+    private let item = StatusItem()
+    private var ids: [String] = []
     private weak var runtime: Runtime?
 
     init(runtime: Runtime) {
         self.runtime = runtime
+        item.iconClicked = { [weak self] in
+            self?.runtime?.input.trayIconClicked = 1
+        }
+        item.chose = { [weak self] chosen in
+            guard let self, let index = self.ids.firstIndex(of: chosen.id) else {
+                return
+            }
+
+            self.runtime?.input.clickedTrayItem = Int32(index)
+        }
     }
 
     func start() -> Bool {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        guard let button = item.button else {
-            return false
-        }
-
-        button.target = self
-        button.action = #selector(clicked(_:))
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        self.item = item
-        return true
+        item.start()
     }
 
     func setIcon(kind: Int32, png: Data) {
-        if let image = NSImage(data: png) {
-            image.size = NSSize(width: 18, height: 18)
-            icons[kind] = image
-        }
+        item.setIcon(kind, png: png)
     }
 
     func setMenuIcon(name: String, png: Data) {
-        if let image = NSImage(data: png) {
-            image.size = NSSize(width: 16, height: 16)
-            menuIcons[name] = image
-        }
+        item.setMenuIcon(name, png: png)
     }
 
     func apply(_ frame: Frame) {
-        guard let item else {
-            return
-        }
-
-        if frame.trayIcon != lastIcon {
-            lastIcon = frame.trayIcon
-            item.button?.image = icons[frame.trayIcon]
-        }
-
-        if frame.trayTooltip != lastTooltip {
-            lastTooltip = frame.trayTooltip
-            item.button?.toolTip = frame.trayTooltip
-        }
-
-        if !same(frame.trayItems, lastItems) {
-            lastItems = frame.trayItems
-        }
-    }
-
-    private func same(_ left: [Frame.TrayItem], _ right: [Frame.TrayItem]) -> Bool {
-        left.count == right.count && zip(left, right).allSatisfy {
-            $0.id == $1.id && $0.label == $1.label && $0.enabled == $1.enabled
-        }
-    }
-
-    /// A left click shows the window, as it does on the other heads, and the menu is the right
-    /// button's, or a control-click's, which is how a Mac without one asks for it. Both buttons
-    /// opened the menu, so trayIconClicked was never set and only the menu's Show reached the
-    /// window.
-    @objc private func clicked(_ sender: Any?) {
-        guard let item else {
-            return
-        }
-
-        let event = NSApp.currentEvent
-        let wantsMenu = event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true
-        guard wantsMenu else {
-            runtime?.input.trayIconClicked = 1
-            return
-        }
-
-        let menu = build()
-        item.menu = menu
-        item.button?.performClick(nil)
-        item.menu = nil
-    }
-
-    private func build() -> NSMenu {
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-        for (index, entry) in lastItems.enumerated() {
-            if entry.separator {
-                menu.addItem(.separator())
-                continue
-            }
-
-            let menuItem = NSMenuItem(title: entry.label, action: #selector(chose(_:)), keyEquivalent: "")
-            menuItem.target = self
-            menuItem.tag = index
-            menuItem.isEnabled = entry.enabled
-            menuItem.image = menuIcons[entry.icon]
-            menu.addItem(menuItem)
-        }
-
-        return menu
-    }
-
-    @objc private func chose(_ sender: NSMenuItem) {
-        runtime?.input.clickedTrayItem = Int32(sender.tag)
+        ids = frame.trayItems.map { $0.id }
+        item.apply(
+            icon: frame.trayIcon,
+            tooltip: frame.trayTooltip,
+            items: frame.trayItems.map {
+                StatusMenuItem(id: $0.id, label: $0.label, icon: $0.icon, enabled: $0.enabled, separator: $0.separator)
+            })
     }
 }

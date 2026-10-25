@@ -107,7 +107,7 @@ static class MonitorProgram
         // Set off the loop's thread, so an idle loop draws a poll's rows or answers the socket at once.
         using var wake = new LoopWake<SessionState>(host);
         var signIn = new SignInCoordinator(host, secrets, handler);
-        var runAtLogin = RunAtLogin.ForPlatform();
+        var runAtLogin = RunAtLogin.ForPlatform(AppLogin.Item);
         host.Mutate(_ => MonitorSession.ApplyMedians(_, history.Medians()));
 
         var tray = openTray(out var trayError);
