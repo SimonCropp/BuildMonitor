@@ -11,6 +11,10 @@ public class PixelTests
 
     static IMonitorWindow? window;
 
+    // A GL context belongs to the thread that made it, and TUnit does not promise to run a class's
+    // hooks and tests on one thread, so everything that touches the window goes through this one.
+    static OwnerThread? owner;
+
     [Before(Class)]
     public static void Open()
     {
@@ -20,17 +24,29 @@ public class PixelTests
         }
 
         Bm.Resolve();
-        window = NativeMonitorWindow.Open("BuildMonitor", width, height, hidden: true, null, out var error);
-        if (window is null)
+        owner = new();
+        window = owner.Run(() =>
         {
-            throw new(error!);
-        }
+            var opened = NativeMonitorWindow.Open("BuildMonitor", width, height, hidden: true, null, out var error);
+            if (opened is null)
+            {
+                throw new(error!);
+            }
+
+            return opened;
+        });
     }
 
     [After(Class)]
     public static void Close()
     {
-        window?.Dispose();
+        owner?.Run(() =>
+        {
+            window?.Dispose();
+            return true;
+        });
+        owner?.Dispose();
+        owner = null;
         window = null;
     }
 
@@ -129,27 +145,32 @@ public class PixelTests
             ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now),
             ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now)
         ];
-        var watch = new Stopwatch();
-        window!.SetHidden(false);
-        try
+        var elapsed = owner!.Run(() =>
         {
-            // So the timing starts on a frame boundary
-            window.Present(screens[1]);
-            watch.Start();
-            for (var frame = 0; frame < 60; frame++)
+            var watch = new Stopwatch();
+            window!.SetHidden(false);
+            try
             {
-                window.Present(screens[frame % 2]);
+                // So the timing starts on a frame boundary
+                window.Present(screens[1]);
+                watch.Start();
+                for (var frame = 0; frame < 60; frame++)
+                {
+                    window.Present(screens[frame % 2]);
+                }
+
+                watch.Stop();
+            }
+            finally
+            {
+                window.SetHidden(true);
             }
 
-            watch.Stop();
-        }
-        finally
-        {
-            window.SetHidden(true);
-        }
+            return watch.Elapsed;
+        });
 
         // Sixty frames at sixty a second. Unpaced, they went by as fast as each could be drawn.
-        await Assert.That(watch.Elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
+        await Assert.That(elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
     }
 
     static async Task Capture(SessionState state)
@@ -165,9 +186,60 @@ public class PixelTests
             },
             Fixtures.Now);
         using var path = new TempFile("png");
-        await Assert.That(window!.Capture(screen, width, height, path)).IsTrue();
+        var captured = owner!.Run(() => window!.Capture(screen, width, height, path));
+        await Assert.That(captured).IsTrue();
         await VerifyFile(path)
             .UniqueForOSPlatform();
+    }
+}
+
+/// <summary>
+/// One thread that runs whatever it is handed, in order, and blocks the caller until it is done.
+/// </summary>
+sealed class OwnerThread :
+    IDisposable
+{
+    BlockingCollection<Action> work = new();
+    Thread thread;
+
+    public OwnerThread()
+    {
+        thread = new(() =>
+        {
+            foreach (var action in work.GetConsumingEnumerable())
+            {
+                action();
+            }
+        })
+        {
+            IsBackground = true,
+            Name = nameof(OwnerThread)
+        };
+        thread.Start();
+    }
+
+    public T Run<T>(Func<T> func)
+    {
+        var source = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        work.Add(() =>
+        {
+            try
+            {
+                source.SetResult(func());
+            }
+            catch (Exception exception)
+            {
+                source.SetException(exception);
+            }
+        });
+        return source.Task.GetAwaiter().GetResult();
+    }
+
+    public void Dispose()
+    {
+        work.CompleteAdding();
+        thread.Join();
+        work.Dispose();
     }
 }
 
