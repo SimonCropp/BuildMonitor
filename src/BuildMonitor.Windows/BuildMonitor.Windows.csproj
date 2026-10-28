@@ -54,4 +54,16 @@
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <None Remove="tray.ico" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!--
+    The gen0 budget is sized from the CPU's cache, and on a desktop that let about 17 MB of short
+    lived garbage gather between collections over a live heap of 9 MB. Capped at 4 MB, the tray's
+    private memory averaged 47 MB over eight minutes where it averaged 51. A collection of a heap
+    this small takes well under a millisecond, so collecting four times as often costs nothing
+    anyone sees. ConserveMemory, the setting meant for this, made it worse: 55 MB, since the
+    excess is all in gen0 and that setting only compacts gen2. The native head carries the same.
+    -->
+    <RuntimeHostConfigurationOption Include="System.GC.Gen0MaxBudget" Value="0x400000" />
+  </ItemGroup>
 </Project>

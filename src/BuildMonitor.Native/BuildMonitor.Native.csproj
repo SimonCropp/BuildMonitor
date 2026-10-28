@@ -32,4 +32,10 @@
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <PackageReference Include="PlatformHeads" PrivateAssets="all" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- 4 MB of gen0 between collections rather than what the CPU's cache sizes it at, as the
+    Windows head does; see BuildMonitor.Windows.csproj for what it saves. -->
+    <RuntimeHostConfigurationOption Include="System.GC.Gen0MaxBudget" Value="0x400000" />
+  </ItemGroup>
 </Project>

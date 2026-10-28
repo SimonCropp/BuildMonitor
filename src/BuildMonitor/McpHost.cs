@@ -29,6 +29,7 @@ static class McpHost
             return started;
         }
 
+        using var collector = new IdleCollector(IdleCollector.PoolTrimAge);
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole(_ => _.LogToStandardErrorThreshold = LogLevel.Trace);
@@ -45,6 +46,7 @@ static class McpHost
                 _.ServerInstructions = McpInstructions.Text;
             })
             .WithStdioServerTransport()
+            .WithRequestFilters(_ => _.AddCallToolFilter(collector.After))
             .WithTools<BuildTools>(ToolSerializerOptions)
             .WithPrompts<BuildPrompts>();
         await builder.Build().RunAsync(cancel);
