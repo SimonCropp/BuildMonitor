@@ -8,14 +8,16 @@ using ModelContextProtocol.Server;
 sealed class BuildTools(MonitorTools tools)
 {
     [McpServerTool(Name = "list_builds", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Lists the latest build of every monitored pipeline across every CI connection, on its default branch where the service says which that is, with status, timing, progress and links. A pipeline's other branches, pull requests and pushed branches, whose latest run is running, queued or failed are listed too, each marked otherBranch. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it. Failures the user deferred are left out, as the tray leaves them out, so a pipeline missing here may be one they put off: pass includeDeferred to list them too, each carrying deferredUntil, or use list_deferred.")]
-    public Task<List<BuildDto>> ListBuilds(
+    [Description("Lists the latest build of every monitored pipeline across every CI connection, on its default branch where the service says which that is, with status and timing. A pipeline's other branches, pull requests and pushed branches, whose latest run is running, queued or failed are listed too, each marked otherBranch. Passing builds are left out and counted in passingLeftOut, unless a filter is given or includePassing is set. Pass a filter to keep only builds whose pipeline, repository, branch or connection name contains it, passing ones included. Each build's links, commit, author, local checkout and whether it can be retried or cancelled are in get_build, which takes its key. Failures the user deferred are left out, as the tray leaves them out, so a pipeline missing here may be one they put off: pass includeDeferred to list them too, each carrying deferredUntil, or use list_deferred.")]
+    public Task<BuildListDto> ListBuilds(
         [Description("Optional substring to filter on pipeline, repository, branch or connection name.")]
         string? filter = null,
         [Description("Also list the failures the user deferred, each marked with deferredUntil. Defaults to false.")]
         bool includeDeferred = false,
+        [Description("Also list the passing builds when no filter is given. Every pipeline's build, a long list on a large account. Defaults to false.")]
+        bool includePassing = false,
         Cancel cancel = default) =>
-        tools.ListBuilds(filter, includeDeferred, cancel);
+        tools.BuildList(filter, includeDeferred, includePassing, cancel);
 
     [McpServerTool(Name = "list_deferred", ReadOnly = true, UseStructuredContent = true)]
     [Description("The failed builds the user chose to put off for a day or more, which list_builds, list_failing and the summary's failing count leave out until the deferral ends or the pipeline next passes. Each carries deferredUntil. They are failures the user has already seen, so do not raise them as news.")]
@@ -28,7 +30,7 @@ sealed class BuildTools(MonitorTools tools)
         tools.ListFailing(null, cancel);
 
     [McpServerTool(Name = "get_build", ReadOnly = true, UseStructuredContent = true)]
-    [Description("One build by its key, as returned by list_builds or list_deferred: status text, commit, author, links, whether it can be retried or cancelled, and deferredUntil where the user put its failure off.")]
+    [Description("One build by its key, as returned by list_builds or list_deferred: status text, commit, author, links, the local checkout where there is one, whether it can be retried or cancelled, and deferredUntil where the user put its failure off.")]
     public Task<BuildDto> GetBuild(
         [Description("The build key from list_builds.")]
         string key,

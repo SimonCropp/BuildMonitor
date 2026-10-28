@@ -77,6 +77,49 @@ public class MonitorToolsTests
         await Verify(filtered);
     }
 
+    /// <summary>
+    /// Unfiltered, list_builds is what needs a look and a count of the rest, which on a large
+    /// account is a few rows where every build was hundreds.
+    /// </summary>
+    [Test]
+    public async Task BuildListLeavesPassingBuildsOut()
+    {
+        var (tools, _, _) = Create();
+        var all = await tools.ListBuilds(null, Cancel.None);
+        var list = await tools.BuildList(null, false, false, Cancel.None);
+        var passing = all.Count(_ => _.Status == nameof(BuildStatus.Succeeded));
+        await Assert.That(passing).IsGreaterThan(0);
+        await Assert.That(list.PassingLeftOut).IsEqualTo(passing);
+        await Assert.That(list.Builds.Select(_ => _.Key))
+            .IsEquivalentTo(all.Where(_ => _.Status != nameof(BuildStatus.Succeeded)).Select(_ => _.Key));
+        await Verify(list);
+    }
+
+    [Test]
+    public async Task BuildListIncludesPassingBuildsWhenAsked()
+    {
+        var (tools, _, _) = Create();
+        var all = await tools.ListBuilds(null, Cancel.None);
+        var list = await tools.BuildList(null, false, true, Cancel.None);
+        await Assert.That(list.PassingLeftOut).IsEqualTo(0);
+        await Assert.That(list.Builds.Select(_ => _.Key)).IsEquivalentTo(all.Select(_ => _.Key));
+    }
+
+    /// <summary>
+    /// A filter names what was asked about, and "is main green on Verify?" is answered by the
+    /// passing build alone.
+    /// </summary>
+    [Test]
+    public async Task BuildListIncludesPassingBuildsAFilterMatches()
+    {
+        var (tools, _, _) = Create();
+        var filtered = await tools.ListBuilds("verify", Cancel.None);
+        var list = await tools.BuildList("verify", false, false, Cancel.None);
+        await Assert.That(filtered.Any(_ => _.Status == nameof(BuildStatus.Succeeded))).IsTrue();
+        await Assert.That(list.PassingLeftOut).IsEqualTo(0);
+        await Assert.That(list.Builds.Select(_ => _.Key)).IsEquivalentTo(filtered.Select(_ => _.Key));
+    }
+
     [Test]
     public async Task ListFailing()
     {

@@ -46,6 +46,38 @@ sealed class MonitorTools(IProtocolClient client)
             .ToList();
     }
 
+    /// <summary>
+    /// The list as list_builds gives it. A filter lists the passing builds it matches too, since
+    /// it names what the assistant asked about, and "is main green on Verify?" is answered by the
+    /// passing build alone.
+    /// </summary>
+    public async Task<BuildListDto> BuildList(string? filter, bool includeDeferred, bool includePassing, Cancel cancel)
+    {
+        var builds = await ListBuilds(filter, includeDeferred, cancel);
+        var listPassing = includePassing ||
+                          !string.IsNullOrWhiteSpace(filter);
+        var rows = builds
+            .Where(_ => listPassing ||
+                        _.Status != nameof(BuildStatus.Succeeded))
+            .Select(Row)
+            .ToList();
+        return new(builds.Count - rows.Count, rows);
+    }
+
+    static BuildRowDto Row(BuildDto build) =>
+        new(
+            build.Key,
+            build.Connection,
+            build.Pipeline,
+            build.Repo,
+            build.Branch,
+            build.Run,
+            build.Status,
+            build.Finished,
+            build.Timing,
+            build.OtherBranch,
+            build.DeferredUntil);
+
     static bool Matches(BuildDto build, string filter) =>
         build.Pipeline.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
         build.Repo.Contains(filter, StringComparison.OrdinalIgnoreCase) ||

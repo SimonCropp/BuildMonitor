@@ -74,16 +74,19 @@ The assistant picks from each tool's description, and from instructions the serv
 
 Every build carries a `key`, which is what the acting tools take, so an assistant asked to act on a build usually lists the builds first to find it.
 
-A build or pipeline whose repository is checked out under the [code directory](options.md#code-directory) also carries a `directory`, the path it is checked out at, so the code behind a failure can be opened without asking where it lives. The field is absent rather than empty where no checkout was found, which is every build until that option is set.
+A build or pipeline whose repository is checked out under the [code directory](options.md#code-directory) also carries a `directory`, the path it is checked out at, so the code behind a failure can be opened without asking where it lives. The field is absent rather than empty where no checkout was found, which is every build until that option is set. `list_builds` leaves it out, along with the rest of a build's detail; `get_build` and `list_failing` carry it.
 
 
 ### `list_builds`
 
-The latest build of every pipeline, on its default branch where BuildMonitor knows which that is, with status, timing, progress and links. Its other branches whose latest build is running, queued or failed, pull requests among them, are listed too, each marked `otherBranch`, in the order the window puts the rows. An optional filter keeps the builds whose pipeline, repository, branch or connection contains it.
+The latest build of every pipeline, on its default branch where BuildMonitor knows which that is, with its status and timing. Its other branches whose latest build is running, queued or failed, pull requests among them, are listed too, each marked `otherBranch`, in the order the window puts the rows. An optional filter keeps the builds whose pipeline, repository, branch or connection contains it.
+
+Passing builds are left out and counted in `passingLeftOut`, unless a filter is given or `includePassing` is set, so an unfiltered list holds only what is running, queued or failed. On an account of 531 pipelines, every build with every detail was about 130 thousand tokens for one call, 528 of them green. Each row is what the build is and how it stands; its commit, author, links and checkout are in `get_build`.
 
  * "What's building right now?"
  * "How long until the running builds finish?"
- * "Show me the latest builds on GitHub."
+ * "Is main green on Verify?"
+ * "Show me every build on GitHub, passing ones too."
 
 
 ### `list_failing`

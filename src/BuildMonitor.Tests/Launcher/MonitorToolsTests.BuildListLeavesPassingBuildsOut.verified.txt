@@ -1,0 +1,54 @@
+﻿{
+  PassingLeftOut: 1,
+  Builds: [
+    {
+      Key: jenkins/build-all/main,
+      Connection: Jenkins,
+      Pipeline: Build all,
+      Repo: build-all,
+      Branch: main,
+      Run: 501,
+      Status: Running,
+      Timing: 04:00 left
+    },
+    {
+      Key: octo/Projects-1/,
+      Connection: Octopus,
+      Pipeline: Deploy Web,
+      Repo: Deploy Web,
+      Run: 12,
+      Status: Running,
+      Timing: 02:15 left
+    },
+    {
+      Key: gh/DiffEngine/test.yml/main,
+      Connection: GitHub,
+      Pipeline: test.yml,
+      Repo: VerifyTests/DiffEngine,
+      Branch: main,
+      Run: 1234,
+      Status: Running,
+      Timing: 03:00 left
+    },
+    {
+      Key: jenkins/nightly/,
+      Connection: Jenkins,
+      Pipeline: Nightly,
+      Repo: nightly,
+      Run: 88,
+      Status: Queued,
+      Timing: queued 30s
+    },
+    {
+      Key: gh/Verify/test.yml/feature/inline,
+      Connection: GitHub,
+      Pipeline: test.yml,
+      Repo: VerifyTests/Verify,
+      Branch: feature/inline,
+      Run: 77,
+      Status: Failed,
+      Finished: DateTimeOffset_1,
+      Timing: 25m ago
+    }
+  ]
+}

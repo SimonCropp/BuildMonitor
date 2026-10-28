@@ -50,6 +50,43 @@ record BuildDto(
     DateTimeOffset? DeferredUntil = null);
 
 /// <summary>
+/// What list_builds returns: the builds worth a look, and how many passing ones were left out.
+/// <para>
+/// Every build with every member was 447 thousand characters on an account of 531 pipelines,
+/// about 130 thousand tokens for one call, and 528 of the builds had passed. An assistant asking
+/// what is building or what broke read through all of them to find three. So a passing build is
+/// listed only where a filter names it or includePassing asks for it, and the count says that
+/// nothing is missing, only green.
+/// </para>
+/// </summary>
+record BuildListDto(
+    // How many passing builds were not listed: none when a filter or includePassing listed them.
+    int PassingLeftOut,
+    List<BuildRowDto> Builds);
+
+/// <summary>
+/// A build as list_builds gives it: what it is and how it stands. Its links, commit, author,
+/// checkout and what can be done to it are in get_build, which takes <see cref="Key"/>. They made
+/// up two thirds of each row, read for one build in hundreds.
+/// </summary>
+record BuildRowDto(
+    string Key,
+    string Connection,
+    string Pipeline,
+    string Repo,
+    string? Branch,
+    string Run,
+    string Status,
+    DateTimeOffset? Finished,
+    string Timing,
+    // As on BuildDto: true on a run on another branch than its pipeline's own, absent otherwise.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    bool? OtherBranch = null,
+    // As on BuildDto: when the user's deferral of this failure ends, on a deferred failure only.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    DateTimeOffset? DeferredUntil = null);
+
+/// <summary>
 /// One monitored pipeline, including one that has produced no build inside the history window
 /// and so has no row. <see cref="Runs"/> is how many of its runs the tray holds, and a zero is
 /// the thing a list of builds cannot say: watched, but quiet.
