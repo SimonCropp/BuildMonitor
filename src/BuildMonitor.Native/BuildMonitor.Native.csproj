@@ -18,6 +18,9 @@
     can pick at load time, and a RID-specific publish carries only its own.
     -->
     <PlatformHeadsNativeRuntimes>true</PlatformHeadsNativeRuntimes>
+    <!-- Each method compiled once, as the Windows head does; see BuildMonitor.Windows.csproj for
+    what tiering cost a tray. -->
+    <TieredCompilation>false</TieredCompilation>
   </PropertyGroup>
 
   <ItemGroup>

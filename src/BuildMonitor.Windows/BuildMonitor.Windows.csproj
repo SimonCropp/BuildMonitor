@@ -20,6 +20,16 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RollForward>LatestMajor</RollForward>
     <ApplicationIcon>tray.ico</ApplicationIcon>
+    <!--
+    Tiering compiles a method quickly, then again instrumented, then again optimised, and keeps
+    what each pass leaves in the runtime's heaps: 19.6 MB of type data and 5.1 MB of JIT code three
+    minutes in. Compiled once, they were 15.0 and 1.1. A tray does the same few things for hours,
+    so the later passes buy nothing: without them it reached the protocol 0.3s later and used half
+    the CPU over its first three minutes, 2.5s against 4.8s. The memory is the runtime's shared
+    mapping, so it shows in commit and the working set, not in Task Manager's private column.
+    The native head carries the same.
+    -->
+    <TieredCompilation>false</TieredCompilation>
   </PropertyGroup>
 
   <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
