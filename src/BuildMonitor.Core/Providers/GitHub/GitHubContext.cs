@@ -1,4 +1,4 @@
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true, Converters = [typeof(PooledStringConverter)])]
 [JsonSerializable(typeof(List<GitHubRepository>))]
 [JsonSerializable(typeof(GitHubWorkflows))]
 [JsonSerializable(typeof(GitHubRuns))]

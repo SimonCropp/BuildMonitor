@@ -1,4 +1,4 @@
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true, Converters = [typeof(PooledStringConverter)])]
 [JsonSerializable(typeof(AzureDevOpsList<AzureDevOpsProject>))]
 [JsonSerializable(typeof(AzureDevOpsList<AzureDevOpsPipeline>))]
 [JsonSerializable(typeof(AzureDevOpsList<AzureDevOpsBuild>))]

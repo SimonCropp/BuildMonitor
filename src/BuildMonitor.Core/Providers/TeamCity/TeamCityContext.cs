@@ -1,4 +1,4 @@
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true, Converters = [typeof(PooledStringConverter)], DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(TeamCityBuildTypes))]
 [JsonSerializable(typeof(TeamCityBuilds))]
 [JsonSerializable(typeof(TeamCityArtifacts))]

@@ -1,4 +1,4 @@
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, Converters = [typeof(PooledStringConverter)])]
 [JsonSerializable(typeof(OctopusPage<OctopusSpace>))]
 [JsonSerializable(typeof(OctopusPage<OctopusProject>))]
 [JsonSerializable(typeof(OctopusPage<OctopusProjectGroup>))]

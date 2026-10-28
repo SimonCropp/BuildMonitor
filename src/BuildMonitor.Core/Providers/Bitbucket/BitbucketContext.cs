@@ -1,4 +1,4 @@
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true, Converters = [typeof(PooledStringConverter)], DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(BitbucketPage))]
 [JsonSerializable(typeof(BitbucketPipelinePage))]
 [JsonSerializable(typeof(BitbucketStepPage))]

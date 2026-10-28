@@ -1,4 +1,4 @@
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true, Converters = [typeof(PooledStringConverter)])]
 [JsonSerializable(typeof(List<AppVeyorProject>))]
 [JsonSerializable(typeof(AppVeyorHistory))]
 [JsonSerializable(typeof(AppVeyorBuildDetail))]
