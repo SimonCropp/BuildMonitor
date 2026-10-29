@@ -15,7 +15,7 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
     <PackageVersion Include="ModelContextProtocol" Version="2.3.0" />
     <PackageVersion Include="PlatformHeads" Version="0.8.0" />
-    <PackageVersion Include="PlatformHeads.Core" Version="0.7.1" />
+    <PackageVersion Include="PlatformHeads.Core" Version="0.8.0" />
     <PackageVersion Include="PlatformHeads.Linux" Version="0.7.1" />
     <PackageVersion Include="PlatformHeads.WindowsForms" Version="0.7.1" />
     <PackageVersion Include="Polyfill" Version="11.4.5" />
