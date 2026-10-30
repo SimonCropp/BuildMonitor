@@ -94,76 +94,22 @@ public class AppTests
     }
 
     /// <summary>
-    /// Which script this platform starts. The scripts themselves are pinned in the tests after this
-    /// one, which run on every platform, where a branch here runs only on its own platform's job.
+    /// What BuildMonitor hands PlatformHeads' update, whose scripts are tested there, each run on
+    /// its own platform: the package, where the outcome goes, the head's copy to stop processes
+    /// under beside the store, and the store beside the shim, whatever the tools folder is.
     /// </summary>
     [Test]
-    public async Task UpdaterStartsThisPlatformsScript()
+    public async Task UpdaterIsBuildMonitorsToolUpdate()
     {
-        var shim = Path.Combine("tools", "buildmonitor");
-        var head = Path.Combine("home", "head");
-        var outcome = Path.Combine("home", "update-outcome.log");
-        var info = Updater.StartInfo(shim, head, outcome, 4242);
-        if (OperatingSystem.IsWindows())
-        {
-            await Assert.That(info.FileName).IsEqualTo("powershell.exe");
-            // Anywhere but the store, whose directories the update deletes and Windows will not
-            // delete one that a running process is sitting in.
-            await Assert.That(info.WorkingDirectory).IsEqualTo(Path.GetTempPath());
-            var script = Encoding.Unicode.GetString(Convert.FromBase64String(info.ArgumentList.Last()));
-            await Assert.That(script).IsEqualTo(Updater.WindowsScript(shim, Updater.StoreDirectory(shim), head, outcome, 4242));
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            await Assert.That(info.FileName).IsEqualTo("/bin/sh");
-            await Assert.That(info.ArgumentList.Last()).IsEqualTo(Updater.UnixCommand(shim, outcome, 4242));
-        }
-        else
-        {
-            await Assert.That(info.FileName).IsEqualTo("/bin/sh");
-            await Assert.That(info.ArgumentList.Last()).IsEqualTo(Updater.Detached(Updater.UnixCommand(shim, outcome, 4242)));
-        }
+        var tools = Path.Combine(Path.GetTempPath(), "home", ".dotnet", "tools");
+        var update = Updater.For(Path.Combine(tools, "buildmonitor"));
+
+        await Assert.That(update.PackageId).IsEqualTo("BuildMonitor");
+        await Assert.That(update.Outcome).IsEqualTo(AppPaths.UpdateOutcome);
+        await Assert.That(update.AlsoStopUnder).IsEquivalentTo([AppPaths.Head]);
+        await Assert.That(update.ToolPath).IsEqualTo(tools);
+        await Assert.That(update.StoreDirectory).IsEqualTo(Path.Combine(tools, ".store", "BuildMonitor"));
     }
-
-    /// <summary>
-    /// Under a user name with a quote in it, so the quoting is pinned as well.
-    /// </summary>
-    [Test]
-    public Task UpdaterWindowsScript() =>
-        Verify(
-                Updater.WindowsScript(
-                    @"C:\Users\O'Brien\.dotnet\tools\buildmonitor.exe",
-                    @"C:\Users\O'Brien\.dotnet\tools\.store\BuildMonitor",
-                    @"C:\Users\O'Brien\AppData\Local\BuildMonitor\head",
-                    @"C:\Users\O'Brien\AppData\Local\BuildMonitor\update-outcome.log",
-                    4242))
-            .Snapshot("""Wait-Process -Id 4242 -Timeout 30 -ErrorAction SilentlyContinue; $locking = @(Get-Process | Where-Object { $_.Path -and ($_.Path -eq 'C:\Users\O''Brien\.dotnet\tools\buildmonitor.exe' -or $_.Path.StartsWith('C:\Users\O''Brien\.dotnet\tools\.store\BuildMonitor\', 'OrdinalIgnoreCase') -or $_.Path.StartsWith('C:\Users\O''Brien\AppData\Local\BuildMonitor\head\', 'OrdinalIgnoreCase')) }); $locking | Stop-Process -Force -ErrorAction SilentlyContinue; $locking | Wait-Process -Timeout 5 -ErrorAction SilentlyContinue; $output = dotnet tool update BuildMonitor --global --prerelease 2>&1 | ForEach-Object { "$_" }; $status = if ($LASTEXITCODE -eq 0) { 'ok' } else { 'failed' }; Set-Content -LiteralPath 'C:\Users\O''Brien\AppData\Local\BuildMonitor\update-outcome.log' -Value (@($status) + $output) -Encoding UTF8; & 'C:\Users\O''Brien\.dotnet\tools\buildmonitor.exe'""");
-
-    /// <summary>
-    /// The store sits beside the shim, whatever the tools directory is, so the script can find the
-    /// version directories to be emptied from the one path the tray knows survives an update.
-    /// </summary>
-    [Test]
-    public async Task UpdaterStoreDirectoryIsBesideTheShim()
-    {
-        var shim = Path.Combine("home", ".dotnet", "tools", "buildmonitor");
-        await Assert.That(Updater.StoreDirectory(shim))
-            .IsEqualTo(Path.Combine("home", ".dotnet", "tools", ".store", "BuildMonitor"));
-    }
-
-    [Test]
-    public Task UpdaterUnixCommand() =>
-        Verify(Updater.UnixCommand("/home/me/.dotnet/tools/buildmonitor", "/home/me/.local/share/BuildMonitor/update-outcome.log", 4242))
-            .Snapshot("waited=0; while kill -0 4242 2>/dev/null && [ $waited -lt 150 ]; do sleep 0.2; waited=$((waited+1)); done; output=$(dotnet tool update BuildMonitor --global --prerelease 2>&1) && status=ok || status=failed; printf '%s\\n%s\\n' \"$status\" \"$output\" > \"/home/me/.local/share/BuildMonitor/update-outcome.log\"; nohup \"/home/me/.dotnet/tools/buildmonitor\" >/dev/null 2>&1 &");
-
-    /// <summary>
-    /// The quotes the outcome's printf needs survive being wrapped in the quotes setsid's shell
-    /// needs, alongside the one in the user name.
-    /// </summary>
-    [Test]
-    public Task UpdaterDetachesOnLinux() =>
-        Verify(Updater.Detached(Updater.UnixCommand("/home/o'brien/.dotnet/tools/buildmonitor", "/home/o'brien/.local/share/BuildMonitor/update-outcome.log", 4242)))
-            .Snapshot("setsid sh -c 'waited=0; while kill -0 4242 2>/dev/null && [ $waited -lt 150 ]; do sleep 0.2; waited=$((waited+1)); done; output=$(dotnet tool update BuildMonitor --global --prerelease 2>&1) && status=ok || status=failed; printf '\\''%s\\n%s\\n'\\'' \"$status\" \"$output\" > \"/home/o'\\''brien/.local/share/BuildMonitor/update-outcome.log\"; nohup \"/home/o'\\''brien/.dotnet/tools/buildmonitor\" >/dev/null 2>&1 &'");
 
     [Test]
     public Task LaunchAgentPlist() =>
@@ -184,6 +130,8 @@ public class AppTests
                     <true/>
                     <key>LimitLoadToSessionType</key>
                     <string>Aqua</string>
+                    <key>AbandonProcessGroup</key>
+                    <true/>
                 </dict>
                 </plist>
 
