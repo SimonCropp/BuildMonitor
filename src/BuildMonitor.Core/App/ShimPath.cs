@@ -25,16 +25,9 @@ static class ShimPath
         return Resolve(Environment.ProcessPath ?? "");
     }
 
-    public static string Resolve(string processPath)
-    {
-        var segments = processPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var store = Array.IndexOf(segments, ".store");
-        if (store <= 0)
-        {
-            return processPath;
-        }
-
-        var toolsDirectory = string.Join(Path.DirectorySeparatorChar, segments[..store]);
-        return Path.Combine(toolsDirectory, OperatingSystem.IsWindows() ? $"{Command}.exe" : Command);
-    }
+    /// <summary>
+    /// Outside the store, the process itself: a build's output, which a login item names as it is.
+    /// </summary>
+    public static string Resolve(string processPath) =>
+        ToolUpdate.ShimFor(processPath, Command) ?? processPath;
 }
