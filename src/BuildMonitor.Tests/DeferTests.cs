@@ -238,6 +238,55 @@ public class DeferTests
         await Assert.That(actions.SavedSettings!.Deferrals).IsEmpty();
     }
 
+    static Deferral MadeFor3Days(SessionState builds) =>
+        MonitorSession.Defer(builds, Failed(builds), 3, Fixtures.Now).Settings.Deferrals.Single();
+
+    /// <summary>
+    /// The log says why each one ended, as the settings keep nothing of one that has.
+    /// </summary>
+    [Test]
+    public async Task TheLogSaysItFellDue()
+    {
+        var builds = Fixtures.WithBuilds();
+        var reason = DeferralLog.Reason(MadeFor3Days(builds), [], builds.Builds, Fixtures.Now.AddDays(3));
+        await Assert.That(reason).IsEqualTo("it fell due");
+    }
+
+    [Test]
+    public async Task TheLogNamesTheRunThatPassed()
+    {
+        var builds = Fixtures.WithBuilds();
+        var passed = Failed(builds) with
+        {
+            RunNumber = "78",
+            Status = BuildStatus.Succeeded,
+            Started = Fixtures.Now,
+            Finished = Fixtures.Now
+        };
+        var reason = DeferralLog.Reason(MadeFor3Days(builds), [], [..builds.Builds, passed], Fixtures.Now);
+        await Assert.That(reason).IsEqualTo("run 78 passed");
+    }
+
+    [Test]
+    public async Task TheLogSaysItWasDeferredAgain()
+    {
+        var builds = Fixtures.WithBuilds();
+        var deferral = MadeFor3Days(builds);
+        var reason = DeferralLog.Reason(deferral, [deferral with {Until = Fixtures.Now.AddDays(7)}], builds.Builds, Fixtures.Now);
+        await Assert.That(reason).IsEqualTo("deferred again");
+    }
+
+    /// <summary>
+    /// Neither due nor passed, so the user took it off.
+    /// </summary>
+    [Test]
+    public async Task TheLogSaysItWasTakenOff()
+    {
+        var builds = Fixtures.WithBuilds();
+        var reason = DeferralLog.Reason(MadeFor3Days(builds), [], builds.Builds, Fixtures.Now);
+        await Assert.That(reason).IsEqualTo("taken off by Undo or the filters page");
+    }
+
     [Test]
     [Arguments(0.5, "1 hour left")]
     [Arguments(5, "5 hours left")]

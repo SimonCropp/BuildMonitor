@@ -39,7 +39,7 @@ static class Deferrals
             return deferrals;
         }
 
-        var kept = deferrals.RemoveAll(_ => _.Until <= now || Fixed(_, builds));
+        var kept = deferrals.RemoveAll(_ => _.Until <= now || Passed(_, builds) is not null);
         if (kept.Length == deferrals.Length)
         {
             return deferrals;
@@ -48,7 +48,11 @@ static class Deferrals
         return kept;
     }
 
-    static bool Fixed(Deferral deferral, ImmutableArray<Build> builds)
+    /// <summary>
+    /// The run that ends <paramref name="deferral"/> early: the latest of its pipeline on its
+    /// branch, where that one passed. Null while the latest still fails, or is running again.
+    /// </summary>
+    public static Build? Passed(Deferral deferral, ImmutableArray<Build> builds)
     {
         Build? latest = null;
         foreach (var build in builds)
@@ -65,7 +69,12 @@ static class Deferrals
             }
         }
 
-        return latest?.Status == BuildStatus.Succeeded;
+        if (latest?.Status == BuildStatus.Succeeded)
+        {
+            return latest;
+        }
+
+        return null;
     }
 
     /// <summary>

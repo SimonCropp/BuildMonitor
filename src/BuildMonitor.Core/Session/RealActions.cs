@@ -9,6 +9,10 @@ static class RealActions
             OpenUrl: LinkLauncher.OpenUrl,
             SaveSettings: settings =>
             {
+                // The applier saves from inside the host's mutation, so what the host holds is still
+                // the state from before the change being saved.
+                var current = host.State;
+                DeferralLog.Changed(current.Settings.Deferrals, settings.Deferrals, current.Builds, DateTimeOffset.UtcNow);
                 poller.Sync(settings);
                 repos.Sync(settings.CodeDirectory);
                 Background(() => SettingsHelper.Write(settings), host, "Saving settings");

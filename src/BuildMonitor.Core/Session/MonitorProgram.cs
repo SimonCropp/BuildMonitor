@@ -49,6 +49,7 @@ static class MonitorProgram
             return 2;
         }
 
+        DeferralLog.Loaded(settings.Deferrals);
         var hidden = args.Contains(HiddenArgument);
         var port = Port.Resolve(settings);
         if (!LocalServer.TryBind(port, out var server))

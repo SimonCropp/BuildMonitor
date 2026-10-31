@@ -498,20 +498,22 @@ sealed class ConnectionPoller
             !ReferenceEquals(medians, current.Medians) ||
             MonitorSession.FetchChanges(current, connectionId, outcome, clock()))
         {
-            Settings? lifted = null;
+            (ImmutableArray<Deferral> Before, SessionState After, DateTimeOffset At)? lifted = null;
             host.Mutate(_ =>
             {
-                var next = MonitorSession.ApplyMedians(MonitorSession.ApplyFetch(_, connectionId, outcome, clock()), medians);
+                var now = clock();
+                var next = MonitorSession.ApplyMedians(MonitorSession.ApplyFetch(_, connectionId, outcome, now), medians);
                 if (next.Settings.Deferrals != _.Settings.Deferrals)
                 {
-                    lifted = next.Settings;
+                    lifted = (_.Settings.Deferrals, next, now);
                 }
 
                 return next;
             });
-            if (lifted is not null)
+            if (lifted is { } ended)
             {
-                await SaveLifted(lifted);
+                DeferralLog.Changed(ended.Before, ended.After.Settings.Deferrals, ended.After.Builds, ended.At);
+                await SaveLifted(ended.After.Settings);
             }
         }
         else if (fetched.Count > 0 &&
