@@ -99,6 +99,7 @@ public class AppTests
     /// under beside the store, and the store beside the shim, whatever the tools folder is.
     /// </summary>
     [Test]
+    [NotInParallel(nameof(AppPaths))]
     public async Task UpdaterIsBuildMonitorsToolUpdate()
     {
         var tools = Path.Combine(Path.GetTempPath(), "home", ".dotnet", "tools");
