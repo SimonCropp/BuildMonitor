@@ -56,6 +56,20 @@ public class FooterStatusTests
     }
 
     /// <summary>
+    /// A 403 naming a missing scope and a 401 for a dead token both read "sign in required", and
+    /// only what the service answered tells them apart.
+    /// </summary>
+    [Test]
+    public async Task TheTooltipSaysWhatTheServiceAnsweredASignInRequired()
+    {
+        var state = MonitorSession.SetHealth(Fixtures.WithBuilds(), Fixtures.Jenkins.Id, ConnectionHealth.NeedsAuth, "403 insufficient_scope");
+        var screen = ScreenBuilder.Build(state, Fixtures.Now);
+        await Assert.That(screen.Status).IsEqualTo("Sign in required for Jenkins");
+        // Wrapped as every tooltip is, which is not what this is about.
+        await Assert.That(screen.StatusTooltip.Replace('\n', ' ')).IsEqualTo("Sign in required for Jenkins: 403 insufficient_scope");
+    }
+
+    /// <summary>
     /// The message stays until the next click, so a problem it hid would be hidden for as long as
     /// the window sat untouched. The count is what says to hover.
     /// </summary>
