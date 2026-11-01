@@ -525,9 +525,23 @@ sealed class GitLabProvider : ProviderBase
         return context.Http.Download($"projects/{parts[0]}/jobs/{artifact.Id}/artifacts", destination, maxBytes, cancel);
     }
 
+    /// <summary>
+    /// Reads the project listing discovery reads, not only the user. A token with only the
+    /// read_user scope reads the user, so the test said it was signed in, and then the listing
+    /// answered 403 and the saved connection sat in sign in required.
+    /// </summary>
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
         var user = await context.Http.Get("user", GitLabContext.Default.GitLabUser, cancel);
+        try
+        {
+            await context.Http.Get(Listing(context, readsPipelines), GitLabContext.Default.ListGitLabProject, cancel);
+        }
+        catch (AuthException exception) when (exception.Status == HttpStatusCode.Forbidden)
+        {
+            return new(false, $"Signed in as {user.Username}, but the token may not list projects. It needs the read_api scope to watch builds, or api to also retry and cancel them");
+        }
+
         return new(true, $"Signed in as {user.Username}", await AccessOrUnknown(context, cancel));
     }
 
