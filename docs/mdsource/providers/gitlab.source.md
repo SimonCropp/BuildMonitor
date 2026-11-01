@@ -7,6 +7,8 @@ Watches every project the user is a member of, or the projects of one group and 
 
 A [personal access token](https://gitlab.com/-/user_settings/personal_access_tokens) with `api`, or `read_api` to only watch, sent in the `PRIVATE-TOKEN` header; a project or group access token works the same way. Or sign in with PKCE or the device flow, once an application is registered; a self hosted GitLab needs its own application, whose id goes in the connection. A sign in's token is sent as `Authorization: Bearer`, the only header GitLab finds an OAuth token in. See [Authentication](../auth.md).
 
+Test reads the user, then the project listing polling reads, of the group where one is entered. A token with only `read_user` reads the user but not the listing, so Test fails and names the scope it needs; saved anyway, the connection would show sign in required. Where the token's scopes can be read, Test also says whether it can retry and cancel or only watch: from `personal_access_tokens/self` for an access token, and `oauth/token/info` for a sign in's. A fine grained token holds its rights outside its scopes, and Test says nothing about them.
+
 
 ## Rows
 
