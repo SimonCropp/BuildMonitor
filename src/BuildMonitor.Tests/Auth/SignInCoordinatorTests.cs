@@ -18,7 +18,8 @@ public class SignInCoordinatorTests
         var handler = new FakeHttpHandler()
             .Map("POST", "https://gitlab.com/oauth/authorize_device", """{"device_code":"device","user_code":"ABCD-1234","verification_uri":"https://gitlab.com/oauth/device","expires_in":900,"interval":1}""")
             .Map("POST", "https://gitlab.com/oauth/token", """{"access_token":"signed-in","refresh_token":"refresh","token_type":"Bearer"}""")
-            .Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""");
+            .Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""")
+            .Get("https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100", "[]");
 
         new SignInCoordinator(host, secrets, handler).Start(connection, AuthMethod.Device, flowId);
         await WaitFor(() => host.State.SignIn is null);

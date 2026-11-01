@@ -798,7 +798,7 @@ static class ScreenBuilder
     /// </summary>
     static string StatusTooltip(SessionState state, DateTimeOffset now)
     {
-        var lines = Problems(state, now);
+        var lines = Problems(state, now, answered: true);
         if (lines.Count == 0)
         {
             lines = Polls(state, now);
@@ -813,17 +813,30 @@ static class ScreenBuilder
         return Tooltips.Wrap(string.Join("\n", lines));
     }
 
-    static List<string> Problems(SessionState state, DateTimeOffset now) =>
+    /// <summary>
+    /// Each connection that is not working, a line each. <paramref name="answered"/> adds what the
+    /// service answered to a sign in required, for the tooltip: the footer's line has no room for
+    /// it, and with neither saying it, a token that signs in but lacks a scope, which GitLab answers
+    /// with a 403 naming the scope, looked the same as a dead one, and a new token of the same kind
+    /// failed the same way.
+    /// </summary>
+    static List<string> Problems(SessionState state, DateTimeOffset now, bool answered = false) =>
     [
         .. MonitorSession.Unhealthy(state)
             .Select(_ =>
             {
-                if (_.Health == ConnectionHealth.NeedsAuth)
+                if (_.Health != ConnectionHealth.NeedsAuth)
                 {
-                    return $"Sign in required for {_.Connection.Name}";
+                    return $"{_.Connection.Name}: {_.Describe(now)}";
                 }
 
-                return $"{_.Connection.Name}: {_.Describe(now)}";
+                if (answered &&
+                    _.Error is {Length: > 0} error)
+                {
+                    return $"Sign in required for {_.Connection.Name}: {error}";
+                }
+
+                return $"Sign in required for {_.Connection.Name}";
             })
     ];
 

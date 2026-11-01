@@ -2,12 +2,14 @@ public class GitLabProviderTests
 {
     const string graph = "https://gitlab.com/api/graphql";
 
+    const string readerListing = "https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100";
+
     const string developerListing = "https://gitlab.com/api/v4/projects?membership=true&min_access_level=30&simple=true&archived=false&order_by=last_activity_at&per_page=100";
 
     static FakeHttpHandler Handler() =>
         new FakeHttpHandler()
             .Get(
-                "https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&simple=true&archived=false&order_by=last_activity_at&per_page=100",
+                readerListing,
                 """[{"id":77,"path_with_namespace":"verify/diffengine","web_url":"https://gitlab.com/verify/diffengine","default_branch":"main"}]""")
             .Get(
                 developerListing,
@@ -380,7 +382,7 @@ public class GitLabProviderTests
     [Test]
     public async Task TokenGoesInThePrivateTokenHeader()
     {
-        var handler = new FakeHttpHandler().Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""");
+        var handler = Signed();
         var context = ProviderTestHelpers.Context("gitlab", handler);
         await ProviderTestHelpers.Provider("gitlab").Test(context, Cancel.None);
         // The test's own requests and those asking what the token may do alike.
@@ -394,17 +396,23 @@ public class GitLabProviderTests
     {
         // GitLab finds an OAuth token only as a Bearer token, and looks for an access token in
         // PRIVATE-TOKEN, so a sign in's token there was refused on every request.
-        var handler = new FakeHttpHandler().Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""");
+        var handler = Signed();
         var context = ProviderTestHelpers.Context("gitlab", handler, auth: method);
         await ProviderTestHelpers.Provider("gitlab").Test(context, Cancel.None);
         await Assert.That(handler.RequestHeaders.Select(_ => _.Authorization?.ToString() ?? "none").Distinct()).IsEquivalentTo(["Bearer secret"]);
         await Assert.That(handler.RequestHeaders.Any(_ => _.Contains("PRIVATE-TOKEN"))).IsFalse();
     }
 
-    static FakeHttpHandler Token(string token) =>
+    /// <summary>
+    /// The user, and the listing a test reads to find whether the token may list projects.
+    /// </summary>
+    static FakeHttpHandler Signed() =>
         new FakeHttpHandler()
             .Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""")
-            .Get("https://gitlab.com/api/v4/personal_access_tokens/self", token);
+            .Get(readerListing, "[]");
+
+    static FakeHttpHandler Token(string token) =>
+        Signed().Get("https://gitlab.com/api/v4/personal_access_tokens/self", token);
 
     [Test]
     [Arguments("""{"scopes":["api","read_user"],"granular":false}""", nameof(BuildAccess.Change))]
@@ -453,9 +461,7 @@ public class GitLabProviderTests
     [Test]
     public async Task TheTestSaysASignInCanChangeBuilds()
     {
-        var handler = new FakeHttpHandler()
-            .Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""")
-            .Get("https://gitlab.com/oauth/token/info", """{"scope":["read_api","api"]}""");
+        var handler = Signed().Get("https://gitlab.com/oauth/token/info", """{"scope":["read_api","api"]}""");
         var context = ProviderTestHelpers.Context("gitlab", handler, auth: AuthMethod.Device);
         var result = await ProviderTestHelpers.Provider("gitlab").Test(context, Cancel.None);
         await Assert.That(result.Describe(ProviderDescriptors.GitLab)).IsEqualTo("Signed in as simon. The connection can watch and change builds");
@@ -476,6 +482,19 @@ public class GitLabProviderTests
         var result = await ProviderTestHelpers.Provider("gitlab").Test(context, Cancel.None);
         await Assert.That(result.Describe(ProviderDescriptors.GitLab))
             .IsEqualTo("Signed in as simon. The connection can watch builds but not change them. GitLab CI needs the api scope");
+    }
+
+    [Test]
+    public async Task TheTestFailsATokenThatMayNotListProjects()
+    {
+        // read_user alone reads the user, and then every poll was refused.
+        var handler = new FakeHttpHandler()
+            .Get("https://gitlab.com/api/v4/user", """{"username":"simon"}""")
+            .Map("GET", readerListing, """{"error":"insufficient_scope","error_description":"The request requires higher privileges than provided by the access token.","scope":"api read_api"}""", HttpStatusCode.Forbidden);
+        var result = await ProviderTestHelpers.Provider("gitlab").Test(ProviderTestHelpers.Context("gitlab", handler), Cancel.None);
+        await Assert.That(result.Ok).IsFalse();
+        await Assert.That(result.Describe(ProviderDescriptors.GitLab))
+            .IsEqualTo("Signed in as simon, but the token may not list projects. It needs the read_api scope to watch builds, or api to also retry and cancel them");
     }
 
     [Test]

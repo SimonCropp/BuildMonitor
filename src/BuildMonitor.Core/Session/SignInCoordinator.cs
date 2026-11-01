@@ -101,7 +101,8 @@ sealed class SignInCoordinator(SessionHost host, ISecretStore secrets, HttpMessa
         {
             var test = await Providers.Get(connection.ProviderId).Test(Providers.Context(connection, token, handler), cancel);
             const string prefix = "Signed in as ";
-            if (test.Message.StartsWith(prefix, StringComparison.Ordinal))
+            if (test.Ok &&
+                test.Message.StartsWith(prefix, StringComparison.Ordinal))
             {
                 return test.Message[prefix.Length..];
             }

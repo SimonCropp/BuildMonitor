@@ -38,7 +38,12 @@ dotnet tool update --global BuildMonitor
 
 ## A connection says "sign in required"
 
-The credential was refused. Edit the connection and enter a new token, or sign in again. GitHub fine grained tokens and Azure DevOps personal access tokens also expire; check the date.
+The credential was refused, or it was accepted but may not read what the connection watches.
+
+ * Refused, a 401: edit the connection and enter a new token, or sign in again. GitHub fine grained tokens and Azure DevOps personal access tokens also expire; check the date.
+ * Not allowed, a 403 to the pipeline listing or to every pipeline: the token signs in but lacks a scope or permission. A new token of the same kind fails the same way. [Tokens](auth.md#tokens) lists what each service needs, such as `read_api` for GitLab CI. Test on the connection's page can pass for such a token where it reads only the user; GitLab CI's also reads the project listing, and fails one without `read_api`.
+
+Hover the footer to see what the service answered, which tells the two apart. The [`list_connections`](mcp.md#list_connections) MCP tool returns the same answer as the connection's `error`.
 
 
 ## A connection says "rate limited"
