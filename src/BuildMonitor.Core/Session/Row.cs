@@ -15,7 +15,11 @@
 /// the pipeline. Empty on every other row.</param>
 /// <param name="NamedAbove">Whether a member's repository is the one the member row above it
 /// names, so its own first cell is left empty.</param>
-record Row(RowKind Kind, ConnectionState? Connection, Build? Build, GroupKey? Group, bool Expanded, ImmutableArray<Build> Members, ImmutableArray<FoldedBranch> Folded, bool NamedAbove = false)
+/// <param name="Passed">How many runs of a run set's push have already passed, which have left
+/// the set for the passing rows, or no row at all on another branch. Zero on every other row.</param>
+/// <param name="Failed">How many runs of a run set's push have already failed, each on a row of its
+/// own. Zero on every other row.</param>
+record Row(RowKind Kind, ConnectionState? Connection, Build? Build, GroupKey? Group, bool Expanded, ImmutableArray<Build> Members, ImmutableArray<FoldedBranch> Folded, bool NamedAbove = false, int Passed = 0, int Failed = 0)
 {
     /// <summary>
     /// Every build the row stands for, so a search does not lose the ones a closed group hides.

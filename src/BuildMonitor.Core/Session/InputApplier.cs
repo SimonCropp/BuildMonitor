@@ -170,12 +170,14 @@ static class InputApplier
     {
         var rows = RowProjection.Rows(state);
         // The folder and the repository are what a group's row carries, since both resolve its
-        // members rather than one build. Every other command reads the row's build, so a group
-        // would do nothing anyway, and letting one through would have a stale frame's click toggle
-        // the group.
+        // members rather than one build, and a run set's branch, which its members share. Every
+        // other command reads the row's build, so a group would do nothing anyway, and letting one
+        // through would have a stale frame's click toggle the group.
         if (row < 0 ||
             row >= rows.Length ||
-            (rows[row].Build is null && chip is not (ChipKind.OpenDirectory or ChipKind.Repo)))
+            (rows[row].Build is null &&
+             chip is not (ChipKind.OpenDirectory or ChipKind.Repo) &&
+             !(chip == ChipKind.Branch && rows[row].Group is {IsRunSet: true})))
         {
             return state;
         }
@@ -343,11 +345,13 @@ static class InputApplier
                 }
 
                 // A group's name is its members' repository, which every member of a group agrees
-                // on, so the first of them answers for the row that has no build of its own.
+                // on, so the first of them answers for the row that has no build of its own. So
+                // for a run set's branch and pull request, which its members all share.
                 var selected = MonitorSession.SelectedBuild(state);
                 if (selected is null &&
-                    command == CommandKind.OpenRepo &&
-                    MonitorSession.SelectedRow(state) is {Kind: RowKind.Group, Members: [var first, ..]})
+                    MonitorSession.SelectedRow(state) is {Kind: RowKind.Group, Members: [var first, ..]} shared &&
+                    (command == CommandKind.OpenRepo ||
+                     (shared.Group is {IsRunSet: true} && command is CommandKind.OpenBranch or CommandKind.OpenPullRequest)))
                 {
                     selected = first;
                 }

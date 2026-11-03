@@ -454,13 +454,7 @@ static class ScreenBuilder
     /// </summary>
     static void AddDetail(HashSet<string>.AlternateLookup<CharSpan> seen, List<string> details, HashSet<string> seenMarked, List<string> marked, Row row, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
-        if (row.Build is null)
-        {
-            AddDistinct(seen, details, GroupDetail(row));
-            return;
-        }
-
-        var (pipeline, branch) = DetailParts(row, siblings);
+        var (pipeline, branch) = row.Build is null ? GroupDetailParts(row) : DetailParts(row, siblings);
         var separator = pipeline.Length > 0 && branch.Length > 0 ? " " : "";
         var length = pipeline.Length + separator.Length + branch.Length;
         var text = length <= 256 ? stackalloc char[length] : new char[length];
@@ -489,7 +483,8 @@ static class ScreenBuilder
     static (string Pipeline, string Branch) DetailParts(Row row, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
         var build = row.Build!;
-        var branch = build.ShortBranchName();
+        // Under a run set the set's row names the branch, which every member shares.
+        var branch = row.Group is {IsRunSet: true} ? "" : build.ShortBranchName();
         var named = NameOf(row).Length > 0;
         if (named &&
             NamedAfterProject(build))
@@ -630,8 +625,35 @@ static class ScreenBuilder
         return siblings;
     }
 
-    static string GroupDetail(Row row) =>
-        $"{row.Members.Length} passing";
+    /// <summary>
+    /// A group's count, and for a run set the branch its push went to. A set counts what its push
+    /// has done so far as well as what is still going, since the runs that finished have left it:
+    /// "3 running" alone read as a push of three checks when twelve more had already passed.
+    /// </summary>
+    static (string Count, string Branch) GroupDetailParts(Row row)
+    {
+        if (row.Group is not {IsRunSet: true})
+        {
+            return ($"{row.Members.Length} passing", "");
+        }
+
+        var running = row.Members.Count(_ => _.Status == BuildStatus.Running);
+        var queued = row.Members.Length - running;
+        List<string> counts = [];
+        AddCount(counts, running, "running");
+        AddCount(counts, queued, "queued");
+        AddCount(counts, row.Passed, "passed");
+        AddCount(counts, row.Failed, "failed");
+        return (string.Join(", ", counts), row.Members[0].ShortBranchName());
+    }
+
+    static void AddCount(List<string> counts, int count, string what)
+    {
+        if (count > 0)
+        {
+            counts.Add($"{count} {what}");
+        }
+    }
 
     /// <summary>
     /// What a row's second cell says, in runs, one rule for the row and for the details the column is
@@ -641,13 +663,17 @@ static class ScreenBuilder
     /// </summary>
     static List<DetailSpan> DetailOf(Row row, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
     {
+        var spans = new List<DetailSpan>();
         if (row.Build is not { } build)
         {
-            return [new(GroupDetail(row))];
+            var (count, setBranch) = GroupDetailParts(row);
+            Append(spans, count, ChipKind.None);
+            // The branch opens as a member's would: every member of a set shares it.
+            Append(spans, setBranch, row.Members[0].BranchUrl is null ? ChipKind.None : ChipKind.Branch, DetailSpan.BranchIcon);
+            return spans;
         }
 
         var (pipeline, branch) = DetailParts(row, siblings);
-        var spans = new List<DetailSpan>();
         // The run where the first cell did not take it, and the pipeline's own page where it did,
         // so that no part of a row repeats the one beside it. A row that leads with its run and
         // leaves the pipeline out, because the first cell already names it, has nothing left to
@@ -712,7 +738,12 @@ static class ScreenBuilder
     {
         if (row.Build is not { } build)
         {
-            return ComposeGroup(state, row, row.Group!, selected, now, siblings);
+            if (row.Group!.IsRunSet)
+            {
+                return ComposeRunSet(state, row, selected, now, authors, siblings);
+            }
+
+            return ComposeGroup(state, row, row.Group, selected, now, siblings);
         }
 
         var estimate = Estimator.Estimate(build, state.Medians);
@@ -776,6 +807,94 @@ static class ScreenBuilder
             row.Expanded,
             shared is null ? [] : [new(ChipKind.OpenDirectory, "Open dir", shared, "folder")],
             RowTooltips.OfGroup(group, row.Members, latest, now));
+    }
+
+    /// <summary>
+    /// A run set's own row: the repository, what its push has running, queued and done, and its
+    /// branch, then the bar and countdown of the run expected to finish last, which is when the
+    /// push is done. Running blue while any member runs, so the set sorts and reads as what it
+    /// holds. No chip that acts on a build, as on a group, and the author only where every member
+    /// was started by the same one, which a push always is.
+    /// </summary>
+    static BuildRow ComposeRunSet(SessionState state, Row row, bool selected, DateTimeOffset now, IReadOnlyDictionary<string, string> authors, IReadOnlyDictionary<(string ConnectionId, string RepoName), List<string>> siblings)
+    {
+        var slowest = Slowest(state, row.Members, now);
+        var (fraction, timing) = Progress.Compute(slowest, Estimator.Estimate(slowest, state.Medians), now);
+        var shared = LocalRepos.Shared(state.LocalRepos, row.Members);
+        var repo = RowTooltips.Shared(row.Members);
+        var status = row.Members.Any(_ => _.Status == BuildStatus.Running) ? BuildStatus.Running : BuildStatus.Queued;
+        var author = "";
+        if (row.Members[0].Author?.Trim() is { } first &&
+            row.Members.All(_ => string.Equals(_.Author?.Trim(), first, StringComparison.Ordinal)) &&
+            authors.TryGetValue(first, out var shown))
+        {
+            author = shown;
+        }
+
+        return new(
+            RowKind.Group,
+            status,
+            NameOf(row),
+            repo is null ? ChipKind.None : ChipKind.Repo,
+            GroupMarkOf(row),
+            ChipKind.None,
+            DetailOf(row, siblings),
+            "",
+            ChipKind.None,
+            // Every member is one connection's, since the push is keyed by it.
+            ProviderDescriptors.Get(ProviderOf(state, row.Members[0])).Id,
+            fraction,
+            timing,
+            selected,
+            row.Expanded,
+            shared is null ? [] : [new(ChipKind.OpenDirectory, "Open dir", shared, "folder")],
+            RowTooltips.OfRunSet(row, slowest, timing),
+            author);
+    }
+
+    static string ProviderOf(SessionState state, Build build) =>
+        state.Connection(build.ConnectionId)!.Connection.ProviderId;
+
+    /// <summary>
+    /// The member expected to finish last: the running one with the most time left by its
+    /// estimate, or, where none has an estimate, the one that started first. A queued member only
+    /// where nothing is running yet, as it has no bar to show.
+    /// </summary>
+    static Build Slowest(SessionState state, ImmutableArray<Build> members, DateTimeOffset now)
+    {
+        Build? slowest = null;
+        var most = TimeSpan.MinValue;
+        Build? earliest = null;
+        foreach (var member in members)
+        {
+            if (member.Status != BuildStatus.Running)
+            {
+                continue;
+            }
+
+            var started = member.Started ?? member.Queued ?? now;
+            if (earliest is null ||
+                started < (earliest.Started ?? earliest.Queued ?? now))
+            {
+                earliest = member;
+            }
+
+            var remaining = member.Estimate?.Remaining;
+            if (remaining is null &&
+                Estimator.Estimate(member, state.Medians) is { } estimate)
+            {
+                remaining = estimate - (now - started);
+            }
+
+            if (remaining is { } left &&
+                left > most)
+            {
+                most = left;
+                slowest = member;
+            }
+        }
+
+        return slowest ?? earliest ?? members[0];
     }
 
 

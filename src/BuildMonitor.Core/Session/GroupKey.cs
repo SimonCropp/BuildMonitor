@@ -21,17 +21,65 @@
 /// The owner loses to both a prefix and the service's own group, since each of those names a
 /// narrower family than everything one organisation owns.
 /// </para>
+/// <para>
+/// A run set is the other kind of group: the running and queued runs of one push, which a pull
+/// request with a workflow per check otherwise spread over a screen of rows naming the same
+/// repository and branch. <paramref name="RunSet"/> is the push's id and the key's
+/// <see cref="Id"/>, so a set can not share its open state with the passing group of its
+/// repository, and a new push starts closed.
+/// </para>
 /// </summary>
-record GroupKey(string Project)
+record GroupKey(string Project, string? RunSet = null)
 {
+    /// <summary>
+    /// What every run set's <see cref="Id"/> starts with, so the ids of sets that have finished can
+    /// be told from those of passing groups and dropped from <see cref="Settings.OpenGroups"/>.
+    /// </summary>
+    public const string RunSetPrefix = "run:";
+
     // Get only, so a with expression can not change a key and leave its id behind.
     public string Project { get; } = Project;
+
+    public string? RunSet { get; } = RunSet;
 
     /// <summary>
     /// Built with the key rather than on each read. A projection of the rows reads it several times
     /// a group, and each read built a lower case copy of the project and then the id.
     /// </summary>
-    public string Id { get; } = IdOf(Project);
+    public string Id { get; } = RunSet ?? IdOf(Project);
+
+    public bool IsRunSet => RunSet is not null;
+
+    /// <summary>
+    /// The push a running or queued build belongs to, null for any other build. By commit, so two
+    /// pushes to one branch are two sets, and the branch too, since one commit can be built on two.
+    /// None for a build whose service names no commit: by branch alone a queued build on main
+    /// joined an unrelated one running there, and a TeamCity queue, which names no commit until a
+    /// build starts, read as one push.
+    /// </summary>
+    public static string? RunSetOf(Build build)
+    {
+        if (build.Status is not (BuildStatus.Running or BuildStatus.Queued))
+        {
+            return null;
+        }
+
+        return PushOf(build);
+    }
+
+    /// <summary>
+    /// The push a build of any status was a run of, as <see cref="RunSetOf"/> names it, for counting
+    /// the runs of a set that are already done.
+    /// </summary>
+    public static string? PushOf(Build build)
+    {
+        if (build.CommitSha is not { Length: > 0 } commit)
+        {
+            return null;
+        }
+
+        return $"{RunSetPrefix}{build.ConnectionId}/{build.RepoName}/{build.Branch}/{commit}".ToLowerInvariant();
+    }
 
     /// <summary>
     /// Null for a build that is never grouped: a failed one, which keeps the row of its own that
