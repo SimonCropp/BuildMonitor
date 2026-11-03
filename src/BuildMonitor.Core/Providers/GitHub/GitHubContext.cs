@@ -9,4 +9,5 @@
 [JsonSerializable(typeof(List<GitHubPullRequest>))]
 [JsonSerializable(typeof(GitHubBranch))]
 [JsonSerializable(typeof(List<GitHubRef>))]
+[JsonSerializable(typeof(GitHubSearch))]
 partial class GitHubContext : JsonSerializerContext;

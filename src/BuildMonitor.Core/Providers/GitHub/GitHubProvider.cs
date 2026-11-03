@@ -101,27 +101,7 @@ sealed class GitHubProvider : ProviderBase
             .ToList();
         var perRepository = await Concurrently.Map(
             stale,
-            async (repository, token) =>
-            {
-                var workflows = await context.Http.Get(
-                    $"repos/{repository.FullName}/actions/workflows?per_page=100",
-                    GitHubContext.Default.GitHubWorkflows,
-                    token);
-                // GitHub-managed workflows (Copilot code review and coding agent, Dependabot, Pages)
-                // live under dynamic/. They stay active after a single run, so a PR reviewed months
-                // ago would sit on the screen as a red row the repository never defined.
-                return workflows.Workflows
-                    .Where(_ => _.State == "active" &&
-                                !_.Path.StartsWith("dynamic/", StringComparison.Ordinal))
-                    .Select(_ => new Pipeline(
-                        $"{repository.FullName}/{_.Id}",
-                        _.Name,
-                        repository.FullName,
-                        repository.FullName,
-                        $"{repository.HtmlUrl}/actions/workflows/{Path.GetFileName(_.Path)}",
-                        repository.HtmlUrl))
-                    .ToList();
-            },
+            (repository, token) => Workflows(context, repository.FullName, repository.HtmlUrl, token),
             cancel,
             context.Progress);
         var next = ImmutableDictionary.CreateBuilder<string, (string Pushed, List<Pipeline> Pipelines)>();
@@ -151,15 +131,168 @@ sealed class GitHubProvider : ProviderBase
             context.Memory.Set(listedEverything, now);
         }
 
+        var ownCount = pipelines.Count;
+        pipelines.AddRange(await PullRequestPipelines(context, repositories, cancel));
         Log.Information(
-            "GitHub discovery: {Repositories} repositories, {Active} pushed in the last {Days} days and not excluded, {Listed} of those listed, {Pipelines} workflows, {Elapsed:0.0}s",
+            "GitHub discovery: {Repositories} repositories, {Active} pushed in the last {Days} days and not excluded, {Listed} of those listed, {Pipelines} workflows, {Others} of others' repositories with a pull request of the user's open, {Elapsed:0.0}s",
             repositories.Count,
             active.Count,
             activeWindow.TotalDays,
             stale.Count,
-            pipelines.Count,
+            ownCount,
+            pipelines.Count - ownCount,
             Stopwatch.GetElapsedTime(started).TotalSeconds);
         return pipelines;
+    }
+
+    static async Task<List<Pipeline>> Workflows(ProviderContext context, string repository, string htmlUrl, Cancel cancel)
+    {
+        var workflows = await context.Http.Get(
+            $"repos/{repository}/actions/workflows?per_page=100",
+            GitHubContext.Default.GitHubWorkflows,
+            cancel);
+        // GitHub-managed workflows (Copilot code review and coding agent, Dependabot, Pages)
+        // live under dynamic/. They stay active after a single run, so a PR reviewed months
+        // ago would sit on the screen as a red row the repository never defined.
+        return workflows.Workflows
+            .Where(_ => _.State == "active" &&
+                        !_.Path.StartsWith("dynamic/", StringComparison.Ordinal))
+            .Select(_ => new Pipeline(
+                $"{repository}/{_.Id}",
+                _.Name,
+                repository,
+                repository,
+                $"{htmlUrl}/actions/workflows/{Path.GetFileName(_.Path)}",
+                htmlUrl))
+            .ToList();
+    }
+
+    // The user's open pull requests to repositories the listing leaves out, by repository, as of
+    // the last discovery.
+    const string pullRequestsKey = "github.pull-requests";
+
+    const string openPullRequests = "search/issues?q=is:pr+is:open+author:@me+archived:false&per_page=100";
+
+    /// <summary>
+    /// The workflows of each repository the user has a pull request open to and that the listing
+    /// leaves out, as one of someone else's they only contributed to is. Its runs are in that
+    /// repository, not in the fork the branch was pushed to, so a pull request to an open source
+    /// project failed with nothing on the screen to say so. None of the repository's own runs are
+    /// rows: the pipelines carry no default branch, and the fetch asks only for the pull requests'
+    /// branches. Not for a connection named for one owner, which is about that owner's repositories.
+    /// <para>
+    /// The search has a limit of its own, thirty a minute, so one refused or failed keeps the pull
+    /// requests the last one found rather than failing discovery, or dropping their rows until the
+    /// next.
+    /// </para>
+    /// </summary>
+    async Task<List<Pipeline>> PullRequestPipelines(ProviderContext context, List<GitHubRepository> listed, Cancel cancel)
+    {
+        if (context.Scope("owner").Length > 0)
+        {
+            return [];
+        }
+
+        context.Memory.TryGet<ImmutableDictionary<string, ImmutableArray<GitHubOpenPullRequest>>>(pullRequestsKey, out var previous);
+        previous ??= ImmutableDictionary<string, ImmutableArray<GitHubOpenPullRequest>>.Empty;
+        var byRepository = previous;
+        try
+        {
+            byRepository = await OpenPullRequests(context, listed, cancel);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or RateLimitException)
+        {
+            Log.Warning(exception, "Searching {Connection} for the user's open pull requests failed", context.Connection.Name);
+        }
+
+        context.Memory.Set(pullRequestsKey, byRepository);
+        var root = RepositoryRoot(context.Connection);
+        var repositories = byRepository.Keys.Order(StringComparer.OrdinalIgnoreCase).ToList();
+        var perRepository = await Concurrently.Map(
+            repositories,
+            async (repository, token) =>
+            {
+                // Someone else's repository: one gone since the search, or that the token may not
+                // read the workflows of, is left out rather than failing the user's own.
+                try
+                {
+                    return await Workflows(context, repository, new Uri(root, repository).ToString(), token);
+                }
+                catch (Exception exception) when (exception is HttpRequestException {StatusCode: HttpStatusCode.NotFound} or AuthException {Status: HttpStatusCode.Forbidden})
+                {
+                    return [];
+                }
+            },
+            cancel,
+            context.Progress);
+        return [..perRepository.SelectMany(_ => _)];
+    }
+
+    static async Task<ImmutableDictionary<string, ImmutableArray<GitHubOpenPullRequest>>> OpenPullRequests(ProviderContext context, List<GitHubRepository> listed, Cancel cancel)
+    {
+        var search = await context.Http.Get(openPullRequests, GitHubContext.Default.GitHubSearch, cancel);
+        var known = listed
+            .Select(_ => _.FullName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var issues = search.Items
+            .Select(_ => (Issue: _, Repository: RepositoryOf(_.RepositoryUrl)))
+            .Where(_ => _.Repository is not null &&
+                        !known.Contains(_.Repository) &&
+                        !Filters.ExcludesRepo(context.Filters, _.Repository))
+            .ToList();
+        // The search names no branch, so each pull request is asked for its own.
+        var heads = await Concurrently.Map(
+            issues,
+            async Task<GitHubOpenPullRequest?> (issue, token) =>
+            {
+                var pullRequest = await GetOrNone(
+                    context,
+                    $"repos/{issue.Repository}/pulls/{issue.Issue.Number}",
+                    GitHubContext.Default.GitHubPullRequest,
+                    token);
+                if (pullRequest?.Head is not {Ref: { } branch, Repo.FullName.Length: > 0} head)
+                {
+                    return null;
+                }
+
+                return new GitHubOpenPullRequest(issue.Issue.Number, branch, head.Repo.FullName);
+            },
+            cancel);
+        var byRepository = ImmutableDictionary.CreateBuilder<string, ImmutableArray<GitHubOpenPullRequest>>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < issues.Count; index++)
+        {
+            if (heads[index] is not { } head)
+            {
+                continue;
+            }
+
+            var repository = issues[index].Repository!;
+            byRepository[repository] = byRepository.TryGetValue(repository, out var others) ? others.Add(head) : [head];
+        }
+
+        return byRepository.ToImmutable();
+    }
+
+    /// <summary>
+    /// owner/name from a repository's API address, as https://api.github.com/repos/owner/name, or
+    /// .../api/v3/repos/owner/name on an enterprise server.
+    /// </summary>
+    static string? RepositoryOf(string apiUrl)
+    {
+        const string marker = "/repos/";
+        var index = apiUrl.LastIndexOf(marker, StringComparison.Ordinal);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        var repository = apiUrl[(index + marker.Length)..];
+        if (repository.Count(_ => _ == '/') != 1)
+        {
+            return null;
+        }
+
+        return repository;
     }
 
     static string Pushed(GitHubRepository repository) =>
@@ -256,12 +389,19 @@ sealed class GitHubProvider : ProviderBase
         var started = Stopwatch.GetTimestamp();
         var repositories = pipelines.GroupBy(_ => _.RepoName).ToList();
         var readOnlyRepositories = context.Memory.TryGet<ImmutableHashSet<string>>(readOnly, out var remembered) ? remembered : [];
+        context.Memory.TryGet<ImmutableDictionary<string, ImmutableArray<GitHubOpenPullRequest>>>(pullRequestsKey, out var pullRequests);
         var perRepository = await Concurrently.Map(
             repositories,
             async (repository, token) =>
             {
-                var change = !readOnlyRepositories.Contains(repository.Key);
                 var byWorkflow = repository.ToDictionary(_ => long.Parse(_.Id[(_.Id.LastIndexOf('/') + 1)..]));
+                if (pullRequests is not null &&
+                    pullRequests.TryGetValue(repository.Key, out var opened))
+                {
+                    return await PullRequestRuns(context, repository.Key, byWorkflow, opened, perPipeline, token);
+                }
+
+                var change = !readOnlyRepositories.Contains(repository.Key);
                 var count = Math.Min(100, perPipeline * byWorkflow.Count);
                 // No created filter for the history limit: a run keeps its created_at through a re-run,
                 // so one created before the cutoff and still running, or re-run since, would never
@@ -358,6 +498,64 @@ sealed class GitHubProvider : ProviderBase
             all.Count,
             Stopwatch.GetElapsedTime(started).TotalSeconds);
         return all;
+    }
+
+    /// <summary>
+    /// The runs of the user's open pull requests to someone else's repository, and no other of its
+    /// runs. Asked of each pull request's branch, whose filter matches a branch of that name in the
+    /// repository or in any fork, so a run is kept only from the repository the branch is in. A run
+    /// from a fork names no pull request, so it is given the one it was asked for, for the row's PR
+    /// button and for asking whether it is still open. Nothing is offered to re-run or cancel: that
+    /// needs write access to the repository, which a user it was left out of the listing for lacks.
+    /// </summary>
+    static async Task<List<Build>> PullRequestRuns(ProviderContext context, string repository, Dictionary<long, Pipeline> byWorkflow, ImmutableArray<GitHubOpenPullRequest> pullRequests, int perPipeline, Cancel cancel)
+    {
+        var builds = new List<Build>();
+        var count = Math.Min(100, perPipeline * byWorkflow.Count);
+        foreach (var pullRequest in pullRequests)
+        {
+            var runs = await GetOrNone(
+                context,
+                $"repos/{repository}/actions/runs?branch={Encode(pullRequest.Branch)}&event=pull_request&per_page={count}",
+                GitHubContext.Default.GitHubRuns,
+                cancel);
+            if (runs is null)
+            {
+                continue;
+            }
+
+            var taken = new Dictionary<long, int>();
+            foreach (var run in runs.WorkflowRuns)
+            {
+                if (!byWorkflow.TryGetValue(run.WorkflowId, out var pipeline) ||
+                    IsIgnoredSkip(run) ||
+                    !string.Equals(run.HeadRepository?.FullName, pullRequest.HeadRepository, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                taken.TryGetValue(run.WorkflowId, out var soFar);
+                if (soFar >= perPipeline)
+                {
+                    continue;
+                }
+
+                taken[run.WorkflowId] = soFar + 1;
+                var build = Convert(context.Connection.Id, repository, pipeline, run, false);
+                if (build.PullRequestNumber is null)
+                {
+                    build = build with
+                    {
+                        PullRequestNumber = pullRequest.Number.ToString(),
+                        PullRequestUrl = $"{build.RepoUrl}/pull/{pullRequest.Number}"
+                    };
+                }
+
+                builds.Add(build);
+            }
+        }
+
+        return builds;
     }
 
     /// <summary>

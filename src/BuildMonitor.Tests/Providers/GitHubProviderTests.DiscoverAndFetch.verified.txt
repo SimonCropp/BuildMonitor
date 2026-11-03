@@ -92,6 +92,7 @@ Details,
   Requests: [
     GET https://api.github.com/user/repos?per_page=100&sort=pushed&affiliation=owner,organization_member&page=1,
     GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/workflows?per_page=100,
+    GET https://api.github.com/search/issues?q=is:pr+is:open+author:@me+archived:false&per_page=100,
     GET https://api.github.com/repos/VerifyTests/DiffEngine/actions/runs?per_page=5
   ]
 }

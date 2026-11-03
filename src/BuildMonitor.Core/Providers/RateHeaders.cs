@@ -28,6 +28,15 @@ static class RateHeaders
         return new(limit, remaining, reset, nearLimit, cost, RetryAfter(headers, now));
     }
 
+    /// <summary>
+    /// Whether the response counts against a limit of its own rather than the connection's. GitHub
+    /// names the bucket in X-RateLimit-Resource, and its search API's is thirty a minute: merged into
+    /// the hourly five thousand, its 29 left read as a connection all but out of requests.
+    /// </summary>
+    public static bool SeparateLimit(HttpResponseHeaders headers) =>
+        First(headers, "X-RateLimit-Resource") is { } resource &&
+        !resource.Equals("core", StringComparison.OrdinalIgnoreCase);
+
     static DateTimeOffset? Reset(double? value, DateTimeOffset now) =>
         value switch
         {

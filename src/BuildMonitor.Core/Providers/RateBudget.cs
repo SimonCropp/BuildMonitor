@@ -46,6 +46,11 @@ sealed class RateBudget(Func<DateTimeOffset> clock)
 
     public void Record(HttpResponseMessage response)
     {
+        if (RateHeaders.SeparateLimit(response.Headers))
+        {
+            return;
+        }
+
         var now = clock();
         var observation = RateHeaders.Read(response.Headers, now);
         lock (gate)

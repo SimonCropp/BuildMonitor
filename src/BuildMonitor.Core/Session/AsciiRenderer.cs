@@ -189,12 +189,12 @@ static class AsciiRenderer
     static string RowLine(BuildRow row, (int Name, int Detail, bool Provider, bool Bar, int Author, int Chips) layout)
     {
         var marker = row.Selected ? '>' : ' ';
-        var cells = new List<string>
-        {
+        List<string> cells =
+        [
             marker.ToString(),
             Glyph(row.Status).ToString(),
             Fit(DisplayName(row), layout.Name)
-        };
+        ];
         // Beside the pipeline it ran, so a group's members, whose first cell is empty, still say
         // which service each came from.
         if (layout.Provider)

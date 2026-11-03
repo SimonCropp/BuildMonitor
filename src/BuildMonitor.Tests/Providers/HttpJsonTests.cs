@@ -301,6 +301,23 @@ public class HttpJsonTests
         await Assert.That(budget.CostTotal).IsEqualTo(0.04905);
     }
 
+    /// <summary>
+    /// GitHub's search has thirty requests a minute of its own. Its 29 left, read as the hourly
+    /// limit's, made the connection look all but out of requests.
+    /// </summary>
+    [Test]
+    public async Task ASearchDoesNotSpeakForTheHourlyLimit()
+    {
+        var budget = new RateBudget(() => Fixtures.Now);
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/user", """{"login":"simon"}""", HttpStatusCode.OK, ("X-RateLimit-Limit", "5000"), ("X-RateLimit-Remaining", "4984"), ("X-RateLimit-Reset", "4102444800"), ("X-RateLimit-Resource", "core"))
+            .Map("GET", "https://api.github.com/search/issues?q=is:pr", """{"items":[]}""", HttpStatusCode.OK, ("X-RateLimit-Limit", "30"), ("X-RateLimit-Remaining", "29"), ("X-RateLimit-Reset", "4102444800"), ("X-RateLimit-Resource", "search"));
+        using var client = GitHub(handler, budget);
+        await client.GetText("user", Cancel.None);
+        await client.GetText("search/issues?q=is:pr", Cancel.None);
+        await Assert.That(budget.State.Remaining).IsEqualTo(4984d);
+    }
+
     [Test]
     public async Task ANotModifiedHandsBackTheValueAlreadyParsed()
     {
