@@ -45,6 +45,71 @@ public class BuildSelectionTests
     }
 
     [Test]
+    public async Task AQueuedRunIsBlockedByTheRunStillRunningBeforeIt()
+    {
+        var pipeline = Select(Fixtures.GitHubBuildsWithBlockedRun()).Single(_ => _.Head!.PipelineId == "DiffEngine/test.yml");
+        await Assert.That(pipeline.Head!.RunNumber).IsEqualTo("1235");
+        await Assert.That(pipeline.Blocker!.RunNumber).IsEqualTo("1234");
+        await Assert.That(pipeline.Running).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task AQueuedRunIsBlockedWithoutOtherBranches()
+    {
+        var pipeline = Select(Fixtures.GitHubBuildsWithBlockedRun(), showOtherBranches: false).Single(_ => _.Head!.PipelineId == "DiffEngine/test.yml");
+        await Assert.That(pipeline.Blocker!.RunNumber).IsEqualTo("1234");
+    }
+
+    /// <summary>
+    /// A run that has started waits on nothing, so an older one left running behind it is a ghost
+    /// rather than a blocker.
+    /// </summary>
+    [Test]
+    [Arguments(BuildStatus.Running)]
+    [Arguments(BuildStatus.Succeeded)]
+    public async Task OnlyAQueuedRunIsBlocked(BuildStatus status)
+    {
+        var builds = Fixtures.GitHubBuildsWithBlockedRun();
+        var started = builds[^1] with
+        {
+            Status = status,
+            Started = Fixtures.Now - TimeSpan.FromSeconds(30)
+        };
+        var pipeline = Select(builds.SetItem(builds.Length - 1, started)).Single(_ => _.Head!.PipelineId == "DiffEngine/test.yml");
+        await Assert.That(pipeline.Blocker).IsNull();
+    }
+
+    /// <summary>
+    /// Only the run just before the queued one: a run finished between them says the one running
+    /// further back is not what the queue waits on.
+    /// </summary>
+    [Test]
+    public async Task OnlyTheRunJustBeforeBlocks()
+    {
+        var builds = Fixtures.GitHubBuildsWithBlockedRun();
+        var between = builds[0] with
+        {
+            RunNumber = "1234b",
+            Status = BuildStatus.Succeeded,
+            Started = Fixtures.Now - TimeSpan.FromMinutes(2),
+            Finished = Fixtures.Now - TimeSpan.FromSeconds(90)
+        };
+        var pipeline = Select(builds.Add(between)).Single(_ => _.Head!.PipelineId == "DiffEngine/test.yml");
+        await Assert.That(pipeline.Blocker).IsNull();
+    }
+
+    /// <summary>
+    /// A run on another branch is a lane, not what the default branch's queue waits on.
+    /// </summary>
+    [Test]
+    public async Task ARunOnAnotherBranchDoesNotBlock()
+    {
+        var builds = Fixtures.GitHubBuildsWithBlockedRun();
+        var pipeline = Select(builds.SetItem(0, builds[0] with { Branch = "feature/x" })).Single(_ => _.Head!.Branch == "main" && _.Head.PipelineId == "DiffEngine/test.yml");
+        await Assert.That(pipeline.Blocker).IsNull();
+    }
+
+    [Test]
     public async Task OtherBranchesOnlyWhenActive()
     {
         var builds = Fixtures.GitHubBuilds();

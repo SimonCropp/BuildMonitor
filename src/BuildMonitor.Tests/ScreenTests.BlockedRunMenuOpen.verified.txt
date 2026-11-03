@@ -1,0 +1,40 @@
+﻿+----------------------------------------------------------------------------------------------------------------------+
+| BuildMonitor                                           6 pipelines, 1 failing, 5 running  Filter: [                ] |
++----------------------------------------------------------------------------------------------------------------------+
+|   > build-all  jenkins  Build all @main          [##------] 04:00 left               [Cancel]                        |
+|   > Deploy Web octopus                           [###-----] 02:15 left               [Cancel]                        |
+|   ? nightly    jenkins                                      queued 30s               [Cancel]                        |
+| > > DiffEngine github   test.yml @main           [####----] 03:00 left    SimonCropp [Cancel]                        |
+|   +--------------------------------------+inline            25m ago       SimonCropp PR 42 [Retry] [Log]             |
+|   | Open build                           |                  23h ago                                                  |
+|   | Open running build: #1234            |                                                                           |
+|   | Open branch                          |                                                                           |
+|   | Copy build URL                       |                                                                           |
+|   |--------------------------------------|                                                                           |
+|   | Cancel build                         |                                                                           |
+|   | Cancel running build: #1234          |                                                                           |
+|   |--------------------------------------|                                                                           |
+|   | Refresh                              |                                                                           |
+|   | Group by org: VerifyTests            |                                                                           |
+|   |--------------------------------------|                                                                           |
+|   | Exclude action: test.yml             |                                                                           |
+|   | Exclude branch: main                 |                                                                           |
+|   | Exclude repo: VerifyTests/DiffEngine |                                                                           |
+|   | Exclude org: VerifyTests             |                                                                           |
+|   +--------------------------------------+                                                                           |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+
+| [Refresh] [Connections] [Options] [Filters] [Hide]                                                     Polled 5s ago |
++----------------------------------------------------------------------------------------------------------------------+
+tray: Failed "BuildMonitor: Verify failing, 5 running"
+  Open
+  Refresh
+  Connections
+  Options
+  Filters
+  Open logs
+  Raise issue
+  Update
+  Exit

@@ -15,7 +15,10 @@
 /// the pipeline. Empty on every other row.</param>
 /// <param name="NamedAbove">Whether a member's repository is the one the member row above it
 /// names, so its own first cell is left empty.</param>
-record Row(RowKind Kind, ConnectionState? Connection, Build? Build, GroupKey? Group, bool Expanded, ImmutableArray<Build> Members, ImmutableArray<FoldedBranch> Folded, bool NamedAbove = false)
+/// <param name="Blocker">The older run still running that a queued pipeline's own run waits on, as
+/// <see cref="PipelineBuilds.Blocker"/> says, whose progress the row shows. Null on every other
+/// row.</param>
+record Row(RowKind Kind, ConnectionState? Connection, Build? Build, GroupKey? Group, bool Expanded, ImmutableArray<Build> Members, ImmutableArray<FoldedBranch> Folded, bool NamedAbove = false, Build? Blocker = null)
 {
     /// <summary>
     /// Every build the row stands for, so a search does not lose the ones a closed group hides.

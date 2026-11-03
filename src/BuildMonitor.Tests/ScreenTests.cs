@@ -527,6 +527,43 @@ public class ScreenTests
         Verify(Fixtures.Render(Fixtures.WithLaneInAPrefixGroup()));
 
     /// <summary>
+    /// A queued run behind one still running shows that one's square and countdown, and the header
+    /// counts both.
+    /// </summary>
+    [Test]
+    public Task BlockedRun() =>
+        Verify(Fixtures.Render(Fixtures.WithBlockedRun()));
+
+    [Test]
+    public Task BlockedRunMenuOpen()
+    {
+        var state = Fixtures.WithBlockedRun();
+        return Verify(Fixtures.Render(MonitorSession.OpenMenu(state, Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main"))));
+    }
+
+    [Test]
+    public async Task ABlockedRunsHoverNamesWhatItWaitsOn()
+    {
+        var state = Fixtures.WithBlockedRun();
+        var row = ScreenBuilder.Build(state, Fixtures.Now).Builds!.Rows[Fixtures.RowOf(state, _ => _.Build?.Key == "gh/DiffEngine/test.yml/main")];
+        await Assert.That(row.Status).IsEqualTo(BuildStatus.Running);
+        await Assert.That(row.Tooltip(RowPart.Row)).IsEqualTo(
+            """
+            VerifyTests/DiffEngine @main
+            Fix the other thing
+            SimonCropp
+            queued behind:
+            #1234 running for 3m
+            """.ReplaceLineEndings("\n"));
+        await Assert.That(row.Tooltip(RowPart.Timing)).IsEqualTo(
+            """
+            #1234 running for 3m
+            Counting down from the median of recent runs
+            """.ReplaceLineEndings("\n"));
+        await Assert.That(row.Chips.Single(_ => _.Kind == ChipKind.Cancel).Tooltip).IsEqualTo("Cancel the queued run #1235 on GitHub Actions");
+    }
+
+    /// <summary>
     /// Another branch's menu is its own run's: deferring or excluding it acts on its branch alone.
     /// </summary>
     [Test]

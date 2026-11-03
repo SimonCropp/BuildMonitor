@@ -430,6 +430,20 @@ static class InputApplier
                 }
 
                 return state;
+            case CommandKind.OpenBlocker:
+                if (MonitorSession.SelectedBlocker(state) is { } blocking)
+                {
+                    actions.OpenUrl(blocking.BuildUrl);
+                }
+
+                return state;
+            case CommandKind.CancelBlocker:
+                if (MonitorSession.SelectedBlocker(state) is { } blocker)
+                {
+                    return Cancel(state, blocker, actions);
+                }
+
+                return state;
             case CommandKind.RunNext:
                 if (MonitorSession.SelectedBuild(state) is { } next)
                 {

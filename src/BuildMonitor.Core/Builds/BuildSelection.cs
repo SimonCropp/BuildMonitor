@@ -41,16 +41,17 @@ static class BuildSelection
             start += count;
             NewestFirst(pipeline);
             var head = HeadOf(pipeline);
+            var blocker = BlockerOf(pipeline, head);
             if (!showOtherBranches)
             {
-                result.Add(new(head, [], []));
+                result.Add(new(head, [], [], blocker));
                 continue;
             }
 
             Branches(pipeline, head, branches);
             if (branches.Count == 0)
             {
-                result.Add(new(head, [], []));
+                result.Add(new(head, [], [], blocker));
                 continue;
             }
 
@@ -69,7 +70,7 @@ static class BuildSelection
                 }
             }
 
-            result.Add(new(head, MostUrgentFirst(lanes), folded.ToImmutable()));
+            result.Add(new(head, MostUrgentFirst(lanes), folded.ToImmutable(), blocker));
         }
 
         return result.MoveToImmutable();
@@ -193,6 +194,40 @@ static class BuildSelection
         }
 
         return ordered[0];
+    }
+
+    /// <summary>
+    /// The newest run older than a queued head on the head's branch, where that run is still running.
+    /// Only for a queued head: one that has started or finished is waiting on nothing, and an older
+    /// run left running behind it is the kind of ghost a service can leave for days, which is why a
+    /// branch is otherwise judged by its newest run alone.
+    /// </summary>
+    static Build? BlockerOf(ReadOnlySpan<Build> ordered, Build head)
+    {
+        if (head.Status != BuildStatus.Queued)
+        {
+            return null;
+        }
+
+        var older = false;
+        foreach (var run in ordered)
+        {
+            if (ReferenceEquals(run, head))
+            {
+                older = true;
+                continue;
+            }
+
+            if (!older ||
+                run.Branch != head.Branch)
+            {
+                continue;
+            }
+
+            return run.Status == BuildStatus.Running ? run : null;
+        }
+
+        return null;
     }
 
     /// <summary>
