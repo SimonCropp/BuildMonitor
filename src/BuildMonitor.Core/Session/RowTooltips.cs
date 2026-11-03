@@ -67,21 +67,21 @@ static class RowTooltips
     /// </summary>
     public static IReadOnlyList<RowTooltip> OfGroup(GroupKey group, ImmutableArray<Build> members, Build latest, DateTimeOffset now)
     {
-        var lines = new List<string>
-        {
-            $"{group.Project}: {Plural(members.Length, "passing build")}"
-        };
-        lines.AddRange(members
-            .Select(_ =>
-            {
-                if (_.Branch is null)
+        List<string> lines =
+        [
+            $"{group.Project}: {Plural(members.Length, "passing build")}",
+            ..members
+                .Select(_ =>
                 {
-                    return _.PipelineName;
-                }
+                    if (_.Branch is null)
+                    {
+                        return _.PipelineName;
+                    }
 
-                return $"{_.PipelineName} {DetailSpan.BranchIconText}{_.ShortBranchName()}";
-            })
-            .Distinct(StringComparer.OrdinalIgnoreCase));
+                    return $"{_.PipelineName} {DetailSpan.BranchIconText}{_.ShortBranchName()}";
+                })
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        ];
         List<RowTooltip> tooltips =
         [
             new(RowPart.Row, string.Join("\n", lines)),
@@ -132,10 +132,10 @@ static class RowTooltips
     /// </summary>
     static string Summary(Build build, DateTimeOffset now)
     {
-        var lines = new List<string>
-        {
+        List<string> lines =
+        [
             build.Branch is null ? build.RepoName : $"{build.RepoName} {DetailSpan.BranchIconText}{build.Branch}"
-        };
+        ];
         if (build.Folder is not null)
         {
             lines.Add($"folder {build.Folder}");
@@ -146,7 +146,7 @@ static class RowTooltips
             lines.Add(FirstLine(build.CommitMessage));
         }
 
-        var details = new List<string>();
+        List<string> details = [];
         if (build.Author is not null)
         {
             details.Add(build.Author);
