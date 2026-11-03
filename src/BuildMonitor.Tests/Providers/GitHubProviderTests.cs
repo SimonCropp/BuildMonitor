@@ -157,6 +157,83 @@ public class GitHubProviderTests
         await Assert.That(handler.Requests.Count(_ => _.StartsWith(workflows, StringComparison.Ordinal))).IsEqualTo(2);
     }
 
+    const string openPullRequests = "https://api.github.com/search/issues?q=is:pr+is:open+author:@me+archived:false&per_page=100";
+
+    /// <summary>
+    /// The user's pull request to a repository they neither own nor reach through an organization,
+    /// from their fork. Its runs are in that repository, and only those on its branch from the fork
+    /// are rows, not the repository's own nor another fork's branch of the same name. The pull
+    /// request to a repository the listing has already is not asked about again.
+    /// </summary>
+    static FakeHttpHandler PullRequestToSomeoneElse() =>
+        Handler()
+            .Get(
+                openPullRequests,
+                """
+                {"total_count":2,"items":[
+                  {"number":42,"repository_url":"https://api.github.com/repos/VerifyTests/DiffEngine"},
+                  {"number":12,"repository_url":"https://api.github.com/repos/EvotecIT/OfficeIMO"}
+                ]}
+                """)
+            .Get(
+                "https://api.github.com/repos/EvotecIT/OfficeIMO/pulls/12",
+                """{"number":12,"state":"open","head":{"ref":"fix","sha":"sha702","repo":{"full_name":"SimonCropp/OfficeIMO","html_url":"https://github.com/SimonCropp/OfficeIMO"}}}""")
+            .Get(
+                "https://api.github.com/repos/EvotecIT/OfficeIMO/actions/workflows?per_page=100",
+                """{"workflows":[{"id":30,"name":"Tests","path":".github/workflows/tests.yml","state":"active"}]}""")
+            .Get(
+                "https://api.github.com/repos/EvotecIT/OfficeIMO/actions/runs?branch=fix&event=pull_request&per_page=5",
+                """
+                {"workflow_runs":[
+                  {"id":703,"workflow_id":30,"run_number":88,"status":"completed","conclusion":"failure","head_branch":"fix","head_sha":"sha703","html_url":"https://github.com/EvotecIT/OfficeIMO/actions/runs/703","created_at":"2026-01-01T12:00:00Z","updated_at":"2026-01-01T12:05:00Z","head_repository":{"full_name":"someone/OfficeIMO","html_url":"https://github.com/someone/OfficeIMO"},"pull_requests":[]},
+                  {"id":702,"workflow_id":30,"run_number":87,"status":"completed","conclusion":"failure","head_branch":"fix","head_sha":"sha702","html_url":"https://github.com/EvotecIT/OfficeIMO/actions/runs/702","created_at":"2026-01-01T11:00:00Z","updated_at":"2026-01-01T11:05:00Z","head_repository":{"full_name":"SimonCropp/OfficeIMO","html_url":"https://github.com/SimonCropp/OfficeIMO"},"pull_requests":[]}
+                ]}
+                """);
+
+    [Test]
+    public async Task APullRequestToSomeoneElsesRepositoryShowsItsRuns()
+    {
+        var handler = PullRequestToSomeoneElse();
+        var context = ProviderTestHelpers.Context("github", handler) with
+        {
+            Access = BuildAccess.Change
+        };
+        var builds = await ProviderTestHelpers.DiscoverAndFetch("github", context);
+        var build = builds.Single(_ => _.RepoName == "EvotecIT/OfficeIMO");
+        await Assert.That(build.PipelineName).IsEqualTo("Tests");
+        await Assert.That(build.RunNumber).IsEqualTo("87");
+        await Assert.That(build.Branch).IsEqualTo("SimonCropp:fix");
+        await Assert.That(build.Status).IsEqualTo(BuildStatus.Failed);
+        await Assert.That(build.PullRequestNumber).IsEqualTo("12");
+        await Assert.That(build.PullRequestUrl).IsEqualTo("https://github.com/EvotecIT/OfficeIMO/pull/12");
+        await Assert.That(build.RepoUrl).IsEqualTo("https://github.com/EvotecIT/OfficeIMO");
+        await Assert.That(build.DefaultBranch).IsNull();
+        await Assert.That(build.CanRetry).IsFalse();
+        await Assert.That(handler.Requests.Any(_ => _.Contains("DiffEngine/pulls/42"))).IsFalse();
+    }
+
+    [Test]
+    public async Task AFailedSearchKeepsThePullRequestsLastFound()
+    {
+        var handler = PullRequestToSomeoneElse();
+        var context = ProviderTestHelpers.Context("github", handler);
+        var provider = ProviderTestHelpers.Provider("github");
+        await provider.DiscoverPipelines(context, Cancel.None);
+        handler.Map("GET", openPullRequests, "{}", HttpStatusCode.InternalServerError);
+        var pipelines = await provider.DiscoverPipelines(context, Cancel.None);
+        await Assert.That(pipelines.Select(_ => _.Id)).Contains("EvotecIT/OfficeIMO/30");
+    }
+
+    [Test]
+    public async Task AConnectionForOneOwnerDoesNotSearchForPullRequests()
+    {
+        var handler = new FakeHttpHandler()
+            .Get("https://api.github.com/orgs/VerifyTests/repos?per_page=100&sort=pushed&type=all&page=1", "[]");
+        var context = ProviderTestHelpers.Context("github", handler, scope: ("owner", "VerifyTests"));
+        await ProviderTestHelpers.Provider("github").DiscoverPipelines(context, Cancel.None);
+        await Assert.That(handler.Requests.Any(_ => _.Contains("search/issues"))).IsFalse();
+    }
+
     [Test]
     public async Task AnExcludedOrgIsNeverListed()
     {
