@@ -77,11 +77,11 @@ static class LogTail
         var dropped = section.Count - header - maxLines;
         if (dropped <= 0)
         {
-            return string.Join("\n", section.Select(_ => log[_]));
+            return string.Join('\n', section.Select(_ => log[_]));
         }
 
         return string.Join(
-            "\n",
+            '\n',
             section
                 .Take(header)
                 .Select(_ => log[_])

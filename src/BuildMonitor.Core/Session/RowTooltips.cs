@@ -19,7 +19,7 @@ static class RowTooltips
         var pipeline = $"Open {providerName} history: {build.PipelineName}";
         List<RowTooltip> tooltips =
         [
-            new(RowPart.Row, string.Join("\n", [Summary(build, now), ..Folded(build, folded, now)])),
+            new(RowPart.Row, string.Join('\n', [Summary(build, now), ..Folded(build, folded, now)])),
             new(RowPart.Status, run)
         ];
         // Which cell holds which is decided by the row, so each part says what that row's part
@@ -84,7 +84,7 @@ static class RowTooltips
         ];
         List<RowTooltip> tooltips =
         [
-            new(RowPart.Row, string.Join("\n", lines)),
+            new(RowPart.Row, string.Join('\n', lines)),
             new(RowPart.Timing, $"Latest: {latest.PipelineName}, {Age(latest, now)}")
         ];
         if (Shared(members) is { } repo)
@@ -159,7 +159,7 @@ static class RowTooltips
 
         if (details.Count > 0)
         {
-            lines.Add(string.Join(" ", details));
+            lines.Add(string.Join(' ', details));
         }
 
         if (build.Started is { } started)
@@ -167,7 +167,7 @@ static class RowTooltips
             lines.Add($"started {Progress.Age(now - started)} ago");
         }
 
-        return string.Join("\n", lines);
+        return string.Join('\n', lines);
     }
 
     /// <summary>

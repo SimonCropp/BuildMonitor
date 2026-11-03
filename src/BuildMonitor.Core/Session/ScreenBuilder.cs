@@ -810,7 +810,7 @@ static class ScreenBuilder
         }
 
         // A line each, and each wrapped: a provider's error can be a paragraph of its own.
-        return Tooltips.Wrap(string.Join("\n", lines));
+        return Tooltips.Wrap(string.Join('\n', lines));
     }
 
     /// <summary>
