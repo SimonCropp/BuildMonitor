@@ -117,7 +117,7 @@ static class RealActions
             StoreSecret: secrets.Write,
             DeleteSecret: secrets.Delete,
             OpenLogs: Logging.OpenDirectory,
-            OpenDirectory: RevealFile.OpenDirectory,
+            OpenDirectory: OpenDirectory,
             RaiseIssue: IssueLauncher.Launch,
             RunningServers: McpServers.Find,
             Update: Updater.Start,
@@ -134,6 +134,18 @@ static class RealActions
                     return $"Run at startup failed: {exception.Message}";
                 }
             });
+
+    /// <summary>
+    /// A checkout's folder in the desktop's file manager. One deleted since its row was drawn
+    /// opens nothing and is not created, which PlatformHeads' <see cref="FileManager"/> sees to.
+    /// </summary>
+    static void OpenDirectory(string directory)
+    {
+        if (!FileManager.TryOpen(directory, out var error))
+        {
+            Log.Error(error, "Could not open {Directory}", directory);
+        }
+    }
 
     /// <summary>
     /// What the status line says once a triage lands. It names the directory because this is the

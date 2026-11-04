@@ -55,6 +55,9 @@ static class Logging
     public static void OpenDirectory()
     {
         Directory.CreateDirectory(LogsDirectory);
-        RevealFile.OpenDirectory(LogsDirectory);
+        if (!FileManager.TryOpen(LogsDirectory, out var error))
+        {
+            Log.Error(error, "Could not open {Directory}", LogsDirectory);
+        }
     }
 }
