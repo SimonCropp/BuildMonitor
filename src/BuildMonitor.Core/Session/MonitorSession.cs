@@ -269,6 +269,9 @@ static class MonitorSession
     public static Build? SelectedBuild(SessionState state) =>
         SelectedRow(state)?.Build;
 
+    public static Build? SelectedBlocker(SessionState state) =>
+        SelectedRow(state)?.Blocker;
+
     // Filter box
 
     /// <summary>
@@ -429,6 +432,11 @@ static class MonitorSession
         else if (target.Build is { } build)
         {
             items.Add(new("Open build", CommandKind.OpenBuild));
+            if (target.Blocker is { } opened)
+            {
+                items.Add(new($"Open running build: {opened.RunNumberLabel()}".TrimEnd(':', ' '), CommandKind.OpenBlocker));
+            }
+
             if (build.BranchUrl is not null)
             {
                 items.Add(new("Open branch", CommandKind.OpenBranch));
@@ -461,6 +469,11 @@ static class MonitorSession
             if (build.CanCancel)
             {
                 items.Add(new("Cancel build", CommandKind.Cancel));
+            }
+
+            if (target.Blocker is {CanCancel: true} blocker)
+            {
+                items.Add(new($"Cancel running build: {blocker.RunNumberLabel()}".TrimEnd(':', ' '), CommandKind.CancelBlocker));
             }
 
             if (build.CanRunNext(ProviderDescriptors.Get(target.Connection!.Connection.ProviderId)))
@@ -567,6 +580,7 @@ static class MonitorSession
         {
             CommandKind.Retry or
                 CommandKind.Cancel or
+                CommandKind.CancelBlocker or
                 CommandKind.RunNext => 1,
             CommandKind.OpenRepoDirectory or
                 CommandKind.ToggleGroup or

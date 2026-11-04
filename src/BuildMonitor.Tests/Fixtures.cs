@@ -121,6 +121,29 @@ static class Fixtures
         [..GitHubBuilds().Select(_ => _ with { DefaultBranch = "main" })];
 
     /// <summary>
+    /// <see cref="GitHubBuilds"/> with DiffEngine's main pushed again while #1234 still runs, so
+    /// #1235 waits behind it, as a deploy waits on the one before it in its concurrency group.
+    /// </summary>
+    public static ImmutableArray<Build> GitHubBuildsWithBlockedRun() =>
+        GitHubBuilds()
+            .Add(
+                Build(
+                    GitHub.Id,
+                    "DiffEngine/test.yml",
+                    "test.yml",
+                    "VerifyTests/DiffEngine",
+                    "main",
+                    "1235",
+                    BuildStatus.Queued,
+                    queued: Now - TimeSpan.FromMinutes(1),
+                    branchUrl: "https://github.com/VerifyTests/DiffEngine/tree/main",
+                    commitMessage: "Fix the other thing",
+                    author: "SimonCropp"));
+
+    public static SessionState WithBlockedRun() =>
+        MonitorSession.ApplyPoll(WithBuilds(), GitHub.Id, [], GitHubBuildsWithBlockedRun(), Now - TimeSpan.FromSeconds(12));
+
+    /// <summary>
     /// <see cref="WithBuilds"/> with <see cref="GitHubBuildsOnMain"/> for the GitHub connection.
     /// </summary>
     public static SessionState WithDefaultBranches() =>

@@ -288,6 +288,30 @@ public class ApplyTests
         await Assert.That(state.Menu).IsNull();
     }
 
+    [Test]
+    public async Task CancelTheBlockerFromTheMenu()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithBlockedRun();
+        var state = Apply(builds, new(RightClickedRow: RunningRow(builds)), actions);
+        var cancelIndex = state.Menu!.Items.ToList().FindIndex(_ => _.Command == CommandKind.CancelBlocker);
+        await Assert.That(state.Menu.Items[cancelIndex].Label).IsEqualTo("Cancel running build: #1234");
+        state = Apply(state, new(ClickedMenuItem: cancelIndex), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["Cancel gh/DiffEngine/test.yml/main"]);
+        await Assert.That(state.Status).IsEqualTo("Cancelling test.yml #1234");
+    }
+
+    [Test]
+    public async Task OpenTheBlockerFromTheMenu()
+    {
+        var actions = new RecordingActions();
+        var builds = Fixtures.WithBlockedRun();
+        var state = Apply(builds, new(RightClickedRow: RunningRow(builds)), actions);
+        var openIndex = state.Menu!.Items.ToList().FindIndex(_ => _.Command == CommandKind.OpenBlocker);
+        Apply(state, new(ClickedMenuItem: openIndex), actions);
+        await Assert.That(actions.Calls).IsEquivalentTo(["OpenUrl https://example.com/gh/DiffEngine/test.yml/1234"]);
+    }
+
     // The whole way through: the footer button the sign in page offers, resolved by the index a head
     // reports, reaching the transition that puts the device code back on the clipboard.
     [Test]

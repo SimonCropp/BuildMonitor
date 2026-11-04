@@ -746,8 +746,11 @@ static class ScreenBuilder
             return ComposeGroup(state, row, row.Group, selected, now, siblings);
         }
 
-        var estimate = Estimator.Estimate(build, state.Medians);
-        var (fraction, timing) = Progress.Compute(build, estimate, now);
+        // A queued run waiting on an older one shows that one's square, bar and countdown: "queued"
+        // said nothing of what was running ahead of it, and every other part still names this run.
+        var active = row.Blocker ?? build;
+        var estimate = Estimator.Estimate(active, state.Medians);
+        var (fraction, timing) = Progress.Compute(active, estimate, now);
         var author = build is {Author: not null} &&
                      authors.TryGetValue(build.Author.Trim(), out var shown)
             ? shown
@@ -756,7 +759,7 @@ static class ScreenBuilder
         var detailIcon = DetailIconOf(row, descriptor);
         return new(
             row.Kind,
-            build.Status,
+            active.Status,
             NameOf(row),
             NameLinkOf(row),
             NameIconOf(row, descriptor),
@@ -769,9 +772,30 @@ static class ScreenBuilder
             timing,
             selected,
             false,
-            RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build), now.ToUnixTimeSeconds()),
-            RowTooltips.Of(state, build, row.Folded, descriptor.Name, now),
+            ChipsOf(state, row, build, descriptor, now),
+            RowTooltips.Of(state, build, row.Folded, descriptor.Name, now, row.Blocker),
             author);
+    }
+
+    /// <summary>
+    /// The row's chips, which act on its own run. Beside a blocker's bar a Cancel chip reads as
+    /// cancelling the run counting down, so its hover names the queued run it cancels; the blocker
+    /// is cancelled from the menu.
+    /// </summary>
+    static IReadOnlyList<RowChip> ChipsOf(SessionState state, Row row, Build build, ProviderDescriptor descriptor, DateTimeOffset now)
+    {
+        var chips = RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build), now.ToUnixTimeSeconds());
+        if (row.Blocker is null)
+        {
+            return chips;
+        }
+
+        return
+        [
+            ..chips.Select(_ => _.Kind == ChipKind.Cancel
+                ? new RowChip(_.Kind, _.Label, $"Cancel the queued run {build.RunNumberLabel()} on {descriptor.Name}".Replace("  ", " "), _.Icon, _.Text)
+                : _)
+        ];
     }
 
     /// <summary>

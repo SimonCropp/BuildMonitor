@@ -81,5 +81,9 @@ public enum CommandKind
     // Hides a failed build for the number of days its menu item carries as its target.
     Defer,
     // Ends a deferral early from the filters page, by its index as the target.
-    RemoveDeferral
+    RemoveDeferral,
+    // The older run still running that the selected queued run waits on: its page, and cancelling
+    // it, which is what frees a queue a run stuck in progress holds.
+    OpenBlocker,
+    CancelBlocker
 }

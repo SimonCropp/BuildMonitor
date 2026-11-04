@@ -323,7 +323,10 @@ sealed unsafe class NativeMonitorWindow :
     /// <para>
     /// -1 is a head with no panel, which is Linux. The desktop's chooser is another process there
     /// too, so it is waited for off the loop with frames still going out and input drained and
-    /// dropped, which is what a modal means here.
+    /// dropped, which is what a modal means here. The chooser is PlatformHeads'
+    /// <see cref="DesktopDialog"/>: zenity's, or kdialog's on KDE. With neither installed it is
+    /// null, and the path field beside the Browse button is the fallback, so a missing chooser
+    /// costs the user a paste rather than the option.
     /// </para>
     /// </summary>
     public string? PickDirectory(string? start)
@@ -345,7 +348,13 @@ sealed unsafe class NativeMonitorWindow :
             return Encoding.UTF8.GetString(buffer, 0, written);
         }
 
-        var picking = Task.Run(() => DirectoryPicker.Pick(start));
+        if (DesktopDialog.ForPlatform() is not { } dialog)
+        {
+            Log.Information("Neither zenity nor kdialog is installed, so the code directory has to be typed");
+            return null;
+        }
+
+        var picking = Task.Run(() => dialog.PickFolder("Choose your code directory", start));
         while (!picking.Wait(frame))
         {
             payload.Present();

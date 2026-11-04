@@ -72,11 +72,17 @@ static class RowProjection
         // What each pipeline's own run folds away, for its hover. By reference, since two runs can
         // be equal as records.
         var folded = new Dictionary<Build, ImmutableArray<FoldedBranch>>(ReferenceEqualityComparer.Instance);
+        // And what each queued one waits on, which few pipelines have at any moment.
+        var blockers = new Dictionary<Build, Build>(ReferenceEqualityComparer.Instance);
         foreach (var pipeline in pipelines)
         {
             if (pipeline.Head is { } head)
             {
                 folded[head] = pipeline.Folded;
+                if (pipeline.Blocker is { } blocker)
+                {
+                    blockers[head] = blocker;
+                }
             }
         }
 
@@ -124,7 +130,7 @@ static class RowProjection
             if (ids[index] is not { } id ||
                 !groups.TryGetValue(id, out var members))
             {
-                rows.Add(new(RowKind.Build, connections[build.ConnectionId], build, null, false, [], FoldedOf(folded, build)));
+                rows.Add(new(RowKind.Build, connections[build.ConnectionId], build, null, false, [], FoldedOf(folded, build), Blocker: blockers.GetValueOrDefault(build)));
                 continue;
             }
 

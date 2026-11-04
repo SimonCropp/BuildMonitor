@@ -10,7 +10,11 @@
 /// first.</param>
 /// <param name="Folded">The other branches whose newest run settled any other way, or failed on a
 /// branch that is gone, newest first, each with why.</param>
-record PipelineBuilds(Build? Head, ImmutableArray<Build> Lanes, ImmutableArray<FoldedBranch> Folded)
+/// <param name="Blocker">An older run on the head's branch still running while the head is queued,
+/// most likely what it is waiting on, as a deploy waits on the one before it in its concurrency
+/// group. Without it the row read "queued" with nothing to say what was running or how long it had
+/// left, nor any way to cancel a run stuck in progress that held every later one back.</param>
+record PipelineBuilds(Build? Head, ImmutableArray<Build> Lanes, ImmutableArray<FoldedBranch> Folded, Build? Blocker = null)
 {
     /// <summary>
     /// The runs that get a row, the head first. Built on every read rather than held, since a copy
@@ -48,7 +52,7 @@ record PipelineBuilds(Build? Head, ImmutableArray<Build> Lanes, ImmutableArray<F
 
     /// <summary>
     /// How many of its runs with a row are running or queued, lanes as well: a pull request being
-    /// built is something happening, whichever branch it is on. Counted without walking
+    /// built is something happening, whichever branch it is on, and so is the head's blocker. Counted without walking
     /// <see cref="Shown"/>, whose iterator is an allocation a pipeline, and the counts and the tray
     /// each read this of every pipeline on every rebuild of the screen.
     /// </summary>
@@ -58,6 +62,11 @@ record PipelineBuilds(Build? Head, ImmutableArray<Build> Lanes, ImmutableArray<F
         {
             var running = 0;
             if (Head is {IsActive: true})
+            {
+                running++;
+            }
+
+            if (Blocker is not null)
             {
                 running++;
             }

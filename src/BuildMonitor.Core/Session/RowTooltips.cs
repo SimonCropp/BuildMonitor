@@ -13,14 +13,17 @@ static class RowTooltips
     /// </summary>
     /// <param name="folded">The pipeline's other branches its row folds away, listed after the
     /// summary.</param>
-    public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, ImmutableArray<FoldedBranch> folded, string providerName, DateTimeOffset now)
+    /// <param name="blocker">The older run the queued <paramref name="build"/> waits on, whose square
+    /// and timing the row shows, so the hover names it: a row that leads with one run and counts
+    /// down another would otherwise read as that run's countdown.</param>
+    public static IReadOnlyList<RowTooltip> Of(SessionState state, Build build, ImmutableArray<FoldedBranch> folded, string providerName, DateTimeOffset now, Build? blocker = null)
     {
         var run = OpensRun(build);
         var pipeline = $"Open {providerName} history: {build.PipelineName}";
         List<RowTooltip> tooltips =
         [
-            new(RowPart.Row, string.Join('\n', [Summary(build, now), ..Folded(build, folded, now)])),
-            new(RowPart.Status, run)
+            new(RowPart.Row, string.Join('\n', [Summary(build, now), ..Waiting(blocker, now), ..Folded(build, folded, now)])),
+            new(RowPart.Status, blocker is null ? run : $"{Running(blocker, now)}\n{run}")
         ];
         // Which cell holds which is decided by the row, so each part says what that row's part
         // opens. A hover that named the usual destination rather than this one would be worse
@@ -51,7 +54,11 @@ static class RowTooltips
             tooltips.Add(new(RowPart.Branch, $"Open branch: {branch}"));
         }
 
-        if (Timing(state, build) is { Length: > 0 } timing)
+        if (blocker is not null)
+        {
+            tooltips.Add(new(RowPart.Timing, $"{Running(blocker, now)}\n{Timing(state, blocker)}"));
+        }
+        else if (Timing(state, build) is { Length: > 0 } timing)
         {
             tooltips.Add(new(RowPart.Timing, timing));
         }
@@ -215,6 +222,34 @@ static class RowTooltips
         }
 
         return text.Trim().ToString();
+    }
+
+    /// <summary>
+    /// The run a queued one waits on, after the summary of the queued one.
+    /// </summary>
+    static IEnumerable<string> Waiting(Build? blocker, DateTimeOffset now)
+    {
+        if (blocker is null)
+        {
+            yield break;
+        }
+
+        yield return "queued behind:";
+        yield return Running(blocker, now);
+    }
+
+    /// <summary>
+    /// A blocker in a line: which run, and how long it has run, which is what says one is stuck.
+    /// </summary>
+    static string Running(Build blocker, DateTimeOffset now)
+    {
+        var number = blocker.RunNumberLabel() is { Length: > 0 } label ? $"{label} " : "";
+        if (blocker.Started is not { } started)
+        {
+            return $"{number}running";
+        }
+
+        return $"{number}running for {Progress.Age(now - started)}";
     }
 
     /// <summary>
