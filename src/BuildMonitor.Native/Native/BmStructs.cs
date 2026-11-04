@@ -231,7 +231,5 @@ static class BmFlags
     public const int RowMember = 1 << 3;
     public const int FieldEnabled = 1 << 0;
     public const int ButtonEnabled = 1 << 0;
-    public const int TrayEnabled = 1 << 0;
-    public const int TraySeparator = 1 << 1;
     public const int MenuSeparatorAbove = 1 << 0;
 }

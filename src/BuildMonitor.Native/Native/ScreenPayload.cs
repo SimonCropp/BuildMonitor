@@ -266,7 +266,9 @@ sealed unsafe class ScreenPayload
                     Id = Add(item.Id),
                     Label = Add(item.Label),
                     Icon = Add(item.IconName ?? ""),
-                    Flags = (item.Enabled ? BmFlags.TrayEnabled : 0) | (item.Separator ? BmFlags.TraySeparator : 0)
+                    // PlatformHeads' TrayMenuFlags, whose first two are BM_TRAY_ENABLED and
+                    // BM_TRAY_SEPARATOR. The ABI carries no checks, so the rest stay behind.
+                    Flags = (int) (item.Flags & (TrayMenuFlags.Enabled | TrayMenuFlags.Separator))
                 });
         }
     }

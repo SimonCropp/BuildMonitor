@@ -21,7 +21,7 @@ public class UpdateOutcomeTests
         await File.WriteAllTextAsync(path, locked, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         var notification = UpdateOutcome.Take(path);
 
-        await Assert.That(notification).IsEqualTo(new("Update failed", """Failed to uninstall tool package 'buildmonitor': Access to the path 'C:\Users\me\.dotnet\tools\.store\buildmonitor\0.1.0-beta.6' is denied."""));
+        await Assert.That(notification).IsEqualTo(new("BuildMonitor did not update", """Failed to uninstall tool package 'buildmonitor': Access to the path 'C:\Users\me\.dotnet\tools\.store\buildmonitor\0.1.0-beta.6' is denied."""));
         await Assert.That(File.Exists(path)).IsFalse();
         await Assert.That(UpdateOutcome.Take(path)).IsNull();
     }
@@ -54,7 +54,7 @@ public class UpdateOutcomeTests
     {
         using var path = new TempFile();
         await File.WriteAllTextAsync(path, "Tool 'buildmonitor' failed to update due to the following:\nIt did not work.\n");
-        await Assert.That(UpdateOutcome.Take(path)).IsEqualTo(new("Update failed", "It did not work."));
+        await Assert.That(UpdateOutcome.Take(path)).IsEqualTo(new("BuildMonitor did not update", "It did not work."));
     }
 
     [Test]
@@ -66,11 +66,21 @@ public class UpdateOutcomeTests
     /// at the end are what the shells leave.
     /// </summary>
     [Test]
-    public async Task TheReasonIsTheLastLineWritten() =>
-        await Assert.That(UpdateOutcome.Describe("Tool 'buildmonitor' failed to update due to the following:\r\nUnable to load the service index for source https://api.nuget.org/v3/index.json.\r\n\r\n").Message)
+    public async Task TheReasonIsTheLastLineWritten()
+    {
+        using var path = new TempFile();
+        await File.WriteAllTextAsync(path, "failed\r\nTool 'buildmonitor' failed to update due to the following:\r\nUnable to load the service index for source https://api.nuget.org/v3/index.json.\r\n\r\n");
+
+        await Assert.That(UpdateOutcome.Take(path)?.Message)
             .IsEqualTo("Unable to load the service index for source https://api.nuget.org/v3/index.json.");
+    }
 
     [Test]
-    public async Task NoOutputStillSaysTheUpdateFailed() =>
-        await Assert.That(UpdateOutcome.Describe(" \n")).IsEqualTo(new("Update failed", "dotnet tool update failed without saying why."));
+    public async Task NoOutputStillSaysTheUpdateFailed()
+    {
+        using var path = new TempFile();
+        await File.WriteAllTextAsync(path, "failed\n \n");
+
+        await Assert.That(UpdateOutcome.Take(path)).IsEqualTo(new("BuildMonitor did not update", "dotnet tool update failed without saying why."));
+    }
 }
