@@ -297,6 +297,11 @@ static class MonitorSession
     /// <summary>
     /// Opens a group or closes it. The selection moves to the group's own row, since the rows
     /// under the cursor change either way and a member row would vanish on closing.
+    /// <para>
+    /// A run set's id is one push's, so it means nothing once that push has finished. Those of
+    /// sets no longer shown go at every toggle, or each push someone opened would stay in the
+    /// settings file for good.
+    /// </para>
     /// </summary>
     public static SessionState ToggleGroup(SessionState state, GroupKey key)
     {
@@ -305,6 +310,15 @@ static class MonitorSession
         var toggled = ReferenceEquals(removed, open)
             ? open.Add(key.Id)
             : removed;
+        if (toggled.Any(_ => _.StartsWith(GroupKey.RunSetPrefix, StringComparison.Ordinal)))
+        {
+            var shown = RowProjection.Rows(state)
+                .Where(_ => _.Group is {IsRunSet: true})
+                .Select(_ => _.Group!.Id)
+                .Append(key.Id)
+                .ToHashSet();
+            toggled = toggled.Except(toggled.Where(_ => _.StartsWith(GroupKey.RunSetPrefix, StringComparison.Ordinal) && !shown.Contains(_)).ToList());
+        }
         var next = state with
         {
             Settings = state.Settings with
@@ -380,6 +394,28 @@ static class MonitorSession
             }
 
             items.Add(new("Refresh", CommandKind.Refresh));
+            // A run set is no grouping someone chose, so nothing here widens or undoes one; what
+            // its members share instead is the branch and the pull request.
+            if (target.Group!.IsRunSet)
+            {
+                var first = target.Members[0];
+                if (first.BranchUrl is not null)
+                {
+                    items.Add(new("Open branch", CommandKind.OpenBranch));
+                }
+
+                if (first.PullRequestUrl is not null)
+                {
+                    items.Add(new("Open pull request", CommandKind.OpenPullRequest));
+                }
+
+                AddExcludes(items, state, target.Builds);
+                return SelectRow(state, row) with
+                {
+                    Menu = new(row, Divided(items.ToImmutable()))
+                };
+            }
+
             // A group is as good a place to widen the grouping from as a row is: a repository
             // group of one project's workflows is exactly what someone looking at
             // "TheProject.Messages" wants folded into "TheProject".

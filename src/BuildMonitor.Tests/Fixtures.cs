@@ -407,6 +407,61 @@ static class Fixtures
             Now - TimeSpan.FromSeconds(12));
 
     /// <summary>
+    /// <see cref="WithBuilds"/> plus one push to a pull request of Verify with a workflow per check:
+    /// three running, one queued, one passed and one failed at the push's commit, so the running
+    /// and queued share a run set that counts the other two. Beside them, a run of the same branch
+    /// at an earlier commit, which is not the push, and one naming no commit at all.
+    /// </summary>
+    public static SessionState WithPullRequestPush()
+    {
+        const string branch = "simon/argument-polyfills";
+        const string branchUrl = "https://github.com/VerifyTests/Verify/tree/simon/argument-polyfills";
+        const string pullRequestUrl = "https://github.com/VerifyTests/Verify/pull/1500";
+        Build Check(string workflow, string run, BuildStatus status, TimeSpan? started = null, TimeSpan? took = null, string sha = "f00d") =>
+            Build(
+                GitHub.Id,
+                $"Verify/{workflow}",
+                workflow,
+                "VerifyTests/Verify",
+                branch,
+                run,
+                status,
+                queued: Now - TimeSpan.FromMinutes(9),
+                started: started is null ? null : Now - started,
+                finished: took is null ? null : Now - started + took,
+                branchUrl: branchUrl,
+                pullRequest: "1500",
+                pullRequestUrl: pullRequestUrl,
+                commitMessage: "Argument polyfills",
+                author: "Simon Cropp",
+                sha: sha);
+        return MonitorSession.ApplyPoll(
+            WithBuilds(),
+            GitHub.Id,
+            [],
+            [
+                ..GitHubBuilds(),
+                Check("build.yml", "301", BuildStatus.Running, TimeSpan.FromMinutes(8)),
+                Check("codeql.yml", "302", BuildStatus.Running, TimeSpan.FromMinutes(2)),
+                Check("docs.yml", "303", BuildStatus.Running, TimeSpan.FromMinutes(5)),
+                Check("pdf.yml", "304", BuildStatus.Queued),
+                Check("lint.yml", "305", BuildStatus.Succeeded, TimeSpan.FromMinutes(8), TimeSpan.FromMinutes(1)),
+                Check("vsix.yml", "306", BuildStatus.Failed, TimeSpan.FromMinutes(8), TimeSpan.FromMinutes(3)),
+                Check("bench.yml", "290", BuildStatus.Running, TimeSpan.FromMinutes(30), sha: "beef"),
+                Build(
+                    GitHub.Id,
+                    "Verify/nightly.yml",
+                    "nightly.yml",
+                    "VerifyTests/Verify",
+                    branch,
+                    "88",
+                    BuildStatus.Running,
+                    started: Now - TimeSpan.FromMinutes(1))
+            ],
+            Now - TimeSpan.FromSeconds(12));
+    }
+
+    /// <summary>
     /// <see cref="WithBuilds"/> plus a Dependabot pull request failing on a pipeline of its own, so the
     /// poll announces it. The package is short enough that only the full branch name overflows the
     /// status verb's branch column.

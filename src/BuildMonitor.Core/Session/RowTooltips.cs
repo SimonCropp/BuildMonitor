@@ -103,6 +103,37 @@ static class RowTooltips
     }
 
     /// <summary>
+    /// A run set's own row. Closed, it names none of its runs, so the hover lists them, each with
+    /// what it is doing; the bar's says which run it is the bar of.
+    /// </summary>
+    public static IReadOnlyList<RowTooltip> OfRunSet(Row row, Build slowest, string timing)
+    {
+        var first = row.Members[0];
+        var commit = first.CommitMessage is { Length: > 0 } message ? $": {message.Split('\n')[0]}" : "";
+        List<string> lines =
+        [
+            $"{first.ShortRepoName()} {DetailSpan.BranchIconText}{first.ShortBranchName()}{commit}",
+            ..row.Members.Select(_ => $"{_.PipelineName}: {_.Status.ToString().ToLowerInvariant()}")
+        ];
+        List<RowTooltip> tooltips =
+        [
+            new(RowPart.Row, string.Join('\n', lines)),
+            new(RowPart.Timing, $"Last to finish: {slowest.PipelineName}, {timing}")
+        ];
+        if (Shared(row.Members) is { } repo)
+        {
+            tooltips.Add(new(RowPart.Name, $"Open {RepoHosts.NameOf(repo)} project: {first.ShortRepoName()}"));
+        }
+
+        if (first.BranchUrl is not null)
+        {
+            tooltips.Add(new(RowPart.Branch, $"Open branch: {first.ShortBranchName()}"));
+        }
+
+        return tooltips;
+    }
+
+    /// <summary>
     /// The repository every member agrees on, or null. A group is keyed on the repository's short
     /// name, so two members can still be different repositories of the same name on two services,
     /// and a name that opened one of them would be a coin toss.

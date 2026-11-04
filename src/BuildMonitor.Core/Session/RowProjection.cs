@@ -10,6 +10,13 @@
 /// never grouped: each one wants reading, and a group is a line that hides its members.
 /// </para>
 /// <para>
+/// The running and queued runs of one push share a run set the same way, where the first of them
+/// would have been: a pull request with a workflow per check took a row each, every one naming
+/// the same repository and branch, and pushed everything else off the screen. A run leaves the set
+/// as it finishes, a failure for its own row and a pass for its repository's group, and the set's
+/// row counts both.
+/// </para>
+/// <para>
 /// The last projection is handed back while a state holds the same instances of what it reads. A
 /// poll projected the rows before and after it to keep the selection, and the screen then projected
 /// them again, each a sort and a grouping of every build. The state before a poll is the one the
@@ -88,7 +95,7 @@ static class RowProjection
         var sharing = new Dictionary<string, List<Build>>();
         for (var index = 0; index < builds.Length; index++)
         {
-            if (GroupKey.IdOf(builds[index], prefixes, byOrg) is not { } id)
+            if ((GroupKey.RunSetOf(builds[index]) ?? GroupKey.IdOf(builds[index], prefixes, byOrg)) is not { } id)
             {
                 continue;
             }
@@ -114,6 +121,8 @@ static class RowProjection
 
         var rows = ImmutableArray.CreateBuilder<Row>();
         var added = new HashSet<string>();
+        // Only once a run set needs it: most projections have none.
+        Dictionary<string, (int Passed, int Failed)>? finished = null;
         for (var index = 0; index < builds.Length; index++)
         {
             var build = builds[index];
@@ -130,9 +139,22 @@ static class RowProjection
                 continue;
             }
 
-            var key = GroupKey.Name(members, prefixes, byOrg);
+            GroupKey key;
+            var (passed, failed) = (0, 0);
+            if (id.StartsWith(GroupKey.RunSetPrefix, StringComparison.Ordinal))
+            {
+                key = new(build.ShortRepoName(), id);
+                finished ??= Finished(pipelines);
+                finished.TryGetValue(id, out var tally);
+                (passed, failed) = tally;
+            }
+            else
+            {
+                key = GroupKey.Name(members, prefixes, byOrg);
+            }
+
             var expanded = IsExpanded(state, key);
-            rows.Add(new(RowKind.Group, null, null, key, expanded, members, []));
+            rows.Add(new(RowKind.Group, null, null, key, expanded, members, [], Passed: passed, Failed: failed));
             if (!expanded)
             {
                 continue;
@@ -178,6 +200,42 @@ static class RowProjection
                 .GroupBy(_ => _.RepoName, StringComparer.OrdinalIgnoreCase)
                 .SelectMany(_ => _)
         ];
+    }
+
+    /// <summary>
+    /// How many runs of each push have passed and failed, by <see cref="GroupKey.PushOf"/>,
+    /// for the run set still running at it. From the pipelines rather than the rows, since a pull
+    /// request's passed runs fold away and get none, and before the filter box narrows anything,
+    /// so a set's count does not drop while a filter is typed.
+    /// </summary>
+    static Dictionary<string, (int Passed, int Failed)> Finished(ImmutableArray<PipelineBuilds> pipelines)
+    {
+        var finished = new Dictionary<string, (int Passed, int Failed)>();
+        foreach (var pipeline in pipelines)
+        {
+            foreach (var build in pipeline.Shown.Concat(pipeline.Folded.Select(_ => _.Build)))
+            {
+                if (build.Status is not (BuildStatus.Succeeded or BuildStatus.Failed) ||
+                    GroupKey.PushOf(build) is not { } id)
+                {
+                    continue;
+                }
+
+                finished.TryGetValue(id, out var tally);
+                if (build.Status == BuildStatus.Succeeded)
+                {
+                    tally.Passed++;
+                }
+                else
+                {
+                    tally.Failed++;
+                }
+
+                finished[id] = tally;
+            }
+        }
+
+        return finished;
     }
 
     static ImmutableArray<FoldedBranch> FoldedOf(Dictionary<Build, ImmutableArray<FoldedBranch>> folded, Build build)
