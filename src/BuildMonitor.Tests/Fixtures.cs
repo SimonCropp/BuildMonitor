@@ -118,7 +118,12 @@ static class Fixtures
     /// request is another branch's.
     /// </summary>
     public static ImmutableArray<Build> GitHubBuildsOnMain() =>
-        [..GitHubBuilds().Select(_ => _ with { DefaultBranch = "main" })];
+    [
+        .. GitHubBuilds().Select(_ => _ with
+        {
+            DefaultBranch = "main"
+        })
+    ];
 
     /// <summary>
     /// <see cref="GitHubBuilds"/> with DiffEngine's main pushed again while #1234 still runs, so
@@ -219,8 +224,11 @@ static class Fixtures
             GitHub.Id,
             [],
             [
-                ..GitHubBuildsOnMain(),
-                ..lanes.Select(_ => _ with { DefaultBranch = "main" })
+                .. GitHubBuildsOnMain(),
+                .. lanes.Select(_ => _ with
+                {
+                    DefaultBranch = "main"
+                })
             ],
             Now - TimeSpan.FromSeconds(12));
     }
@@ -238,24 +246,27 @@ static class Fixtures
             GitHub.Id,
             [],
             [
-                ..state.Builds
+                .. state.Builds
                     .Where(_ => _.ConnectionId == GitHub.Id)
-                    .Select(_ => _ with { DefaultBranch = "main" }),
+                    .Select(_ => _ with
+                    {
+                        DefaultBranch = "main"
+                    }),
                 Build(
-                    GitHub.Id,
-                    "Verify/nuget.yml",
-                    "nuget.yml",
-                    "VerifyTests/Verify",
-                    "feature/pack",
-                    "13",
-                    BuildStatus.Running,
-                    started: Now - TimeSpan.FromMinutes(4),
-                    branchUrl: "https://github.com/VerifyTests/Verify/tree/feature/pack",
-                    pullRequest: "46",
-                    pullRequestUrl: "https://github.com/VerifyTests/Verify/pull/46") with
-                {
-                    DefaultBranch = "main"
-                }
+                        GitHub.Id,
+                        "Verify/nuget.yml",
+                        "nuget.yml",
+                        "VerifyTests/Verify",
+                        "feature/pack",
+                        "13",
+                        BuildStatus.Running,
+                        started: Now - TimeSpan.FromMinutes(4),
+                        branchUrl: "https://github.com/VerifyTests/Verify/tree/feature/pack",
+                        pullRequest: "46",
+                        pullRequestUrl: "https://github.com/VerifyTests/Verify/pull/46") with
+                    {
+                        DefaultBranch = "main"
+                    }
             ],
             Now - TimeSpan.FromSeconds(12));
     }
@@ -380,7 +391,7 @@ static class Fixtures
             GitHub.Id,
             [],
             [
-                ..GitHubBuilds(),
+                .. GitHubBuilds(),
                 Build(
                     GitHub.Id,
                     "Verify/docs.yml",
@@ -417,7 +428,8 @@ static class Fixtures
         const string branch = "simon/argument-polyfills";
         const string branchUrl = "https://github.com/VerifyTests/Verify/tree/simon/argument-polyfills";
         const string pullRequestUrl = "https://github.com/VerifyTests/Verify/pull/1500";
-        Build Check(string workflow, string run, BuildStatus status, TimeSpan? started = null, TimeSpan? took = null, string sha = "f00d") =>
+
+        static Build Check(string workflow, string run, BuildStatus status, TimeSpan? started = null, TimeSpan? took = null, string sha = "f00d") =>
             Build(
                 GitHub.Id,
                 $"Verify/{workflow}",
@@ -427,7 +439,7 @@ static class Fixtures
                 run,
                 status,
                 queued: Now - TimeSpan.FromMinutes(9),
-                started: started is null ? null : Now - started,
+                started: Now - started,
                 finished: took is null ? null : Now - started + took,
                 branchUrl: branchUrl,
                 pullRequest: "1500",
@@ -435,12 +447,13 @@ static class Fixtures
                 commitMessage: "Argument polyfills",
                 author: "Simon Cropp",
                 sha: sha);
+
         return MonitorSession.ApplyPoll(
             WithBuilds(),
             GitHub.Id,
             [],
             [
-                ..GitHubBuilds(),
+                .. GitHubBuilds(),
                 Check("build.yml", "301", BuildStatus.Running, TimeSpan.FromMinutes(8)),
                 Check("codeql.yml", "302", BuildStatus.Running, TimeSpan.FromMinutes(2)),
                 Check("docs.yml", "303", BuildStatus.Running, TimeSpan.FromMinutes(5)),
@@ -474,7 +487,7 @@ static class Fixtures
             GitHub.Id,
             [],
             [
-                ..GitHubBuilds(),
+                .. GitHubBuilds(),
                 Build(
                     GitHub.Id,
                     "Reports/build.yml",
@@ -501,7 +514,7 @@ static class Fixtures
             Octopus.Id,
             [],
             [
-                ..OctopusBuilds(),
+                .. OctopusBuilds(),
                 Build(
                     Octopus.Id,
                     "Projects-2",
@@ -550,7 +563,7 @@ static class Fixtures
             GitHub.Id,
             [],
             [
-                ..state.Builds.Where(_ => _.ConnectionId == GitHub.Id),
+                .. state.Builds.Where(_ => _.ConnectionId == GitHub.Id),
                 Build(
                     GitHub.Id,
                     "VerifyXunit/test.yml",
@@ -583,7 +596,7 @@ static class Fixtures
             GitHub.Id,
             [],
             [
-                ..state.Builds.Where(_ => _.ConnectionId == GitHub.Id),
+                .. state.Builds.Where(_ => _.ConnectionId == GitHub.Id),
                 Build(
                     GitHub.Id,
                     "Verify/release.yml",
@@ -604,7 +617,10 @@ static class Fixtures
     /// </summary>
     public static SessionState SingleProvider()
     {
-        var state = MonitorSession.Resize(SessionState.Start(new() { Connections = [GitHub] }), 120, 30);
+        var state = MonitorSession.Resize(SessionState.Start(new()
+        {
+            Connections = [GitHub]
+        }), 120, 30);
         return MonitorSession.ApplyPoll(state, GitHub.Id, [], GitHubBuilds(), Now - TimeSpan.FromSeconds(12));
     }
 
@@ -711,7 +727,10 @@ static class Fixtures
     /// </summary>
     public static SessionState WithQueuePriority()
     {
-        var state = MonitorSession.Resize(SessionState.Start(new() { Connections = [TeamCity] }), 120, 30);
+        var state = MonitorSession.Resize(SessionState.Start(new()
+        {
+            Connections = [TeamCity]
+        }), 120, 30);
         return MonitorSession.ApplyPoll(
             state,
             TeamCity.Id,

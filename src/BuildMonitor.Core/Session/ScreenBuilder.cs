@@ -792,9 +792,20 @@ static class ScreenBuilder
 
         return
         [
-            ..chips.Select(_ => _.Kind == ChipKind.Cancel
-                ? new RowChip(_.Kind, _.Label, $"Cancel the queued run {build.RunNumberLabel()} on {descriptor.Name}".Replace("  ", " "), _.Icon, _.Text)
-                : _)
+            ..chips.Select(_ =>
+            {
+                if (_.Kind == ChipKind.Cancel)
+                {
+                    return new(
+                        _.Kind,
+                        _.Label,
+                        $"Cancel the queued run {build.RunNumberLabel()} on {descriptor.Name}".Replace("  ", " "),
+                        _.Icon,
+                        _.Text);
+                }
+
+                return _;
+            })
         ];
     }
 

@@ -61,7 +61,9 @@ sealed class GitHubProvider : ProviderBase
     // Each repository's workflows as last listed, with its pushed_at then, and when every active
     // repository's were last listed.
     const string listedWorkflows = "github.workflows";
+
     const string listedEverything = "github.listed-everything";
+
     // The active repositories the user may only read, as of the last discovery.
     const string readOnly = "github.read-only";
 
@@ -122,7 +124,11 @@ sealed class GitHubProvider : ProviderBase
                 next[repository.FullName] = listed;
             }
 
-            pipelines.AddRange(listed.Pipelines.Select(_ => _ with { DefaultBranch = repository.DefaultBranch }));
+            pipelines.AddRange(
+                listed.Pipelines.Select(_ => _ with
+                {
+                    DefaultBranch = repository.DefaultBranch
+                }));
         }
 
         context.Memory.Set(listedWorkflows, next.ToImmutable());
@@ -225,7 +231,7 @@ sealed class GitHubProvider : ProviderBase
             },
             cancel,
             context.Progress);
-        return [..perRepository.SelectMany(_ => _)];
+        return [.. perRepository.SelectMany(_ => _)];
     }
 
     static async Task<ImmutableDictionary<string, ImmutableArray<GitHubOpenPullRequest>>> OpenPullRequests(ProviderContext context, List<GitHubRepository> listed, Cancel cancel)
@@ -255,7 +261,7 @@ sealed class GitHubProvider : ProviderBase
                     return null;
                 }
 
-                return new GitHubOpenPullRequest(issue.Issue.Number, branch, head.Repo.FullName);
+                return new(issue.Issue.Number, branch, head.Repo.FullName);
             },
             cancel);
         var byRepository = ImmutableDictionary.CreateBuilder<string, ImmutableArray<GitHubOpenPullRequest>>(StringComparer.OrdinalIgnoreCase);
@@ -311,7 +317,7 @@ sealed class GitHubProvider : ProviderBase
             return [];
         }
 
-        return [..repositories.Where(_ => _.Permissions is { Push: false }).Select(_ => _.FullName)];
+        return [.. repositories.Where(_ => _.Permissions is {Push: false}).Select(_ => _.FullName)];
     }
 
     /// <summary>
@@ -457,6 +463,7 @@ sealed class GitHubProvider : ProviderBase
                     {
                         continue;
                     }
+
                     taken.TryGetValue(run.WorkflowId, out var soFar);
                     // Past the cap only for the workflow's first run on its default branch: a batch
                     // of pull requests fills a workflow's share of the page, and its own run, in the
@@ -890,7 +897,11 @@ sealed class GitHubProvider : ProviderBase
         }
 
         var owner = repository[..repository.IndexOf('/')];
-        var pullRequests = await GetOrNone(context, $"repos/{repository}/pulls?head={Encode($"{owner}:{question.Branch}")}&state=all&per_page=1", GitHubContext.Default.ListGitHubPullRequest, cancel);
+        var pullRequests = await GetOrNone(
+            context,
+            $"repos/{repository}/pulls?head={Encode($"{owner}:{question.Branch}")}&state=all&per_page=1",
+            GitHubContext.Default.ListGitHubPullRequest,
+            cancel);
         if (pullRequests?.FirstOrDefault() is { } pullRequest &&
             pullRequest.Head?.Sha == commit)
         {

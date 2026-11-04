@@ -27,7 +27,10 @@ sealed class AzureDevOpsProvider : ProviderBase
             projects,
             async (project, token) =>
             {
-                var definitions = await context.Http.Get($"{Encode(project)}/_apis/pipelines?{apiVersion}", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsPipeline, token);
+                var definitions = await context.Http.Get(
+                    $"{Encode(project)}/_apis/pipelines?{apiVersion}",
+                    AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsPipeline,
+                    token);
                 var shared = definitions.Value
                     .GroupBy(_ => _.Name, StringComparer.OrdinalIgnoreCase)
                     .Where(_ => _.Count() > 1)
@@ -133,7 +136,10 @@ sealed class AzureDevOpsProvider : ProviderBase
             {
                 var pipeline = byDefinition[id];
                 var defaultBranch = DefaultBranch(context, pipeline, runs);
-                builds.AddRange(runs.Select(_ => _.Build with { DefaultBranch = defaultBranch }));
+                builds.AddRange(runs.Select(_ => _.Build with
+                {
+                    DefaultBranch = defaultBranch
+                }));
                 if (defaultBranch is null ||
                     runs.Any(_ => _.Build.Branch == defaultBranch) ||
                     DefaultRunMemory.KnownNone(context.Memory, pipeline.Id, defaultBranch, now))
@@ -363,7 +369,7 @@ sealed class AzureDevOpsProvider : ProviderBase
         }
 
         var source = build.Parameter("system.pullRequest.sourceBranch") ?? build.TriggerInfo?.SourceBranch;
-        if (source is not { Length: > 0 })
+        if (source is not {Length: > 0})
         {
             return null;
         }
@@ -510,7 +516,7 @@ sealed class AzureDevOpsProvider : ProviderBase
         var builds = $"{Encode(parts[0])}/_apis/build/builds/{parts[1]}";
         var timeline = await context.Http.Get($"{builds}/timeline?{apiVersion}", AzureDevOpsContext.Default.AzureDevOpsTimeline, cancel);
         var byId = timeline.Records.ToDictionary(_ => _.Id);
-        var failed = timeline.Records.Where(_ => _ is { Result: "failed", Log: not null }).ToList();
+        var failed = timeline.Records.Where(_ => _ is {Result: "failed", Log: not null}).ToList();
         var tasks = failed.Where(_ => _.Type == "Task").ToList();
         var chosen = tasks.Count > 0 ? tasks : failed.Where(_ => _.Type == "Job").ToList();
         var logs = new List<(string Name, string Log)>();
@@ -574,7 +580,10 @@ sealed class AzureDevOpsProvider : ProviderBase
 
     public override async Task<ConnectionTest> Test(ProviderContext context, Cancel cancel)
     {
-        var projects = await context.Http.Get($"_apis/projects?{apiVersion}&$top=100", AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject, cancel);
+        var projects = await context.Http.Get(
+            $"_apis/projects?{apiVersion}&$top=100",
+            AzureDevOpsContext.Default.AzureDevOpsListAzureDevOpsProject,
+            cancel);
         return new(true, $"{projects.Value.Count} projects");
     }
 }
