@@ -9,6 +9,9 @@
 /// their node_modules would exhaust max_user_watches and then stop reporting anything, silently.
 /// The bounded set is one watch per directory that could hold a checkout, and no more.
 /// </para>
+/// <para>
+/// What no watcher hears is caught by scanning again on a clock; see <see cref="defaultRescan"/>.
+/// </para>
 /// </summary>
 sealed class LocalRepoWatcher : IDisposable
 {
@@ -17,6 +20,7 @@ sealed class LocalRepoWatcher : IDisposable
     Lock gate = new();
     List<FileSystemWatcher> watchers = [];
     Timer debounce;
+    Timer periodic;
     string? root;
     bool disposed;
 
@@ -27,13 +31,39 @@ sealed class LocalRepoWatcher : IDisposable
     /// </summary>
     static TimeSpan defaultSettle = TimeSpan.FromMilliseconds(750);
 
+    /// <summary>
+    /// A watcher hears only its own folder's entries, and a checkout is not watched, so two changes
+    /// reach no watcher: a checkout's .git removed with its folder kept, and git init in a folder at
+    /// the deepest level a checkout is looked for. Both are rare enough to wait an hour for, and a
+    /// scan reads one small file a checkout.
+    /// </summary>
+    static TimeSpan defaultRescan = TimeSpan.FromHours(1);
+
     /// <param name="settle">Shortened by tests, which would otherwise wait out the debounce of
     /// every scan they trigger.</param>
-    public LocalRepoWatcher(SessionHost host, TimeSpan? settle = null)
+    /// <param name="rescanEvery">Shortened by tests, which would otherwise wait an hour for the
+    /// scan that finds what no watcher heard.</param>
+    public LocalRepoWatcher(SessionHost host, TimeSpan? settle = null, TimeSpan? rescanEvery = null)
     {
         this.host = host;
         this.settle = settle ?? defaultSettle;
         debounce = new(_ => Rescan(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        var every = rescanEvery ?? defaultRescan;
+        periodic = new(_ => Refresh(), null, every, every);
+    }
+
+    /// <summary>
+    /// The folders being watched, for the tests that hold the set to its bound.
+    /// </summary>
+    public IReadOnlyList<string> Watched
+    {
+        get
+        {
+            lock (gate)
+            {
+                return [.. watchers.Select(_ => _.Path)];
+            }
+        }
     }
 
     /// <summary>
@@ -71,6 +101,19 @@ sealed class LocalRepoWatcher : IDisposable
         }
     }
 
+    void Refresh()
+    {
+        lock (gate)
+        {
+            if (root is null)
+            {
+                return;
+            }
+        }
+
+        Schedule();
+    }
+
     void Rescan()
     {
         string? scanning;
@@ -99,9 +142,8 @@ sealed class LocalRepoWatcher : IDisposable
     }
 
     /// <summary>
-    /// One watcher on the root and one on every directory that could still hold a checkout, which
-    /// is every directory walked past rather than into. A directory that is already a checkout is
-    /// not watched: what changes inside it is the user's work, not a new repository.
+    /// One watcher on the root and one on every directory a checkout could still appear in; see
+    /// <see cref="Watchable"/>.
     /// </summary>
     void Rearm(string? scanning)
     {
@@ -135,31 +177,32 @@ sealed class LocalRepoWatcher : IDisposable
     }
 
     /// <summary>
-    /// The root, then every directory down to the depth a checkout can be found at. A checkout is
-    /// watched, so that removing its .git takes its button away, but is not descended into: what
-    /// changes below it is the user's work, and one watch per folder of every repository is the
-    /// recursive cost this class exists to avoid.
+    /// The root, then every directory above the depth a checkout can be found at that is not a
+    /// checkout itself: the folders a checkout can be cloned into, moved into or deleted from,
+    /// which are the changes their watchers hear. A checkout is not watched. All its watcher could
+    /// hear is its .git going, and on a code directory of 179 checkouts, at its top and in four
+    /// folders, that came to 184 watchers rather than 5, each with an 8 KB buffer, a handle and a
+    /// read pending in the kernel, about 1.5 MB in all.
     /// </summary>
     static List<string> Watchable(string root)
     {
         var directories = new List<string> { root };
         var level = new List<string> { root };
-        for (var depth = 1; depth <= LocalRepos.MaxDepth; depth++)
+        for (var depth = 1; depth < LocalRepos.MaxDepth; depth++)
         {
             var next = new List<string>();
             foreach (var parent in level)
             {
                 foreach (var child in LocalRepos.Children(parent))
                 {
-                    directories.Add(child);
-                    if (depth < LocalRepos.MaxDepth &&
-                        !LocalRepos.IsRepo(child))
+                    if (!LocalRepos.IsRepo(child))
                     {
                         next.Add(child);
                     }
                 }
             }
 
+            directories.AddRange(next);
             level = next;
         }
 
@@ -217,6 +260,7 @@ sealed class LocalRepoWatcher : IDisposable
 
             disposed = true;
             debounce.Dispose();
+            periodic.Dispose();
             foreach (var watcher in watchers)
             {
                 Close(watcher);

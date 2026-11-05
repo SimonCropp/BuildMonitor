@@ -41,6 +41,63 @@ public class LocalRepoWatcherTests
     }
 
     [Test]
+    public async Task NoticesACheckoutThatAppearsInAnOrganisationFolder()
+    {
+        using var root = new TempDirectory();
+        Repo(root, "DiffEngine");
+        var organisation = Path.Combine(root, "VerifyTests");
+        Directory.CreateDirectory(organisation);
+        var host = new SessionHost(SessionState.Start(new()));
+        using var watcher = new LocalRepoWatcher(host, settle);
+        watcher.Sync(root);
+        await Until(host, _ => _.Count == 1);
+
+        Repo(organisation, "Verify");
+
+        var repos = await Until(host, _ => _.Count == 2);
+        await Assert.That(LocalRepos.Find(repos, "Verify")).IsEqualTo(Path.Combine(organisation, "Verify"));
+    }
+
+    /// <summary>
+    /// One watcher per folder a checkout can appear in, and none on a checkout or a folder at the
+    /// deepest level: watching those as well came to 184 watchers rather than 5.
+    /// </summary>
+    [Test]
+    public async Task WatchesOnlyTheFoldersACheckoutCanAppearIn()
+    {
+        using var root = new TempDirectory();
+        Repo(root, "DiffEngine");
+        var organisation = Path.Combine(root, "VerifyTests");
+        Repo(organisation, "Verify");
+        Directory.CreateDirectory(Path.Combine(organisation, "Notes"));
+        var host = new SessionHost(SessionState.Start(new()));
+        using var watcher = new LocalRepoWatcher(host, settle);
+        watcher.Sync(root);
+        await Until(host, _ => _.Count == 2);
+
+        await Assert.That(watcher.Watched).IsEquivalentTo([root.Path, organisation]);
+    }
+
+    /// <summary>
+    /// No watcher hears a checkout's .git go, since the checkout is not watched, so only the scan
+    /// on a clock can take its folder away.
+    /// </summary>
+    [Test]
+    public async Task NoticesACheckoutLosingItsGitAtTheNextRescan()
+    {
+        using var root = new TempDirectory();
+        Repo(root, "DiffEngine");
+        var host = new SessionHost(SessionState.Start(new()));
+        using var watcher = new LocalRepoWatcher(host, settle, TimeSpan.FromMilliseconds(100));
+        watcher.Sync(root);
+        await Until(host, _ => _.Count == 1);
+
+        Directory.Delete(Path.Combine(root, "DiffEngine", ".git"), true);
+
+        await Until(host, _ => _.Count == 0);
+    }
+
+    [Test]
     public async Task PointingItAtNothingClearsWhatItFound()
     {
         using var root = new TempDirectory();
