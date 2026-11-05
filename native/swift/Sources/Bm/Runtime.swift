@@ -24,12 +24,22 @@ final class Runtime {
     private var wheelNotches = WheelNotches()
     private lazy var target = ControlTarget(runtime: self)
 
-    /// A quit from the Dock or a logout, reported as the app menu's Quit is, so the managed side
-    /// leaves its loop and saves on its way out rather than AppKit ending the process from inside
-    /// the pump. Held here because `NSApplication.delegate` does not keep it alive.
-    private lazy var terminateGuard = TerminateGuard { [unowned self] in
+    /// A quit from the Dock, reported as the app menu's Quit is, so the managed side leaves its
+    /// loop and saves on its way out rather than AppKit ending the process from inside the pump.
+    ///
+    /// A logout, restart or shutdown runs `sessionEnding` instead, there and then, and AppKit ends
+    /// the process once it returns: refused, the quit would cancel the logout. Held here because
+    /// `NSApplication.delegate` does not keep it alive.
+    private lazy var terminateGuard = TerminateGuard({ [unowned self] in
         self.input.key = Int32(BM_KEY_QUIT.rawValue)
+    }) { [unowned self] in
+        self.sessionEnding?()
     }
+
+    /// What `bm_on_display_lost` was handed: the managed side's session end, which saves the run
+    /// history. It hands one over as soon as the window is open, before the first present, so
+    /// before any event that could be a logout is dispatched.
+    var sessionEnding: BmDisplayLost?
 
     /// A tray app spends most of its life with no window on screen, which is when App Nap would
     /// coalesce the timers its polls and its socket answer on.
