@@ -1,6 +1,3 @@
-using System.Text.Json.Serialization;
-using ModelContextProtocol;
-
 /// <summary>
 /// The stdio MCP server. Stdout is the protocol channel, so every log line goes to stderr. The
 /// tray is started first if it is not running; the tools then talk to it over the socket.
@@ -16,10 +13,11 @@ static class McpHost
     /// are written. A member the record makes optional, by giving it a default, is not required by
     /// the schema, and opts back out of being written when null with its own JsonIgnore.
     /// </summary>
-    public static JsonSerializerOptions ToolSerializerOptions { get; } = new(McpJsonUtilities.DefaultOptions)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never
-    };
+    public static JsonSerializerOptions ToolSerializerOptions { get; } =
+        new(McpJsonUtilities.DefaultOptions)
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.Never
+        };
 
     public static async Task<int> Run(int port, Cancel cancel)
     {
