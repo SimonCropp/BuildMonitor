@@ -414,11 +414,7 @@ sealed class GitHubProvider : ProviderBase
                 // be returned. per_page bounds the response instead.
                 // A repository deleted since discovery answers with a 404, which would fail the
                 // whole fetch; it has no builds until the next discovery drops it.
-                var runs = await GetOrNone(
-                    context,
-                    $"repos/{repository.Key}/actions/runs?per_page={count}",
-                    GitHubContext.Default.GitHubRuns,
-                    token);
+                var runs = await Runs(context, $"repos/{repository.Key}/actions/runs?per_page={count}", token);
                 var builds = new List<Build>();
                 if (runs is null)
                 {
@@ -433,7 +429,7 @@ sealed class GitHubProvider : ProviderBase
                 // with every older run on them.
                 var hidden = new HashSet<(long, string?)>();
                 var seen = new HashSet<(long, string?)>();
-                foreach (var run in runs.WorkflowRuns)
+                foreach (var run in runs)
                 {
                     if (!byWorkflow.TryGetValue(run.WorkflowId, out var pipeline))
                     {
@@ -521,10 +517,9 @@ sealed class GitHubProvider : ProviderBase
         var count = Math.Min(100, perPipeline * byWorkflow.Count);
         foreach (var pullRequest in pullRequests)
         {
-            var runs = await GetOrNone(
+            var runs = await Runs(
                 context,
                 $"repos/{repository}/actions/runs?branch={Encode(pullRequest.Branch)}&event=pull_request&per_page={count}",
-                GitHubContext.Default.GitHubRuns,
                 cancel);
             if (runs is null)
             {
@@ -532,11 +527,11 @@ sealed class GitHubProvider : ProviderBase
             }
 
             var taken = new Dictionary<long, int>();
-            foreach (var run in runs.WorkflowRuns)
+            foreach (var run in runs)
             {
                 if (!byWorkflow.TryGetValue(run.WorkflowId, out var pipeline) ||
                     IsIgnoredSkip(run) ||
-                    !string.Equals(run.HeadRepository?.FullName, pullRequest.HeadRepository, StringComparison.OrdinalIgnoreCase))
+                    !string.Equals(run.HeadRepository, pullRequest.HeadRepository, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -583,15 +578,13 @@ sealed class GitHubProvider : ProviderBase
             return null;
         }
 
-        var runs = await GetOrNone(
+        var runs = await Runs(
             context,
             $"repos/{repository}/actions/workflows/{workflowId}/runs?branch={Encode(branch)}&per_page={perPipeline}",
-            GitHubContext.Default.GitHubRuns,
             cancel);
-        var workflowRuns = runs?.WorkflowRuns;
-        if (workflowRuns != null)
+        if (runs != null)
         {
-            foreach (var run in workflowRuns)
+            foreach (var run in runs)
             {
                 if (IsIgnoredSkip(run))
                 {
@@ -631,7 +624,7 @@ sealed class GitHubProvider : ProviderBase
     /// the run that triggered it, a Dependabot pull request's say, not about its branch; see
     /// <see cref="IsHiddenSkip"/>.
     /// </summary>
-    static bool IsIgnoredSkip(GitHubRun run) =>
+    static bool IsIgnoredSkip(GitHubRunSummary run) =>
         run.Conclusion == "skipped" &&
         run.Event != "workflow_run";
 
@@ -641,7 +634,7 @@ sealed class GitHubProvider : ProviderBase
     /// was closed, with every run since skipped for being about something else. Shown, it was a
     /// grey row that said nothing.
     /// </summary>
-    static bool IsHiddenSkip(GitHubRun run) =>
+    static bool IsHiddenSkip(GitHubRunSummary run) =>
         run is
         {
             Conclusion: "skipped",
@@ -651,10 +644,9 @@ sealed class GitHubProvider : ProviderBase
     public override async Task<IReadOnlyList<Build>> RecentSuccesses(ProviderContext context, Pipeline pipeline, Cancel cancel)
     {
         var workflowId = pipeline.Id[(pipeline.Id.LastIndexOf('/') + 1)..];
-        var runs = await GetOrNone(
+        var runs = await Runs(
             context,
             $"repos/{pipeline.RepoName}/actions/workflows/{workflowId}/runs?status=success&per_page=10",
-            GitHubContext.Default.GitHubRuns,
             cancel);
         if (runs is null)
         {
@@ -662,11 +654,20 @@ sealed class GitHubProvider : ProviderBase
         }
 
         return runs
-            .WorkflowRuns
             .Select(_ => Convert(context.Connection.Id, pipeline.RepoName, pipeline, _, false)).ToList();
     }
 
-    static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRun run, bool change)
+    /// <summary>
+    /// A page of runs, cached as the summaries builds are made from rather than as parsed; see
+    /// <see cref="GitHubRunSummary"/>.
+    /// </summary>
+    static Task<GitHubRunSummary[]?> Runs(ProviderContext context, string path, Cancel cancel) =>
+        GetOrNone(context, path, GitHubContext.Default.GitHubRuns, Summarize, cancel);
+
+    static GitHubRunSummary[] Summarize(GitHubRuns runs) =>
+        [.. runs.WorkflowRuns.Select(_ => new GitHubRunSummary(_))];
+
+    static Build Convert(string connectionId, string repository, Pipeline pipeline, GitHubRunSummary run, bool change)
     {
         var status = run.Status switch
         {
@@ -681,36 +682,32 @@ sealed class GitHubProvider : ProviderBase
             },
             _ => BuildStatus.Unknown
         };
-        var pullRequest = run.PullRequests?.FirstOrDefault();
+        var pullRequest = run.PullRequest;
         // The repository's page as its listing gave it, on the host the API names, which is not
         // github.com for GitHub Enterprise. Composed on github.com only for a pipeline without one.
         var web = pipeline.RepoUrl ?? $"https://github.com/{repository}";
         // The branch's page is in the repository it lives in, a fork for a pull request from one.
         var headRepository = run.HeadRepository;
         var branchWeb = web;
-        if (headRepository is {HtmlUrl.Length: > 0})
+        if (run.HeadRepositoryUrl is {Length: > 0} headRepositoryUrl)
         {
-            branchWeb = headRepository.HtmlUrl;
+            branchWeb = headRepositoryUrl;
         }
-        else if (headRepository is {FullName.Length: > 0} &&
+        else if (headRepository is {Length: > 0} &&
                  Uri.TryCreate(web, UriKind.Absolute, out var page))
         {
             // Named without its page, it is on the repository's host.
-            branchWeb = $"{page.GetLeftPart(UriPartial.Authority)}/{headRepository.FullName}";
+            branchWeb = $"{page.GetLeftPart(UriPartial.Authority)}/{headRepository}";
         }
 
         // A fork's branch behind its owner, since a fork's main is not this repository's main.
         string? branch = null;
         if (run.HeadBranch is { } head)
         {
-            branch = PullRequestBranches.Head(head, PullRequestBranches.ForkOwner(headRepository?.FullName, repository));
+            branch = PullRequestBranches.Head(head, PullRequestBranches.ForkOwner(headRepository, repository));
         }
 
-        // When this attempt was raised. created_at is the first attempt's and a re-run keeps it, so a
-        // run retried in the morning read "queued 10h", counted from its first run the night before.
-        // run_started_at is reset by each attempt and is created_at on the first. The run gives no
-        // time a runner picked it up, so the attempt is its start as well.
-        var attempt = run.RunStartedAt ?? run.CreatedAt;
+        var attempt = run.Started;
         return new(
             connectionId,
             pipeline.Id,
@@ -726,11 +723,11 @@ sealed class GitHubProvider : ProviderBase
             null,
             run.HtmlUrl,
             run.HeadBranch is null ? null : $"{branchWeb}/tree/{run.HeadBranch}",
-            pullRequest?.Number.ToString(),
-            pullRequest is null ? null : $"{web}/pull/{pullRequest.Number}",
+            pullRequest?.ToString(),
+            pullRequest is null ? null : $"{web}/pull/{pullRequest}",
             run.HeadSha,
-            run.HeadCommit?.Message ?? run.DisplayTitle,
-            run.Actor?.Login,
+            run.Message,
+            run.Actor,
             CanRetry: change && run.Status == "completed",
             CanCancel: change && run.Status != "completed",
             Join(repository, run.Id.ToString(), run.Conclusion),

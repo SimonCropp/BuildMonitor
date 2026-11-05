@@ -79,6 +79,15 @@ sealed class HttpJson : IDisposable
     public Task<T> Get<T>(string path, JsonTypeInfo<T> info, Cancel cancel, string? accept = null) =>
         GetParsed(path, json: true, (content, token) => Deserialize(content, info, path, token), cancel, accept);
 
+    /// <summary>
+    /// A GET whose body is cut down to what <paramref name="keep"/> returns before it is cached, so
+    /// the cache holds that between polls rather than the whole parsed body. A body is parsed into
+    /// the service's shape, nested objects and all, and the graph of a page of runs is several times
+    /// the few fields a build is made from.
+    /// </summary>
+    public Task<T> Get<TBody, T>(string path, JsonTypeInfo<TBody> info, Func<TBody, T> keep, Cancel cancel) =>
+        GetParsed(path, json: true, async (content, token) => keep(await Deserialize(content, info, path, token)), cancel);
+
     public Task<string> GetText(string path, Cancel cancel) =>
         GetParsed(path, json: false, (content, token) => content.ReadAsStringAsync(token), cancel);
 

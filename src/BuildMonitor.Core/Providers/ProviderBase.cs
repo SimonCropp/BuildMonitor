@@ -139,6 +139,23 @@ abstract class ProviderBase : IProvider
     }
 
     /// <summary>
+    /// <see cref="GetOrNone{T}"/> for a body cut down by <paramref name="keep"/> before it is cached;
+    /// see <see cref="HttpJson.Get{TBody, T}"/>.
+    /// </summary>
+    protected static async Task<T?> GetOrNone<TBody, T>(ProviderContext context, string path, JsonTypeInfo<TBody> info, Func<TBody, T> keep, Cancel cancel)
+        where T : class
+    {
+        try
+        {
+            return await context.Http.Get(path, info, keep, cancel);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// A path escaped a segment at a time, so a space or a hash in an artifact's name survives
     /// while the separators that make it a path stay separators. Escaping the whole string would
     /// turn a nested artifact's path into one segment with slashes in its name, which no server

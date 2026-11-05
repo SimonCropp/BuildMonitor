@@ -335,6 +335,30 @@ public class HttpJsonTests
     }
 
     [Test]
+    public async Task ANotModifiedHandsBackWhatWasKept()
+    {
+        // Cut down once, as the body arrives, and cached cut down: a 304 has no body to cut again.
+        var handler = new FakeHttpHandler()
+            .Map("GET", "https://api.github.com/user", """{"login":"simon"}""", HttpStatusCode.OK, ("ETag", "\"abc\""));
+        using var client = GitHub(handler);
+        var kept = 0;
+        string[] Keep(GitHubUser user)
+        {
+            kept++;
+            return [user.Login];
+        }
+
+        var first = await client.Get("user", GitHubContext.Default.GitHubUser, Keep, Cancel.None);
+        handler.Map("GET", "https://api.github.com/user", "", HttpStatusCode.NotModified);
+        var second = await client.Get("user", GitHubContext.Default.GitHubUser, Keep, Cancel.None);
+
+        await Assert.That(ReferenceEquals(first, second)).IsTrue();
+        await Assert.That(second).IsEquivalentTo(["simon"]);
+        await Assert.That(kept).IsEqualTo(1);
+        await Assert.That(handler.Requests[^1]).Contains("If-None-Match: \"abc\"");
+    }
+
+    [Test]
     public async Task ABodyThatDoesNotParseIsNotCached()
     {
         // Kept, every 304 after it would fail the same way with no request able to fix it.
