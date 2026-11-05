@@ -250,10 +250,11 @@ public func bmShutdown() {
     }
 }
 
-/// Never called here: a logout's quit is the app's own (TerminateGuard), which reaches the clean
-/// exit. Only the Linux head can lose its display out from under it.
+/// Here there is no display to lose: the session's end is a quit from AppKit, at a logout, restart
+/// or shutdown, which TerminateGuard hands to `lost` from inside the pump and then lets through.
 @_cdecl("bm_on_display_lost")
 public func bmOnDisplayLost(_ lost: BmDisplayLost?) {
+    Runtime.shared.sessionEnding = lost
 }
 
 /// Renders into a bitmap of this side's own making, with scale, colour space and font smoothing
