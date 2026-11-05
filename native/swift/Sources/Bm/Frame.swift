@@ -91,13 +91,6 @@ struct Frame {
         let separatorAbove: Bool
     }
 
-    struct TrayItem {
-        let id: String
-        let label: String
-        let icon: String
-        let enabled: Bool
-        let separator: Bool
-    }
 
     let page: Int32
     let title: String
@@ -130,9 +123,6 @@ struct Frame {
     let menu: [MenuItem]
     let menuRow: Int32
     let menuOverflow: Bool
-    let trayIcon: Int32
-    let trayTooltip: String
-    let trayItems: [TrayItem]
     let theme: Int32
 
     var isForm: Bool { page == Int32(BM_PAGE_FORM.rawValue) }
@@ -207,14 +197,6 @@ struct Frame {
         let menu = UnsafeBufferPointer(start: screen.menu, count: Int(screen.menuCount)).map {
             MenuItem(label: text($0.label), separatorAbove: $0.flags & Int32(BM_MENU_SEPARATOR_ABOVE.rawValue) != 0)
         }
-        let trayItems = UnsafeBufferPointer(start: screen.trayItems, count: Int(screen.trayItemCount)).map {
-            TrayItem(
-                id: text($0.id),
-                label: text($0.label),
-                icon: text($0.icon),
-                enabled: $0.flags & Int32(BM_TRAY_ENABLED.rawValue) != 0,
-                separator: $0.flags & Int32(BM_TRAY_SEPARATOR.rawValue) != 0)
-        }
 
         // One run each: the names, the group names, the member names and the marked group names,
         // and the details then the marked ones.
@@ -256,9 +238,6 @@ struct Frame {
             menu: menu,
             menuRow: screen.menuRow,
             menuOverflow: screen.menuOverflow != 0,
-            trayIcon: screen.trayIcon,
-            trayTooltip: text(screen.trayTooltip),
-            trayItems: trayItems,
             theme: screen.theme)
     }
 }

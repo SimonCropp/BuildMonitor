@@ -28,7 +28,7 @@ public class ScreenPayloadTests
         return Verify(payload.Describe())
             .Snapshot(
                 """
-                page: 1 rows: 0 details: 0 chips: 0 spans: 0 fields: 6 options: 10 buttons: 4 menu: 0 tray: 9 strings: 726 bytes
+                page: 1 rows: 0 details: 0 chips: 0 spans: 0 fields: 6 options: 10 buttons: 4 menu: 0 strings: 511 bytes
                 search='' tip='' empty=''
                 status='Polled 5s ago' tip=''
                 field kind=5 flags=1 'provider' 'Provider' 'AppVeyor' options=0+10
@@ -41,26 +41,8 @@ public class ScreenPayloadTests
                 button flags=1 'Test' tip='Check the server and credential without saving'
                 button flags=1 'Save' tip=''
                 button flags=1 'Cancel' tip=''
-                tray flags=1 'open' 'Open' icon='open'
-                tray flags=1 'refresh' 'Refresh' icon='refresh'
-                tray flags=1 'connections' 'Connections' icon='connections'
-                tray flags=1 'options' 'Options' icon='options'
-                tray flags=1 'filters' 'Filters' icon='filters'
-                tray flags=1 'logs' 'Open logs' icon='logs'
-                tray flags=1 'issue' 'Raise issue' icon='issue'
-                tray flags=1 'update' 'Update' icon='update'
-                tray flags=1 'exit' 'Exit' icon='exit'
 
                 """);
-    }
-
-    [Test]
-    public async Task IdsFollowTheFlattening()
-    {
-        var payload = new ScreenPayload();
-        payload.Build(ScreenBuilder.Build(Fixtures.WithBuilds(), Fixtures.Now));
-        await Assert.That(payload.TrayItemIds.Last()).IsEqualTo(TrayMenu.Exit);
-        await Assert.That(payload.TrayItemIds.First()).IsEqualTo(TrayMenu.Open);
     }
 
     /// <summary>

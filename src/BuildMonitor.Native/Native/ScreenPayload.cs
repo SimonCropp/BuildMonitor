@@ -17,18 +17,15 @@ sealed unsafe class ScreenPayload
     List<BmString> options = [];
     List<BmButton> buttons = [];
     List<BmMenuItem> menu = [];
-    List<BmTrayItem> trayItems = [];
     BmScreen screen;
     // Counts the builds, so the native side can tell a new screen from the one it drew last and
     // draws nothing while it is handed the same one.
     int generation;
 
     /// <summary>
-    /// The ids behind the indexes a head reports: fields and tray items of the last frame.
+    /// The ids behind the indexes a head reports: the fields of the last frame.
     /// </summary>
     public List<string> FieldIds { get; } = [];
-
-    public List<string> TrayItemIds { get; } = [];
 
     public Page LastPage { get; private set; }
 
@@ -51,9 +48,7 @@ sealed unsafe class ScreenPayload
         options.Clear();
         buttons.Clear();
         menu.Clear();
-        trayItems.Clear();
         FieldIds.Clear();
-        TrayItemIds.Clear();
         LastPage = source.Page;
 
         screen = new()
@@ -66,8 +61,6 @@ sealed unsafe class ScreenPayload
             TotalRows = 0,
             SelectedRow = -1,
             MenuRow = -1,
-            TrayIcon = (int) source.Tray.Icon,
-            TrayTooltip = Add(source.Tray.Tooltip),
             Theme = (int) source.Theme,
             Generation = ++generation
         };
@@ -256,21 +249,6 @@ sealed unsafe class ScreenPayload
                     });
             }
         }
-
-        foreach (var item in source.Tray.Items)
-        {
-            TrayItemIds.Add(item.Id);
-            trayItems.Add(
-                new()
-                {
-                    Id = Add(item.Id),
-                    Label = Add(item.Label),
-                    Icon = Add(item.IconName ?? ""),
-                    // PlatformHeads' TrayMenuFlags, whose first two are BM_TRAY_ENABLED and
-                    // BM_TRAY_SEPARATOR. The ABI carries no checks, so the rest stay behind.
-                    Flags = (int) (item.Flags & (TrayMenuFlags.Enabled | TrayMenuFlags.Separator))
-                });
-        }
     }
 
     BmString Add(string text)
@@ -311,7 +289,6 @@ sealed unsafe class ScreenPayload
         fixed (BmString* optionPointer = CollectionsMarshal.AsSpan(options))
         fixed (BmButton* buttonPointer = CollectionsMarshal.AsSpan(buttons))
         fixed (BmMenuItem* menuPointer = CollectionsMarshal.AsSpan(menu))
-        fixed (BmTrayItem* trayPointer = CollectionsMarshal.AsSpan(trayItems))
         {
             var frame = screen;
             frame.Strings = stringPointer;
@@ -336,19 +313,17 @@ sealed unsafe class ScreenPayload
             frame.ButtonCount = buttons.Count;
             frame.Menu = menuPointer;
             frame.MenuCount = menu.Count;
-            frame.TrayItems = trayPointer;
-            frame.TrayItemCount = trayItems.Count;
             return call(&frame);
         }
     }
 
     /// <summary>
-    /// For the tests: the strings blob and the flattened tray, as text.
+    /// For the tests: the strings blob and what was flattened, as text.
     /// </summary>
     public string Describe()
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"page: {screen.Page} rows: {rows.Count} details: {screen.DetailCount} chips: {chips.Count} spans: {spans.Count} fields: {fields.Count} options: {options.Count} buttons: {buttons.Count} menu: {menu.Count} tray: {trayItems.Count} strings: {strings.Count} bytes");
+        builder.AppendLine($"page: {screen.Page} rows: {rows.Count} details: {screen.DetailCount} chips: {chips.Count} spans: {spans.Count} fields: {fields.Count} options: {options.Count} buttons: {buttons.Count} menu: {menu.Count} strings: {strings.Count} bytes");
         var blob = strings.ToArray();
         string Text(BmString value) => Encoding.UTF8.GetString(blob, value.Offset, value.Length);
         builder.AppendLine($"search='{Text(screen.Search)}' tip='{Text(screen.SearchTooltip)}' empty='{Text(screen.Empty)}'");
@@ -384,11 +359,6 @@ sealed unsafe class ScreenPayload
         foreach (var item in menu)
         {
             builder.AppendLine($"menu flags={item.Flags} '{Text(item.Label)}'");
-        }
-
-        foreach (var item in trayItems)
-        {
-            builder.AppendLine($"tray flags={item.Flags} '{Text(item.Id)}' '{Text(item.Label)}' icon='{Text(item.Icon)}'");
         }
 
         return builder.ToString();

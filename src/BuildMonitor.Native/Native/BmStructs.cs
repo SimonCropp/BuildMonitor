@@ -86,15 +86,6 @@ struct BmMenuItem
 }
 
 [StructLayout(LayoutKind.Sequential)]
-struct BmTrayItem
-{
-    public BmString Id;
-    public BmString Label;
-    public BmString Icon;
-    public int Flags;
-}
-
-[StructLayout(LayoutKind.Sequential)]
 struct BmScreen
 {
     public byte* Strings;
@@ -148,11 +139,6 @@ struct BmScreen
     public int MenuRow;
     public int MenuOverflow;
 
-    public int TrayIcon;
-    public BmString TrayTooltip;
-    public BmTrayItem* TrayItems;
-    public int TrayItemCount;
-
     public int Theme;
 
     public int Generation;
@@ -188,8 +174,6 @@ struct BmInput
     public byte* ChangedValue;
     public int ChangedValueLength;
     public int ClickedField;
-    public int ClickedTrayItem;
-    public int TrayIconClicked;
     public int ScrollDelta;
     public int ScrollTo;
     public int CloseRequested;

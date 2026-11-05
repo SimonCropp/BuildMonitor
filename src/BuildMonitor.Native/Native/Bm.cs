@@ -15,7 +15,7 @@ static partial class Bm
     /// <summary>
     /// Keep in sync with BM_VERSION in bm.h.
     /// </summary>
-    public const int ExpectedVersion = 21;
+    public const int ExpectedVersion = 22;
 
     /// <summary>
     /// BmInput.ChangedField for an edit of the filter box, which is not one of BmScreen.Fields.
@@ -52,12 +52,6 @@ static partial class Bm
 
     [LibraryImport(Library, EntryPoint = "bm_tray_init")]
     public static partial int TrayInit();
-
-    [LibraryImport(Library, EntryPoint = "bm_tray_set_icon")]
-    public static partial void TraySetIcon(int kind, byte* png, int length);
-
-    [LibraryImport(Library, EntryPoint = "bm_tray_set_menu_icon", StringMarshalling = StringMarshalling.Utf8)]
-    public static partial void TraySetMenuIcon(string name, byte* png, int length);
 
     [LibraryImport(Library, EntryPoint = "bm_set_row_icon", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SetRowIcon(string name, byte* png, int length);

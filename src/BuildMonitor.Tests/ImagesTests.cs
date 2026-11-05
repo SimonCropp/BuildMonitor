@@ -73,8 +73,8 @@ public class ImagesTests
     }
 
     /// <summary>
-    /// The macOS head draws only the glyphs it was handed at start. The code directory adds the
-    /// one item the menu otherwise leaves out.
+    /// The list is every glyph the menu names, so the test that each has a picture covers them
+    /// all. The code directory adds the one item the menu otherwise leaves out.
     /// </summary>
     [Test]
     public async Task TheMenuCarriesOnlyTheGlyphsHandedOver()

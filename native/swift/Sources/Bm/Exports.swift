@@ -189,44 +189,19 @@ public func bmTrayInit() -> Int32 {
     }
 }
 
+/// The application a tray app's: the item is PlatformHeads.Mac's to make, through the
+/// `platformheads_tray.h` this library exports beside bm.h, once this has returned.
 private func initialiseTray() -> Int32 {
     let runtime = Runtime.shared
-    if runtime.tray != nil {
+    if runtime.trayApp {
         return 1
     }
 
     // Accessory until a window is shown: a tray app should not put an empty app in the Dock.
     NSApplication.shared.setActivationPolicy(.accessory)
     runtime.guardTermination()
-    let tray = Tray(runtime: runtime)
-    guard tray.start() else {
-        return 0
-    }
-
-    runtime.tray = tray
+    runtime.trayApp = true
     return 1
-}
-
-@_cdecl("bm_tray_set_icon")
-public func bmTraySetIcon(_ kind: Int32, _ png: UnsafePointer<UInt8>?, _ length: Int32) {
-    guard let png, length > 0, let tray = Runtime.shared.tray else {
-        return
-    }
-
-    autoreleasepool {
-        tray.setIcon(kind: kind, png: Data(bytes: png, count: Int(length)))
-    }
-}
-
-@_cdecl("bm_tray_set_menu_icon")
-public func bmTraySetMenuIcon(_ name: UnsafePointer<CChar>?, _ png: UnsafePointer<UInt8>?, _ length: Int32) {
-    guard let name, let png, length > 0, let tray = Runtime.shared.tray else {
-        return
-    }
-
-    autoreleasepool {
-        tray.setMenuIcon(name: String(cString: name), png: Data(bytes: png, count: Int(length)))
-    }
 }
 
 @_cdecl("bm_set_row_icon")

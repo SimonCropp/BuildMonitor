@@ -2,8 +2,9 @@
 /// The <see cref="IMonitorWindow"/> backed by the native library. The only type in the app that
 /// touches it, so everything else stays testable on a machine with no display.
 /// <para>
-/// On macOS the tray rides on the same library, so its clicks arrive through
-/// <see cref="Poll"/> too and <see cref="NativeTray"/> has nothing of its own to drain.
+/// On macOS the same library exports PlatformHeads' tray as well, which <see cref="NativeTray"/>
+/// drives through PlatformHeads.Mac. Its events are AppKit's, dispatched by the pump in
+/// <c>bm_present</c> like the window's, and its clicks are polled from the tray.
 /// </para>
 /// </summary>
 sealed unsafe class NativeMonitorWindow :
@@ -212,9 +213,6 @@ sealed unsafe class NativeMonitorWindow :
             CloseRequested: input.CloseRequested != 0,
             Columns: 120,
             Rows: Math.Max(1, input.Rows) + ScreenBuilder.Chrome,
-            TrayItem: input.ClickedTrayItem >= 0 &&
-                      input.ClickedTrayItem < payload.TrayItemIds.Count ? payload.TrayItemIds[input.ClickedTrayItem] : null,
-            TrayIconClicked: input.TrayIconClicked != 0,
             Placement: settler.Poll(Placement(input.Placement), Stopwatch.GetElapsedTime(opened)),
             Minimized: input.Minimized != 0);
     }
