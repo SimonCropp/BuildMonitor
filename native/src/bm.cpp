@@ -199,8 +199,6 @@ void ResetInput() {
     g.input.changedValue = nullptr;
     g.input.changedValueLength = 0;
     g.input.clickedField = -1;
-    g.input.clickedTrayItem = -1;
-    g.input.trayIconClicked = 0;
     g.input.scrollDelta = 0;
     g.input.scrollTo = -1;
     g.input.closeRequested = 0;
@@ -1684,12 +1682,6 @@ BM_API int32_t bm_tray_available(void) {
 
 BM_API int32_t bm_tray_init(void) {
     return 0;
-}
-
-BM_API void bm_tray_set_icon(int32_t kind, const uint8_t* png, int32_t length) {
-}
-
-BM_API void bm_tray_set_menu_icon(const char* name, const uint8_t* png, int32_t length) {
 }
 
 BM_API void bm_set_row_icon(const char* name, const uint8_t* png, int32_t length) {

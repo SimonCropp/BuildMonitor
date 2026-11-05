@@ -32,6 +32,7 @@
     <ProjectReference Include="..\BuildMonitor.Core\BuildMonitor.Core.csproj" />
     <PackageReference Include="Tmds.DBus.Protocol" />
     <PackageReference Include="PlatformHeads.Linux" />
+    <PackageReference Include="PlatformHeads.Mac" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <PackageReference Include="PlatformHeads" PrivateAssets="all" />
   </ItemGroup>

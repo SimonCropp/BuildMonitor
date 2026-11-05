@@ -257,31 +257,6 @@ typedef struct BmMenuItem {
     int32_t flags;
 } BmMenuItem;
 
-/* Keep in sync with TrayIconKind.cs */
-enum BmTrayIcon {
-    BM_TRAY_IDLE = 0,
-    BM_TRAY_RUNNING = 1,
-    BM_TRAY_SUCCESS = 2,
-    BM_TRAY_FAILED = 3,
-    BM_TRAY_ATTENTION = 4
-};
-
-enum BmTrayFlags {
-    BM_TRAY_ENABLED = 1 << 0,
-    BM_TRAY_SEPARATOR = 1 << 1
-};
-
-/*
- * One tray menu entry, in menu order. icon names one of the glyphs handed over through
- * bm_tray_set_menu_icon, or is empty.
- */
-typedef struct BmTrayItem {
-    BmString id;
-    BmString label;
-    BmString icon;
-    int32_t flags;
-} BmTrayItem;
-
 /* Keep in sync with Theme.cs. System is resolved by the implementation, which can ask the platform. */
 enum BmTheme {
     BM_THEME_SYSTEM = 0,
@@ -370,12 +345,6 @@ typedef struct BmScreen {
     int32_t menuRow;
     /* 1 when the menu is the drop down of menuRow's overflow chip: it hangs under that chip. */
     int32_t menuOverflow;
-
-    /* The tray. Ignored by an implementation whose bm_tray_available returns 0. */
-    int32_t trayIcon;
-    BmString trayTooltip;
-    const BmTrayItem* trayItems;
-    int32_t trayItemCount;
 
     /* A BmTheme. */
     int32_t theme;
@@ -481,9 +450,6 @@ typedef struct BmInput {
     int32_t changedValueLength;
     /* A button, link or list row field that was clicked: index into BmScreen.fields, or -1. */
     int32_t clickedField;
-    /* Index into BmScreen.trayItems, or -1. */
-    int32_t clickedTrayItem;
-    int32_t trayIconClicked;
     int32_t scrollDelta;
     /* An absolute first visible row, from a scrollbar, or -1. */
     int32_t scrollTo;
@@ -507,8 +473,12 @@ typedef struct BmInput {
 /*
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
  * library is detected rather than crashed.
+ *
+ * 22: the tray left BmScreen, BmInput and bm_tray_set_icon and bm_tray_set_menu_icon for
+ * PlatformHeads' platformheads_tray.h, which the macOS library exports beside this, and
+ * bm_tray_init no longer makes the item.
  */
-#define BM_VERSION 21
+#define BM_VERSION 22
 
 /* What bm_on_display_lost calls. */
 typedef void (*BmDisplayLost)(void);
@@ -584,15 +554,19 @@ BM_API void bm_set_clipboard(const char* text);
  */
 BM_API int32_t bm_pick_directory(const char* start, uint8_t* buffer, int32_t bufferLength);
 
-/* 1 when this implementation puts an icon in the tray itself. Linux answers 0: its tray is managed code over D-Bus. */
+/*
+ * 1 when this library also exports PlatformHeads' tray, platformheads_tray.h, which the macOS one
+ * does and PlatformHeads.Mac drives. Linux answers 0: its tray is managed code over D-Bus.
+ */
 BM_API int32_t bm_tray_available(void);
 
-/* Creates the tray item. Returns 1 on success. Call bm_tray_set_icon for every BmTrayIcon before the first bm_present. */
+/*
+ * Makes the application a tray app's, before the tray's item is made: an accessory, with no Dock
+ * icon, until a window is shown, and its quits answered before then. Returns 1 on success. The
+ * item itself is platformheads_tray.h's, made after this, and pumped by bm_present like the window.
+ */
 BM_API int32_t bm_tray_init(void);
 
-BM_API void bm_tray_set_icon(int32_t kind, const uint8_t* png, int32_t length);
-
-BM_API void bm_tray_set_menu_icon(const char* name, const uint8_t* png, int32_t length);
 /* A PNG a row can name in BmRow.nameIcon, BmRow.detailIcon or BmSpan.icon, or a chip in
    BmChip.icon. Call after bm_init; a second call for a name replaces it. */
 BM_API void bm_set_row_icon(const char* name, const uint8_t* png, int32_t length);

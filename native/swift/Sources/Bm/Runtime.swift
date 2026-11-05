@@ -2,6 +2,7 @@ import AppKit
 import CBm
 import Foundation
 import PlatformHeadsMac
+import PlatformHeadsMacTray
 
 /// Process wide, because the ABI is: one window, addressed by free functions.
 ///
@@ -48,7 +49,10 @@ final class Runtime {
     var window: NSWindow?
     var view: MonitorView?
     var renderer: BuildsRenderer?
-    var tray: Tray?
+
+    /// `bm_tray_init` has made this a tray app's application. The item itself is PlatformHeads'
+    /// `StatusTray`, which PlatformHeads.Mac makes and drives through `platformheads_tray.h`.
+    var trayApp = false
     var input = BmInput()
     var initialised = false
 
@@ -135,7 +139,6 @@ final class Runtime {
             retheme()
         }
 
-        tray?.apply(frame)
         guard let view else {
             // Hidden with no window yet: still pump, so the tray menu and the app menu work.
             pump()
@@ -288,9 +291,10 @@ final class Runtime {
     }
 
     /// Something is waiting for the next poll to hand over, by the values `resetInput` clears
-    /// each to.
+    /// each to, or for the tray's, which PlatformHeads.Mac polls after this one.
     private var hasInput: Bool {
-        !edits.isEmpty ||
+        StatusTray.shared.hasInput ||
+            !edits.isEmpty ||
             input.key != Int32(BM_KEY_NONE.rawValue) ||
             input.clickedButton >= 0 ||
             input.clickedRow >= 0 ||
@@ -300,8 +304,6 @@ final class Runtime {
             input.clickedMenuItem >= 0 ||
             input.menuClosed != 0 ||
             input.clickedField >= 0 ||
-            input.clickedTrayItem >= 0 ||
-            input.trayIconClicked != 0 ||
             input.scrollDelta != 0 ||
             input.scrollTo >= 0 ||
             input.closeRequested != 0
@@ -417,7 +419,7 @@ final class Runtime {
         renderer = nil
         delegate = nil
         scroller = nil
-        tray = nil
+        trayApp = false
         menuShown = false
         presentedGeneration = nil
         initialised = false
@@ -442,8 +444,6 @@ final class Runtime {
         input.changedValue = nil
         input.changedValueLength = 0
         input.clickedField = -1
-        input.clickedTrayItem = -1
-        input.trayIconClicked = 0
         input.scrollDelta = 0
         input.scrollTo = -1
         input.closeRequested = 0

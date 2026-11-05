@@ -1,7 +1,7 @@
 ﻿{
   PointerSize: 8,
-  Screen: 328,
-  Input: 128,
+  Screen: 304,
+  Input: 120,
   ScreenOffsets: [
     Strings@0,
     StringsLength@8,
@@ -48,12 +48,8 @@
     MenuCount@280,
     MenuRow@284,
     MenuOverflow@288,
-    TrayIcon@292,
-    TrayTooltip@296,
-    TrayItems@304,
-    TrayItemCount@312,
-    Theme@316,
-    Generation@320
+    Theme@292,
+    Generation@296
   ],
   InputOffsets: [
     Key@0,
@@ -72,14 +68,12 @@
     ChangedValue@56,
     ChangedValueLength@64,
     ClickedField@68,
-    ClickedTrayItem@72,
-    TrayIconClicked@76,
-    ScrollDelta@80,
-    ScrollTo@84,
-    CloseRequested@88,
-    Rows@92,
-    Placement@96,
-    Minimized@120
+    ScrollDelta@72,
+    ScrollTo@76,
+    CloseRequested@80,
+    Rows@84,
+    Placement@88,
+    Minimized@112
   ],
   Keys: [
     None=0,
@@ -104,5 +98,5 @@
     Triage=19,
     OpenMenu=20
   ],
-  Version: 21
+  Version: 22
 }

@@ -1,17 +1,14 @@
 /// <summary>
-/// The macOS menu bar item, drawn by the native library. The model rides in every
-/// <c>bm_present</c> and the clicks come back through <c>bm_poll_input</c>, so this only hands
-/// over the icons at start and says whether a tray exists at all.
+/// The macOS menu bar item: PlatformHeads.Mac's <see cref="StatusItemTray{TIcon}" />, whose ABI the
+/// native library exports beside bm.h. Its events are AppKit's, which <c>bm_present</c> pumps for
+/// the window as well, asking the tray whether a click is waiting so it can end its wait. The
+/// application around it is the window's: <c>bm_tray_init</c> makes it an accessory until a window
+/// is shown, and answers its quits.
 /// </summary>
-sealed class NativeTray : ITray
+static class NativeTray
 {
-    NativeTray()
-    {
-    }
-
     public static ITray? Open(out string? error)
     {
-        error = null;
         try
         {
             if (Bm.TrayAvailable() != 1)
@@ -22,7 +19,7 @@ sealed class NativeTray : ITray
 
             if (Bm.TrayInit() != 1)
             {
-                error = "The native renderer could not create a tray item.";
+                error = "The native renderer could not make the application a tray app's.";
                 return null;
             }
         }
@@ -33,61 +30,13 @@ sealed class NativeTray : ITray
             return null;
         }
 
-        foreach (var kind in Enum.GetValues<TrayIconKind>())
-        {
-            // 48 pixels, which is two and a bit times the 18 point menu bar height AppKit scales it to.
-            var bytes = Images.TrayPng(kind, 48);
-            if (bytes is null)
-            {
-                continue;
-            }
-
-            fixed (byte* pointer = bytes)
-            {
-                // The IDE reports this as redundant; the compiler's CS9363 requires it.
-                // ReSharper disable once RedundantUnsafeContext
-                unsafe
-                {
-                    Bm.TraySetIcon((int) kind, pointer, bytes.Length);
-                }
-            }
-        }
-
-        foreach (var name in TrayMenu.Glyphs)
-        {
-            var bytes = Images.Glyph(name, 32);
-            if (bytes is null)
-            {
-                continue;
-            }
-
-            fixed (byte* pointer = bytes)
-            {
-                // ReSharper disable once RedundantUnsafeContext
-                unsafe
-                {
-                    Bm.TraySetMenuIcon(name, pointer, bytes.Length);
-                }
-            }
-        }
-
-        return new NativeTray();
-    }
-
-    public void Apply(TrayModel model)
-    {
-    }
-
-    /// <summary>
-    /// Through osascript, which PlatformHeads' DesktopNotification runs: see it for why.
-    /// </summary>
-    public void Notify(Notification notification) =>
-        DesktopNotification.Show("BuildMonitor", notification);
-
-    public TrayInput Poll() =>
-        new();
-
-    public void Dispose()
-    {
+        // 48 pixels, which is two and a bit times the 18 point menu bar height AppKit scales it to.
+        return StatusItemTray<TrayIconKind>.Open(
+            new(
+                Bm.Library,
+                "BuildMonitor",
+                (kind, _) => Images.TrayPng(kind, 48),
+                (name, _) => Images.Glyph(name, 32)),
+            out error);
     }
 }

@@ -15,9 +15,9 @@ static class TrayMenu
     public const string Exit = "exit";
 
     /// <summary>
-    /// The glyph of every item the menu can hold. The macOS head is handed these at start and draws
-    /// no other, so a list of its own left Open code directory without its folder there, and went
-    /// on loading the glyphs of the per build items after those left the menu.
+    /// The glyph of every item the menu can hold, which the tests hold to a picture each. Every
+    /// platform's tray asks for a glyph by name as the menu first names it, so one missing from the
+    /// pictures is drawn as no glyph rather than failing.
     /// </summary>
     public static readonly IReadOnlyList<string> Glyphs = ["open", "refresh", "connections", "options", "filters", "folder", "logs", "issue", "update", "exit"];
 }

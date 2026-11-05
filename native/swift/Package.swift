@@ -10,9 +10,9 @@ let package = Package(
         .library(name: "buildmonitor_ui", type: .dynamic, targets: ["Bm"])
     ],
     dependencies: [
-        // What every AppKit head does underneath its drawing, shared with DiffEngine's viewer. The
-        // sixth pin of PlatformHeads, moved with the other five.
-        .package(url: "https://github.com/SimonCropp/PlatformHeads", exact: "0.13.0")
+        // What every AppKit head does underneath its drawing, shared with DiffEngine's viewer, and
+        // the tray's ABI, shared with DiffEngineTray. A pin of PlatformHeads, moved with the others.
+        .package(url: "https://github.com/SimonCropp/PlatformHeads", exact: "0.14.0")
     ],
     targets: [
         // Exists only to import the ABI. Swift does not guarantee struct layout, so the structs
@@ -22,7 +22,10 @@ let package = Package(
             name: "Bm",
             dependencies: [
                 "CBm",
-                .product(name: "PlatformHeadsMac", package: "PlatformHeads")
+                .product(name: "PlatformHeadsMac", package: "PlatformHeads"),
+                // The tray, platformheads_tray.h, which this library then exports beside bm.h
+                // for PlatformHeads.Mac to drive.
+                .product(name: "PlatformHeadsMacTray", package: "PlatformHeads")
             ],
             linkerSettings: [
                 .linkedFramework("AppKit"),
