@@ -935,9 +935,9 @@ static class ScreenBuilder
 
     /// <summary>
     /// What the filter box matches against. The box carries no label, so this is the only place
-    /// that says the text is tried against three different parts of a row.
+    /// that says the text is tried against four different parts of a row.
     /// </summary>
-    public const string SearchTooltip = "Filter by repository, pipeline or branch";
+    public const string SearchTooltip = "Filter by organisation, repository, pipeline or branch";
 
     /// <summary>
     /// Whatever the footer had to shorten, for a hover on it. The footer is one line beside the

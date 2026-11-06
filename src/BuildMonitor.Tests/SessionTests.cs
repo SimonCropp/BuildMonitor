@@ -309,9 +309,9 @@ public class SessionTests
     [Arguments("DOCS", "gh/DiffEngine/docs.yml/main")]
     [Arguments("inline", "gh/Verify/test.yml/feature/inline")]
     [Arguments(" nightly ", "jenkins/nightly/")]
-    // The owner is not the project a row shows, so it matches nothing.
-    [Arguments("VerifyTests", "")]
-    public async Task SearchMatchesTheProjectThePipelineOrTheBranch(string search, string keys)
+    // Part of the owner keeps every repository it owns, and Jenkins, which has no owner, goes.
+    [Arguments("verifyt", "gh/DiffEngine/test.yml/main,gh/Verify/test.yml/feature/inline,gh/DiffEngine/docs.yml/main")]
+    public async Task SearchMatchesTheOrgTheProjectThePipelineOrTheBranch(string search, string keys)
     {
         var state = MonitorSession.Search(Fixtures.WithBuilds(), search);
         await Assert.That(string.Join(',', RowProjection.Rows(state).Select(_ => _.Build?.Key))).IsEqualTo(keys);
@@ -329,8 +329,10 @@ public class SessionTests
     [Test]
     public async Task SearchForAProjectKeepsItsGroup()
     {
+        // DiffEngine's two rows stay too, since their owner, VerifyTests, holds the text.
         var rows = RowProjection.Rows(MonitorSession.Search(Fixtures.WithGreenProject(), "verify"));
-        await Assert.That(rows.Select(_ => _.Kind)).IsEquivalentTo([RowKind.Build, RowKind.Group]);
+        await Assert.That(string.Join(',', rows.Select(_ => _.Build?.Key ?? $"group {_.Group!.Project}")))
+            .IsEqualTo("gh/DiffEngine/test.yml/main,gh/Verify/test.yml/feature/inline,group Verify,gh/DiffEngine/docs.yml/main");
     }
 
     [Test]

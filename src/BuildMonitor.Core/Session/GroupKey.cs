@@ -162,9 +162,10 @@ record GroupKey(string Project, string? RunSet = null)
     /// The first segment of the repository's full name: the GitHub organisation or user, or the top
     /// GitLab group rather than a subgroup, so one owner is one group however deep its projects sit.
     /// Empty for a name with no owner in it. An Azure DevOps build's project, which its repository's
-    /// name leaves out, stands in for the owner.
+    /// name leaves out, stands in for the owner. The filter box matches the same one, so typing the
+    /// name of a group <see cref="Settings.GroupByOrg"/> made keeps that group.
     /// </summary>
-    static CharSpan Org(Build build)
+    public static CharSpan Org(Build build)
     {
         if (build.Project is { Length: > 0 } project)
         {

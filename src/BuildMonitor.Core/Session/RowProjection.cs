@@ -256,13 +256,16 @@ static class RowProjection
         state.Settings.OpenGroups.Contains(key.Id);
 
     /// <summary>
-    /// Whether the build's project, pipeline or branch contains the text, ignoring case. The project
-    /// and the branch by the short names a row shows: the full repository name would keep every
-    /// repository of an owner whose name holds the text, and a Dependabot branch's full name every
-    /// update in an ecosystem, on rows showing nothing that matched.
+    /// Whether the build's organisation, project, pipeline or branch contains the text, ignoring
+    /// case. A row names only the short repository, so without the organisation there was no way to
+    /// narrow the list to one owner's. It is the one <see cref="GroupKey.Org"/> names a group after
+    /// rather than the front of the full repository name, so an Azure DevOps project, which that
+    /// name leaves out, is matched too. The branch by the short name a row shows: a Dependabot
+    /// branch's full name kept every update in an ecosystem, on rows showing nothing that matched.
     /// </summary>
     public static bool Matches(Build build, string search) =>
         search.Length == 0 ||
+        GroupKey.Org(build).Contains(search, StringComparison.OrdinalIgnoreCase) ||
         BuildExtensions.ShortRepoName(build.RepoName.AsSpan()).Contains(search, StringComparison.OrdinalIgnoreCase) ||
         build.PipelineName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
         build.ShortBranchName().Contains(search, StringComparison.OrdinalIgnoreCase);
