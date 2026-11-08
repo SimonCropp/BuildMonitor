@@ -342,10 +342,4 @@ public class MonitorToolsTests
         var exception = await Assert.That(async () => await tools.RetryBuild("gh/DiffEngine/test.yml/main", Cancel.None)).Throws<InvalidOperationException>();
         await Assert.That(exception!.Message).IsEqualTo("That build cannot be retried");
     }
-
-    sealed class InProcessClient(MessageHandler handler) : IProtocolClient
-    {
-        public Task<Response> Send(Message message, Cancel cancel) =>
-            handler.Handle(message);
-    }
 }

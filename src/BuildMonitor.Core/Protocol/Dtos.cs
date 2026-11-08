@@ -87,6 +87,19 @@ record BuildRowDto(
     DateTimeOffset? DeferredUntil = null);
 
 /// <summary>
+/// What wait_for_build returns: the run, and whether the wait ended before it finished.
+/// <para>
+/// A flag rather than leaving it to the status. Waiting for the next run, a timeout returns the
+/// last one, which finished before the wait began, and its status would read as the answer.
+/// </para>
+/// </summary>
+record BuildWaitDto(
+    // True when the timeout passed first. Build is then the run as it stood, still queued or
+    // running, or, waiting for the next run, the last one, which had finished before the wait.
+    bool TimedOut,
+    BuildDto Build);
+
+/// <summary>
 /// One monitored pipeline, including one that has produced no build inside the history window
 /// and so has no row. <see cref="Runs"/> is how many of its runs the tray holds, and a zero is
 /// the thing a list of builds cannot say: watched, but quiet.

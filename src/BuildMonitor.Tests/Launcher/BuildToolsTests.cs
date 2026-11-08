@@ -1,3 +1,4 @@
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
 /// <summary>
@@ -17,7 +18,9 @@ public class BuildToolsTests
                 _.GetCustomAttribute<McpServerToolAttribute>()!.Name,
                 _.GetCustomAttribute<DescriptionAttribute>()?.Description,
                 Parameters = _.GetParameters()
-                    .Where(_ => _.ParameterType != typeof(Cancel))
+                    // Bound by the SDK rather than given by the assistant, and absent from the schema.
+                    .Where(_ => _.ParameterType != typeof(Cancel) &&
+                                _.ParameterType != typeof(IProgress<ProgressNotificationValue>))
                     .Select(_ => new
                     {
                         _.Name,
@@ -29,10 +32,46 @@ public class BuildToolsTests
         return Verify(tools);
     }
 
+    /// <summary>
+    /// What the SDK binds itself, the cancellation and the progress reporter, stays out of the
+    /// input schema the surface above stands for: an assistant shown either would try to pass it.
+    /// </summary>
+    [Test]
+    public async Task TheInputSchemaHoldsOnlyWhatTheAssistantPasses()
+    {
+        var mismatched = new List<string>();
+        foreach (var method in methods)
+        {
+            var tool = McpServerTool.Create(
+                method,
+                _ => throw new InvalidOperationException(),
+                new()
+                {
+                    SerializerOptions = McpHost.ToolSerializerOptions
+                });
+            List<string> inSchema = [];
+            if (tool.ProtocolTool.InputSchema.TryGetProperty("properties", out var properties))
+            {
+                inSchema = [.. properties.EnumerateObject().Select(_ => _.Name)];
+            }
+
+            var passed = method.GetParameters()
+                .Where(_ => _.ParameterType != typeof(Cancel) &&
+                            _.ParameterType != typeof(IProgress<ProgressNotificationValue>))
+                .Select(_ => _.Name!);
+            if (!inSchema.SequenceEqual(passed))
+            {
+                mismatched.Add($"{tool.ProtocolTool.Name}: {string.Join(", ", inSchema)}");
+            }
+        }
+
+        await Assert.That(mismatched).IsEmpty();
+    }
+
     [Test]
     public async Task EveryToolIsDescribed()
     {
         await Assert.That(methods.All(_ => _.GetCustomAttribute<DescriptionAttribute>() is not null)).IsTrue();
-        await Assert.That(methods.Length).IsEqualTo(15);
+        await Assert.That(methods.Length).IsEqualTo(16);
     }
 }

@@ -68,6 +68,31 @@ sealed class BuildTools(MonitorTools tools)
         Cancel cancel = default) =>
         tools.DownloadArtifacts(key, cancel);
 
+    [McpServerTool(Name = "wait_for_build", ReadOnly = true, UseStructuredContent = true)]
+    [Description("Waits for a build to finish, then returns it as get_build does, so you can tell the user when it is done rather than checking back. Returns at once when it has already finished. Follows the run it started on: a newer run on the same branch starting meanwhile is not the one waited on. Right after a push or retry_build pass nextRun, since the tray shows the last run until it polls the new one. When the timeout passes first, timedOut is true and the build is as it stood: call again to keep waiting. Asks the tray every few seconds, which costs no calls to the CI service.")]
+    public Task<BuildWaitDto> WaitForBuild(
+        [Description("The build key from list_builds.")]
+        string key,
+        [Description("When the run the key shows has already finished, wait for the one after it instead of returning it: the run a push or retry_build just set off. A run still going is waited on either way. A pipeline that has been quiet is polled less often, so call refresh first after a push. Defaults to false.")]
+        bool nextRun = false,
+        [Description("How long to wait, in seconds, before returning with timedOut. Defaults to 600, at most 3600. Pass less where your client gives up on a tool call sooner.")]
+        int timeoutSeconds = 600,
+        IProgress<ProgressNotificationValue>? progress = null,
+        Cancel cancel = default) =>
+        tools.WaitForBuild(
+            key,
+            nextRun,
+            TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 0, 3600)),
+            // Seconds waited, which only grow, as a progress value must. The build's own progress
+            // is an estimate that can stall or step back.
+            (_, message) => progress?.Report(
+                new()
+                {
+                    Progress = (float) _.TotalSeconds,
+                    Message = message
+                }),
+            cancel);
+
     [McpServerTool(Name = "summary", ReadOnly = true, UseStructuredContent = true)]
     [Description("Counts of pipelines, of those whose own build on their default branch is failing, and of running builds on any branch, the tray icon state, and the health of every connection. Deferred counts the failures the user put off, which the failing count leaves out.")]
     public Task<SummaryDto> Summary(Cancel cancel = default) =>
@@ -79,7 +104,7 @@ sealed class BuildTools(MonitorTools tools)
         tools.ListConnections(cancel);
 
     [McpServerTool(Name = "refresh", Idempotent = true)]
-    [Description("Polls the CI services now rather than at the next interval. Returns as soon as the poll is asked for, before it has run, so list the builds again after a few seconds to see what it found. A running build is already polled often near when it should finish, so this is not needed to wait for one.")]
+    [Description("Polls the CI services now rather than at the next interval. Returns as soon as the poll is asked for, before it has run, so list the builds again after a few seconds to see what it found. A running build is already polled often near when it should finish, so this is not needed to wait for one: wait_for_build does that.")]
     public Task<string> Refresh(
         [Description("A connection id from list_connections, or empty for every connection.")]
         string? connectionId = null,

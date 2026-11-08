@@ -115,6 +115,139 @@ sealed class MonitorTools(IProtocolClient client)
     public Task<List<BuildDto>> ListRuns(string key, Cancel cancel) =>
         Read(new(Verb.Runs, key), DtoContext.Default.ListBuildDto, cancel);
 
+    /// <summary>
+    /// How often a wait asks the tray how the build stands. The tray answers from what it holds, so
+    /// asking costs no call to the CI service, and it polls a running build often near when it
+    /// should finish: asking more often would mostly read the same poll again.
+    /// </summary>
+    public TimeSpan WaitInterval { get; init; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Waits for a build to finish, so an assistant asked to say when it is done can answer then,
+    /// rather than listing it again and again, each list a turn of the user's.
+    /// <para>
+    /// The run is followed by its number, not its key. Runs on one branch share the key, so a push
+    /// that started the next run as this one finished would otherwise be waited on in its place. A
+    /// run the key no longer shows, and a pull request's run that passed, which leaves the list,
+    /// are found among the pipeline's runs instead.
+    /// </para>
+    /// <para>
+    /// With <paramref name="nextRun"/>, a run that had already finished is not the answer. Right
+    /// after a push or a retry the tray has not polled the new run yet and still shows the last one,
+    /// and an assistant handed that would report the push's result before it had run.
+    /// </para>
+    /// </summary>
+    /// <param name="waiting">Told how long the wait has run and what it is waiting on, before each pause.</param>
+    public async Task<BuildWaitDto> WaitForBuild(string key, bool nextRun, TimeSpan timeout, Action<TimeSpan, string>? waiting, Cancel cancel)
+    {
+        var watch = Stopwatch.StartNew();
+        var build = await Latest(key, cancel);
+        if (nextRun &&
+            !IsActive(build))
+        {
+            var last = build;
+            while (!IsAnotherRun(build, last))
+            {
+                if (!await Pause($"Waiting for the run after {last.Pipeline} {last.Run}", watch, timeout, waiting, cancel))
+                {
+                    return new(true, build);
+                }
+
+                build = await Latest(key, cancel);
+            }
+        }
+
+        var run = build.Run;
+        while (IsActive(build))
+        {
+            if (!await Pause($"{build.Pipeline} {build.Run}: {build.Status}, {build.Timing}", watch, timeout, waiting, cancel))
+            {
+                return new(true, build);
+            }
+
+            build = await Find(key, run, cancel);
+        }
+
+        return new(false, build);
+    }
+
+    static bool IsActive(BuildDto build) =>
+        build.Status is nameof(BuildStatus.Queued) or nameof(BuildStatus.Running);
+
+    /// <summary>
+    /// Whether the key now shows a run other than <paramref name="last"/>, which had finished: a new
+    /// number, or the same one going again or finished at another time, as a retry is on a service
+    /// that keeps the number. A run short enough to start and finish between two polls is seen only
+    /// by that.
+    /// </summary>
+    static bool IsAnotherRun(BuildDto build, BuildDto last) =>
+        build.Run != last.Run ||
+        IsActive(build) ||
+        build.Finished != last.Finished;
+
+    /// <summary>
+    /// False, without waiting, once the timeout has passed.
+    /// </summary>
+    async Task<bool> Pause(string message, Stopwatch watch, TimeSpan timeout, Action<TimeSpan, string>? waiting, Cancel cancel)
+    {
+        var waited = watch.Elapsed;
+        var left = timeout - waited;
+        if (left <= TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        waiting?.Invoke(waited, message);
+        await Task.Delay(left < WaitInterval ? left : WaitInterval, cancel);
+        return true;
+    }
+
+    /// <summary>
+    /// The run the key shows, or, where it shows none, the newest of the pipeline's runs on that
+    /// key: a pull request's run is listed only while it is running, queued or failed.
+    /// </summary>
+    async Task<BuildDto> Latest(string key, Cancel cancel)
+    {
+        if (await Shown(key, cancel) is { } shown)
+        {
+            return shown;
+        }
+
+        var runs = await ListRuns(key, cancel);
+        return runs.FirstOrDefault(_ => _.Key == key) ??
+               throw new InvalidOperationException($"No build with key {key}");
+    }
+
+    /// <summary>
+    /// One run of the key, by its number, whether or not it is still the run the key shows.
+    /// </summary>
+    async Task<BuildDto> Find(string key, string run, Cancel cancel)
+    {
+        if (await Shown(key, cancel) is { } shown &&
+            shown.Run == run)
+        {
+            return shown;
+        }
+
+        var runs = await ListRuns(key, cancel);
+        return runs.FirstOrDefault(_ => _.Key == key && _.Run == run) ??
+               throw new InvalidOperationException($"Run {run} of {key} is no longer held");
+    }
+
+    /// <summary>
+    /// The run the key shows, or null where it shows none.
+    /// </summary>
+    async Task<BuildDto?> Shown(string key, Cancel cancel)
+    {
+        var response = await client.Send(new(Verb.Get, key), cancel);
+        if (!response.Ok)
+        {
+            return null;
+        }
+
+        return response.Read(DtoContext.Default.BuildDto);
+    }
+
     public Task<List<PipelineDto>> ListPipelines(Cancel cancel) =>
         Read(new(Verb.Pipelines), DtoContext.Default.ListPipelineDto, cancel);
 

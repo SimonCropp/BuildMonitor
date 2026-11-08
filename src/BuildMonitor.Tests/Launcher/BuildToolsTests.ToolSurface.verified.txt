@@ -118,7 +118,7 @@
   },
   {
     Name: refresh,
-    Description: Polls the CI services now rather than at the next interval. Returns as soon as the poll is asked for, before it has run, so list the builds again after a few seconds to see what it found. A running build is already polled often near when it should finish, so this is not needed to wait for one.,
+    Description: Polls the CI services now rather than at the next interval. Returns as soon as the poll is asked for, before it has run, so list the builds again after a few seconds to see what it found. A running build is already polled often near when it should finish, so this is not needed to wait for one: wait_for_build does that.,
     Parameters: [
       {
         Name: connectionId,
@@ -153,5 +153,26 @@
     Name: summary,
     Description: Counts of pipelines, of those whose own build on their default branch is failing, and of running builds on any branch, the tray icon state, and the health of every connection. Deferred counts the failures the user put off, which the failing count leaves out.,
     Parameters: []
+  },
+  {
+    Name: wait_for_build,
+    Description: Waits for a build to finish, then returns it as get_build does, so you can tell the user when it is done rather than checking back. Returns at once when it has already finished. Follows the run it started on: a newer run on the same branch starting meanwhile is not the one waited on. Right after a push or retry_build pass nextRun, since the tray shows the last run until it polls the new one. When the timeout passes first, timedOut is true and the build is as it stood: call again to keep waiting. Asks the tray every few seconds, which costs no calls to the CI service.,
+    Parameters: [
+      {
+        Name: key,
+        Type: String,
+        Description: The build key from list_builds.
+      },
+      {
+        Name: nextRun,
+        Type: Boolean,
+        Description: When the run the key shows has already finished, wait for the one after it instead of returning it: the run a push or retry_build just set off. A run still going is waited on either way. A pipeline that has been quiet is polled less often, so call refresh first after a push. Defaults to false.
+      },
+      {
+        Name: timeoutSeconds,
+        Type: Int32,
+        Description: How long to wait, in seconds, before returning with timedOut. Defaults to 600, at most 3600. Pass less where your client gives up on a tool call sooner.
+      }
+    ]
   }
 ]

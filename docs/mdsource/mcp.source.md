@@ -153,9 +153,22 @@ The connections and whether polling them works. Never returns credentials.
  * "Why are no GitLab builds showing?"
 
 
+### `wait_for_build`
+
+Waits for a build to finish and returns it, with the same detail as `get_build`, so the assistant can say when it is done rather than checking back. A build that has already finished is returned at once. The wait follows the run it started on, by its number: a newer run on the same branch starting meanwhile is not the one waited on.
+
+Right after a push or a retry, the tray still shows the last run until it polls the new one. `nextRun` waits for the run after a finished one rather than returning it; a run still going is waited on either way. A pipeline that has been quiet is polled less often, so after a push a `refresh` first makes the new run show sooner.
+
+The wait asks the tray every five seconds, which answers from what it holds, so waiting costs no calls to the CI service. `timeoutSeconds` defaults to 600 and is capped at 3600; when it passes first, the build comes back as it stood with `timedOut` set, and calling again keeps waiting. Some clients give up on a tool call sooner, which a shorter timeout avoids. While it waits it sends progress notifications, each saying how the build stands, to a client that asked for them.
+
+ * "Tell me when the build on main finishes."
+ * "I've pushed, let me know if CI passes."
+ * "Retry the failed build and tell me how it goes."
+
+
 ### `refresh`
 
-Polls now rather than waiting for the next interval, for every connection or only one. It returns before the poll has run, so the builds change a few seconds later. A running build is already polled often near when it should finish, so refreshing is not needed to wait for one. A refresh fetches every repository, project or pipeline of the connections it covers, where the schedule fetches only those that are due.
+Polls now rather than waiting for the next interval, for every connection or only one. It returns before the poll has run, so the builds change a few seconds later. A running build is already polled often near when it should finish, so refreshing is not needed to wait for one: `wait_for_build` does that. A refresh fetches every repository, project or pipeline of the connections it covers, where the schedule fetches only those that are due.
 
  * "Check the builds again."
  * "I've pushed a fix, refresh GitHub."
