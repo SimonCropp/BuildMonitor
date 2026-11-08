@@ -42,13 +42,10 @@ static class McpHost
                     Version = VersionReader.VersionString
                 };
                 _.ServerInstructions = McpInstructions.Text;
+                ErrorRelay.AddTo(_.Filters.Request);
             })
             .WithStdioServerTransport()
-            .WithRequestFilters(_ =>
-            {
-                _.AddCallToolFilter(collector.After);
-                _.AddCallToolFilter(ToolErrors.Relay);
-            })
+            .WithRequestFilters(_ => _.AddCallToolFilter(collector.After))
             .WithTools<BuildTools>(ToolSerializerOptions)
             .WithPrompts<BuildPrompts>();
         await builder.Build().RunAsync(cancel);
