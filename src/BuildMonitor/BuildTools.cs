@@ -69,7 +69,7 @@ sealed class BuildTools(MonitorTools tools)
         tools.DownloadArtifacts(key, cancel);
 
     [McpServerTool(Name = "wait_for_build", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Waits for a build to finish, then returns it as get_build does, so you can tell the user when it is done rather than checking back. Returns at once when it has already finished. Follows the run it started on: a newer run on the same branch starting meanwhile is not the one waited on. Right after a push or retry_build pass nextRun, since the tray shows the last run until it polls the new one. Pass wholePush to wait for every pipeline the push started, not only this one. When the timeout passes first, timedOut is true and the build is as it stood: call again to keep waiting. Asks the tray every few seconds, which costs no calls to the CI service.")]
+    [Description("Waits for a build to finish, then returns it as get_build does, so you can tell the user when it is done rather than checking back. Returns at once when it has already finished. Follows the run it started on: a newer run on the same branch starting meanwhile is not the one waited on. Right after a push or retry_build pass nextRun, since the tray shows the last run until it polls the new one. Pass wholePush to wait for every pipeline the push started, not only this one, and stopOnFailure as well to hear of the first failure without waiting for the rest. When the timeout passes first, timedOut is true and the build is as it stood: call again to keep waiting. Asks the tray every few seconds, which costs no calls to the CI service.")]
     public Task<BuildWaitDto> WaitForBuild(
         [Description("The build key from list_builds.")]
         string key,
@@ -77,6 +77,8 @@ sealed class BuildTools(MonitorTools tools)
         bool nextRun = false,
         [Description("Wait for every run of the push this run was part of, each pipeline of its repository that ran the same commit on the same branch, rather than this run alone, and list them all in pushRuns: what \"did my push pass?\" asks about. Fails for a build whose service reports no commit. Defaults to false.")]
         bool wholePush = false,
+        [Description("With wholePush, return as soon as any run of the push fails, with the rest as they stood, rather than once they have all finished: you can start on the failure while the others run. A cancelled run is not a failure. Defaults to false; means nothing without wholePush, since a failure ends a wait on one run anyway.")]
+        bool stopOnFailure = false,
         [Description("How long to wait, in seconds, before returning with timedOut. Defaults to 600, at most 3600. Pass less where your client gives up on a tool call sooner.")]
         int timeoutSeconds = 600,
         IProgress<ProgressNotificationValue>? progress = null,
@@ -84,7 +86,7 @@ sealed class BuildTools(MonitorTools tools)
         tools.WaitForBuild(
             key,
             nextRun,
-            wholePush,
+            Scope(wholePush, stopOnFailure),
             TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 0, 3600)),
             // Seconds waited, which only grow, as a progress value must. The build's own progress
             // is an estimate that can stall or step back.
@@ -95,6 +97,21 @@ sealed class BuildTools(MonitorTools tools)
                     Message = message
                 }),
             cancel);
+
+    static WaitScope Scope(bool wholePush, bool stopOnFailure)
+    {
+        if (!wholePush)
+        {
+            return WaitScope.Run;
+        }
+
+        if (stopOnFailure)
+        {
+            return WaitScope.PushUntilFailure;
+        }
+
+        return WaitScope.Push;
+    }
 
     [McpServerTool(Name = "summary", ReadOnly = true, UseStructuredContent = true)]
     [Description("Counts of pipelines, of those whose own build on their default branch is failing, and of running builds on any branch, the tray icon state, and the health of every connection. Deferred counts the failures the user put off, which the failing count leaves out.")]

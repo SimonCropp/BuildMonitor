@@ -139,7 +139,7 @@ public class WaitForBuildTests
     {
         var (tools, _) = Create();
         var said = new List<string>();
-        var result = await tools.WaitForBuild(inline, false, false, timeout, Steps(said), Cancel.None);
+        var result = await tools.WaitForBuild(inline, false, WaitScope.Run, timeout, Steps(said), Cancel.None);
         await Assert.That(result.TimedOut).IsFalse();
         await Assert.That(result.Build.Run).IsEqualTo("77");
         await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Failed));
@@ -154,7 +154,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             diffEngine,
             false,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 said,
@@ -182,7 +182,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             diffEngine,
             false,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 [],
@@ -209,7 +209,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             dependabot,
             false,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 [],
@@ -226,7 +226,7 @@ public class WaitForBuildTests
     {
         var (tools, _) = Create();
         var said = new List<string>();
-        var result = await tools.WaitForBuild(diffEngine, false, false, TimeSpan.Zero, Steps(said), Cancel.None);
+        var result = await tools.WaitForBuild(diffEngine, false, WaitScope.Run, TimeSpan.Zero, Steps(said), Cancel.None);
         await Assert.That(result.TimedOut).IsTrue();
         await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Running));
         await Assert.That(said).IsEmpty();
@@ -238,7 +238,7 @@ public class WaitForBuildTests
         var (tools, _) = Create();
         using var source = new CancelSource();
         await source.CancelAsync();
-        await Assert.That(async () => await tools.WaitForBuild(diffEngine, false, false, timeout, null, source.Token))
+        await Assert.That(async () => await tools.WaitForBuild(diffEngine, false, WaitScope.Run, timeout, null, source.Token))
             .Throws<OperationCanceledException>();
     }
 
@@ -254,7 +254,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             verifyMain,
             true,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 said,
@@ -279,7 +279,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             inline,
             true,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 [],
@@ -308,7 +308,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             inline,
             true,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 [],
@@ -329,7 +329,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             diffEngine,
             true,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 [],
@@ -347,7 +347,7 @@ public class WaitForBuildTests
     public async Task NextRunTimesOutWithTheLastRunFlagged()
     {
         var (tools, _) = Create();
-        var result = await tools.WaitForBuild(inline, true, false, TimeSpan.Zero, Steps([]), Cancel.None);
+        var result = await tools.WaitForBuild(inline, true, WaitScope.Run, TimeSpan.Zero, Steps([]), Cancel.None);
         await Assert.That(result.TimedOut).IsTrue();
         await Assert.That(result.Build.Run).IsEqualTo("77");
         await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Failed));
@@ -364,7 +364,7 @@ public class WaitForBuildTests
         await tools.WaitForBuild(
             inline,
             true,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 [],
@@ -382,11 +382,11 @@ public class WaitForBuildTests
     public async Task OnlyNextRunPastAFinishedRunAsksForAPoll()
     {
         var (tools, host, client) = CreateWithClient();
-        await tools.WaitForBuild(inline, false, false, timeout, Steps([]), Cancel.None);
+        await tools.WaitForBuild(inline, false, WaitScope.Run, timeout, Steps([]), Cancel.None);
         await tools.WaitForBuild(
             diffEngine,
             true,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 [],
@@ -415,7 +415,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             inline,
             true,
-            false,
+            WaitScope.Run,
             timeout,
             Steps(
                 [],
@@ -454,7 +454,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             diffEngine,
             false,
-            true,
+            WaitScope.Push,
             timeout,
             Steps(
                 said,
@@ -489,7 +489,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             diffEngine,
             false,
-            true,
+            WaitScope.Push,
             timeout,
             Steps(
                 said,
@@ -511,7 +511,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             diffEngine,
             false,
-            true,
+            WaitScope.Push,
             timeout,
             Steps(
                 [],
@@ -545,7 +545,7 @@ public class WaitForBuildTests
             {
                 StatusText = "action_required"
             });
-        var result = await tools.WaitForBuild(diffEngine, false, true, TimeSpan.Zero, Steps([]), Cancel.None);
+        var result = await tools.WaitForBuild(diffEngine, false, WaitScope.Push, TimeSpan.Zero, Steps([]), Cancel.None);
         await Assert.That(Runs(result)).IsEquivalentTo(
         [
             ("gh/DiffEngine/approve.yml/main", "7", nameof(BuildStatus.Unknown)),
@@ -568,7 +568,7 @@ public class WaitForBuildTests
             StatusText = "skipped",
             Finished = Fixtures.Now
         });
-        var result = await tools.WaitForBuild(diffEngine, false, true, timeout, Steps([]), Cancel.None);
+        var result = await tools.WaitForBuild(diffEngine, false, WaitScope.Push, timeout, Steps([]), Cancel.None);
         await Assert.That(result.TimedOut).IsFalse();
         await Assert.That(Runs(result)).IsEquivalentTo(
         [
@@ -576,12 +576,107 @@ public class WaitForBuildTests
         ]);
     }
 
+    /// <summary>
+    /// The first failure is the answer: the wait ends there, with the rest as they stood, rather
+    /// than holding it back until the slowest run is done.
+    /// </summary>
+    [Test]
+    public async Task StopOnFailureReturnsAtTheFirstFailure()
+    {
+        var (tools, host) = Create();
+        Add(host, DiffEngine("docs.yml", "main", "301", BuildStatus.Running, commit));
+        var said = new List<string>();
+        var result = await tools.WaitForBuild(
+            diffEngine,
+            false,
+            WaitScope.PushUntilFailure,
+            timeout,
+            Steps(
+                said,
+                () => Finish(host, docs, "301", BuildStatus.Failed)),
+            Cancel.None);
+        await Assert.That(said.Count).IsEqualTo(1);
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Running));
+        await Assert.That(Runs(result)).IsEquivalentTo(
+        [
+            (docs, "301", nameof(BuildStatus.Failed)),
+            (diffEngine, "1234", nameof(BuildStatus.Running))
+        ]);
+    }
+
+    /// <summary>
+    /// A push that had failed already when the wait began is answered at once, as a finished run is.
+    /// </summary>
+    [Test]
+    public async Task StopOnFailureAnswersAPushThatHadFailedAtOnce()
+    {
+        var (tools, host) = Create();
+        Add(host, DiffEngine("docs.yml", "main", "301", BuildStatus.Failed, commit));
+        var said = new List<string>();
+        var result = await tools.WaitForBuild(diffEngine, false, WaitScope.PushUntilFailure, timeout, Steps(said), Cancel.None);
+        await Assert.That(said).IsEmpty();
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(result.PushRuns!.Count(_ => _.Status == nameof(BuildStatus.Failed))).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// With nothing failing, it waits for every run, as a whole push does. A cancelled run, cancelled
+    /// for a newer push or by hand, is not a failure of this one.
+    /// </summary>
+    [Test]
+    public async Task StopOnFailureWaitsForEveryRunWhenNoneFails()
+    {
+        var (tools, host) = Create();
+        Add(host, DiffEngine("docs.yml", "main", "301", BuildStatus.Running, commit));
+        var said = new List<string>();
+        var result = await tools.WaitForBuild(
+            diffEngine,
+            false,
+            WaitScope.PushUntilFailure,
+            timeout,
+            Steps(
+                said,
+                () => Finish(host, docs, "301", BuildStatus.Cancelled),
+                () => Finish(host, diffEngine, "1234", BuildStatus.Succeeded)),
+            Cancel.None);
+        await Assert.That(said.Count).IsEqualTo(2);
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(Runs(result)).IsEquivalentTo(
+        [
+            (docs, "301", nameof(BuildStatus.Cancelled)),
+            (diffEngine, "1234", nameof(BuildStatus.Succeeded))
+        ]);
+    }
+
+    /// <summary>
+    /// Without stopping on failure, a failure is one more finished run, and the wait goes on.
+    /// </summary>
+    [Test]
+    public async Task WholePushGoesOnPastAFailure()
+    {
+        var (tools, host) = Create();
+        Add(host, DiffEngine("docs.yml", "main", "301", BuildStatus.Failed, commit));
+        var said = new List<string>();
+        var result = await tools.WaitForBuild(
+            diffEngine,
+            false,
+            WaitScope.Push,
+            timeout,
+            Steps(
+                said,
+                () => Finish(host, diffEngine, "1234", BuildStatus.Succeeded)),
+            Cancel.None);
+        await Assert.That(said.Count).IsEqualTo(1);
+        await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Succeeded));
+    }
+
     [Test]
     public async Task WholePushTimesOutWithEveryRunAsItStood()
     {
         var (tools, host) = Create();
         Add(host, DiffEngine("docs.yml", "main", "301", BuildStatus.Running, commit));
-        var result = await tools.WaitForBuild(diffEngine, false, true, TimeSpan.Zero, Steps([]), Cancel.None);
+        var result = await tools.WaitForBuild(diffEngine, false, WaitScope.Push, TimeSpan.Zero, Steps([]), Cancel.None);
         await Assert.That(result.TimedOut).IsTrue();
         await Assert.That(Runs(result)).IsEquivalentTo(
         [
@@ -601,7 +696,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             verifyMain,
             true,
-            true,
+            WaitScope.Push,
             timeout,
             Steps(
                 said,
@@ -639,7 +734,7 @@ public class WaitForBuildTests
     public async Task WholePushNeedsACommit()
     {
         var (tools, _) = Create();
-        var exception = await Assert.That(async () => await tools.WaitForBuild(inline, false, true, timeout, null, Cancel.None))
+        var exception = await Assert.That(async () => await tools.WaitForBuild(inline, false, WaitScope.Push, timeout, null, Cancel.None))
             .Throws<InvalidOperationException>();
         await Assert.That(exception!.Message).IsEqualTo($"Run 77 of {inline} has no commit, so the runs of its push cannot be told apart");
     }
@@ -661,7 +756,7 @@ public class WaitForBuildTests
 
                 return null;
             });
-        var exception = await Assert.That(async () => await tools.WaitForBuild(diffEngine, false, true, timeout, null, Cancel.None))
+        var exception = await Assert.That(async () => await tools.WaitForBuild(diffEngine, false, WaitScope.Push, timeout, null, Cancel.None))
             .Throws<InvalidOperationException>();
         await Assert.That(exception!.Message).StartsWith("The tray running is older than this server");
     }
@@ -679,7 +774,7 @@ public class WaitForBuildTests
     public async Task AnUnknownKeyFails()
     {
         var (tools, _) = Create();
-        await Assert.That(async () => await tools.WaitForBuild("gh/Nope/test.yml/main", false, false, timeout, null, Cancel.None))
+        await Assert.That(async () => await tools.WaitForBuild("gh/Nope/test.yml/main", false, WaitScope.Run, timeout, null, Cancel.None))
             .Throws<InvalidOperationException>();
     }
 }

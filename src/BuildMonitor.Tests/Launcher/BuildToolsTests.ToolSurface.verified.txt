@@ -156,7 +156,7 @@
   },
   {
     Name: wait_for_build,
-    Description: Waits for a build to finish, then returns it as get_build does, so you can tell the user when it is done rather than checking back. Returns at once when it has already finished. Follows the run it started on: a newer run on the same branch starting meanwhile is not the one waited on. Right after a push or retry_build pass nextRun, since the tray shows the last run until it polls the new one. Pass wholePush to wait for every pipeline the push started, not only this one. When the timeout passes first, timedOut is true and the build is as it stood: call again to keep waiting. Asks the tray every few seconds, which costs no calls to the CI service.,
+    Description: Waits for a build to finish, then returns it as get_build does, so you can tell the user when it is done rather than checking back. Returns at once when it has already finished. Follows the run it started on: a newer run on the same branch starting meanwhile is not the one waited on. Right after a push or retry_build pass nextRun, since the tray shows the last run until it polls the new one. Pass wholePush to wait for every pipeline the push started, not only this one, and stopOnFailure as well to hear of the first failure without waiting for the rest. When the timeout passes first, timedOut is true and the build is as it stood: call again to keep waiting. Asks the tray every few seconds, which costs no calls to the CI service.,
     Parameters: [
       {
         Name: key,
@@ -172,6 +172,11 @@
         Name: wholePush,
         Type: Boolean,
         Description: Wait for every run of the push this run was part of, each pipeline of its repository that ran the same commit on the same branch, rather than this run alone, and list them all in pushRuns: what "did my push pass?" asks about. Fails for a build whose service reports no commit. Defaults to false.
+      },
+      {
+        Name: stopOnFailure,
+        Type: Boolean,
+        Description: With wholePush, return as soon as any run of the push fails, with the rest as they stood, rather than once they have all finished: you can start on the failure while the others run. A cancelled run is not a failure. Defaults to false; means nothing without wholePush, since a failure ends a wait on one run anyway.
       },
       {
         Name: timeoutSeconds,

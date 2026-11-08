@@ -141,12 +141,12 @@ sealed class MonitorTools(IProtocolClient client)
     /// connection for this one.
     /// </para>
     /// <para>
-    /// With <paramref name="wholePush"/>, the wait is for every run of the push that run was part
-    /// of, across the repository's pipelines: see <see cref="WaitForPush"/>.
+    /// With a <paramref name="scope"/> of a push, the wait is for every run of the push that run
+    /// was part of, across the repository's pipelines: see <see cref="WaitForPush"/>.
     /// </para>
     /// </summary>
     /// <param name="waiting">Told how long the wait has run and what it is waiting on, before each pause.</param>
-    public async Task<BuildWaitDto> WaitForBuild(string key, bool nextRun, bool wholePush, TimeSpan timeout, Action<TimeSpan, string>? waiting, Cancel cancel)
+    public async Task<BuildWaitDto> WaitForBuild(string key, bool nextRun, WaitScope scope, TimeSpan timeout, Action<TimeSpan, string>? waiting, Cancel cancel)
     {
         var watch = Stopwatch.StartNew();
         var build = await Latest(key, cancel);
@@ -168,9 +168,9 @@ sealed class MonitorTools(IProtocolClient client)
             }
         }
 
-        if (wholePush)
+        if (scope != WaitScope.Run)
         {
-            return await WaitForPush(key, build, watch, timeout, waiting, cancel);
+            return await WaitForPush(key, build, scope == WaitScope.PushUntilFailure, watch, timeout, waiting, cancel);
         }
 
         var run = build.Run;
@@ -196,12 +196,18 @@ sealed class MonitorTools(IProtocolClient client)
     /// pipelines are not all polled at once, so one can show up after another has finished, and a
     /// wait that had counted only the first would end before it.
     /// </para>
+    /// <para>
+    /// With <paramref name="untilFailure"/> it ends at the first failure too, with the rest as they
+    /// stood, so an assistant can start on the failure while the other runs go on. A push that had
+    /// failed already when the wait began is answered at once, as a finished run is.
+    /// </para>
     /// </summary>
-    async Task<BuildWaitDto> WaitForPush(string key, BuildDto build, Stopwatch watch, TimeSpan timeout, Action<TimeSpan, string>? waiting, Cancel cancel)
+    async Task<BuildWaitDto> WaitForPush(string key, BuildDto build, bool untilFailure, Stopwatch watch, TimeSpan timeout, Action<TimeSpan, string>? waiting, Cancel cancel)
     {
         var run = build.Run;
         var runs = await PushRuns(key, run, cancel);
-        while (runs.Any(IsActive))
+        while (runs.Any(IsActive) &&
+               !(untilFailure && runs.Any(IsFailed)))
         {
             var finished = runs.Count(_ => !IsActive(_));
             if (!await Pause($"{finished} of {runs.Count} runs of {build.Repo} at {Short(build.Commit)} finished", watch, timeout, waiting, cancel))
@@ -252,6 +258,13 @@ sealed class MonitorTools(IProtocolClient client)
 
     static bool IsActive(BuildDto build) =>
         build.Status is nameof(BuildStatus.Queued) or nameof(BuildStatus.Running);
+
+    /// <summary>
+    /// Failed, and not cancelled: a run cancelled for a newer push, or by hand, says nothing about
+    /// whether this one passes.
+    /// </summary>
+    static bool IsFailed(BuildDto build) =>
+        build.Status == nameof(BuildStatus.Failed);
 
     /// <summary>
     /// Whether the key now shows a run other than <paramref name="last"/>, which had finished: a new
