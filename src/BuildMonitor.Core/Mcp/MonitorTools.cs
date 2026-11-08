@@ -134,7 +134,11 @@ sealed class MonitorTools(IProtocolClient client)
     /// <para>
     /// With <paramref name="nextRun"/>, a run that had already finished is not the answer. Right
     /// after a push or a retry the tray has not polled the new run yet and still shows the last one,
-    /// and an assistant handed that would report the push's result before it had run.
+    /// and an assistant handed that would report the push's result before it had run. The tray is
+    /// asked to poll that pipeline now and often for a few minutes, as a retry from the window
+    /// does: a pipeline that had been quiet is otherwise polled rarely, and the wait sat until it
+    /// was, unless the assistant remembered a refresh, which fetches every pipeline of the
+    /// connection for this one.
     /// </para>
     /// </summary>
     /// <param name="waiting">Told how long the wait has run and what it is waiting on, before each pause.</param>
@@ -145,6 +149,9 @@ sealed class MonitorTools(IProtocolClient client)
         if (nextRun &&
             !IsActive(build))
         {
+            // The answer goes unread. A tray older than the verb refuses it as unreadable, and
+            // the wait still works, only as slowly as it did before there was a nudge.
+            await client.Send(new(Verb.Nudge, key), cancel);
             var last = build;
             while (!IsAnotherRun(build, last))
             {

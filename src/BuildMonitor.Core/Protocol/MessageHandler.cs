@@ -61,6 +61,17 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
 
                 poller.Refresh(string.IsNullOrEmpty(message.Key) ? null : message.Key);
                 return Response.Success();
+            case Verb.Nudge:
+            {
+                // Refused for the same reason as a mistyped connection id.
+                if (Resolve(state, message.Key) is not { } build)
+                {
+                    return Response.Error($"No build with key {message.Key}");
+                }
+
+                poller.Nudge(build);
+                return Response.Success();
+            }
             case Verb.Retry:
             case Verb.Cancel:
             case Verb.RunNext:

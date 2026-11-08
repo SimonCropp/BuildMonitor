@@ -164,7 +164,7 @@ The connections and whether polling them works. Never returns credentials.
 
 Waits for a build to finish and returns it, with the same detail as `get_build`, so the assistant can say when it is done rather than checking back. A build that has already finished is returned at once. The wait follows the run it started on, by its number: a newer run on the same branch starting meanwhile is not the one waited on.
 
-Right after a push or a retry, the tray still shows the last run until it polls the new one. `nextRun` waits for the run after a finished one rather than returning it; a run still going is waited on either way. A pipeline that has been quiet is polled less often, so after a push a `refresh` first makes the new run show sooner.
+Right after a push or a retry, the tray still shows the last run until it polls the new one. `nextRun` waits for the run after a finished one rather than returning it; a run still going is waited on either way. It also asks the tray to poll that one pipeline now and then at the poll interval for three minutes, as a retry from the window does, so a pipeline that has been quiet shows the new run without a `refresh`, which would fetch every pipeline on the connection.
 
 The wait asks the tray every five seconds, which answers from what it holds, so waiting costs no calls to the CI service. `timeoutSeconds` defaults to 600 and is capped at 3600; when it passes first, the build comes back as it stood with `timedOut` set, and calling again keeps waiting. Some clients give up on a tool call sooner, which a shorter timeout avoids. While it waits it sends progress notifications, each saying how the build stands, to a client that asked for them.
 

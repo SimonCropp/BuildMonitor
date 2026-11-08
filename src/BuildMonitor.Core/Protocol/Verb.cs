@@ -15,6 +15,8 @@ enum Verb
     Runs,
     // Poll now: a connection id, or everything.
     Refresh,
+    // Poll one build's pipeline now and often for a few minutes, as after a retry: a build key.
+    Nudge,
     Retry,
     Cancel,
     // Move a queued build to the front of its service's queue.

@@ -73,11 +73,11 @@ sealed class Poller(
     }
 
     /// <summary>
-    /// After a retry or a cancel only that build's group needs fetching, soon and for a few minutes
-    /// after; a refresh would fetch every group for one change. A poller that never started, as in
-    /// some tests, has nothing to nudge.
+    /// After a retry, a cancel or a push only that build's group needs fetching, soon and for a
+    /// few minutes after; a refresh would fetch every group for one change. A poller that never
+    /// started, as in some tests, has nothing to nudge.
     /// </summary>
-    void Nudge(Build build)
+    public void Nudge(Build build)
     {
         if (pollers.TryGetValue(build.ConnectionId, out var poller))
         {

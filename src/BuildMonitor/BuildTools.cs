@@ -73,7 +73,7 @@ sealed class BuildTools(MonitorTools tools)
     public Task<BuildWaitDto> WaitForBuild(
         [Description("The build key from list_builds.")]
         string key,
-        [Description("When the run the key shows has already finished, wait for the one after it instead of returning it: the run a push or retry_build just set off. A run still going is waited on either way. A pipeline that has been quiet is polled less often, so call refresh first after a push. Defaults to false.")]
+        [Description("When the run the key shows has already finished, wait for the one after it instead of returning it: the run a push or retry_build just set off. A run still going is waited on either way. The tray is asked to poll that pipeline now, so a pipeline that has been quiet needs no refresh first. Defaults to false.")]
         bool nextRun = false,
         [Description("How long to wait, in seconds, before returning with timedOut. Defaults to 600, at most 3600. Pass less where your client gives up on a tool call sooner.")]
         int timeoutSeconds = 600,

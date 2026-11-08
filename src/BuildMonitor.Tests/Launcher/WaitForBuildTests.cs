@@ -15,6 +15,12 @@ public class WaitForBuildTests
 
     static (MonitorTools Tools, SessionHost Host) Create(SessionState? state = null)
     {
+        var (tools, host, _) = CreateWithClient(state);
+        return (tools, host);
+    }
+
+    static (MonitorTools Tools, SessionHost Host, InProcessClient Client) CreateWithClient(SessionState? state = null, Func<Message, Response?>? answer = null)
+    {
         var host = new SessionHost(state ?? Fixtures.WithBuilds());
         var poller = new Poller(host, new MemorySecretStore(), new(), new FakeHttpHandler());
         var handler = new MessageHandler(
@@ -28,12 +34,18 @@ public class WaitForBuildTests
             },
             new(),
             () => Fixtures.Now);
-        var tools = new MonitorTools(new InProcessClient(handler))
+        var client = new InProcessClient(handler, answer);
+        var tools = new MonitorTools(client)
         {
             WaitInterval = TimeSpan.Zero
         };
-        return (tools, host);
+        return (tools, host, client);
     }
+
+    static IEnumerable<string> Nudged(InProcessClient client) =>
+        client.Sent
+            .Where(_ => _.Verb == Verb.Nudge)
+            .Select(_ => _.Key ?? "");
 
     /// <summary>
     /// The callback a wait is handed: before its Nth pause it runs the Nth step, and records what
@@ -303,6 +315,87 @@ public class WaitForBuildTests
         await Assert.That(result.TimedOut).IsTrue();
         await Assert.That(result.Build.Run).IsEqualTo("77");
         await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Failed));
+    }
+
+    /// <summary>
+    /// Waiting past a finished run asks the tray to poll that pipeline, once: a pipeline that had
+    /// been quiet would otherwise not be polled for a while, and the wait would sit until it was.
+    /// </summary>
+    [Test]
+    public async Task NextRunAsksTheTrayToPollThePipeline()
+    {
+        var (tools, host, client) = CreateWithClient();
+        await tools.WaitForBuild(
+            inline,
+            true,
+            timeout,
+            Steps(
+                [],
+                Nothing,
+                () => Finish(host, inline, "77", BuildStatus.Succeeded)),
+            Cancel.None);
+        await Assert.That(Nudged(client)).IsEquivalentTo([inline]);
+    }
+
+    /// <summary>
+    /// A run that is going is polled often near when it should finish already, and a finished one
+    /// waited on without nextRun is answered at once.
+    /// </summary>
+    [Test]
+    public async Task OnlyNextRunPastAFinishedRunAsksForAPoll()
+    {
+        var (tools, host, client) = CreateWithClient();
+        await tools.WaitForBuild(inline, false, timeout, Steps([]), Cancel.None);
+        await tools.WaitForBuild(
+            diffEngine,
+            true,
+            timeout,
+            Steps(
+                [],
+                () => Finish(host, diffEngine, "1234", BuildStatus.Succeeded)),
+            Cancel.None);
+        await Assert.That(Nudged(client)).IsEmpty();
+    }
+
+    /// <summary>
+    /// A tray older than the verb answers it as unreadable. The wait goes on, only as slowly as it
+    /// did before there was a nudge.
+    /// </summary>
+    [Test]
+    public async Task ATrayThatRefusesTheNudgeStillAnswersTheWait()
+    {
+        var (tools, host, client) = CreateWithClient(
+            answer: _ =>
+            {
+                if (_.Verb == Verb.Nudge)
+                {
+                    return Response.Error("Unreadable message");
+                }
+
+                return null;
+            });
+        var result = await tools.WaitForBuild(
+            inline,
+            true,
+            timeout,
+            Steps(
+                [],
+                () => Finish(host, inline, "77", BuildStatus.Succeeded)),
+            Cancel.None);
+        await Assert.That(Nudged(client)).IsEquivalentTo([inline]);
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Succeeded));
+    }
+
+    [Test]
+    public async Task TheTrayRefusesANudgeForABuildItDoesNotHave()
+    {
+        var (_, _, client) = CreateWithClient();
+        var known = await client.Send(new(Verb.Nudge, inline), Cancel.None);
+        var unknown = await client.Send(new(Verb.Nudge, "gh/Nope/test.yml/main"), Cancel.None);
+        await Assert.That(known.Ok).IsTrue();
+        await Assert.That(unknown.Ok).IsFalse();
+        await Assert.That(unknown.Body).IsEqualTo("No build with key gh/Nope/test.yml/main");
     }
 
     [Test]
