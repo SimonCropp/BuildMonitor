@@ -14,9 +14,12 @@ sealed class JenkinsProvider : ProviderBase
     const string buildFields = "number,url,result,building,timestamp,duration";
     // The parameters a build was started with, one of which may say who the run is for.
     const string parameterFields = $"parameters[name,value]{{0,{parameterLimit}}}";
-    // What the git plugin recorded, the only branch a job outside a multibranch project has. Both
-    // live in the build's actions, asked for as one selector rather than two of the same name.
-    const string revisionFields = "lastBuiltRevision[branch[name]]";
+    // What the git plugin recorded: the commit it built, and the only branch a job outside a
+    // multibranch project has. Both live in the build's actions, asked for as one selector rather
+    // than two of the same name.
+    const string revisionFields = "lastBuiltRevision[SHA1,branch[name]]";
+    // The commit alone, for a branch of a multibranch project, which is named for its branch.
+    const string commitFields = "lastBuiltRevision[SHA1]";
 
     /// <summary>
     /// How many of a build's parameters are read, which is only ever for the one this looks for.
@@ -153,9 +156,9 @@ sealed class JenkinsProvider : ProviderBase
         var builds = new List<Build>();
         foreach (var pipeline in pipelines)
         {
-            // A branch of a multibranch project is named for its branch, so it does not ask what the
-            // git plugin recorded.
-            var actions = pipeline.Group is null ? $"actions[{revisionFields},{parameterFields}]" : $"actions[{parameterFields}]";
+            // A branch of a multibranch project is named for its branch, so it asks the git plugin
+            // only for the commit.
+            var actions = pipeline.Group is null ? $"actions[{revisionFields},{parameterFields}]" : $"actions[{commitFields},{parameterFields}]";
             var fields = $"{buildFields},{actions}";
             // A job deleted since discovery answers with a 404, which would fail the whole fetch;
             // it has no builds until the next discovery drops it.
@@ -238,15 +241,21 @@ sealed class JenkinsProvider : ProviderBase
         var finished = build.Building || started is null || build.Duration is null
             ? null
             : started + TimeSpan.FromMilliseconds(build.Duration.Value);
+        // The branch and the commit come from the one record, so they cannot name two checkouts.
+        // A build that checked out more than one repository has a record for each, and the first
+        // is taken, as it was for the branch before the commit was read. Without the commit, a
+        // build's push could not be told from the next, so a wait for a whole push refused every
+        // Jenkins build.
         var revision = build.Actions?
-            .Select(_ => _.LastBuiltRevision?.Branch?.FirstOrDefault()?.Name)
-            .FirstOrDefault(_ => _ is not null);
+            .Select(_ => _.LastBuiltRevision)
+            .FirstOrDefault(_ => _ is not null &&
+                                 (_.Sha1 is { Length: > 0 } || _.Branch is { Count: > 0 }));
         return new(
             context.Connection.Id,
             pipeline.Id,
             pipeline.Name,
             pipeline.RepoName,
-            Branch(pipeline, revision),
+            Branch(pipeline, revision?.Branch?.FirstOrDefault()?.Name),
             build.Number.ToString(),
             status,
             build.Building ? "building" : build.Result?.ToLowerInvariant(),
@@ -258,13 +267,28 @@ sealed class JenkinsProvider : ProviderBase
             null,
             PullRequest(pipeline),
             null,
-            null,
+            Commit(revision),
             null,
             Author(context, build),
             CanRetry: !build.Building,
             CanCancel: build.Building,
             Join(pipeline.Url, build.Number.ToString()),
             pipeline.Url);
+    }
+
+    /// <summary>
+    /// The commit the git plugin built, or null. It exports an empty one rather than none for a
+    /// revision without a commit, which a row's tooltip showed as a blank and a push read as a
+    /// commit every such build shared.
+    /// </summary>
+    static string? Commit(JenkinsRevision? revision)
+    {
+        if (revision?.Sha1 is { Length: > 0 } sha)
+        {
+            return sha;
+        }
+
+        return null;
     }
 
     /// <summary>

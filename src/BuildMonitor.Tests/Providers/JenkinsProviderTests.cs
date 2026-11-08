@@ -20,7 +20,7 @@ public class JenkinsProviderTests
                 $"{server}/job/build-all/api/json",
                 """
                 {"builds":[
-                  {"number":501,"url":"https://jenkins.example.com/job/build-all/501/","result":null,"building":true,"timestamp":1767268500000,"duration":0,"actions":[{},{"lastBuiltRevision":{"branch":[{"name":"refs/remotes/origin/main"}]}}]},
+                  {"number":501,"url":"https://jenkins.example.com/job/build-all/501/","result":null,"building":true,"timestamp":1767268500000,"duration":0,"actions":[{},{"lastBuiltRevision":{"SHA1":"4a5b6c7d8e9f00112233445566778899aabbccdd","branch":[{"name":"refs/remotes/origin/main"}]}}]},
                   {"number":500,"url":"https://jenkins.example.com/job/build-all/500/","result":"SUCCESS","building":false,"timestamp":1767264900000,"duration":290000,"actions":[]}
                 ],"lastBuild":{"number":501,"estimatedDuration":300000},"inQueue":false,"queueItem":null}
                 """)
@@ -28,7 +28,7 @@ public class JenkinsProviderTests
                 $"{server}/job/team/job/app/job/PR-12/api/json",
                 """
                 {"builds":[
-                  {"number":3,"url":"https://jenkins.example.com/job/team/job/app/job/PR-12/3/","result":"FAILURE","building":false,"timestamp":1767261300000,"duration":60000}
+                  {"number":3,"url":"https://jenkins.example.com/job/team/job/app/job/PR-12/3/","result":"FAILURE","building":false,"timestamp":1767261300000,"duration":60000,"actions":[{"lastBuiltRevision":{"SHA1":"1122334455667788990011223344556677889900"}}]}
                 ],"lastBuild":{"number":3,"estimatedDuration":65000},"inQueue":true,"queueItem":{"id":77,"inQueueSince":1767268740000}}
                 """);
 
@@ -62,6 +62,28 @@ public class JenkinsProviderTests
         var pipelines = new[] { new Pipeline("build-all", "Build all", "build-all", null, $"{server}/job/build-all/") };
         var builds = await ProviderTestHelpers.Provider("jenkins").FetchBuilds(context, pipelines, 5, Cancel.None);
         return builds.Single();
+    }
+
+    /// <summary>
+    /// The git plugin exports an empty commit rather than none for a revision without one, which
+    /// is no commit, while the branch beside it still counts.
+    /// </summary>
+    [Test]
+    public async Task AnEmptyCommitIsNone()
+    {
+        var handler = new FakeHttpHandler()
+            .Get(
+                $"{server}/job/build-all/api/json",
+                """
+                {"builds":[
+                  {"number":500,"url":"https://jenkins.example.com/job/build-all/500/","result":"SUCCESS","building":false,"timestamp":1767264900000,"duration":290000,"actions":[{"lastBuiltRevision":{"SHA1":"","branch":[{"name":"refs/remotes/origin/main"}]}}]}
+                ],"lastBuild":{"number":500,"estimatedDuration":300000},"inQueue":false,"queueItem":null}
+                """);
+        var context = ProviderTestHelpers.Context("jenkins", handler, server, "simon");
+        var pipelines = new[] { new Pipeline("build-all", "Build all", "build-all", null, $"{server}/job/build-all/") };
+        var build = (await ProviderTestHelpers.Provider("jenkins").FetchBuilds(context, pipelines, 5, Cancel.None)).Single();
+        await Assert.That(build.CommitSha).IsNull();
+        await Assert.That(build.Branch).IsEqualTo("main");
     }
 
     [Test]

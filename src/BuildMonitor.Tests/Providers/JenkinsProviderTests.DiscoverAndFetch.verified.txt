@@ -15,6 +15,7 @@
         Duration: 00:05:00
       },
       BuildUrl: https://jenkins.example.com/job/build-all/501/,
+      CommitSha: 4a5b6c7d8e9f00112233445566778899aabbccdd,
       CanRetry: false,
       CanCancel: true,
       ProviderRef: https://jenkins.example.com/job/build-all/|501,
@@ -85,6 +86,7 @@
       },
       BuildUrl: https://jenkins.example.com/job/team/job/app/job/PR-12/3/,
       PullRequestNumber: 12,
+      CommitSha: 1122334455667788990011223344556677889900,
       CanRetry: true,
       CanCancel: false,
       ProviderRef: https://jenkins.example.com/job/team/job/app/job/PR-12/|3,
@@ -98,7 +100,7 @@
   ],
   Requests: [
     GET https://jenkins.example.com/api/json?tree=jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class,jobs[name,displayName,url,_class]]]]]],
-    GET https://jenkins.example.com/job/build-all/api/json?tree=builds[number,url,result,building,timestamp,duration,actions[lastBuiltRevision[branch[name]],parameters[name,value]{0,25}]]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince],
-    GET https://jenkins.example.com/job/team/job/app/job/PR-12/api/json?tree=builds[number,url,result,building,timestamp,duration,actions[parameters[name,value]{0,25}]]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince]
+    GET https://jenkins.example.com/job/build-all/api/json?tree=builds[number,url,result,building,timestamp,duration,actions[lastBuiltRevision[SHA1,branch[name]],parameters[name,value]{0,25}]]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince],
+    GET https://jenkins.example.com/job/team/job/app/job/PR-12/api/json?tree=builds[number,url,result,building,timestamp,duration,actions[lastBuiltRevision[SHA1],parameters[name,value]{0,25}]]{0,5},lastBuild[number,estimatedDuration],inQueue,queueItem[id,inQueueSince]
   ]
 }
