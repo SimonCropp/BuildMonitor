@@ -235,9 +235,7 @@ sealed class MonitorTools(IProtocolClient client)
     }
 
     /// <summary>
-    /// The runs of the push one run was part of. A tray older than the verb answers it as
-    /// unreadable, which is told apart from a refusal, since only the user can do anything about
-    /// it, and only once told what.
+    /// The runs of the push one run was part of.
     /// </summary>
     async Task<List<BuildDto>> PushRuns(string key, string run, Cancel cancel)
     {
@@ -248,12 +246,23 @@ sealed class MonitorTools(IProtocolClient client)
                    throw new InvalidOperationException("Empty response");
         }
 
+        throw Refused(response, "list the runs of a push: quit the tray from its menu and start BuildMonitor again");
+    }
+
+    /// <summary>
+    /// What a refused verb is reported as. A tray older than the verb answers it as unreadable,
+    /// which is told apart from a refusal, since only the user can do anything about it, and only
+    /// once told what.
+    /// </summary>
+    /// <param name="cannot">What the older tray cannot do, and what to do instead.</param>
+    static InvalidOperationException Refused(Response response, string cannot)
+    {
         if (response.Body == LocalServer.Unreadable)
         {
-            throw new InvalidOperationException("The tray running is older than this server and cannot list the runs of a push. Quit it from its menu and start BuildMonitor again.");
+            return new($"The tray running is older than this server and cannot {cannot}.");
         }
 
-        throw new InvalidOperationException(response.Body);
+        return new(response.Body);
     }
 
     static bool IsActive(BuildDto build) =>
@@ -358,6 +367,22 @@ sealed class MonitorTools(IProtocolClient client)
         }
 
         return $"Refreshing {connectionId}";
+    }
+
+    /// <summary>
+    /// Polls one build's pipeline now and at the poll interval for three minutes, as a retry from
+    /// the window does. After a push only that pipeline has news, and a refresh of its connection
+    /// fetched every pipeline the connection has for it, hundreds on a large account.
+    /// </summary>
+    public async Task<string> RefreshBuild(string key, Cancel cancel)
+    {
+        var response = await client.Send(new(Verb.Nudge, key), cancel);
+        if (!response.Ok)
+        {
+            throw Refused(response, "refresh one build: refresh its connection instead, or quit the tray from its menu and start BuildMonitor again");
+        }
+
+        return $"Refreshing {key}";
     }
 
     public Task<string> RetryBuild(string key, Cancel cancel) =>

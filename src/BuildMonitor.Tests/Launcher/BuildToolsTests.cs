@@ -68,6 +68,18 @@ public class BuildToolsTests
         await Assert.That(mismatched).IsEmpty();
     }
 
+    /// <summary>
+    /// Refused rather than one picked: whichever was dropped, the poll would not be the one asked
+    /// for. Refused before the tray is asked, so no tools are needed behind it.
+    /// </summary>
+    [Test]
+    public async Task RefreshTakesAConnectionOrABuildNotBoth()
+    {
+        var tools = new BuildTools(new(null!));
+        var exception = await Assert.That(async () => await tools.Refresh("gh", "gh/Verify/test.yml/main")).Throws<McpException>();
+        await Assert.That(exception!.Message).IsEqualTo("Pass connectionId or key, not both.");
+    }
+
     [Test]
     public async Task EveryToolIsDescribed()
     {

@@ -44,7 +44,11 @@ static class McpHost
                 _.ServerInstructions = McpInstructions.Text;
             })
             .WithStdioServerTransport()
-            .WithRequestFilters(_ => _.AddCallToolFilter(collector.After))
+            .WithRequestFilters(_ =>
+            {
+                _.AddCallToolFilter(collector.After);
+                _.AddCallToolFilter(ToolErrors.Relay);
+            })
             .WithTools<BuildTools>(ToolSerializerOptions)
             .WithPrompts<BuildPrompts>();
         await builder.Build().RunAsync(cancel);

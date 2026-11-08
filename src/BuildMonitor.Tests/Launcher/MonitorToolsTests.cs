@@ -211,6 +211,32 @@ public class MonitorToolsTests
         await Assert.That(exception!.Message).IsEqualTo("No connection with id nope");
     }
 
+    /// <summary>
+    /// One build's pipeline, polled through the nudge a retry uses, where a connection is every
+    /// pipeline it has. A key the tray does not have is refused, as a mistyped connection is.
+    /// </summary>
+    [Test]
+    public async Task RefreshBuildPollsOneBuildsPipeline()
+    {
+        var (tools, _, _) = Create();
+        await Assert.That(await tools.RefreshBuild(failingBuild, Cancel.None)).IsEqualTo($"Refreshing {failingBuild}");
+
+        var exception = await Assert.That(async () => await tools.RefreshBuild("nope", Cancel.None)).Throws<InvalidOperationException>();
+        await Assert.That(exception!.Message).IsEqualTo("No build with key nope");
+    }
+
+    /// <summary>
+    /// A tray older than the verb answers it as unreadable, which says nothing an assistant can act
+    /// on, so it is told what to do instead.
+    /// </summary>
+    [Test]
+    public async Task RefreshBuildOnAnOlderTraySaysWhatToDoInstead()
+    {
+        var tools = new MonitorTools(new InProcessClient(null!, _ => Response.Error(LocalServer.Unreadable)));
+        var exception = await Assert.That(async () => await tools.RefreshBuild(failingBuild, Cancel.None)).Throws<InvalidOperationException>();
+        await Assert.That(exception!.Message).IsEqualTo("The tray running is older than this server and cannot refresh one build: refresh its connection instead, or quit the tray from its menu and start BuildMonitor again.");
+    }
+
     [Test]
     public async Task GetBuildAndMissing()
     {

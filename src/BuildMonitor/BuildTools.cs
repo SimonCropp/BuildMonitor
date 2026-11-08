@@ -124,12 +124,28 @@ sealed class BuildTools(MonitorTools tools)
         tools.ListConnections(cancel);
 
     [McpServerTool(Name = "refresh", Idempotent = true)]
-    [Description("Polls the CI services now rather than at the next interval. Returns as soon as the poll is asked for, before it has run, so list the builds again after a few seconds to see what it found. A running build is already polled often near when it should finish, so this is not needed to wait for one: wait_for_build does that.")]
+    [Description("Polls the CI services now rather than at the next interval: one build's pipeline, one connection, or every connection. Returns as soon as the poll is asked for, before it has run, so list the builds again after a few seconds to see what it found. After a push, pass the key of a build of the pipeline it ran: only that pipeline is fetched, now and often for three minutes, where a connection is every pipeline it has. A running build is already polled often near when it should finish, so this is not needed to wait for one: wait_for_build does that.")]
     public Task<string> Refresh(
-        [Description("A connection id from list_connections, or empty for every connection.")]
+        [Description("A connection id from list_connections, or empty for every connection. Leave empty when passing key.")]
         string? connectionId = null,
-        Cancel cancel = default) =>
-        tools.Refresh(string.IsNullOrWhiteSpace(connectionId) ? null : connectionId, cancel);
+        [Description("A build key from list_builds, to poll only that build's pipeline rather than a whole connection.")]
+        string? key = null,
+        Cancel cancel = default)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return tools.Refresh(string.IsNullOrWhiteSpace(connectionId) ? null : connectionId, cancel);
+        }
+
+        // Refused rather than one of them picked: whichever was dropped, the poll would not be the
+        // one the assistant thought it asked for.
+        if (!string.IsNullOrWhiteSpace(connectionId))
+        {
+            throw new McpException("Pass connectionId or key, not both.");
+        }
+
+        return tools.RefreshBuild(key, cancel);
+    }
 
     [McpServerTool(Name = "retry_build")]
     [Description("Re-runs a finished build. Where the provider supports it only the failed jobs are re-run.")]

@@ -171,10 +171,11 @@ The wait asks the tray every five seconds, which answers from what it holds, so 
 
 ### `refresh`
 
-Polls now rather than waiting for the next interval, for every connection or only one. It returns before the poll has run, so the builds change a few seconds later. A running build is already polled often near when it should finish, so refreshing is not needed to wait for one: `wait_for_build` does that. A refresh fetches every repository, project or pipeline of the connections it covers, where the schedule fetches only those that are due.
+Polls now rather than waiting for the next interval: every connection, only one, or only one build's pipeline. It returns before the poll has run, so the builds change a few seconds later. Given a build's `key`, it polls that build's pipeline now and then at the poll interval for three minutes, as a retry from the window does, which after a push is the one pipeline with news; a connection is every pipeline it has. A running build is already polled often near when it should finish, so refreshing is not needed to wait for one: `wait_for_build` does that. A refresh fetches every repository, project or pipeline of the connections it covers, where the schedule fetches only those that are due.
 
  * "Check the builds again."
  * "I've pushed a fix, refresh GitHub."
+ * "I've pushed to main on Verify, check its build again."
 
 
 ### `retry_build`
