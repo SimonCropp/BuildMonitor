@@ -37,6 +37,26 @@ public class McpInstructionsTests
         await Assert.That(named.Except(tools)).IsEmpty();
     }
 
+    /// <summary>
+    /// The instructions a channel adds name only tools the channel's server has, and explain every
+    /// kind of event it sends, which its tags name and nothing else does.
+    /// </summary>
+    [Test]
+    public async Task TheChannelInstructionsNameWhatTheChannelSends()
+    {
+        var tools = new[] { typeof(BuildTools), typeof(ChannelTools) }
+            .SelectMany(_ => _.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            .Select(_ => _.GetCustomAttribute<McpServerToolAttribute>()!.Name)
+            .ToList();
+        var named = Regex.Matches(McpInstructions.Channel, @"\b[a-z]+(?:_[a-z]+)+\b")
+            .Select(_ => _.Value)
+            .Distinct()
+            .ToList();
+
+        await Assert.That(named.Except(tools).Except(ChannelText.Kinds)).IsEmpty();
+        await Assert.That(ChannelText.Kinds.Except(named)).IsEmpty();
+    }
+
     [Test]
     public async Task ThePromptItNamesIsOneTheServerHas()
     {

@@ -6,6 +6,8 @@ public class CommandLineTests
     [Arguments("--help")]
     [Arguments("status")]
     [Arguments("mcp")]
+    [Arguments("mcp --channel")]
+    [Arguments("mcp --channels")]
     [Arguments("refresh gh")]
     [Arguments("--version")]
     [Arguments("dance")]

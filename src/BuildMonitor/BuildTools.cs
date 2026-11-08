@@ -98,7 +98,7 @@ sealed class BuildTools(MonitorTools tools)
                 }),
             cancel);
 
-    static WaitScope Scope(bool wholePush, bool stopOnFailure)
+    public static WaitScope Scope(bool wholePush, bool stopOnFailure)
     {
         if (!wholePush)
         {

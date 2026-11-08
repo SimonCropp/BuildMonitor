@@ -19,7 +19,8 @@ static class McpHost
             DefaultIgnoreCondition = JsonIgnoreCondition.Never
         };
 
-    public static async Task<int> Run(int port, Cancel cancel)
+    /// <param name="channel">Whether to be a Claude Code channel: see <see cref="ClaudeChannel"/>.</param>
+    public static async Task<int> Run(int port, bool channel, Cancel cancel)
     {
         var started = await HeadLauncher.StartOrShow(port, show: false, cancel);
         if (started != 0)
@@ -33,7 +34,7 @@ static class McpHost
         builder.Logging.AddConsole(_ => _.LogToStandardErrorThreshold = LogLevel.Trace);
         builder.Services.AddSingleton<IProtocolClient>(new ProtocolClient(port));
         builder.Services.AddSingleton<MonitorTools>();
-        builder.Services
+        var server = builder.Services
             .AddMcpServer(_ =>
             {
                 _.ServerInfo = new()
@@ -43,11 +44,21 @@ static class McpHost
                 };
                 _.ServerInstructions = McpInstructions.Text;
                 ErrorRelay.AddTo(_.Filters.Request);
-            })
+                if (channel)
+                {
+                    ClaudeChannel.Declare(_);
+                }
+            });
+        server
             .WithStdioServerTransport()
             .WithRequestFilters(_ => _.AddCallToolFilter(collector.After))
             .WithTools<BuildTools>(ToolSerializerOptions)
             .WithPrompts<BuildPrompts>();
+        if (channel)
+        {
+            ClaudeChannel.Add(builder.Services, server);
+        }
+
         await builder.Build().RunAsync(cancel);
         return 0;
     }

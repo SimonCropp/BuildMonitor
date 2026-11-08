@@ -26,6 +26,8 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
                 return Response.Success();
             case Verb.List:
                 return Response.Success(Snapshot.Builds(state, now), context.ListBuildDto);
+            case Verb.Failing:
+                return Response.Success(Snapshot.Failing(state, now), context.ListBuildDto);
             case Verb.Deferred:
                 return Response.Success(Snapshot.Deferred(state, now), context.ListBuildDto);
             case Verb.Get:

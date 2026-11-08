@@ -16,7 +16,7 @@ static class Program
             case CommandKindLauncher.Start:
                 return await HeadLauncher.StartOrShow(port, show: true, cancel.Token);
             case CommandKindLauncher.Mcp:
-                return await McpHost.Run(port, cancel.Token);
+                return await McpHost.Run(port, command.Argument == CommandLine.Channel, cancel.Token);
             case CommandKindLauncher.Version:
                 ConsoleAttach.TryAttachParent();
                 Console.WriteLine(VersionReader.VersionString);

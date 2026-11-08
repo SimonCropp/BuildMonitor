@@ -257,6 +257,41 @@ They are kept for 24 hours. The sweep runs when the tray starts and before each 
 A second triage of the same run replaces that run's directory rather than adding to it, so the file list always matches what the CI service has now. A retry is a different run and gets its own.
 
 
+## Events in Claude Code
+
+Run with `--channel`, the server is also a Claude Code [channel](https://code.claude.com/docs/en/channels-reference): it pushes events into the session, which Claude reads and acts on even while the session is idle. So it can say that main has gone red, or that the build it was asked to watch has finished, without being asked first.
+
+Register it with the option:
+
+```
+claude mcp add --transport stdio buildmonitor --scope user -- buildmonitor mcp --channel
+```
+
+While channels are a research preview, Claude Code loads only the channels on its allowlist, which BuildMonitor is not on, so start Claude Code with the development flag naming the server:
+
+```
+claude --dangerously-load-development-channels server:buildmonitor
+```
+
+Claude Code asks to confirm, then notes under its banner that messages from `server:buildmonitor` arrive in the session. It ignores the flag in a run without a terminal, such as `claude -p` or the Agent SDK, and Team and Enterprise organisations must [enable channels](https://code.claude.com/docs/en/channels#enterprise-controls) first. A session started without the flag still has every tool, `watch_build` among them, but Claude Code drops the events without a word, and the server cannot tell: start every session that should hear them with the flag.
+
+Each event is a `<channel>` tag whose `event` attribute says what happened, with the build's `key` and `run`, and whose text says it in words:
+
+ * `build_failed`: a pipeline's own build has failed since the last look, as `list_failing` counts failures. Each failure is told once. Failures there already when the session started are not, and nor are those the tray lists on its first poll after starting or restarting, which are not news.
+ * `build_finished`, `push_finished` and `push_failed`: a build or push that `watch_build` was asked to watch has finished, or with `stopOnFailure` has had a run fail.
+ * `watch_failed` and `watch_timed_out`: that watch ended without an answer, because the build could not be found or its push told apart, or because 12 hours passed.
+
+The server asks the tray what is failing every 15 seconds, which the tray answers from what it holds, so a session listening costs the CI services nothing more.
+
+
+### `watch_build`
+
+Watches a build in the background and returns at once, and its answer arrives as an event: for being told later while carrying on meanwhile, where `wait_for_build` holds the turn until the build finishes. It takes the choices `wait_for_build` does, `nextRun`, `wholePush` and `stopOnFailure`, and gives up after 12 hours, with an event saying so. It is offered only with `--channel`, since anywhere else nothing would carry its answer.
+
+ * "Tell me when the release build finishes, and carry on with the docs meanwhile."
+ * "Watch my push and let me know if anything fails."
+
+
 ## Updating
 
 Each assistant runs its own `buildmonitor mcp` process, which stays on the version it started with until the assistant connects it again. After an update, connect it again: from `/mcp` in the Claude Code CLI, which does not restart a local server by itself. In Claude Desktop, a new Code tab session starts a server of its own, and the chats need the app quit and started again.

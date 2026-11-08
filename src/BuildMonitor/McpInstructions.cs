@@ -13,6 +13,16 @@ static class McpInstructions
 {
     public static string Text { get; } = Compose([.. ProviderDescriptors.All.Select(_ => _.Name)]);
 
+    /// <summary>
+    /// Added to <see cref="Text"/> for a server run as a Claude Code channel, which Claude Code hands
+    /// the assistant when it connects: without it, a tag naming build_failed arrives in an idle
+    /// session with nothing to say what the assistant is meant to do with it.
+    /// </summary>
+    public const string Channel =
+        """
+        BuildMonitor is loaded as a channel, so it tells you of builds without being asked. Its events arrive as <channel> tags whose event attribute says what happened, with the build's key and run, and whose text says it in words. build_failed: a pipeline's own build has just failed; tell the user, and read its log with get_build_log when they would want to know why. build_finished, push_finished and push_failed: a build, or a push, that watch_build was asked to watch has finished, or with stopOnFailure has had a run fail. watch_failed and watch_timed_out: that watch ended without an answer, for the reason the text gives. The events are one way, with nothing to reply to. To tell the user when a build finishes while carrying on with other work, call watch_build rather than wait_for_build.
+        """;
+
     static string Compose(string[] services) =>
         $"""
         BuildMonitor watches the user's CI builds and deployments on {string.Join(", ", services[..^1])} and {services[^1]}, across every connection the user has set up. Questions about builds, pipelines, CI runs, failures or deployments usually mean these, even when BuildMonitor is not named: "what's building?", "is main green?", "why did the release fail?".

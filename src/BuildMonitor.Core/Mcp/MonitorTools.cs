@@ -92,16 +92,40 @@ sealed class MonitorTools(IProtocolClient client)
     /// </summary>
     public async Task<List<BuildDto>> ListFailing(string? filter, Cancel cancel)
     {
-        var builds = await Read(new(Verb.List), DtoContext.Default.ListBuildDto, cancel);
-        var failed = builds.Where(_ => _.Status == nameof(BuildStatus.Failed) &&
-                                       _.OtherBranch != true);
+        var failed = await Failing(cancel);
         if (string.IsNullOrWhiteSpace(filter))
         {
-            return failed.ToList();
+            return failed;
         }
 
         return failed
             .Where(_ => Matches(_, filter))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The failing builds alone, picked out by the tray. A tray older than the verb answers it as
+    /// unreadable, and is asked for every build instead, the failing ones picked out here, as they
+    /// all were before the tray could.
+    /// </summary>
+    async Task<List<BuildDto>> Failing(Cancel cancel)
+    {
+        var response = await client.Send(new(Verb.Failing), cancel);
+        if (response.Ok)
+        {
+            return response.Read(DtoContext.Default.ListBuildDto) ??
+                   throw new InvalidOperationException("Empty response");
+        }
+
+        if (response.Body != LocalServer.Unreadable)
+        {
+            throw new InvalidOperationException(response.Body);
+        }
+
+        var builds = await Read(new(Verb.List), DtoContext.Default.ListBuildDto, cancel);
+        return builds
+            .Where(_ => _.Status == nameof(BuildStatus.Failed) &&
+                        _.OtherBranch != true)
             .ToList();
     }
 
@@ -304,6 +328,12 @@ sealed class MonitorTools(IProtocolClient client)
     }
 
     /// <summary>
+    /// The run a wait on the key would start from, as <see cref="Latest"/> finds it.
+    /// </summary>
+    public Task<BuildDto> Current(string key, Cancel cancel) =>
+        Latest(key, cancel);
+
+    /// <summary>
     /// The run the key shows, or, where it shows none, the newest of the pipeline's runs on that
     /// key: a pull request's run is listed only while it is running, queued or failed.
     /// </summary>
@@ -314,9 +344,16 @@ sealed class MonitorTools(IProtocolClient client)
             return shown;
         }
 
-        var runs = await ListRuns(key, cancel);
-        return runs.FirstOrDefault(_ => _.Key == key) ??
-               throw new InvalidOperationException($"No build with key {key}");
+        // Asked of the runs directly rather than through ListRuns, whose refusal names a pipeline:
+        // passed on, a mistyped build key was answered "No pipeline with key".
+        var response = await client.Send(new(Verb.Runs, key), cancel);
+        if (response.Ok &&
+            response.Read(DtoContext.Default.ListBuildDto)?.FirstOrDefault(_ => _.Key == key) is { } latest)
+        {
+            return latest;
+        }
+
+        throw new InvalidOperationException($"No build with key {key}");
     }
 
     /// <summary>

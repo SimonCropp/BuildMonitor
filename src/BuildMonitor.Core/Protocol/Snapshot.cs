@@ -12,6 +12,20 @@ static class Snapshot
             .Select(_ => Build(state, state.Connection(_.Build.ConnectionId)!.Connection, _.Build, now, _.OtherBranch))
             .ToList();
 
+    /// <summary>
+    /// The pipelines whose own build failed, as the tray icon and the failing count have them: not
+    /// a pull request or another branch, and not a failure the user deferred. Picked out here rather
+    /// than from <see cref="Builds"/> by whoever asked, which sent every build of a large account,
+    /// hundreds of kilobytes, for the handful that failed, and a session watching for failures asks
+    /// every few seconds.
+    /// </summary>
+    public static List<BuildDto> Failing(SessionState state, DateTimeOffset now) =>
+        Shown(state)
+            .Where(_ => _.Build.Status == BuildStatus.Failed &&
+                        !_.OtherBranch)
+            .Select(_ => Build(state, state.Connection(_.Build.ConnectionId)!.Connection, _.Build, now, false))
+            .ToList();
+
     public static BuildDto? Find(SessionState state, string key, DateTimeOffset now)
     {
         foreach (var (build, otherBranch) in Shown(state))

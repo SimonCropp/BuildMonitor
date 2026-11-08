@@ -9,9 +9,15 @@ static class CommandLine
         buildmonitor refresh    poll every connection now
         buildmonitor status     print the connections and builds
         buildmonitor mcp        run the MCP server over stdio for an AI assistant
+          --channel             and push build events into Claude Code, which loads it as a channel
         buildmonitor --version
         buildmonitor --help
         """;
+
+    /// <summary>
+    /// The option that makes the MCP server a Claude Code channel.
+    /// </summary>
+    public const string Channel = "--channel";
 
     public static Command Parse(string[] args)
     {
@@ -30,10 +36,29 @@ static class CommandLine
             "quit" or "exit" or "stop" => new(CommandKindLauncher.Quit),
             "refresh" => new(CommandKindLauncher.Refresh, argument),
             "status" or "list" => new(CommandKindLauncher.Status),
-            "mcp" => new(CommandKindLauncher.Mcp),
+            "mcp" => Mcp(argument),
             "version" or "v" => new(CommandKindLauncher.Version),
             "help" or "h" or "?" => new(CommandKindLauncher.Help),
             _ => new(CommandKindLauncher.Unknown, args[0])
         };
+    }
+
+    /// <summary>
+    /// Anything after mcp but the channel option is refused, rather than run as a server without
+    /// it: a mistyped option left the user waiting on events nothing was ever going to send.
+    /// </summary>
+    static Command Mcp(string? argument)
+    {
+        if (argument is null)
+        {
+            return new(CommandKindLauncher.Mcp);
+        }
+
+        if (string.Equals(argument, Channel, StringComparison.OrdinalIgnoreCase))
+        {
+            return new(CommandKindLauncher.Mcp, Channel);
+        }
+
+        return new(CommandKindLauncher.Unknown, $"mcp {argument}");
     }
 }

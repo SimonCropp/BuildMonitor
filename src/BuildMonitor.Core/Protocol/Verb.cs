@@ -9,6 +9,8 @@ enum Verb
     Quit,
     // Every row, as JSON.
     List,
+    // The pipelines whose own build failed, as list_failing and the tray icon count them.
+    Failing,
     // One build by key.
     Get,
     // Every run of one pipeline, which the rows collapse: a build or a pipeline key.
