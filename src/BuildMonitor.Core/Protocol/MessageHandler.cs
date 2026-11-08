@@ -48,6 +48,22 @@ sealed class MessageHandler(SessionHost host, Poller poller, Action<string> open
 
                 return Response.Success(runs, context.ListBuildDto);
             }
+            case Verb.PushRuns:
+            {
+                if (message.Key is null ||
+                    message.Body is null ||
+                    Snapshot.Push(state, message.Key, message.Body, now) is not { } runs)
+                {
+                    return Response.Error($"No run {message.Body} of {message.Key}");
+                }
+
+                if (runs.Count == 0)
+                {
+                    return Response.Error($"Run {message.Body} of {message.Key} has no commit, so the runs of its push cannot be told apart");
+                }
+
+                return Response.Success(runs, context.ListBuildDto);
+            }
             case Verb.Pipelines:
                 return Response.Success(Snapshot.Pipelines(state), context.ListPipelineDto);
             case Verb.Refresh:

@@ -96,8 +96,14 @@ record BuildRowDto(
 record BuildWaitDto(
     // True when the timeout passed first. Build is then the run as it stood, still queued or
     // running, or, waiting for the next run, the last one, which had finished before the wait.
+    // Waiting for a whole push, Build may have finished while others of PushRuns had not.
     bool TimedOut,
-    BuildDto Build);
+    BuildDto Build,
+    // With wholePush, every run of the push Build was part of, Build among them, finished or not,
+    // each as list_builds gives it, less the runs the service skipped. Absent otherwise, and when
+    // the timeout passed while still waiting for the next run, before there was a push to list.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    List<BuildRowDto>? PushRuns = null);
 
 /// <summary>
 /// One monitored pipeline, including one that has produced no build inside the history window

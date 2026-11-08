@@ -29,6 +29,7 @@
       Key: teamcity/Verify_Build/pull/15,
       PipelineKey: teamcity/Verify_Build,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_2
     },
     {
@@ -53,6 +54,7 @@
       Key: teamcity/Verify_Build/main,
       PipelineKey: teamcity/Verify_Build,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_4
     },
     {
@@ -77,6 +79,7 @@
       Key: teamcity/Verify_Docs/main,
       PipelineKey: teamcity/Verify_Docs,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_7
     }
   ],

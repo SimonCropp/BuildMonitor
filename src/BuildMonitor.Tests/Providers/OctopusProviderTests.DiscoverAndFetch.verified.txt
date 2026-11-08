@@ -25,6 +25,7 @@
       Key: octopus/Projects-1/Production,
       PipelineKey: octopus/Projects-1,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_2
     },
     {
@@ -49,6 +50,7 @@
       Key: octopus/Projects-1/Staging,
       PipelineKey: octopus/Projects-1,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_4
     }
   ],

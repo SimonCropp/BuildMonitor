@@ -24,6 +24,7 @@
       Key: bitbucket/diffengine/main,
       PipelineKey: bitbucket/diffengine,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_1
     },
     {
@@ -51,6 +52,7 @@
       Key: bitbucket/diffengine/feature,
       PipelineKey: bitbucket/diffengine,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_2
     },
     {
@@ -80,6 +82,7 @@
       Key: bitbucket/diffengine/feature,
       PipelineKey: bitbucket/diffengine,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_4
     }
   ],

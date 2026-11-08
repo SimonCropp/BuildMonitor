@@ -22,6 +22,7 @@
       Key: jenkins/https://jenkins.example.com/job/build-all//main,
       PipelineKey: jenkins/https://jenkins.example.com/job/build-all/,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_1
     },
     {
@@ -43,6 +44,7 @@
       Key: jenkins/https://jenkins.example.com/job/build-all//,
       PipelineKey: jenkins/https://jenkins.example.com/job/build-all/,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_2
     },
     {
@@ -63,6 +65,7 @@
       Key: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12//PR-12,
       PipelineKey: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12/,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_4
     },
     {
@@ -89,6 +92,7 @@
       Key: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12//PR-12,
       PipelineKey: jenkins/https://jenkins.example.com/job/team/job/app/job/PR-12/,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_5
     }
   ],

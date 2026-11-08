@@ -24,6 +24,7 @@
       Key: gitlab/77/main,
       PipelineKey: gitlab/77,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_2
     },
     {
@@ -53,6 +54,7 @@
       Key: gitlab/77/feature,
       PipelineKey: gitlab/77,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_4
     },
     {
@@ -82,6 +84,7 @@
       Key: gitlab/77/someone:main,
       PipelineKey: gitlab/77,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_7
     }
   ],

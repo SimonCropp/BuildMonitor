@@ -26,6 +26,7 @@
       Key: azure-devops/Web/1/main,
       PipelineKey: azure-devops/Web/1,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_2
     },
     {
@@ -56,6 +57,7 @@
       Key: azure-devops/Web/1/feature,
       PipelineKey: azure-devops/Web/1,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_4
     },
     {
@@ -85,6 +87,7 @@
       Key: azure-devops/Web/1/pull/57,
       PipelineKey: azure-devops/Web/1,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_7
     },
     {
@@ -112,6 +115,7 @@
       Key: azure-devops/Web/2/main,
       PipelineKey: azure-devops/Web/2,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_10
     }
   ],

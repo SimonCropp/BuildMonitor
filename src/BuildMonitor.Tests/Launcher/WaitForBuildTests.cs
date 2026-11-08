@@ -10,6 +10,9 @@ public class WaitForBuildTests
     const string verifyMain = "gh/Verify/test.yml/main";
     const string inline = "gh/Verify/test.yml/feature/inline";
     const string dependabot = "gh/Verify/test.yml/dependabot/nuget/src/Polyfill-9.1.0";
+    const string docs = "gh/DiffEngine/docs.yml/main";
+    // The commit DiffEngine's main #1234 ran, which a push's other runs share.
+    const string commit = "0123456789abcdef";
 
     static TimeSpan timeout = TimeSpan.FromMinutes(1);
 
@@ -83,7 +86,7 @@ public class WaitForBuildTests
     /// <summary>
     /// Another run of <paramref name="key"/>'s lane, newer than the ones it has.
     /// </summary>
-    static void Start(SessionHost host, string key, string run, BuildStatus status) =>
+    static void Start(SessionHost host, string key, string run, BuildStatus status, string? sha = null) =>
         host.Mutate(_ =>
         {
             var lane = _.Builds.First(_ => _.HasKey(key));
@@ -96,10 +99,36 @@ public class WaitForBuildTests
                         Status = status,
                         Queued = Fixtures.Now,
                         Started = Fixtures.Now,
-                        Finished = null
+                        Finished = null,
+                        CommitSha = sha ?? lane.CommitSha
                     })
             };
         });
+
+    static void Add(SessionHost host, params Build[] builds) =>
+        host.Mutate(_ => _ with
+        {
+            Builds = _.Builds.AddRange(builds)
+        });
+
+    /// <summary>
+    /// A run of one of DiffEngine's pipelines, which <see cref="GroupKey.PushOf"/> puts in the push
+    /// of #1234 when it is on main at <see cref="commit"/>.
+    /// </summary>
+    static Build DiffEngine(string pipeline, string branch, string run, BuildStatus status, string sha) =>
+        Fixtures.Build(
+            Fixtures.GitHub.Id,
+            $"DiffEngine/{pipeline}",
+            pipeline,
+            "VerifyTests/DiffEngine",
+            branch,
+            run,
+            status,
+            started: Fixtures.Now - TimeSpan.FromMinutes(1),
+            sha: sha);
+
+    static IEnumerable<(string Key, string Run, string Status)> Runs(BuildWaitDto result) =>
+        result.PushRuns!.Select(_ => (_.Key, _.Run, _.Status));
 
     static void Nothing()
     {
@@ -110,7 +139,7 @@ public class WaitForBuildTests
     {
         var (tools, _) = Create();
         var said = new List<string>();
-        var result = await tools.WaitForBuild(inline, false, timeout, Steps(said), Cancel.None);
+        var result = await tools.WaitForBuild(inline, false, false, timeout, Steps(said), Cancel.None);
         await Assert.That(result.TimedOut).IsFalse();
         await Assert.That(result.Build.Run).IsEqualTo("77");
         await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Failed));
@@ -124,6 +153,7 @@ public class WaitForBuildTests
         var said = new List<string>();
         var result = await tools.WaitForBuild(
             diffEngine,
+            false,
             false,
             timeout,
             Steps(
@@ -152,6 +182,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             diffEngine,
             false,
+            false,
             timeout,
             Steps(
                 [],
@@ -178,6 +209,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             dependabot,
             false,
+            false,
             timeout,
             Steps(
                 [],
@@ -194,7 +226,7 @@ public class WaitForBuildTests
     {
         var (tools, _) = Create();
         var said = new List<string>();
-        var result = await tools.WaitForBuild(diffEngine, false, TimeSpan.Zero, Steps(said), Cancel.None);
+        var result = await tools.WaitForBuild(diffEngine, false, false, TimeSpan.Zero, Steps(said), Cancel.None);
         await Assert.That(result.TimedOut).IsTrue();
         await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Running));
         await Assert.That(said).IsEmpty();
@@ -206,7 +238,7 @@ public class WaitForBuildTests
         var (tools, _) = Create();
         using var source = new CancelSource();
         await source.CancelAsync();
-        await Assert.That(async () => await tools.WaitForBuild(diffEngine, false, timeout, null, source.Token))
+        await Assert.That(async () => await tools.WaitForBuild(diffEngine, false, false, timeout, null, source.Token))
             .Throws<OperationCanceledException>();
     }
 
@@ -222,6 +254,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             verifyMain,
             true,
+            false,
             timeout,
             Steps(
                 said,
@@ -246,6 +279,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             inline,
             true,
+            false,
             timeout,
             Steps(
                 [],
@@ -274,6 +308,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             inline,
             true,
+            false,
             timeout,
             Steps(
                 [],
@@ -294,6 +329,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             diffEngine,
             true,
+            false,
             timeout,
             Steps(
                 [],
@@ -311,7 +347,7 @@ public class WaitForBuildTests
     public async Task NextRunTimesOutWithTheLastRunFlagged()
     {
         var (tools, _) = Create();
-        var result = await tools.WaitForBuild(inline, true, TimeSpan.Zero, Steps([]), Cancel.None);
+        var result = await tools.WaitForBuild(inline, true, false, TimeSpan.Zero, Steps([]), Cancel.None);
         await Assert.That(result.TimedOut).IsTrue();
         await Assert.That(result.Build.Run).IsEqualTo("77");
         await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Failed));
@@ -328,6 +364,7 @@ public class WaitForBuildTests
         await tools.WaitForBuild(
             inline,
             true,
+            false,
             timeout,
             Steps(
                 [],
@@ -345,10 +382,11 @@ public class WaitForBuildTests
     public async Task OnlyNextRunPastAFinishedRunAsksForAPoll()
     {
         var (tools, host, client) = CreateWithClient();
-        await tools.WaitForBuild(inline, false, timeout, Steps([]), Cancel.None);
+        await tools.WaitForBuild(inline, false, false, timeout, Steps([]), Cancel.None);
         await tools.WaitForBuild(
             diffEngine,
             true,
+            false,
             timeout,
             Steps(
                 [],
@@ -377,6 +415,7 @@ public class WaitForBuildTests
         var result = await tools.WaitForBuild(
             inline,
             true,
+            false,
             timeout,
             Steps(
                 [],
@@ -398,11 +437,249 @@ public class WaitForBuildTests
         await Assert.That(unknown.Body).IsEqualTo("No build with key gh/Nope/test.yml/main");
     }
 
+    /// <summary>
+    /// A push starts a run of each pipeline, and the wait ends when the last of them does. A run of
+    /// another commit, or of the same commit on another branch, is not part of it.
+    /// </summary>
+    [Test]
+    public async Task WholePushWaitsForEveryPipelineItsCommitStarted()
+    {
+        var (tools, host) = Create();
+        Add(
+            host,
+            DiffEngine("docs.yml", "main", "301", BuildStatus.Running, commit),
+            DiffEngine("docs.yml", "main", "299", BuildStatus.Succeeded, "feedface"),
+            DiffEngine("test.yml", "release", "1233", BuildStatus.Running, commit));
+        var said = new List<string>();
+        var result = await tools.WaitForBuild(
+            diffEngine,
+            false,
+            true,
+            timeout,
+            Steps(
+                said,
+                () => Finish(host, diffEngine, "1234", BuildStatus.Succeeded),
+                () => Finish(host, docs, "301", BuildStatus.Failed)),
+            Cancel.None);
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(result.Build.Run).IsEqualTo("1234");
+        await Assert.That(result.Build.Status).IsEqualTo(nameof(BuildStatus.Succeeded));
+        await Assert.That(Runs(result)).IsEquivalentTo(
+        [
+            (docs, "301", nameof(BuildStatus.Failed)),
+            (diffEngine, "1234", nameof(BuildStatus.Succeeded))
+        ]);
+        await Assert.That(said).IsEquivalentTo(
+        [
+            "0 of 2 runs of VerifyTests/DiffEngine at 0123456 finished",
+            "1 of 2 runs of VerifyTests/DiffEngine at 0123456 finished"
+        ]);
+    }
+
+    /// <summary>
+    /// The run the key shows finishing first is not the push finishing.
+    /// </summary>
+    [Test]
+    public async Task WholePushWaitsOnTheOthersWhenThisRunHasFinished()
+    {
+        var (tools, host) = Create();
+        Finish(host, diffEngine, "1234", BuildStatus.Succeeded);
+        Add(host, DiffEngine("docs.yml", "main", "301", BuildStatus.Running, commit));
+        var said = new List<string>();
+        var result = await tools.WaitForBuild(
+            diffEngine,
+            false,
+            true,
+            timeout,
+            Steps(
+                said,
+                () => Finish(host, docs, "301", BuildStatus.Succeeded)),
+            Cancel.None);
+        await Assert.That(said.Count).IsEqualTo(1);
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(result.PushRuns!.All(_ => _.Status == nameof(BuildStatus.Succeeded))).IsTrue();
+    }
+
+    /// <summary>
+    /// A push's pipelines are not all polled at once. One that shows up after the wait began is
+    /// counted, rather than the wait ending on the runs it saw first.
+    /// </summary>
+    [Test]
+    public async Task WholePushCountsARunThatShowsUpLater()
+    {
+        var (tools, host) = Create();
+        var result = await tools.WaitForBuild(
+            diffEngine,
+            false,
+            true,
+            timeout,
+            Steps(
+                [],
+                () =>
+                {
+                    Finish(host, diffEngine, "1234", BuildStatus.Succeeded);
+                    Add(host, DiffEngine("docs.yml", "main", "301", BuildStatus.Running, commit));
+                },
+                () => Finish(host, docs, "301", BuildStatus.Succeeded)),
+            Cancel.None);
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(result.PushRuns!.Count).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// A skipped run did nothing and says nothing about the push, so it is left out. A run waiting
+    /// on approval is unknown too, but has yet to run, so it stays.
+    /// </summary>
+    [Test]
+    public async Task WholePushLeavesOutSkippedRuns()
+    {
+        var (tools, host) = Create();
+        Add(
+            host,
+            DiffEngine("docs.yml", "main", "301", BuildStatus.Running, commit),
+            DiffEngine("merge.yml", "main", "50", BuildStatus.Unknown, commit) with
+            {
+                StatusText = "skipped"
+            },
+            DiffEngine("approve.yml", "main", "7", BuildStatus.Unknown, commit) with
+            {
+                StatusText = "action_required"
+            });
+        var result = await tools.WaitForBuild(diffEngine, false, true, TimeSpan.Zero, Steps([]), Cancel.None);
+        await Assert.That(Runs(result)).IsEquivalentTo(
+        [
+            ("gh/DiffEngine/approve.yml/main", "7", nameof(BuildStatus.Unknown)),
+            (docs, "301", nameof(BuildStatus.Running)),
+            (diffEngine, "1234", nameof(BuildStatus.Running))
+        ]);
+    }
+
+    /// <summary>
+    /// The run the wait was asked about is what its push was found from, so it is listed even when
+    /// it was skipped.
+    /// </summary>
+    [Test]
+    public async Task WholePushKeepsTheRunAskedAboutWhenItWasSkipped()
+    {
+        var (tools, host) = Create();
+        Change(host, diffEngine, "1234", _ => _ with
+        {
+            Status = BuildStatus.Unknown,
+            StatusText = "skipped",
+            Finished = Fixtures.Now
+        });
+        var result = await tools.WaitForBuild(diffEngine, false, true, timeout, Steps([]), Cancel.None);
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(Runs(result)).IsEquivalentTo(
+        [
+            (diffEngine, "1234", nameof(BuildStatus.Unknown))
+        ]);
+    }
+
+    [Test]
+    public async Task WholePushTimesOutWithEveryRunAsItStood()
+    {
+        var (tools, host) = Create();
+        Add(host, DiffEngine("docs.yml", "main", "301", BuildStatus.Running, commit));
+        var result = await tools.WaitForBuild(diffEngine, false, true, TimeSpan.Zero, Steps([]), Cancel.None);
+        await Assert.That(result.TimedOut).IsTrue();
+        await Assert.That(Runs(result)).IsEquivalentTo(
+        [
+            (docs, "301", nameof(BuildStatus.Running)),
+            (diffEngine, "1234", nameof(BuildStatus.Running))
+        ]);
+    }
+
+    /// <summary>
+    /// After a push, the next run is waited for first, and then every run of its push.
+    /// </summary>
+    [Test]
+    public async Task WholePushAfterNextRun()
+    {
+        var (tools, host) = Create();
+        var said = new List<string>();
+        var result = await tools.WaitForBuild(
+            verifyMain,
+            true,
+            true,
+            timeout,
+            Steps(
+                said,
+                Nothing,
+                () =>
+                {
+                    Start(host, verifyMain, "79", BuildStatus.Queued, "feedface");
+                    Add(
+                        host,
+                        Fixtures.Build(
+                            Fixtures.GitHub.Id,
+                            "Verify/release.yml",
+                            "release.yml",
+                            "VerifyTests/Verify",
+                            "main",
+                            "5",
+                            BuildStatus.Running,
+                            started: Fixtures.Now,
+                            sha: "feedface"));
+                },
+                () => Finish(host, verifyMain, "79", BuildStatus.Succeeded),
+                () => Finish(host, "gh/Verify/release.yml/main", "5", BuildStatus.Succeeded)),
+            Cancel.None);
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(result.Build.Run).IsEqualTo("79");
+        await Assert.That(result.PushRuns!.Count).IsEqualTo(2);
+        await Assert.That(said[2]).IsEqualTo("0 of 2 runs of VerifyTests/Verify at feedfac finished");
+    }
+
+    /// <summary>
+    /// A service that reports no commit leaves nothing to tell one push from the next, which the
+    /// wait says rather than waiting on the one run as though it were the whole push.
+    /// </summary>
+    [Test]
+    public async Task WholePushNeedsACommit()
+    {
+        var (tools, _) = Create();
+        var exception = await Assert.That(async () => await tools.WaitForBuild(inline, false, true, timeout, null, Cancel.None))
+            .Throws<InvalidOperationException>();
+        await Assert.That(exception!.Message).IsEqualTo($"Run 77 of {inline} has no commit, so the runs of its push cannot be told apart");
+    }
+
+    /// <summary>
+    /// Only the user can restart a tray older than the verb, so the wait says that rather than
+    /// passing on that the tray could not read the message.
+    /// </summary>
+    [Test]
+    public async Task AnOlderTraySaysToRestartIt()
+    {
+        var (tools, _, _) = CreateWithClient(
+            answer: _ =>
+            {
+                if (_.Verb == Verb.PushRuns)
+                {
+                    return Response.Error(LocalServer.Unreadable);
+                }
+
+                return null;
+            });
+        var exception = await Assert.That(async () => await tools.WaitForBuild(diffEngine, false, true, timeout, null, Cancel.None))
+            .Throws<InvalidOperationException>();
+        await Assert.That(exception!.Message).StartsWith("The tray running is older than this server");
+    }
+
+    [Test]
+    public async Task TheTrayRefusesThePushOfARunItDoesNotHave()
+    {
+        var (_, _, client) = CreateWithClient();
+        var response = await client.Send(new(Verb.PushRuns, diffEngine, "9999"), Cancel.None);
+        await Assert.That(response.Ok).IsFalse();
+        await Assert.That(response.Body).IsEqualTo($"No run 9999 of {diffEngine}");
+    }
+
     [Test]
     public async Task AnUnknownKeyFails()
     {
         var (tools, _) = Create();
-        await Assert.That(async () => await tools.WaitForBuild("gh/Nope/test.yml/main", false, timeout, null, Cancel.None))
+        await Assert.That(async () => await tools.WaitForBuild("gh/Nope/test.yml/main", false, false, timeout, null, Cancel.None))
             .Throws<InvalidOperationException>();
     }
 }

@@ -168,5 +168,16 @@ record Build(
 
     public bool IsActive => Status is BuildStatus.Queued or BuildStatus.Running;
 
+    /// <summary>
+    /// A run the service skipped, which did nothing: GitHub's conclusion and GitLab's status both
+    /// spell it so, and the status text is what they said. Told apart from the rest of
+    /// <see cref="BuildStatus.Unknown"/> by that text alone, since another of those, GitHub's
+    /// action_required, is a run waiting on someone's approval, which did not run either but
+    /// still has to.
+    /// </summary>
+    public bool IsSkipped =>
+        Status == BuildStatus.Unknown &&
+        string.Equals(StatusText, "skipped", StringComparison.OrdinalIgnoreCase);
+
     public DateTimeOffset? Ordering => Started ?? Queued ?? Finished;
 }

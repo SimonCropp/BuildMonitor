@@ -16,6 +16,12 @@ sealed class LocalServer : IDisposable
 
     public static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// The answer to a message the tray cannot read, which is also what a tray older than a verb
+    /// answers it with, so a caller can tell a verb the tray does not have from one it refused.
+    /// </summary>
+    public const string Unreadable = "Unreadable message";
+
     public static bool TryBind(int port, [NotNullWhen(true)] out LocalServer? server)
     {
         server = null;
@@ -75,7 +81,7 @@ sealed class LocalServer : IDisposable
                 Response response;
                 if (!Message.TryParse(text.Span, out var message))
                 {
-                    response = Response.Error("Unreadable message");
+                    response = Response.Error(Unreadable);
                 }
                 else
                 {

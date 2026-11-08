@@ -24,6 +24,7 @@
       Key: travis/VerifyTests/DiffEngine/main,
       PipelineKey: travis/VerifyTests/DiffEngine,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_1
     },
     {
@@ -52,6 +53,7 @@
       Key: travis/VerifyTests/DiffEngine/pull/7,
       PipelineKey: travis/VerifyTests/DiffEngine,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_2
     }
   ],

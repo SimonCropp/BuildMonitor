@@ -28,6 +28,7 @@ Details,
       Key: github/VerifyTests/DiffEngine/10/main,
       PipelineKey: github/VerifyTests/DiffEngine/10,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_1
     },
     {
@@ -58,6 +59,7 @@ Details,
       Key: github/VerifyTests/DiffEngine/10/feature,
       PipelineKey: github/VerifyTests/DiffEngine/10,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_2
     },
     {
@@ -86,6 +88,7 @@ Details,
       Key: github/VerifyTests/DiffEngine/10/someone:main,
       PipelineKey: github/VerifyTests/DiffEngine/10,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_4
     }
   ],

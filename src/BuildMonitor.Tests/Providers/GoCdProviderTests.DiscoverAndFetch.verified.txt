@@ -23,6 +23,7 @@
       Key: gocd/web/main,
       PipelineKey: gocd/web,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_1
     },
     {
@@ -49,6 +50,7 @@
       Key: gocd/web/main,
       PipelineKey: gocd/web,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_2
     }
   ],

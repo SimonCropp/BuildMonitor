@@ -13,6 +13,9 @@ enum Verb
     Get,
     // Every run of one pipeline, which the rows collapse: a build or a pipeline key.
     Runs,
+    // Every run of the push one run was part of, across the repository's pipelines: a build key
+    // plus the run number.
+    PushRuns,
     // Poll now: a connection id, or everything.
     Refresh,
     // Poll one build's pipeline now and often for a few minutes, as after a retry: a build key.

@@ -140,9 +140,13 @@ sealed class MonitorTools(IProtocolClient client)
     /// was, unless the assistant remembered a refresh, which fetches every pipeline of the
     /// connection for this one.
     /// </para>
+    /// <para>
+    /// With <paramref name="wholePush"/>, the wait is for every run of the push that run was part
+    /// of, across the repository's pipelines: see <see cref="WaitForPush"/>.
+    /// </para>
     /// </summary>
     /// <param name="waiting">Told how long the wait has run and what it is waiting on, before each pause.</param>
-    public async Task<BuildWaitDto> WaitForBuild(string key, bool nextRun, TimeSpan timeout, Action<TimeSpan, string>? waiting, Cancel cancel)
+    public async Task<BuildWaitDto> WaitForBuild(string key, bool nextRun, bool wholePush, TimeSpan timeout, Action<TimeSpan, string>? waiting, Cancel cancel)
     {
         var watch = Stopwatch.StartNew();
         var build = await Latest(key, cancel);
@@ -164,6 +168,11 @@ sealed class MonitorTools(IProtocolClient client)
             }
         }
 
+        if (wholePush)
+        {
+            return await WaitForPush(key, build, watch, timeout, waiting, cancel);
+        }
+
         var run = build.Run;
         while (IsActive(build))
         {
@@ -176,6 +185,69 @@ sealed class MonitorTools(IProtocolClient client)
         }
 
         return new(false, build);
+    }
+
+    /// <summary>
+    /// Waits until every run of the push <paramref name="build"/> was part of has finished: "did my
+    /// push pass?" is about every pipeline it started, and a wait on one of them answered for that
+    /// one alone, a docs build passing while the tests still ran.
+    /// <para>
+    /// The runs are asked for again each time rather than fixed when the wait began. A push's
+    /// pipelines are not all polled at once, so one can show up after another has finished, and a
+    /// wait that had counted only the first would end before it.
+    /// </para>
+    /// </summary>
+    async Task<BuildWaitDto> WaitForPush(string key, BuildDto build, Stopwatch watch, TimeSpan timeout, Action<TimeSpan, string>? waiting, Cancel cancel)
+    {
+        var run = build.Run;
+        var runs = await PushRuns(key, run, cancel);
+        while (runs.Any(IsActive))
+        {
+            var finished = runs.Count(_ => !IsActive(_));
+            if (!await Pause($"{finished} of {runs.Count} runs of {build.Repo} at {Short(build.Commit)} finished", watch, timeout, waiting, cancel))
+            {
+                return Pushed(true, key, run, runs);
+            }
+
+            runs = await PushRuns(key, run, cancel);
+        }
+
+        return Pushed(false, key, run, runs);
+    }
+
+    static BuildWaitDto Pushed(bool timedOut, string key, string run, List<BuildDto> runs) =>
+        new(timedOut, runs.First(_ => _.Key == key && _.Run == run), [.. runs.Select(Row)]);
+
+    static string? Short(string? commit)
+    {
+        if (commit is { Length: > 7 })
+        {
+            return commit[..7];
+        }
+
+        return commit;
+    }
+
+    /// <summary>
+    /// The runs of the push one run was part of. A tray older than the verb answers it as
+    /// unreadable, which is told apart from a refusal, since only the user can do anything about
+    /// it, and only once told what.
+    /// </summary>
+    async Task<List<BuildDto>> PushRuns(string key, string run, Cancel cancel)
+    {
+        var response = await client.Send(new(Verb.PushRuns, key, run), cancel);
+        if (response.Ok)
+        {
+            return response.Read(DtoContext.Default.ListBuildDto) ??
+                   throw new InvalidOperationException("Empty response");
+        }
+
+        if (response.Body == LocalServer.Unreadable)
+        {
+            throw new InvalidOperationException("The tray running is older than this server and cannot list the runs of a push. Quit it from its menu and start BuildMonitor again.");
+        }
+
+        throw new InvalidOperationException(response.Body);
     }
 
     static bool IsActive(BuildDto build) =>

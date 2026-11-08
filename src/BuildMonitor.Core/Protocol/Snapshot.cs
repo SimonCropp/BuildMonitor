@@ -124,6 +124,44 @@ static class Snapshot
     }
 
     /// <summary>
+    /// Every run of the push one run was part of, as <see cref="GroupKey.PushOf"/> names a push:
+    /// each pipeline of its repository that ran its commit on its branch, whatever it ended in.
+    /// "Did my push pass?" is about all of them, and each is a row of its own, under a key of its
+    /// own, so no one key's runs answer it.
+    /// <para>
+    /// Runs the service skipped are left out: a GitHub workflow set off by each check of a push,
+    /// with a condition only one of them meets, left a skipped run per check, which said nothing
+    /// about the push and read as runs of unknown result. The run asked about stays, skipped or
+    /// not, since it is what the push was found from.
+    /// </para>
+    /// <para>
+    /// Null when the key has no run of that number. Empty when the run has no commit, as on a
+    /// service that reports none: without one, its push cannot be told apart from the next.
+    /// </para>
+    /// </summary>
+    public static List<BuildDto>? Push(SessionState state, string key, string run, DateTimeOffset now)
+    {
+        var builds = Filters.Apply(state.Settings.Filters, state.Builds);
+        if (builds.FirstOrDefault(_ => _.HasKey(key) && _.RunNumber == run) is not { } build)
+        {
+            return null;
+        }
+
+        if (GroupKey.PushOf(build) is not { } push)
+        {
+            return [];
+        }
+
+        return builds
+            .Where(_ => ReferenceEquals(_, build) ||
+                        (!_.IsSkipped &&
+                         GroupKey.PushOf(_) == push))
+            .OrderBy(_ => _.PipelineName, StringComparer.OrdinalIgnoreCase)
+            .Select(_ => Build(state, state.Connection(_.ConnectionId)!.Connection, _, now, false))
+            .ToList();
+    }
+
+    /// <summary>
     /// A run of the pipeline the key names, as a build key or as a pipeline key.
     /// </summary>
     static Build? RunOf(ImmutableArray<Build> builds, string key) =>

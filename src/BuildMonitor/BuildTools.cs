@@ -69,12 +69,14 @@ sealed class BuildTools(MonitorTools tools)
         tools.DownloadArtifacts(key, cancel);
 
     [McpServerTool(Name = "wait_for_build", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Waits for a build to finish, then returns it as get_build does, so you can tell the user when it is done rather than checking back. Returns at once when it has already finished. Follows the run it started on: a newer run on the same branch starting meanwhile is not the one waited on. Right after a push or retry_build pass nextRun, since the tray shows the last run until it polls the new one. When the timeout passes first, timedOut is true and the build is as it stood: call again to keep waiting. Asks the tray every few seconds, which costs no calls to the CI service.")]
+    [Description("Waits for a build to finish, then returns it as get_build does, so you can tell the user when it is done rather than checking back. Returns at once when it has already finished. Follows the run it started on: a newer run on the same branch starting meanwhile is not the one waited on. Right after a push or retry_build pass nextRun, since the tray shows the last run until it polls the new one. Pass wholePush to wait for every pipeline the push started, not only this one. When the timeout passes first, timedOut is true and the build is as it stood: call again to keep waiting. Asks the tray every few seconds, which costs no calls to the CI service.")]
     public Task<BuildWaitDto> WaitForBuild(
         [Description("The build key from list_builds.")]
         string key,
         [Description("When the run the key shows has already finished, wait for the one after it instead of returning it: the run a push or retry_build just set off. A run still going is waited on either way. The tray is asked to poll that pipeline now, so a pipeline that has been quiet needs no refresh first. Defaults to false.")]
         bool nextRun = false,
+        [Description("Wait for every run of the push this run was part of, each pipeline of its repository that ran the same commit on the same branch, rather than this run alone, and list them all in pushRuns: what \"did my push pass?\" asks about. Fails for a build whose service reports no commit. Defaults to false.")]
+        bool wholePush = false,
         [Description("How long to wait, in seconds, before returning with timedOut. Defaults to 600, at most 3600. Pass less where your client gives up on a tool call sooner.")]
         int timeoutSeconds = 600,
         IProgress<ProgressNotificationValue>? progress = null,
@@ -82,6 +84,7 @@ sealed class BuildTools(MonitorTools tools)
         tools.WaitForBuild(
             key,
             nextRun,
+            wholePush,
             TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 0, 3600)),
             // Seconds waited, which only grow, as a progress value must. The build's own progress
             // is an estimate that can stall or step back.

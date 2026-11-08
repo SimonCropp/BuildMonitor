@@ -25,6 +25,7 @@
       Key: appveyor/simon/diffengine/someone:main,
       PipelineKey: appveyor/simon/diffengine,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_1
     },
     {
@@ -52,6 +53,7 @@
       Key: appveyor/simon/diffengine/main,
       PipelineKey: appveyor/simon/diffengine,
       IsActive: true,
+      IsSkipped: false,
       Ordering: DateTimeOffset_3
     },
     {
@@ -82,6 +84,7 @@
       Key: appveyor/simon/diffengine/feature,
       PipelineKey: appveyor/simon/diffengine,
       IsActive: false,
+      IsSkipped: false,
       Ordering: DateTimeOffset_5
     }
   ],
