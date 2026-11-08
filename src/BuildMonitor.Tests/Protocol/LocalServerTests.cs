@@ -244,13 +244,22 @@ public class LocalServerTests
         }
     }
 
+    /// <summary>
+    /// Against a port held bound but not listening for the whole test, so nothing can be listening
+    /// on it. Bound, freed and then asked, as it was, the port went back to the pool between the
+    /// two, where any listener on port 0 running alongside, the fifty of
+    /// <see cref="CancelThenDisposeStopsListeningQuietly"/> among them, could be handed it, and the
+    /// tray read as running.
+    /// </summary>
     [Test]
     public async Task NothingListeningIsUnreachable()
     {
-        await Assert.That(LocalServer.TryBind(0, out var server)).IsTrue();
-        var port = server!.Port;
-        server.Dispose();
-        var client = new ProtocolClient(port);
+        using var held = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+        {
+            ExclusiveAddressUse = true
+        };
+        held.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+        var client = new ProtocolClient(((IPEndPoint) held.LocalEndPoint!).Port);
         await Assert.That(await client.IsRunning(Cancel.None)).IsFalse();
         await Assert.That(async () => await client.Send(new(Verb.List), Cancel.None)).Throws<TrayUnreachableException>();
     }
