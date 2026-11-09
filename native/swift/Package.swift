@@ -12,7 +12,7 @@ let package = Package(
     dependencies: [
         // What every AppKit head does underneath its drawing, shared with DiffEngine's viewer, and
         // the tray's ABI, shared with DiffEngineTray. A pin of PlatformHeads, moved with the others.
-        .package(url: "https://github.com/SimonCropp/PlatformHeads", exact: "0.14.0")
+        .package(url: "https://github.com/SimonCropp/PlatformHeads", exact: "0.15.0")
     ],
     targets: [
         // Exists only to import the ABI. Swift does not guarantee struct layout, so the structs
