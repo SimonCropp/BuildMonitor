@@ -15,7 +15,7 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
     <PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
     <PackageVersion Include="PlatformHeads" Version="0.15.0" />
-    <PackageVersion Include="PlatformHeads.Core" Version="0.15.0" />
+    <PackageVersion Include="PlatformHeads.Core" Version="0.16.0" />
     <PackageVersion Include="PlatformHeads.Linux" Version="0.15.0" />
     <PackageVersion Include="PlatformHeads.Mac" Version="0.15.0" />
     <PackageVersion Include="PlatformHeads.WindowsForms" Version="0.15.0" />
