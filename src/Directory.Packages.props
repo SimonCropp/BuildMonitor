@@ -20,7 +20,7 @@
     <PackageVersion Include="PlatformHeads.Mac" Version="0.16.0" />
     <PackageVersion Include="PlatformHeads.WindowsForms" Version="0.16.0" />
     <PackageVersion Include="Polyfill" Version="11.4.5" />
-    <PackageVersion Include="ProjectDefaults" Version="1.0.188" />
+    <PackageVersion Include="ProjectDefaults" Version="1.0.189" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.1" />
