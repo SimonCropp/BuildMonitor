@@ -58,10 +58,10 @@ public class PackageTests
         await using var archive = await ZipFile.OpenReadAsync(Package()!);
         var heads = archive.Entries
             .Select(_ => _.FullName)
-            .Where(_ => _.StartsWith("tools/net10.0/any/heads/", StringComparison.Ordinal) && _.Contains("/BuildMonitor.Tray", StringComparison.Ordinal) && !_.EndsWith(".dll", StringComparison.Ordinal) && !_.EndsWith(".json", StringComparison.Ordinal))
+            .Where(_ => _.StartsWith("tools/net11.0/any/heads/", StringComparison.Ordinal) && _.Contains("/BuildMonitor.Tray", StringComparison.Ordinal) && !_.EndsWith(".dll", StringComparison.Ordinal) && !_.EndsWith(".json", StringComparison.Ordinal))
             .ToList();
-        await Assert.That(heads).Contains("tools/net10.0/any/heads/win-x64/BuildMonitor.Tray.exe");
-        await Assert.That(heads).Contains("tools/net10.0/any/heads/win-arm64/BuildMonitor.Tray.exe");
+        await Assert.That(heads).Contains("tools/net11.0/any/heads/win-x64/BuildMonitor.Tray.exe");
+        await Assert.That(heads).Contains("tools/net11.0/any/heads/win-arm64/BuildMonitor.Tray.exe");
     }
 
     [Test]

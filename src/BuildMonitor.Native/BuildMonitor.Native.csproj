@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <!-- Every head produces the same executable name; the launcher looks it up by RID folder. -->
     <AssemblyName>BuildMonitor.Tray</AssemblyName>
     <IsPackable>false</IsPackable>
