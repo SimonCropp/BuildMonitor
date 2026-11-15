@@ -6,7 +6,7 @@
 The log directory sits beside the installed tool, so it moves with the version:
 
 ```
-~/.dotnet/tools/.store/buildmonitor/{VERSION}/buildmonitor/{VERSION}/tools/net10.0/any/heads/{RID}/logs
+~/.dotnet/tools/.store/buildmonitor/{VERSION}/buildmonitor/{VERSION}/tools/net11.0/any/heads/{RID}/logs
 ```
 
 The tray menu's "Open logs" and the [About](options.md#about) page open it without any of that. Ten files of a megabyte each are kept.

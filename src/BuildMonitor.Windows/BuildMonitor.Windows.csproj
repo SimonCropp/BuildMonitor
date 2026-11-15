@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <!--
-    The whole head is Windows only, so this could target net10.0-windows. It does not, because
+    The whole head is Windows only, so this could target net11.0-windows. It does not, because
     the launcher publishes it per RID from a platform neutral package and the publish must not be
     platform locked. Same trick DiffEngineTray uses: claim the Windows platform only for the check
     that would refuse UseWindowsForms on a platform neutral framework, then put it back.
