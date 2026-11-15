@@ -156,11 +156,7 @@ sealed class GoCdProvider : ProviderBase
     static Build Convert(string connectionId, string server, Pipeline pipeline, GoCdInstance instance, (bool Group, bool FirstStage) rights)
     {
         // An instance with no stages is still a row, one that reads as scheduled.
-        var stages = instance.Stages;
-        if (stages is null)
-        {
-            stages = [];
-        }
+        var stages = instance.Stages ?? [];
 
         var scheduled = stages.Where(_ => _.Scheduled).ToList();
         BuildStatus status;
