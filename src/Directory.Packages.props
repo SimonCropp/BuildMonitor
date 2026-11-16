@@ -8,10 +8,10 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="IconifyBundle.Lucide" Version="1.1.0" />
     <PackageVersion Include="IconifyBundle.SimpleIcons" Version="1.1.0" />
-    <PackageVersion Include="MarkdownSnippets.MsBuild" Version="28.5.1" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.14" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.14" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
+    <PackageVersion Include="MarkdownSnippets.MsBuild" Version="29.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
     <PackageVersion Include="ModelContextProtocol" Version="2.4.0" />
     <PackageVersion Include="PlatformHeads" Version="0.17.0" />
@@ -24,15 +24,15 @@
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.1" />
-    <PackageVersion Include="SkiaSharp" Version="4.156.0" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.156.0" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="4.156.0" />
+    <PackageVersion Include="SkiaSharp" Version="4.156.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.156.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="4.156.1" />
     <PackageVersion Include="Svg.Skia" Version="5.2.3" />
-    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="11.0.0" />
     <PackageVersion Include="Tmds.DBus.Protocol" Version="0.95.2" />
-    <PackageVersion Include="TUnit" Version="1.84.0" />
-    <PackageVersion Include="Verify" Version="33.3.4" />
-    <PackageVersion Include="Verify.TUnit" Version="33.3.4" />
+    <PackageVersion Include="TUnit" Version="1.85.0" />
+    <PackageVersion Include="Verify" Version="33.4.0" />
+    <PackageVersion Include="Verify.TUnit" Version="33.4.0" />
     <PackageVersion Include="Verify.WinForms" Version="6.0.0" />
   </ItemGroup>
 </Project>

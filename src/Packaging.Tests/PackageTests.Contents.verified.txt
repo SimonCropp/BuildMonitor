@@ -104,6 +104,6 @@
   tools/net11.0/any/heads/win-x64/PlatformHeads.WindowsForms.dll,
   tools/net11.0/any/heads/win-x64/Serilog.Sinks.File.dll,
   tools/net11.0/any/heads/win-x64/Serilog.dll,
-  tools/net11.0/any/runtimes/win/lib/net10.0/System.Diagnostics.EventLog.Messages.dll,
-  tools/net11.0/any/runtimes/win/lib/net10.0/System.Diagnostics.EventLog.dll
+  tools/net11.0/any/runtimes/win/lib/net11.0/System.Diagnostics.EventLog.Messages.dll,
+  tools/net11.0/any/runtimes/win/lib/net11.0/System.Diagnostics.EventLog.dll
 ]
