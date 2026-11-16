@@ -50,6 +50,7 @@ public class MovedRowTests
             {
                 RunNumber = "301",
                 Status = BuildStatus.Failed,
+                Queued = polled - TimeSpan.FromMinutes(1),
                 Started = polled - TimeSpan.FromMinutes(1),
                 Finished = polled
             });

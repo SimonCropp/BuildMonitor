@@ -47,6 +47,7 @@ public class LockTests
                 {
                     RunNumber = "1235",
                     Status = BuildStatus.Succeeded,
+                    Queued = Fixtures.Now,
                     Started = Fixtures.Now,
                     Finished = Fixtures.Now + TimeSpan.FromMinutes(1)
                 };

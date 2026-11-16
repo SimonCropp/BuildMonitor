@@ -26,7 +26,7 @@
       PipelineKey: octopus/Projects-1,
       IsActive: true,
       IsSkipped: false,
-      Ordering: DateTimeOffset_2
+      Ordering: DateTimeOffset_1
     },
     {
       ConnectionId: octopus,
@@ -51,7 +51,7 @@
       PipelineKey: octopus/Projects-1,
       IsActive: false,
       IsSkipped: false,
-      Ordering: DateTimeOffset_4
+      Ordering: DateTimeOffset_3
     }
   ],
   Requests: [

@@ -626,6 +626,7 @@ public class ScreenTests
         var main = builds[2] with
         {
             RunNumber = "78",
+            Queued = Fixtures.Now - TimeSpan.FromMinutes(10),
             Started = Fixtures.Now - TimeSpan.FromMinutes(10),
             Finished = Fixtures.Now - TimeSpan.FromMinutes(5)
         };

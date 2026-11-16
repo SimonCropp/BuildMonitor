@@ -27,7 +27,7 @@
       PipelineKey: azure-devops/Web/1,
       IsActive: true,
       IsSkipped: false,
-      Ordering: DateTimeOffset_2
+      Ordering: DateTimeOffset_1
     },
     {
       ConnectionId: azure-devops,
@@ -58,7 +58,7 @@
       PipelineKey: azure-devops/Web/1,
       IsActive: false,
       IsSkipped: false,
-      Ordering: DateTimeOffset_4
+      Ordering: DateTimeOffset_3
     },
     {
       ConnectionId: azure-devops,
@@ -88,7 +88,7 @@
       PipelineKey: azure-devops/Web/1,
       IsActive: false,
       IsSkipped: false,
-      Ordering: DateTimeOffset_7
+      Ordering: DateTimeOffset_6
     },
     {
       ConnectionId: azure-devops,
@@ -116,7 +116,7 @@
       PipelineKey: azure-devops/Web/2,
       IsActive: false,
       IsSkipped: false,
-      Ordering: DateTimeOffset_10
+      Ordering: DateTimeOffset_9
     }
   ],
   Requests: [

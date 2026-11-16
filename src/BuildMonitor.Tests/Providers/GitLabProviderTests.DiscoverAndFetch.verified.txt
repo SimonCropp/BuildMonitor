@@ -25,7 +25,7 @@
       PipelineKey: gitlab/77,
       IsActive: true,
       IsSkipped: false,
-      Ordering: DateTimeOffset_2
+      Ordering: DateTimeOffset_1
     },
     {
       ConnectionId: gitlab,
@@ -55,7 +55,7 @@
       PipelineKey: gitlab/77,
       IsActive: false,
       IsSkipped: false,
-      Ordering: DateTimeOffset_4
+      Ordering: DateTimeOffset_3
     },
     {
       ConnectionId: gitlab,
@@ -85,7 +85,7 @@
       PipelineKey: gitlab/77,
       IsActive: false,
       IsSkipped: false,
-      Ordering: DateTimeOffset_7
+      Ordering: DateTimeOffset_6
     }
   ],
   Requests: [

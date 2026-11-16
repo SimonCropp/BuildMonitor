@@ -30,7 +30,7 @@
       PipelineKey: teamcity/Verify_Build,
       IsActive: true,
       IsSkipped: false,
-      Ordering: DateTimeOffset_2
+      Ordering: DateTimeOffset_1
     },
     {
       ConnectionId: teamcity,
@@ -55,7 +55,7 @@
       PipelineKey: teamcity/Verify_Build,
       IsActive: false,
       IsSkipped: false,
-      Ordering: DateTimeOffset_4
+      Ordering: DateTimeOffset_3
     },
     {
       ConnectionId: teamcity,
@@ -80,7 +80,7 @@
       PipelineKey: teamcity/Verify_Docs,
       IsActive: false,
       IsSkipped: false,
-      Ordering: DateTimeOffset_7
+      Ordering: DateTimeOffset_6
     }
   ],
   Requests: [

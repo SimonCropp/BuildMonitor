@@ -91,6 +91,7 @@ public class BuildSelectionTests
         {
             RunNumber = "1234b",
             Status = BuildStatus.Succeeded,
+            Queued = Fixtures.Now - TimeSpan.FromMinutes(2),
             Started = Fixtures.Now - TimeSpan.FromMinutes(2),
             Finished = Fixtures.Now - TimeSpan.FromSeconds(90)
         };
@@ -107,6 +108,72 @@ public class BuildSelectionTests
         var builds = Fixtures.GitHubBuildsWithBlockedRun();
         var pipeline = Select(builds.SetItem(0, builds[0] with { Branch = "feature/x" })).Single(_ => _.Head!.Branch == "main" && _.Head.PipelineId == "DiffEngine/test.yml");
         await Assert.That(pipeline.Blocker).IsNull();
+    }
+
+    /// <summary>
+    /// A run queued while the one before it still waited for an agent is the newer, though that one
+    /// started after it was queued. Ordered by when each started, the older run, failed since, held
+    /// the row, and the queued run behind it was on no row at all.
+    /// </summary>
+    [Test]
+    public async Task ARunQueuedBeforeTheOneBeforeItStartedHeads()
+    {
+        var pipeline = Select(QueuedBehindALateStart(BuildStatus.Failed)).Single();
+        await Assert.That(Describe(pipeline.Head!)).IsEqualTo("main #200003 Queued");
+        await Assert.That(pipeline.Blocker).IsNull();
+    }
+
+    /// <summary>
+    /// The same, while the older run is still running: the queued run heads, waiting on it.
+    /// </summary>
+    [Test]
+    public async Task ARunQueuedBeforeTheOneBeforeItStartedIsBlockedByIt()
+    {
+        var pipeline = Select(QueuedBehindALateStart(BuildStatus.Running)).Single();
+        await Assert.That(Describe(pipeline.Head!)).IsEqualTo("main #200003 Queued");
+        await Assert.That(Describe(pipeline.Blocker!)).IsEqualTo("main #199985 Running");
+    }
+
+    /// <summary>
+    /// Two runs of main as Azure DevOps reports them: #199985 queued 20 minutes ago, waiting ten
+    /// for an agent, and #200003 queued eight minutes after it and not started, which Azure DevOps
+    /// gives its queue time as its start.
+    /// </summary>
+    static ImmutableArray<Build> QueuedBehindALateStart(BuildStatus older)
+    {
+        var raised = Fixtures.Now - TimeSpan.FromMinutes(20);
+        DateTimeOffset? finished = null;
+        if (older != BuildStatus.Running)
+        {
+            finished = raised + TimeSpan.FromMinutes(13);
+        }
+
+        var queued = raised + TimeSpan.FromMinutes(8);
+        ImmutableArray<Build> builds =
+        [
+            Fixtures.Build(
+                "ado",
+                "42",
+                "Electorate",
+                "Electorate",
+                "main",
+                "200003",
+                BuildStatus.Queued,
+                queued: queued,
+                started: queued),
+            Fixtures.Build(
+                "ado",
+                "42",
+                "Electorate",
+                "Electorate",
+                "main",
+                "199985",
+                older,
+                queued: raised,
+                started: raised + TimeSpan.FromMinutes(10),
+                finished: finished)
+        ];
+        return [..builds.Select(_ => _ with { DefaultBranch = "main" })];
     }
 
     [Test]
@@ -141,6 +208,7 @@ public class BuildSelectionTests
             RunNumber = "40",
             Status = BuildStatus.Queued,
             Finished = null,
+            Queued = Fixtures.Now - TimeSpan.FromDays(3),
             Started = Fixtures.Now - TimeSpan.FromDays(3)
         };
         var selected = Shown(Select(builds.Add(stuck)));
@@ -184,6 +252,7 @@ public class BuildSelectionTests
         var branchBuild = builds[1] with
         {
             RunNumber = "78",
+            Queued = Fixtures.Now - TimeSpan.FromMinutes(10),
             Started = Fixtures.Now - TimeSpan.FromMinutes(10),
             Finished = Fixtures.Now - TimeSpan.FromMinutes(5),
             PullRequestNumber = null,
@@ -203,6 +272,7 @@ public class BuildSelectionTests
         var newer = builds[1] with
         {
             RunNumber = "78",
+            Queued = Fixtures.Now - TimeSpan.FromMinutes(10),
             Started = Fixtures.Now - TimeSpan.FromMinutes(10),
             Finished = Fixtures.Now - TimeSpan.FromMinutes(5),
             PullRequestNumber = "43",
@@ -327,6 +397,7 @@ public class BuildSelectionTests
             builds[2] with
             {
                 RunNumber = "78",
+                Queued = Fixtures.Now - TimeSpan.FromMinutes(10),
                 Started = Fixtures.Now - TimeSpan.FromMinutes(10),
                 Finished = Fixtures.Now - TimeSpan.FromMinutes(5)
             });

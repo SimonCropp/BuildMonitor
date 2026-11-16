@@ -179,5 +179,11 @@ record Build(
         Status == BuildStatus.Unknown &&
         string.Equals(StatusText, "skipped", StringComparison.OrdinalIgnoreCase);
 
-    public DateTimeOffset? Ordering => Started ?? Queued ?? Finished;
+    /// <summary>
+    /// When the run was asked for, which is the order a pipeline's runs come in: when it was queued,
+    /// or, where the service gives no queue time, when it started. Not when it started first: that
+    /// is when an agent came free, and an Azure DevOps run that waited for one started after the
+    /// next had been queued, so it read as the newer and hid the queued run behind it, failed.
+    /// </summary>
+    public DateTimeOffset? Ordering => Queued ?? Started ?? Finished;
 }

@@ -134,6 +134,7 @@ public class DeferTests
         {
             RunNumber = "78",
             Status = BuildStatus.Running,
+            Queued = Fixtures.Now,
             Started = Fixtures.Now,
             Finished = null
         };
@@ -153,6 +154,7 @@ public class DeferTests
         var again = Failed(builds) with
         {
             RunNumber = "78",
+            Queued = Fixtures.Now,
             Started = Fixtures.Now,
             Finished = Fixtures.Now
         };
@@ -184,6 +186,7 @@ public class DeferTests
         {
             RunNumber = "78",
             Status = BuildStatus.Succeeded,
+            Queued = Fixtures.Now,
             Started = Fixtures.Now,
             Finished = Fixtures.Now
         };
@@ -260,6 +263,7 @@ public class DeferTests
         {
             RunNumber = "78",
             Status = BuildStatus.Succeeded,
+            Queued = Fixtures.Now,
             Started = Fixtures.Now,
             Finished = Fixtures.Now
         };

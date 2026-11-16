@@ -438,7 +438,9 @@ static class Fixtures
                 branch,
                 run,
                 status,
-                queued: Now - TimeSpan.FromMinutes(9),
+                // As GitHub gives them: a run that has started was queued when it started, the
+                // attempt being both. A queue time of its own only for the run still waiting.
+                queued: started is null ? Now - TimeSpan.FromMinutes(9) : null,
                 started: Now - started,
                 finished: took is null ? null : Now - started + took,
                 branchUrl: branchUrl,

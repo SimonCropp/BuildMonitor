@@ -54,7 +54,7 @@
       PipelineKey: appveyor/simon/diffengine,
       IsActive: true,
       IsSkipped: false,
-      Ordering: DateTimeOffset_3
+      Ordering: DateTimeOffset_2
     },
     {
       ConnectionId: appveyor,
@@ -85,7 +85,7 @@
       PipelineKey: appveyor/simon/diffengine,
       IsActive: false,
       IsSkipped: false,
-      Ordering: DateTimeOffset_5
+      Ordering: DateTimeOffset_4
     }
   ],
   Requests: [
