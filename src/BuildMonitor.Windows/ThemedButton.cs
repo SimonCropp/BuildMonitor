@@ -17,7 +17,7 @@ sealed class ThemedButton : FormsButton
     {
         ForeColor = Palette.Text;
         BackColor = Palette.Chip;
-        FlatAppearance.BorderColor = Palette.Border;
+        FlatAppearance.BorderColor = Palette.ButtonBorder;
     }
 
     protected override void OnPaint(PaintEventArgs pevent)
@@ -32,7 +32,9 @@ sealed class ThemedButton : FormsButton
         var bounds = ClientRectangle;
         using var fill = new SolidBrush(BackColor);
         graphics.FillRectangle(fill, bounds);
-        using var border = new Pen(FlatAppearance.BorderColor);
+        // The palette's quieter border, as a disabled one always had: only an enabled button's
+        // outline is the stronger ButtonBorder
+        using var border = new Pen(Palette.Border);
         graphics.DrawRectangle(border, bounds.X, bounds.Y, bounds.Width - 1, bounds.Height - 1);
         var flags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine;
         if (!UseMnemonic)
