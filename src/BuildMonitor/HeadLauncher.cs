@@ -37,7 +37,7 @@ static class HeadLauncher
         var head = HeadLocator.Find();
         if (head is null)
         {
-            await Console.Error.WriteLineAsync($"No BuildMonitor head for {RuntimeInformation.RuntimeIdentifier} under {AppContext.BaseDirectory}");
+            await Console.Error.WriteLineAsync($"No BuildMonitor head for {RuntimeInformation.RuntimeIdentifier} under {AppContext.BaseDirectory}", cancel);
             return false;
         }
 
@@ -54,7 +54,7 @@ static class HeadLauncher
             await Task.Delay(200, cancel);
         }
 
-        await Console.Error.WriteLineAsync($"The tray did not answer on port {port} within {startTimeout.TotalSeconds} seconds");
+        await Console.Error.WriteLineAsync($"The tray did not answer on port {port} within {startTimeout.TotalSeconds} seconds", cancel);
         return false;
     }
 
