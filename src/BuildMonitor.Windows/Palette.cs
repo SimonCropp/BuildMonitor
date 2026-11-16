@@ -34,6 +34,13 @@ static class Palette
     public static Color Text => Pick(Color.FromArgb(212, 212, 212), Color.FromArgb(32, 32, 32));
     public static Color Dim => Pick(Color.FromArgb(140, 140, 140), Color.FromArgb(110, 110, 110));
     public static Color Border => Pick(Color.FromArgb(56, 56, 56), Color.FromArgb(204, 204, 204));
+
+    /// <summary>
+    /// An enabled button's outline, the grey .NET 10 drew on both themes whatever a flat button
+    /// asked for. .NET 11 draws the colour asked for, and <see cref="Border"/> is so near
+    /// <see cref="Chip"/> on the dark theme that the buttons read as tiles with no edge.
+    /// </summary>
+    public static Color ButtonBorder => Color.FromArgb(155, 155, 155);
     public static Color BarTrack => Pick(Color.FromArgb(58, 58, 58), Color.FromArgb(220, 220, 220));
     public static Color Chip => Pick(Color.FromArgb(52, 52, 56), Color.FromArgb(226, 226, 232));
     public static Color ChipText => Pick(Color.FromArgb(180, 200, 255), Color.FromArgb(0, 90, 180));
