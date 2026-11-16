@@ -40,7 +40,9 @@ public class ErrorRelayTests
         // Named in full: BuildMonitor has an McpServer of its own, the record of a running server shim.
         await using var server = ModelContextProtocol.Server.McpServer.Create(new StreamServerTransport(toServer.Reader.AsStream(), toClient.Writer.AsStream()), options);
         var running = server.RunAsync(stop.Token);
-        await using (var client = await McpClient.CreateAsync(new StreamClientTransport(toServer.Writer.AsStream(), toClient.Reader.AsStream())))
+        // A handshake the server never answers fails the test, rather than hanging the run
+        using var connect = new CancelSource(TimeSpan.FromSeconds(10));
+        await using (var client = await McpClient.CreateAsync(new StreamClientTransport(toServer.Writer.AsStream(), toClient.Reader.AsStream()), cancellationToken: connect.Token))
         {
             await use(client);
         }

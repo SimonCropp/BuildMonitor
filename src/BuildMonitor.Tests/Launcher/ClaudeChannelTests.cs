@@ -42,7 +42,9 @@ public class ClaudeChannelTests
                 ]
             }
         };
-        await using (var client = await McpClient.CreateAsync(new StreamClientTransport(toServer.Writer.AsStream(), toClient.Reader.AsStream()), clientOptions))
+        // A handshake the server never answers fails the test, rather than hanging the run
+        using var connect = new CancelSource(TimeSpan.FromSeconds(10));
+        await using (var client = await McpClient.CreateAsync(new StreamClientTransport(toServer.Writer.AsStream(), toClient.Reader.AsStream()), clientOptions, cancellationToken: connect.Token))
         {
             await Assert.That(client.ServerCapabilities.Experimental!.ContainsKey("claude/channel")).IsTrue();
             await Assert.That(client.ServerInstructions).EndsWith(McpInstructions.Channel);
