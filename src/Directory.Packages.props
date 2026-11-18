@@ -8,7 +8,7 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="IconifyBundle.Lucide" Version="1.1.0" />
     <PackageVersion Include="IconifyBundle.SimpleIcons" Version="1.1.0" />
-    <PackageVersion Include="MarkdownSnippets.MsBuild" Version="29.0.0" />
+    <PackageVersion Include="MarkdownSnippets.MsBuild" Version="30.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="11.0.0" />
