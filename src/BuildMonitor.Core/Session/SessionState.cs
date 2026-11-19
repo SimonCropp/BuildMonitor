@@ -83,6 +83,14 @@ record SessionState(
     public ImmutableDictionary<string, BranchVerdict> Verdicts { get; init; } = ImmutableDictionary<string, BranchVerdict>.Empty;
 
     /// <summary>
+    /// The AI apps this machine has a link handler for, as <see cref="Assistants.Installed"/> last
+    /// found them: at startup, on opening the options, and at each triage. Held here because the
+    /// options and the triage chip's hover say which app a triage opens, and the screen is built
+    /// from the state alone.
+    /// </summary>
+    public ImmutableArray<Assistant> InstalledAssistants { get; init; } = [];
+
+    /// <summary>
     /// Whether nobody can see the window: hidden, minimized, or behind a locked session. The loop
     /// idles as it does while hidden and the clock stops rebuilding the screen, rather than build
     /// and draw a frame every second, and on the native heads pump sixty a second, for nobody. The

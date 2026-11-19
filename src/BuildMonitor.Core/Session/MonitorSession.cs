@@ -753,6 +753,7 @@ static class MonitorSession
         values[FormFields.HistoryDays] = settings.HistoryDays.ToString();
         values[FormFields.Port] = settings.Port.ToString();
         values[FormFields.CodeDirectory] = settings.CodeDirectory;
+        values[FormFields.TriageAssistant] = Assistants.Label(settings.TriageAssistant);
         return OpenForm(state, new OptionsFormState
         {
             Values = values.ToImmutable()
@@ -2212,9 +2213,23 @@ static class MonitorSession
     /// about it travels with it rather than being said now: only the window taking the text puts
     /// it on the clipboard, and the user this is for has usually left the window to paste it
     /// somewhere else.
+    /// <para>
+    /// Where <paramref name="openedIn"/> has it typed already, it is still copied, but the tray says
+    /// nothing either way. The app coming forward with the prompt in it says it is ready, and a
+    /// notification to paste on top of that sends someone off to paste it a second time.
+    /// </para>
     /// </summary>
-    public static SessionState Triaged(SessionState state, Build build, string prompt, string status)
+    public static SessionState Triaged(SessionState state, Build build, string prompt, string status, Assistant? openedIn = null)
     {
+        if (openedIn is not null)
+        {
+            return EndTriage(state, build) with
+            {
+                Clipboard = new(prompt),
+                Status = status
+            };
+        }
+
         var name = $"{build.PipelineName} {build.RunNumberLabel()}".TrimEnd();
         return EndTriage(state, build) with
         {
@@ -2236,6 +2251,23 @@ static class MonitorSession
             Status = status,
             Notification = new("Triage failed", status, build.Key)
         };
+
+    /// <summary>
+    /// The AI apps the desktop has a handler for now. The same state where nothing changed, which is
+    /// every time but the one after an install or a removal.
+    /// </summary>
+    public static SessionState FoundAssistants(SessionState state, ImmutableArray<Assistant> found)
+    {
+        if (state.InstalledAssistants.SequenceEqual(found))
+        {
+            return state;
+        }
+
+        return state with
+        {
+            InstalledAssistants = found
+        };
+    }
 
     static SessionState EndTriage(SessionState state, Build build) =>
         state with

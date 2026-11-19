@@ -31,6 +31,7 @@ class RecordingActions
             _ => Calls.Add($"RunNext {_.Key}"),
             _ => Calls.Add($"CopyLog {_.Key}"),
             _ => Calls.Add($"Triage {_.Key}"),
+            () => Calls.Add("FindAssistants"),
             (connection, method, _) => Calls.Add($"SignIn {connection.ProviderId} {method}"),
             _ => Calls.Add("CancelSignIn"),
             (connection, token) => Calls.Add($"Test {connection.ProviderId} token={token is not null}"),

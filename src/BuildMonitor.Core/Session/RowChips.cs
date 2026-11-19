@@ -31,7 +31,10 @@ static class RowChips
     /// seconds, so a frame taken from the same second steps exactly once a rebuild, where one counted
     /// from the click skipped or repeated a frame whenever a rebuild landed either side of a second.
     /// The drop down leaves it out, since it draws only the labels.</param>
-    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging, long tick = 0)
+    /// <param name="assistant">The AI app a triage opens, as <see cref="Assistants.Resolve"/> picks
+    /// it, or null where it only copies. Only the triage chip's hover says which, so the drop down
+    /// leaves it out too.</param>
+    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging, long tick = 0, Assistant? assistant = null)
     {
         List<RowChip> chips = [];
         // The number is the one thing about a pull request worth a row's width: which one it is.
@@ -86,8 +89,8 @@ static class RowChips
             // chip past the column sized for it and send it into the drop down. A click on it does
             // nothing, which the applier decides, not this.
             chips.Add(triaging
-                ? new(ChipKind.Triage, "Triaging", "Collecting artifacts and log. A notification says when the prompt is on the clipboard.", $"busy-{tick % BusyFrames}")
-                : new(ChipKind.Triage, "Triage", $"Download artifacts and log, and copy a prompt\n{directory}", "triage"));
+                ? new(ChipKind.Triage, "Triaging", TriagingTooltip(assistant), $"busy-{tick % BusyFrames}")
+                : new(ChipKind.Triage, "Triage", $"{TriageTooltip(assistant)}\n{directory}", "triage"));
         }
 
         // Last, because its kind is: see ChipKind.RunNext. It names the service for the reason
@@ -100,6 +103,30 @@ static class RowChips
         }
 
         return chips;
+    }
+
+    /// <summary>
+    /// Names the app before the click, since the click is what brings it forward, and an app that
+    /// comes up unannounced over the window reads as something else having opened it.
+    /// </summary>
+    static string TriageTooltip(Assistant? assistant)
+    {
+        if (assistant is null)
+        {
+            return "Download artifacts and log, and copy a prompt";
+        }
+
+        return $"Download artifacts and log, and open a prompt in {assistant.Name}";
+    }
+
+    static string TriagingTooltip(Assistant? assistant)
+    {
+        if (assistant is null)
+        {
+            return "Collecting artifacts and log. A notification says when the prompt is on the clipboard.";
+        }
+
+        return $"Collecting artifacts and log. {assistant.Name} opens with the prompt when they are in.";
     }
 
     public static CommandKind Command(ChipKind kind) =>

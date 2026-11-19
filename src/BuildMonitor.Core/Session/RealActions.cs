@@ -83,13 +83,23 @@ static class RealActions
                     // fix is false: this text lands in whatever session the user pastes it into, and
                     // authorising edits there is not this action's call to make.
                     var prompt = TriagePrompt.One(dto, files, fix: false);
-                    host.Mutate(_ => MonitorSession.Triaged(_, build, prompt, Collected(name, files)));
+                    // Looked for again now rather than taken from the state: the download can take
+                    // minutes, long enough for the app to have been installed or removed.
+                    var installed = Assistants.Installed();
+                    var assistant = Assistants.Resolve(host.State.Settings.TriageAssistant, installed);
+                    var (opened, lead) = TriageHandoff.Hand(name, prompt, dto.Directory ?? "", assistant, OpenAssistant);
+                    host.Mutate(_ => MonitorSession.Triaged(MonitorSession.FoundAssistants(_, installed), build, prompt, Collected(lead, files), opened));
                 }
                 catch (Exception exception)
                 {
                     Log.Error(exception, "Collecting {Build} for triage failed", name);
                     host.Mutate(_ => MonitorSession.TriageFailed(_, build, ActionFailure.Describe(_, build.ConnectionId, $"Triaging {name}", exception)));
                 }
+            }),
+            FindAssistants: () => _ = Task.Run(() =>
+            {
+                var found = Assistants.Installed();
+                host.Mutate(_ => MonitorSession.FoundAssistants(_, found));
             }),
             SignIn: signIn.Start,
             CancelSignIn: signIn.Abandon,
@@ -148,13 +158,28 @@ static class RealActions
     }
 
     /// <summary>
+    /// The link is not logged: it carries the whole prompt, commit messages and paths included, and
+    /// the log is what goes on an issue.
+    /// </summary>
+    static bool OpenAssistant(string link)
+    {
+        if (LinkOpener.TryOpen(link, out var error))
+        {
+            return true;
+        }
+
+        Log.Error(error, "Could not open the triage prompt's link ({Length} characters)", link.Length);
+        return false;
+    }
+
+    /// <summary>
     /// What the status line says once a triage lands. It names the directory because this is the
     /// only place the user, as opposed to the assistant reading the prompt, finds out where the
     /// files went.
     /// </summary>
-    static string Collected(string name, TriageFilesDto triage)
+    /// <param name="copied">What became of the prompt, from <see cref="TriageHandoff.Hand"/>.</param>
+    static string Collected(string copied, TriageFilesDto triage)
     {
-        var copied = $"Copied a triage prompt for {name}";
         var files = triage.Files;
         if (files.Count == 0)
         {

@@ -17,8 +17,8 @@
 | Poll interval while a build is running (seconds): [10    ]                                                           |
 | Local                                                                                                                |
 | Code directory: [                                        ] [ Browse ] (Where your checkouts live)                    |
+| Triage prompt: <First AI app found>                                                                                  |
 | Local port: [3796  ] (Used by the launcher and the MCP server. Takes effect after a restart.)                        |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |

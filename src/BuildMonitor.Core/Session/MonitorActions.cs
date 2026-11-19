@@ -15,8 +15,12 @@ record MonitorActions(
     // Fetches a failed build's log, which arrives on the clipboard through the state.
     Action<Build> CopyLog,
     // Downloads a failed build's artifacts and writes its log beside them, then puts a prompt
-    // naming the checkout and those files on the clipboard, through the state as CopyLog does.
+    // naming the checkout and those files on the clipboard, through the state as CopyLog does, and
+    // opens it in the AI app the options pick, where one is found and the prompt fits its link.
     Action<Build> Triage,
+    // Looks again for the AI apps a triage can open, off the loop's thread, and puts what it found
+    // in the state, so the options list an app installed since the tray started.
+    Action FindAssistants,
     Action<Connection, AuthMethod, Guid> SignIn,
     Action<Guid> CancelSignIn,
     // The draft connection and the token typed for it, or null to use the stored one.
@@ -49,6 +53,7 @@ record MonitorActions(
         _ => throw new InvalidOperationException("RunNext"),
         _ => throw new InvalidOperationException("CopyLog"),
         _ => throw new InvalidOperationException("Triage"),
+        () => throw new InvalidOperationException("FindAssistants"),
         (_, _, _) => throw new InvalidOperationException("SignIn"),
         _ => throw new InvalidOperationException("CancelSignIn"),
         (_, _) => throw new InvalidOperationException("Test"),

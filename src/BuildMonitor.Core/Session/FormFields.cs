@@ -22,6 +22,7 @@ static class FormFields
     public const string HistoryDays = "historyDays";
     public const string Port = "port";
     public const string CodeDirectory = "codeDirectory";
+    public const string TriageAssistant = "triageAssistant";
 
     // About
     public const string Version = "version";

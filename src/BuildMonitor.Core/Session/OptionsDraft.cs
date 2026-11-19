@@ -49,7 +49,8 @@ static class OptionsDraft
             Port = port,
             // Not checked for existence: reading it back is a pure transition, and a path that is
             // not there scans to nothing, which is the same as leaving it empty.
-            CodeDirectory = form.Value(FormFields.CodeDirectory).Trim()
+            CodeDirectory = form.Value(FormFields.CodeDirectory).Trim(),
+            TriageAssistant = Assistants.Setting(form.Value(FormFields.TriageAssistant))
         };
         return true;
     }

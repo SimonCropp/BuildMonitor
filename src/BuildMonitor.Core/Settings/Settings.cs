@@ -31,6 +31,15 @@ record Settings
     /// nothing.
     /// </summary>
     public string CodeDirectory { get; init; } = "";
+
+    /// <summary>
+    /// The AI app a triage opens with its prompt typed, by <see cref="Assistant.Id"/>, as well as
+    /// copying it. <see cref="Assistants.Clipboard"/> only copies. Empty, the default, takes the
+    /// first app found when the triage lands rather than when this was saved, so an app installed
+    /// since is picked up and one removed is not opened.
+    /// </summary>
+    public string TriageAssistant { get; init; } = "";
+
     /// <summary>
     /// Project name prefixes that group passing builds, ahead of the repository name. A family of
     /// repositories buries the rows that need reading as surely as one repository's workflows do,
