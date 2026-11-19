@@ -1,9 +1,9 @@
 /// <summary>
 /// What a clickable part of a build's row does. A head reports the kind rather than a position in
 /// the row, so a poll that gives the row a chip between the frame drawn and the click cannot turn
-/// the click into its neighbour. The chips that are drawn come in the order of these values, links
-/// then actions, which is what lets a drop down hold "every chip from this one on"; the kinds that
-/// are never drawn as a chip sit outside that order and may be added at the end.
+/// the click into its neighbour. The numbers are that report, so a kind added later goes at the
+/// end whatever it does. The order the chips are drawn in, which is what lets a drop down hold
+/// "every chip from this one on", is RowChips' own and not the order of these values.
 /// Keep in sync with BmChipKind in bm.h.
 /// </summary>
 public enum ChipKind
@@ -38,7 +38,7 @@ public enum ChipKind
 
     // Moves a queued build to the front of its service's queue. Here rather than next to Cancel,
     // where it belongs by what it does, for the reason Repo is here: the numbers are the wire
-    // format. It is drawn, so it is the last chip of the row that has it; the only chips a queued
-    // row can carry beside it are the pull request, Cancel and the checkout.
+    // format. It is drawn last on the row that has it; the only chips a queued row can carry
+    // beside it are the pull request, Cancel and the checkout.
     RunNext = 11
 }

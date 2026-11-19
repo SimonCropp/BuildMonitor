@@ -612,8 +612,7 @@ static class MonitorSession
             return state;
         }
 
-        var items = RowChips.Of(build, ProviderDescriptors.Get(rows[row].Connection!.Connection.ProviderId), state.LocalRepos, IsTriaging(state, build))
-            .Where(_ => _.Kind >= from)
+        var items = RowChips.From(RowChips.Of(build, ProviderDescriptors.Get(rows[row].Connection!.Connection.ProviderId), state.LocalRepos, IsTriaging(state, build)), from)
             .Select(_ => new MenuItem(_.Label, RowChips.Command(_.Kind)))
             .ToImmutableArray();
         if (items.Length == 0)

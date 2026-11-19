@@ -22,7 +22,26 @@ static class RowChips
     public const int BusyFrames = 12;
 
     /// <summary>
-    /// In <see cref="ChipKind"/> order, which is the order a head draws them in.
+    /// The order a row's chips are drawn in, left to right, and so what a drop down's "every chip
+    /// from this one on" counts by. A list of its own rather than the order of the
+    /// <see cref="ChipKind"/> values, whose numbers are the wire format a committed native binary
+    /// reports, so a chip added later could only go at the end. Triage comes before the log and
+    /// the checkout: it fetches the log and opens the prompt in the checkout, so it is the one of
+    /// the three a failure is clicked for, and a narrow row puts the last of its chips in the drop
+    /// down, where it was the triage that went.
+    /// </summary>
+    static readonly ChipKind[] order = [ChipKind.PullRequest, ChipKind.Retry, ChipKind.Cancel, ChipKind.Triage, ChipKind.CopyLog, ChipKind.OpenDirectory, ChipKind.RunNext];
+
+    /// <summary>
+    /// The chips from <paramref name="from"/> on, in the order they are drawn. By kind rather than
+    /// by position, so a chip the build lost since the row was drawn, such as Cancel on a build
+    /// that has finished, neither shows nor shifts which chips follow it.
+    /// </summary>
+    public static IEnumerable<RowChip> From(IEnumerable<RowChip> chips, ChipKind from) =>
+        chips.Where(_ => Array.IndexOf(order, _.Kind) >= Array.IndexOf(order, from));
+
+    /// <summary>
+    /// In <see cref="order"/>, which is the order a head draws them in.
     /// </summary>
     /// <param name="triaging">Whether a triage of this run is still collecting, as
     /// <see cref="MonitorSession.IsTriaging"/> says.</param>
@@ -62,19 +81,9 @@ static class RowChips
             chips.Add(new(ChipKind.Cancel, "Cancel", $"Cancel this run on {descriptor.Name}", "cancel"));
         }
 
-        if (build.LogCopyable())
-        {
-            chips.Add(new(ChipKind.CopyLog, "Log", "Copy failure log", "log"));
-        }
-
         // Through the same lookup the click goes through, so a row cannot show a button that then
-        // opens nothing. The tooltip carries the directory, which is the one thing about this
-        // button a row cannot show and the reader cannot guess.
+        // opens nothing.
         var directory = LocalRepos.Find(localRepos, build);
-        if (directory is not null)
-        {
-            chips.Add(new(ChipKind.OpenDirectory, "Open dir", $"Open folder: {directory}", "folder"));
-        }
 
         // Both halves, through the same two lookups the click goes through: a log is only worth
         // fetching for a failure, and without a checkout there is nowhere for the prompt to send
@@ -93,10 +102,22 @@ static class RowChips
                 : new(ChipKind.Triage, "Triage", $"{TriageTooltip(assistant)}\n{directory}", "triage"));
         }
 
-        // Last, because its kind is: see ChipKind.RunNext. It names the service for the reason
-        // Retry and Cancel do, being the third button that changes what someone's CI is about to
-        // run, and it says what happens rather than what is set, since a position in a queue is
-        // only worth knowing as the order things will run in.
+        if (build.LogCopyable())
+        {
+            chips.Add(new(ChipKind.CopyLog, "Log", "Copy failure log", "log"));
+        }
+
+        // The tooltip carries the directory, which is the one thing about this button a row cannot
+        // show and the reader cannot guess.
+        if (directory is not null)
+        {
+            chips.Add(new(ChipKind.OpenDirectory, "Open dir", $"Open folder: {directory}", "folder"));
+        }
+
+        // Last, as in order. It names the service for the reason Retry and Cancel do, being the
+        // third button that changes what someone's CI is about to run, and it says what happens
+        // rather than what is set, since a position in a queue is only worth knowing as the order
+        // things will run in.
         if (build.CanRunNext(descriptor))
         {
             chips.Add(new(ChipKind.RunNext, "Run next", $"Run this next on {descriptor.Name}, ahead of the rest of the queue", "run-next"));
