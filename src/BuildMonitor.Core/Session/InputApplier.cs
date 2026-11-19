@@ -603,6 +603,7 @@ static class InputApplier
             case CommandKind.OpenConnections:
                 return MonitorSession.OpenConnections(state);
             case CommandKind.OpenOptions:
+                actions.FindAssistants();
                 return MonitorSession.OpenOptions(state);
             case CommandKind.OpenAbout:
                 return MonitorSession.OpenAbout(state);

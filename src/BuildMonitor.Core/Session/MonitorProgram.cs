@@ -166,6 +166,9 @@ static class MonitorProgram
         // only thing that fills the directory and the only thing that has to find it small.
         // ReSharper disable once MethodSupportsCancellation
         _ = Task.Run(artifacts.Sweep);
+        // So the first triage chip's hover can say which app it opens. Off the loop's thread too,
+        // since on Linux asking means starting xdg-mime once for each app.
+        actions.FindAssistants();
         var listening = server.Listen(new MessageHandler(host, poller, LinkLauncher.OpenUrl, Command, artifacts).Handle, cancel.Token);
 
         try

@@ -107,6 +107,21 @@ The tray menu gains an Open code directory item while this is set, above Open lo
 The list is kept current while BuildMonitor runs: a repository cloned into the directory gets its button without a restart. Only the folders that could hold a checkout are watched, not everything below them, so a directory full of repositories and their build output costs a bounded number of watches. An empty field watches nothing.
 
 
+### Triage prompt
+
+Where a row's [Triage](mcp.md#triaging-failures) button sends the prompt it builds. It is always copied to the clipboard; this picks an AI app to open it in as well, with the prompt typed and waiting for Enter:
+
+ * **First AI app found**, the default: the first of the apps below that is installed, looked for when the triage finishes, so an app installed later is picked up. With none, the prompt is only copied.
+ * **Clipboard only**: never opens an app.
+ * **Claude**: the [Claude desktop app](https://claude.com/download), which starts a new Claude Code session in the checkout.
+ * **Claude Code in a terminal**: [Claude Code](https://code.claude.com/docs/en/deep-links) in a new terminal window, in the checkout. Claude Code registers its link the first time something is sent in an interactive session, so it is not found before then.
+ * **Cursor**: Cursor's chat. Its link has no way to name a folder, so it opens in whatever Cursor had open, and the prompt names the checkout.
+
+Only the apps found are listed, plus the one chosen if it has since gone; a chosen app that is not found leaves the prompt on the clipboard rather than opening another. An app is found by asking the desktop which app opens its links (`claude://`, `claude-cli://` and `cursor://`): the Windows file associations, Launch Services on macOS, `xdg-mime` on Linux.
+
+A prompt is never cut short to fit. The Claude app keeps up to 14,336 characters of it, Claude Code 5,000, and Cursor takes links up to 8,000 characters once escaped; a longer one is only copied, and the status line says so. Hovering the Triage button says which app it opens.
+
+
 ### Local port
 
 The loopback port the tray listens on. The `buildmonitor` command and the [MCP server](mcp.md) use it to reach the running tray, and it is what stops a second tray starting. Change it when something else already uses 3796. Takes effect after a restart, and can be overridden for one run with the `BuildMonitor_Port` environment variable.

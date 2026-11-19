@@ -198,8 +198,10 @@ public class TriagePromptTests
 
                 Kept 24 hours. `log.txt` is the whole log.
 
-                  D:\BuildMonitor\artifacts\Verify-412-3f9a1c02\log.txt
-                  D:\BuildMonitor\artifacts\Verify-412-3f9a1c02\test-results.trx
+                Directory: D:\BuildMonitor\artifacts\Verify-412-3f9a1c02\
+
+                  log.txt
+                  test-results.trx
 
                 This directory is made for triage, outside the repository: never commit it. Unpack inside it, not the checkout.
 
@@ -261,7 +263,9 @@ public class TriagePromptTests
 
                 Kept 24 hours. `log.txt` is the whole log.
 
-                  /code/artifacts/Verify-412/log.txt
+                Directory: /code/artifacts/Verify-412/
+
+                  log.txt
 
                 This directory is made for triage, outside the repository: never commit it. Unpack inside it, not the checkout.
 

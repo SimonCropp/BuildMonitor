@@ -11,7 +11,9 @@
 
 Kept 24 hours. `log.txt` is the whole log.
 
-  /home/simon/.local/share/BuildMonitor/artifacts/Verify-412-3f9a1c02/log.txt
+Directory: /home/simon/.local/share/BuildMonitor/artifacts/Verify-412-3f9a1c02/
+
+  log.txt
 
 This directory is made for triage, outside the repository: never commit it. Unpack inside it, not the checkout.
 

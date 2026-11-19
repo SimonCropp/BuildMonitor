@@ -22,7 +22,26 @@ static class RowChips
     public const int BusyFrames = 12;
 
     /// <summary>
-    /// In <see cref="ChipKind"/> order, which is the order a head draws them in.
+    /// The order a row's chips are drawn in, left to right, and so what a drop down's "every chip
+    /// from this one on" counts by. A list of its own rather than the order of the
+    /// <see cref="ChipKind"/> values, whose numbers are the wire format a committed native binary
+    /// reports, so a chip added later could only go at the end. Triage comes before the log and
+    /// the checkout: it fetches the log and opens the prompt in the checkout, so it is the one of
+    /// the three a failure is clicked for, and a narrow row puts the last of its chips in the drop
+    /// down, where it was the triage that went.
+    /// </summary>
+    static readonly ChipKind[] order = [ChipKind.PullRequest, ChipKind.Retry, ChipKind.Cancel, ChipKind.Triage, ChipKind.CopyLog, ChipKind.OpenDirectory, ChipKind.RunNext];
+
+    /// <summary>
+    /// The chips from <paramref name="from"/> on, in the order they are drawn. By kind rather than
+    /// by position, so a chip the build lost since the row was drawn, such as Cancel on a build
+    /// that has finished, neither shows nor shifts which chips follow it.
+    /// </summary>
+    public static IEnumerable<RowChip> From(IEnumerable<RowChip> chips, ChipKind from) =>
+        chips.Where(_ => Array.IndexOf(order, _.Kind) >= Array.IndexOf(order, from));
+
+    /// <summary>
+    /// In <see cref="order"/>, which is the order a head draws them in.
     /// </summary>
     /// <param name="triaging">Whether a triage of this run is still collecting, as
     /// <see cref="MonitorSession.IsTriaging"/> says.</param>
@@ -31,7 +50,10 @@ static class RowChips
     /// seconds, so a frame taken from the same second steps exactly once a rebuild, where one counted
     /// from the click skipped or repeated a frame whenever a rebuild landed either side of a second.
     /// The drop down leaves it out, since it draws only the labels.</param>
-    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging, long tick = 0)
+    /// <param name="assistant">The AI app a triage opens, as <see cref="Assistants.Resolve"/> picks
+    /// it, or null where it only copies. Only the triage chip's hover says which, so the drop down
+    /// leaves it out too.</param>
+    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging, long tick = 0, Assistant? assistant = null)
     {
         List<RowChip> chips = [];
         // The number is the one thing about a pull request worth a row's width: which one it is.
@@ -59,19 +81,9 @@ static class RowChips
             chips.Add(new(ChipKind.Cancel, "Cancel", $"Cancel this run on {descriptor.Name}", "cancel"));
         }
 
-        if (build.LogCopyable())
-        {
-            chips.Add(new(ChipKind.CopyLog, "Log", "Copy failure log", "log"));
-        }
-
         // Through the same lookup the click goes through, so a row cannot show a button that then
-        // opens nothing. The tooltip carries the directory, which is the one thing about this
-        // button a row cannot show and the reader cannot guess.
+        // opens nothing.
         var directory = LocalRepos.Find(localRepos, build);
-        if (directory is not null)
-        {
-            chips.Add(new(ChipKind.OpenDirectory, "Open dir", $"Open folder: {directory}", "folder"));
-        }
 
         // Both halves, through the same two lookups the click goes through: a log is only worth
         // fetching for a failure, and without a checkout there is nowhere for the prompt to send
@@ -86,20 +98,56 @@ static class RowChips
             // chip past the column sized for it and send it into the drop down. A click on it does
             // nothing, which the applier decides, not this.
             chips.Add(triaging
-                ? new(ChipKind.Triage, "Triaging", "Collecting artifacts and log. A notification says when the prompt is on the clipboard.", $"busy-{tick % BusyFrames}")
-                : new(ChipKind.Triage, "Triage", $"Download artifacts and log, and copy a prompt\n{directory}", "triage"));
+                ? new(ChipKind.Triage, "Triaging", TriagingTooltip(assistant), $"busy-{tick % BusyFrames}")
+                : new(ChipKind.Triage, "Triage", $"{TriageTooltip(assistant)}\n{directory}", "triage"));
         }
 
-        // Last, because its kind is: see ChipKind.RunNext. It names the service for the reason
-        // Retry and Cancel do, being the third button that changes what someone's CI is about to
-        // run, and it says what happens rather than what is set, since a position in a queue is
-        // only worth knowing as the order things will run in.
+        if (build.LogCopyable())
+        {
+            chips.Add(new(ChipKind.CopyLog, "Log", "Copy failure log", "log"));
+        }
+
+        // The tooltip carries the directory, which is the one thing about this button a row cannot
+        // show and the reader cannot guess.
+        if (directory is not null)
+        {
+            chips.Add(new(ChipKind.OpenDirectory, "Open dir", $"Open folder: {directory}", "folder"));
+        }
+
+        // Last, as in order. It names the service for the reason Retry and Cancel do, being the
+        // third button that changes what someone's CI is about to run, and it says what happens
+        // rather than what is set, since a position in a queue is only worth knowing as the order
+        // things will run in.
         if (build.CanRunNext(descriptor))
         {
             chips.Add(new(ChipKind.RunNext, "Run next", $"Run this next on {descriptor.Name}, ahead of the rest of the queue", "run-next"));
         }
 
         return chips;
+    }
+
+    /// <summary>
+    /// Names the app before the click, since the click is what brings it forward, and an app that
+    /// comes up unannounced over the window reads as something else having opened it.
+    /// </summary>
+    static string TriageTooltip(Assistant? assistant)
+    {
+        if (assistant is null)
+        {
+            return "Download artifacts and log, and copy a prompt";
+        }
+
+        return $"Download artifacts and log, and open a prompt in {assistant.Name}";
+    }
+
+    static string TriagingTooltip(Assistant? assistant)
+    {
+        if (assistant is null)
+        {
+            return "Collecting artifacts and log. A notification says when the prompt is on the clipboard.";
+        }
+
+        return $"Collecting artifacts and log. {assistant.Name} opens with the prompt when they are in.";
     }
 
     public static CommandKind Command(ChipKind kind) =>

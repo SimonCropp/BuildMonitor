@@ -784,7 +784,8 @@ static class ScreenBuilder
     /// </summary>
     static IReadOnlyList<RowChip> ChipsOf(SessionState state, Row row, Build build, ProviderDescriptor descriptor, DateTimeOffset now)
     {
-        var chips = RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build), now.ToUnixTimeSeconds());
+        var assistant = Assistants.Resolve(state.Settings.TriageAssistant, state.InstalledAssistants);
+        var chips = RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build), now.ToUnixTimeSeconds(), assistant);
         if (row.Blocker is null)
         {
             return chips;
@@ -1244,7 +1245,7 @@ static class ScreenBuilder
             : state.Form switch
             {
                 ConnectionsFormState => ConnectionsForm(state),
-                OptionsFormState form => OptionsForm(form),
+                OptionsFormState form => OptionsForm(form, state.InstalledAssistants),
                 AboutFormState => AboutForm(),
                 FiltersFormState form => FiltersForm(form, now),
                 AddConnectionFormState form => AddConnectionForm(form),
@@ -1359,8 +1360,9 @@ static class ScreenBuilder
     /// everything on the page waits for its Save. Twelve of them in one column read as a list to
     /// search rather than one to scan.
     /// </summary>
-    static FormPage OptionsForm(OptionsFormState form)
+    static FormPage OptionsForm(OptionsFormState form, ImmutableArray<Assistant> assistants)
     {
+        var assistant = form.Value(FormFields.TriageAssistant);
         var fields = new List<Field>
         {
             Heading(FormFields.GeneralHeading, "General"),
@@ -1379,6 +1381,7 @@ static class ScreenBuilder
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),
             Heading(FormFields.LocalHeading, "Local"),
             new(FormFields.CodeDirectory, FieldKind.Directory, "Code directory", form.Value(FormFields.CodeDirectory), Hint: "Where your checkouts live"),
+            new(FormFields.TriageAssistant, FieldKind.Select, "Triage prompt", assistant, Options: Assistants.Labels(assistants, assistant)),
             new(FormFields.Port, FieldKind.Number, "Local port", form.Value(FormFields.Port), Note: "Used by the launcher and the MCP server. Takes effect after a restart.")
         };
         AddError(fields, form);

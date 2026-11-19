@@ -517,18 +517,24 @@ public class SessionTests
 
     /// <summary>
     /// A failing row with a checkout carries five chips, more than the column reserves room for, so
-    /// triage is reached through the drop down. It is last in the chip order on purpose, being the
-    /// most expensive action on the row, and this pins that losing the column still offers it.
+    /// the last of them are reached through the drop down. Triage is drawn ahead of the log and the
+    /// checkout, so it is those two that go first. The drop down counts by the order the row is
+    /// drawn in, not by the numbers of the kinds, where triage comes after both: counted that way,
+    /// a drop down from the log offered the triage still on the row, and one from the triage left
+    /// out the two it stood in for.
     /// </summary>
     [Test]
-    public async Task TheOverflowOffersTriage()
+    public async Task TheOverflowFollowsTheOrderTheRowIsDrawnIn()
     {
         var builds = Fixtures.WithTriageableFailure();
         var row = Fixtures.RowOf(builds, _ => _.Build?.Key == "gh/Verify/test.yml/feature/inline");
-        var state = MonitorSession.OpenOverflow(builds, row, ChipKind.CopyLog);
-        await Assert.That(state.Menu!.Items.Select(_ => $"{_.Label} {_.Command}"))
-            .IsEquivalentTo(["Log CopyLog", "Open dir OpenRepoDirectory", "Triage Triage"]);
+        await Assert.That(Overflow(builds, row, ChipKind.PullRequest)).IsEqualTo("PR 42, Retry, Triage, Log, Open dir");
+        await Assert.That(Overflow(builds, row, ChipKind.Triage)).IsEqualTo("Triage, Log, Open dir");
+        await Assert.That(Overflow(builds, row, ChipKind.CopyLog)).IsEqualTo("Log, Open dir");
     }
+
+    static string Overflow(SessionState state, int row, ChipKind from) =>
+        string.Join(", ", MonitorSession.OpenOverflow(state, row, from).Menu!.Items.Select(_ => _.Label));
 
     /// <summary>
     /// The two rows of a service whose queue can be reordered: only the one still waiting offers

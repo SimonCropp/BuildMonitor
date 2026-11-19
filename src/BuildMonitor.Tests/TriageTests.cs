@@ -76,6 +76,55 @@ public class TriageTests
         await Assert.That(copied.Notification).IsEqualTo(new("Ready to paste", "The triage prompt for test.yml #77 is on the clipboard.", build.Key, NotificationKind.Info));
     }
 
+    /// <summary>
+    /// The app coming forward with the prompt typed says it is ready. A notification to paste on
+    /// top of that sends someone off to paste it a second time, so it is copied without one.
+    /// </summary>
+    [Test]
+    public async Task APromptOpenedInAnAppIsCopiedQuietly()
+    {
+        var state = Fixtures.Triaging();
+        var build = state.Triaging.Single();
+        const string status = "Opened a triage prompt for test.yml #77 in Claude, and copied it: the log only, in /triage";
+        var landed = MonitorSession.Triaged(state, build, "the prompt", status, Assistants.ById("claude"));
+        await Assert.That(landed.Triaging).IsEmpty();
+        await Assert.That(landed.Status).IsEqualTo(status);
+        await Assert.That(landed.Clipboard?.Text).IsEqualTo("the prompt");
+        var copied = MonitorSession.Copied(landed, landed.Clipboard!);
+        await Assert.That(copied.Notification).IsNull();
+    }
+
+    [Test]
+    public async Task TheChipNamesTheAppItOpens()
+    {
+        var state = Fixtures.Triaging() with
+        {
+            InstalledAssistants = [Assistants.ById("claude")!]
+        };
+        await Assert.That(Chip(state).Tooltip).IsEqualTo(Tooltips.Wrap("Collecting artifacts and log. Claude opens with the prompt when they are in."));
+
+        var idle = MonitorSession.Triaged(state, state.Triaging.Single(), "the prompt", "Opened", Assistants.ById("claude"));
+        await Assert.That(Chip(idle).Tooltip).IsEqualTo(Tooltips.Wrap("Download artifacts and log, and open a prompt in Claude\n/code/Verify"));
+    }
+
+    [Test]
+    public async Task TheChipSaysCopyWhereTheSettingIsTheClipboard()
+    {
+        var state = Fixtures.Triaging() with
+        {
+            InstalledAssistants = [Assistants.ById("claude")!]
+        };
+        state = state with
+        {
+            Settings = state.Settings with
+            {
+                TriageAssistant = Assistants.Clipboard
+            }
+        };
+        var idle = MonitorSession.Triaged(state, state.Triaging.Single(), "the prompt", "Copied");
+        await Assert.That(Chip(idle).Tooltip).IsEqualTo("Download artifacts and log, and copy a prompt\n/code/Verify");
+    }
+
     [Test]
     public async Task APromptTheWindowWouldNotTakeIsAnnouncedAsNotCopied()
     {

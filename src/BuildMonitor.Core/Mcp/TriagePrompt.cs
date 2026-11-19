@@ -99,9 +99,12 @@ static class TriagePrompt
     }
 
     /// <summary>
-    /// Where the files are, or why there are none. The directory is named on its own line and
-    /// unquoted: these are absolute paths in the platform's own form, and a Windows one inside a
-    /// markdown link loses its separators to escaping.
+    /// Where the files are, or why there are none. The directory is named once and each file under
+    /// it by name alone: a full path on every line repeated the directory, a hundred characters on
+    /// Windows, once per file, which buried the names it was there to show and pushed a prompt
+    /// toward the length an AI app's link takes. The directory is on its own line and unquoted:
+    /// it is an absolute path in the platform's own form, and a Windows one inside a markdown link
+    /// loses its separators to escaping.
     /// </summary>
     static string Evidence(TriageFilesDto files)
     {
@@ -119,10 +122,10 @@ static class TriagePrompt
                 builder.Append($" `{ArtifactCollector.LogName}` is the whole log.");
             }
 
-            builder.Append("\n\n");
+            builder.Append($"\n\nDirectory: {Folder(files.Directory)}\n\n");
             foreach (var file in files.Files)
             {
-                builder.Append($"  {Join(files.Directory, file)}\n");
+                builder.Append($"  {file}\n");
             }
 
             builder.Append("\nThis directory is made for triage, outside the repository: never commit it. Unpack inside it, not the checkout.\n");
@@ -133,20 +136,27 @@ static class TriagePrompt
     }
 
     /// <summary>
-    /// Joined on the separator the directory already uses rather than the host's. The store writes
-    /// host native paths, so in the running app the two agree; using <see cref="Path.Combine"/>
-    /// would additionally make this text depend on which machine rendered it, which for a pure
+    /// Ending in a separator, so it reads as a folder the names below are in, and the separator
+    /// the directory already uses rather than the host's. The store writes host native paths, so
+    /// in the running app the two agree; <see cref="Path.DirectorySeparatorChar"/> would
+    /// additionally make this text depend on which machine rendered it, which for a pure
     /// projection verified as text means a snapshot that only holds on one platform.
     /// </summary>
-    static string Join(string directory, string file)
+    static string Folder(string directory)
     {
+        if (directory.EndsWith('/') ||
+            directory.EndsWith('\\'))
+        {
+            return directory;
+        }
+
         var separator = directory.LastIndexOfAny(['/', '\\']);
         if (separator < 0)
         {
-            return $"{directory}{Path.DirectorySeparatorChar}{file}";
+            return $"{directory}{Path.DirectorySeparatorChar}";
         }
 
-        return $"{directory}{directory[separator]}{file}";
+        return $"{directory}{directory[separator]}";
     }
 
     /// <summary>
