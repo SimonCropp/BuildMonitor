@@ -121,6 +121,8 @@ Only the apps found are listed, plus the one chosen if it has since gone; a chos
 
 A prompt is never cut short to fit. The Claude app keeps up to 14,336 characters of it, Claude Code 5,000, and Cursor takes links up to 8,000 characters once escaped; a longer one is only copied, and the status line says so. Hovering the Triage button says which app it opens.
 
+None of the links can choose a model or an effort level: each carries only the prompt, and for the two Claude apps the checkout, so the session starts on whatever model and effort the app is already set to use. For Claude Code that is the `model` and `effortLevel` of its [settings](https://code.claude.com/docs/en/settings-reference), which apply to every session they reach, not only a triage's. Its `--model` and `--effort` options would set them for one session, but only when `claude` is started directly, and a prompt given on the command line is sent the moment it starts, before anyone has read what it says.
+
 
 ### Local port
 
