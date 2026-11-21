@@ -19,8 +19,8 @@
     <PackageVersion Include="PlatformHeads.Linux" Version="0.17.1" />
     <PackageVersion Include="PlatformHeads.Mac" Version="0.17.1" />
     <PackageVersion Include="PlatformHeads.WindowsForms" Version="0.17.1" />
-    <PackageVersion Include="Polyfill" Version="11.4.5" />
-    <PackageVersion Include="ProjectDefaults" Version="1.0.190" />
+    <PackageVersion Include="Polyfill" Version="12.0.0" />
+    <PackageVersion Include="ProjectDefaults" Version="1.0.191" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.1" />
@@ -31,8 +31,8 @@
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="11.0.0" />
     <PackageVersion Include="Tmds.DBus.Protocol" Version="0.95.2" />
     <PackageVersion Include="TUnit" Version="1.87.12" />
-    <PackageVersion Include="Verify" Version="33.7.1" />
-    <PackageVersion Include="Verify.TUnit" Version="33.7.1" />
-    <PackageVersion Include="Verify.WinForms" Version="6.0.0" />
+    <PackageVersion Include="Verify" Version="33.7.2" />
+    <PackageVersion Include="Verify.TUnit" Version="33.7.2" />
+    <PackageVersion Include="Verify.WinForms" Version="6.1.1" />
   </ItemGroup>
 </Project>
