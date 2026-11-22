@@ -16,6 +16,7 @@ static class FormFields
     public const string NotifyOnFailure = "notifyOnFailure";
     public const string GroupPrefixes = "groupPrefixes";
     public const string GroupByOrg = "groupByOrg";
+    public const string RecentPasses = "recentPasses";
     public const string Theme = "theme";
     public const string PollInterval = "pollInterval";
     public const string RunningPollInterval = "runningPollInterval";

@@ -56,6 +56,13 @@ record Settings
     public bool GroupByOrg { get; init; }
 
     /// <summary>
+    /// How many of the most recent passes keep a row of their own rather than joining their group.
+    /// A pass otherwise vanished into its group the moment it went green, so what had just passed
+    /// could not be seen without opening the group. Zero groups every pass.
+    /// </summary>
+    public int RecentPasses { get; init; } = 5;
+
+    /// <summary>
     /// The <see cref="GroupKey.Id"/> of each group the user opened. A group is closed until they
     /// do. Saved rather than held for the session, which closed every group on each start of an
     /// app that starts at every login.

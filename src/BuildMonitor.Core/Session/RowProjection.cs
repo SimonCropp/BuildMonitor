@@ -7,7 +7,9 @@
 /// <see cref="Settings.GroupPrefixes"/>, share a closed group instead,
 /// where its most recent member would have been, because a repository with a handful of passing
 /// workflows otherwise buries the red and running rows under ones that need nothing. A failure is
-/// never grouped: each one wants reading, and a group is a line that hides its members.
+/// never grouped: each one wants reading, and a group is a line that hides its members. The most
+/// recent passes, as many as <see cref="Settings.RecentPasses"/> says, keep a row of their own too,
+/// since a pass that folded the moment it went green left no sign of what had just passed.
 /// </para>
 /// <para>
 /// The running and queued runs of one push share a run set the same way, where the first of them
@@ -53,7 +55,7 @@ static class RowProjection
             return last;
         }
 
-        var projected = new ProjectedRows(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, state.Settings.GroupByOrg, Project(state, pipelines));
+        var projected = new ProjectedRows(pipelines, state.Connections, state.Settings.OpenGroups, state.Search, state.Settings.GroupPrefixes, state.Settings.GroupByOrg, state.Settings.RecentPasses, Project(state, pipelines));
         lastRows = projected;
         return projected;
     }
@@ -93,8 +95,18 @@ static class RowProjection
         var byOrg = state.Settings.GroupByOrg;
         var ids = new string?[builds.Length];
         var sharing = new Dictionary<string, List<Build>>();
+        // The builds are newest first within their status, so the first passes met are the most
+        // recent, and those keep a row of their own.
+        var ungrouped = state.Settings.RecentPasses;
         for (var index = 0; index < builds.Length; index++)
         {
+            if (ungrouped > 0 &&
+                builds[index].Status == BuildStatus.Succeeded)
+            {
+                ungrouped--;
+                continue;
+            }
+
             if ((GroupKey.RunSetOf(builds[index]) ?? GroupKey.IdOf(builds[index], prefixes, byOrg)) is not { } id)
             {
                 continue;

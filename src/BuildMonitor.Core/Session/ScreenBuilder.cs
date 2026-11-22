@@ -1376,6 +1376,7 @@ static class ScreenBuilder
             new(FormFields.HistoryDays, FieldKind.Number, "Show builds from the last (days)", form.Value(FormFields.HistoryDays), Note: "Running and queued builds always show."),
             new(FormFields.GroupPrefixes, FieldKind.Text, "Group passing builds by prefix", form.Value(FormFields.GroupPrefixes), Hint: "Comma separated, eg TheProject"),
             new(FormFields.GroupByOrg, FieldKind.Checkbox, "Group passing builds by organisation", form.Value(FormFields.GroupByOrg)),
+            new(FormFields.RecentPasses, FieldKind.Number, "Recent passes kept out of groups", form.Value(FormFields.RecentPasses), Note: "0 groups every pass."),
             Heading(FormFields.PollingHeading, "Polling"),
             new(FormFields.PollInterval, FieldKind.Number, "Poll interval (seconds)", form.Value(FormFields.PollInterval)),
             new(FormFields.RunningPollInterval, FieldKind.Number, "Poll interval while a build is running (seconds)", form.Value(FormFields.RunningPollInterval)),

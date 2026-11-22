@@ -13,6 +13,7 @@
   "TriageAssistant": "",
   "GroupPrefixes": [],
   "GroupByOrg": false,
+  "RecentPasses": 0,
   "OpenGroups": [],
   "Connections": [
     {

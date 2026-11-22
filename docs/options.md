@@ -78,6 +78,11 @@ A member of such a group names its own repository, since the group's row no long
 Prefixes are added from here or from the [row's own menu](tray.md#the-window), which offers the ones its project shares with another and takes one back off from the group it made.
 
 
+### Recent passes kept out of groups
+
+How many of the most recent passing builds keep a row of their own rather than joining their group, 5 unless changed, from 0 to 50. Without it a build that has gone green folds into its group at once, and nothing on the screen says what has passed since. The newest are those queued most recently, which is the order the passing rows already sit in, so these are the first green rows. Older passes group as before, and a group left with one member is a plain row. With a filter typed, the count is taken from the builds that match. 0 groups every pass.
+
+
 ## Polling
 
 

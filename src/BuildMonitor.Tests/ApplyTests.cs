@@ -247,7 +247,8 @@ public class ApplyTests
         };
         var state = MonitorSession.Resize(SessionState.Start(new()
         {
-            Connections = [devOps]
+            Connections = [devOps],
+            RecentPasses = 0
         }), 120, 30);
         state = MonitorSession.ApplyPoll(
             state,

@@ -25,6 +25,13 @@ static class OptionsDraft
             return false;
         }
 
+        if (!int.TryParse(form.Value(FormFields.RecentPasses), out var passes) ||
+            passes is < 0 or > 50)
+        {
+            error = new("The recent passes to keep out of groups must be between 0 and 50.", FormFields.RecentPasses);
+            return false;
+        }
+
         if (!int.TryParse(form.Value(FormFields.Port), out var port) ||
             port is < 1024 or > 65535)
         {
@@ -42,6 +49,7 @@ static class OptionsDraft
             NotifyOnFailure = form.Flag(FormFields.NotifyOnFailure),
             GroupPrefixes = Prefixes(form.Value(FormFields.GroupPrefixes)),
             GroupByOrg = form.Flag(FormFields.GroupByOrg),
+            RecentPasses = passes,
             Theme = Enum.TryParse<Theme>(form.Value(FormFields.Theme), out var theme) ? theme : current.Theme,
             PollIntervalSeconds = poll,
             RunningPollIntervalSeconds = running,

@@ -66,6 +66,27 @@ public class SettingsHelperTests :
         await Assert.That(read.HistoryDays).IsEqualTo(30);
     }
 
+    [Test]
+    public async Task AFileWrittenBeforeRecentPassesGetsTheDefault()
+    {
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(AppPaths.Settings, """{"PollIntervalSeconds": 12}""");
+        var read = SettingsHelper.Read();
+        await Assert.That(read.RecentPasses).IsEqualTo(5);
+    }
+
+    /// <summary>
+    /// Zero is a choice, unlike a HistoryDays of zero, so a file that names it keeps it.
+    /// </summary>
+    [Test]
+    public async Task RecentPassesOfZeroIsKept()
+    {
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(AppPaths.Settings, """{"RecentPasses": 0}""");
+        var read = SettingsHelper.Read();
+        await Assert.That(read.RecentPasses).IsEqualTo(0);
+    }
+
     /// <summary>
     /// A string the file does not name reads as null rather than the empty the initializer says,
     /// which is what every scan and every options page would then have to guard against.

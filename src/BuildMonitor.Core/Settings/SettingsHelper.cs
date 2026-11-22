@@ -30,6 +30,17 @@ static class SettingsHelper
             };
         }
 
+        // Same reason, but zero is a value someone can choose here, so the file is asked whether it
+        // names the property rather than the value whether it is below one: a file written before
+        // RecentPasses existed would otherwise group every pass, the default never reaching it.
+        if (!Names(json, nameof(Settings.RecentPasses)))
+        {
+            settings = settings with
+            {
+                RecentPasses = new Settings().RecentPasses
+            };
+        }
+
         // Same reason, and a string's type default is null rather than the empty its initializer
         // says: a file written before CodeDirectory existed would put a null through the options
         // page and into the form, where everything downstream takes it for a string. The property
@@ -76,6 +87,13 @@ static class SettingsHelper
         }
 
         return settings;
+    }
+
+    static bool Names(byte[] json, string property)
+    {
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.ValueKind == JsonValueKind.Object &&
+               document.RootElement.TryGetProperty(property, out _);
     }
 
     /// <summary>

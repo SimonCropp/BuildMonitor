@@ -37,7 +37,10 @@ static class Fixtures
     public static Settings Settings() =>
         new()
         {
-            Connections = [GitHub, Jenkins, Octopus]
+            Connections = [GitHub, Jenkins, Octopus],
+            // Every pass grouped, as the fixtures' groups were drawn: the default keeps the newest
+            // few out of their groups, and the fixtures hold only a few. RecentPassesTests covers it.
+            RecentPasses = 0
         };
 
     public static SessionState Empty() =>

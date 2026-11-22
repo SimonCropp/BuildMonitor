@@ -12,6 +12,7 @@
 | Show builds from the last (days): [30    ] (Running and queued builds always show.)                                  |
 | Group passing builds by prefix: [                                        ] (Comma separated, eg TheProject)          |
 | [ ] Group passing builds by organisation                                                                             |
+| Recent passes kept out of groups: [0     ] (0 groups every pass.)                                                    |
 | Polling                                                                                                              |
 | Poll interval (seconds): [1     ]                                                                                    |
 | Error: The poll interval must be between 5 and 3600 seconds.                                                         |
@@ -20,7 +21,6 @@
 | Code directory: [                                        ] [ Browse ] (Where your checkouts live)                    |
 | Triage prompt: <First AI app found>                                                                                  |
 | Local port: [3796  ] (Used by the launcher and the MCP server. Takes effect after a restart.)                        |
-|                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
 |                                                                                                                      |
