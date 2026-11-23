@@ -86,6 +86,48 @@ public class LocalReposTests
         await Assert.That(LocalRepos.Find(index, repoName)).IsEqualTo(expected);
     }
 
+    /// <summary>
+    /// An Octopus project is named with spaces where the folder it is checked out to has none, or
+    /// has a dash, so the whole name alone never found it.
+    /// </summary>
+    [Test]
+    [Arguments("Document Converter", "/code/DocumentConverter")]
+    [Arguments("LBS Client", "/code/LBS-Client")]
+    [Arguments("LBSClient", "/code/LBS-Client")]
+    [Arguments("Org/Document.Converter", "/code/DocumentConverter")]
+    [Arguments("Compass Web", null)]
+    [Arguments("--", null)]
+    public async Task MatchesAFolderNameIgnoringSpacesAndPunctuation(string repoName, string? expected)
+    {
+        var index = LocalRepos.Index(
+        [
+            new("/code/DocumentConverter", "DocumentConverter", null),
+            new("/code/LBS-Client", "LBS-Client", null)
+        ]);
+
+        await Assert.That(LocalRepos.Find(index, repoName)).IsEqualTo(expected);
+    }
+
+    /// <summary>
+    /// Ignoring punctuation is only for when nothing matches exactly: a folder whose name is the
+    /// build's own is the one opened, whichever checkout came first in the scan.
+    /// </summary>
+    [Test]
+    [Arguments("Document Converter", "/code/Document Converter")]
+    [Arguments("DocumentConverter", "/code/DocumentConverter")]
+    [Arguments("Document-Converter", "/code/Document-Converter")]
+    public async Task AnExactFolderNameBeatsOneMatchedIgnoringPunctuation(string repoName, string expected)
+    {
+        var index = LocalRepos.Index(
+        [
+            new("/code/Document-Converter", "Document-Converter", null),
+            new("/code/Document Converter", "Document Converter", null),
+            new("/code/DocumentConverter", "DocumentConverter", null)
+        ]);
+
+        await Assert.That(LocalRepos.Find(index, repoName)).IsEqualTo(expected);
+    }
+
     [Test]
     public async Task NothingMatchesAnEmptyIndex() =>
         await Assert.That(LocalRepos.Find(ImmutableDictionary<string, string>.Empty, "VerifyTests/DiffEngine")).IsNull();

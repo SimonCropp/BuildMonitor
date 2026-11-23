@@ -93,6 +93,13 @@ static class LocalRepos
     /// name under different organisations would otherwise have the second silently win the row of
     /// the first.
     /// </para>
+    /// <para>
+    /// Each folder name is also keyed <see cref="Compact"/>, for the project names that are a
+    /// repository's name with spaces in: Octopus's "Document Converter" is checked out as
+    /// DocumentConverter, and matched only on the whole name it was never found. A compact key
+    /// never displaces a remote or a folder's own name, so a name that matches exactly still wins
+    /// over one that matches only once its punctuation is gone.
+    /// </para>
     /// </summary>
     public static ImmutableDictionary<string, string> Index(IEnumerable<LocalRepo> repos)
     {
@@ -111,13 +118,33 @@ static class LocalRepos
             }
         }
 
+        foreach (var repo in all)
+        {
+            var compact = Compact(repo.Name);
+            if (compact.Length > 0 &&
+                !index.ContainsKey(compact))
+            {
+                index[compact] = repo.Directory;
+            }
+        }
+
         return index.ToImmutable();
     }
 
     /// <summary>
+    /// <paramref name="name"/> with only its letters and digits, so "Document Converter",
+    /// "Document-Converter" and "DocumentConverter" are one key. It never holds a slash, so it can
+    /// never be taken for an origin's "owner/repo".
+    /// </summary>
+    static string Compact(string name) =>
+        string.Concat(name.Where(char.IsLetterOrDigit));
+
+    /// <summary>
     /// Where <paramref name="build"/>'s repository is checked out, or null. The whole repository
     /// name first, so "SimonCropp/BuildMonitor" beats a folder that happens to be called
-    /// BuildMonitor, then its last segment for the providers that report no owner.
+    /// BuildMonitor, then its last segment for the providers that report no owner, and only when
+    /// neither matches, that segment <see cref="Compact"/>, so "Document Converter" finds
+    /// DocumentConverter.
     /// </summary>
     public static string? Find(ImmutableDictionary<string, string> index, Build build) =>
         Find(index, build.RepoName);
@@ -170,6 +197,19 @@ static class LocalRepos
             index.TryGetValue(last, out var byName))
         {
             return byName;
+        }
+
+        // A name of only letters and digits is its own compact form, already looked up above.
+        if (last.All(char.IsLetterOrDigit))
+        {
+            return null;
+        }
+
+        var compact = Compact(last);
+        if (compact.Length > 0 &&
+            index.TryGetValue(compact, out var byCompact))
+        {
+            return byCompact;
         }
 
         return null;
