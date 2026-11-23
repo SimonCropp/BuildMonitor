@@ -34,7 +34,7 @@ public class LocalRepoWatcherTests
         watcher.Sync(root);
         await Until(host, _ => _.Count == 1);
 
-        Repo(root, "Verify");
+        MoveIn(root, "Verify");
 
         var repos = await Until(host, _ => _.Count == 2);
         await Assert.That(LocalRepos.Find(repos, "Verify")).IsEqualTo(Path.Combine(root, "Verify"));
@@ -154,11 +154,13 @@ public class LocalRepoWatcherTests
 
     /// <summary>
     /// A checkout put in place whole, by one rename, rather than as its folder and then its .git.
-    /// Made in place, a rescan that landed between the two found a plain folder at the deepest
-    /// level, which nothing watches by design, so the .git that followed was heard by nothing and
-    /// the test waited out its deadline: the twenty milliseconds these tests settle for is less
-    /// than a loaded runner can stall a thread between two directory creations. The app settles
-    /// for 750, and git clone makes its .git as soon as its folder.
+    /// Made in place, a rescan that landed between the two found a plain folder, and the twenty
+    /// milliseconds these tests settle for is less than a loaded runner can stall a thread between
+    /// two directory creations. At the deepest level nothing watches that folder by design, so the
+    /// .git that followed was heard by nothing and the test waited out its deadline. One level up
+    /// the rescan does watch it, but only from when it rearms, so a .git made between the scan and
+    /// the rearm was missed the same way. The app settles for 750, and git clone makes its .git as
+    /// soon as its folder.
     /// </summary>
     static void MoveIn(string root, string name)
     {
