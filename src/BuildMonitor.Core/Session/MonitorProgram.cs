@@ -169,6 +169,15 @@ static class MonitorProgram
         // So the first triage chip's hover can say which app it opens. Off the loop's thread too,
         // since on Linux asking means starting xdg-mime once for each app.
         actions.FindAssistants();
+        // Once, for the clone chip, and off the loop's thread for the same reason. Unlike the
+        // assistants it is not asked again: GitHub Desktop installed while the tray runs offers its
+        // clones from the next start.
+        _ = Task.Run(() =>
+        {
+            var desktop = GitHubDesktop.Installed();
+            Log.Information("GitHub Desktop {Found}", desktop ? "found" : "not found");
+            host.Mutate(_ => MonitorSession.FoundGitHubDesktop(_, desktop));
+        });
         var listening = server.Listen(new MessageHandler(host, poller, LinkLauncher.OpenUrl, Command, artifacts).Handle, cancel.Token);
 
         try

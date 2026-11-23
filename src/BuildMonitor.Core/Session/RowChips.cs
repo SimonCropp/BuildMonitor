@@ -13,7 +13,7 @@ static class RowChips
     /// below and not here draws an empty button, which is what happened when Cancel stopped being
     /// a word.
     /// </summary>
-    public static readonly string[] Icons = ["pull-request", "retry", "cancel", "log", "folder", "triage", ..Enumerable.Range(0, BusyFrames).Select(_ => $"busy-{_}"), "run-next"];
+    public static readonly string[] Icons = ["pull-request", "retry", "cancel", "log", "folder", "triage", ..Enumerable.Range(0, BusyFrames).Select(_ => $"busy-{_}"), "run-next", "clone"];
 
     /// <summary>
     /// The pictures of a triage chip still collecting: a clock whose hand steps round once a second.
@@ -28,9 +28,10 @@ static class RowChips
     /// reports, so a chip added later could only go at the end. Triage comes before the log and
     /// the checkout: it fetches the log and opens the prompt in the checkout, so it is the one of
     /// the three a failure is clicked for, and a narrow row puts the last of its chips in the drop
-    /// down, where it was the triage that went.
+    /// down, where it was the triage that went. The clone sits where the checkout does: a row
+    /// carries the one or the other, never both.
     /// </summary>
-    static readonly ChipKind[] order = [ChipKind.PullRequest, ChipKind.Retry, ChipKind.Cancel, ChipKind.Triage, ChipKind.CopyLog, ChipKind.OpenDirectory, ChipKind.RunNext];
+    static readonly ChipKind[] order = [ChipKind.PullRequest, ChipKind.Retry, ChipKind.Cancel, ChipKind.Triage, ChipKind.CopyLog, ChipKind.OpenDirectory, ChipKind.Clone, ChipKind.RunNext];
 
     /// <summary>
     /// The chips from <paramref name="from"/> on, in the order they are drawn. By kind rather than
@@ -53,7 +54,10 @@ static class RowChips
     /// <param name="assistant">The AI app a triage opens, as <see cref="Assistants.Resolve"/> picks
     /// it, or null where it only copies. Only the triage chip's hover says which, so the drop down
     /// leaves it out too.</param>
-    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging, long tick = 0, Assistant? assistant = null)
+    /// <param name="cloneable">Whether GitHub Desktop is offered a clone of the repository, as
+    /// <see cref="GitHubDesktop.CloneLink(SessionState, Build)"/> decides it. A flag rather than
+    /// the inputs to that rule, so the chip cannot be decided by a rule of its own.</param>
+    public static IReadOnlyList<RowChip> Of(Build build, ProviderDescriptor descriptor, ImmutableDictionary<string, string> localRepos, bool triaging, long tick = 0, Assistant? assistant = null, bool cloneable = false)
     {
         List<RowChip> chips = [];
         // The number is the one thing about a pull request worth a row's width: which one it is.
@@ -114,6 +118,15 @@ static class RowChips
             chips.Add(new(ChipKind.OpenDirectory, "Open dir", $"Open folder: {directory}", "folder"));
         }
 
+        // Named for the app it opens, for the reason the triage chip names its: the click brings
+        // GitHub Desktop up over the window. The hover carries the address being cloned, as the
+        // folder's carries the directory: the row itself shows only the repository's name.
+        if (cloneable &&
+            directory is null)
+        {
+            chips.Add(new(ChipKind.Clone, "Clone", $"Clone in GitHub Desktop: {build.RepoUrl}", "clone"));
+        }
+
         // Last, as in order. It names the service for the reason Retry and Cancel do, being the
         // third button that changes what someone's CI is about to run, and it says what happens
         // rather than what is set, since a position in a queue is only worth knowing as the order
@@ -162,6 +175,7 @@ static class RowChips
             ChipKind.Pipeline => CommandKind.OpenPipeline,
             ChipKind.Repo => CommandKind.OpenRepo,
             ChipKind.OpenDirectory => CommandKind.OpenRepoDirectory,
+            ChipKind.Clone => CommandKind.CloneRepo,
             ChipKind.Triage => CommandKind.Triage,
             ChipKind.RunNext => CommandKind.RunNext,
             _ => CommandKind.None

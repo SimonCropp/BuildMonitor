@@ -668,7 +668,7 @@ static class Fixtures
     /// the folder's name, which is all Jenkins reports.
     /// </summary>
     public static SessionState WithLocalRepos() =>
-        MonitorSession.ApplyLocalRepos(WithBuilds(), LocalRepoIndex());
+        MonitorSession.ApplyLocalRepos(WithBuilds(), LocalRepoIndex(), "/code");
 
     /// <summary>
     /// The code directory set, as well as the checkouts found under it. The setting is what the
@@ -697,7 +697,17 @@ static class Fixtures
                 new("/code/DiffEngine", "DiffEngine", "VerifyTests/DiffEngine"),
                 new("/code/build-all", "build-all", null),
                 new("/code/Verify", "Verify", "VerifyTests/Verify")
-            ]));
+            ]),
+            "/code");
+
+    /// <summary>
+    /// <see cref="WithLocalRepos"/> on a machine with GitHub Desktop, so Verify, the one GitHub
+    /// repository not checked out, offers a clone where DiffEngine offers its folder. Its own
+    /// fixture for the reason <see cref="WithTriageableFailure"/> is: found on the folder one, it
+    /// would move every snapshot that fixture draws and both native baselines.
+    /// </summary>
+    public static SessionState WithGitHubDesktop() =>
+        MonitorSession.FoundGitHubDesktop(WithLocalRepos(), true);
 
     /// <summary>
     /// <see cref="WithTriageableFailure"/> with its triage started and still collecting, the only

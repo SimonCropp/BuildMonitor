@@ -132,7 +132,7 @@ sealed class LocalRepoWatcher : IDisposable
             var repos = LocalRepos.Scan(scanning);
             var index = LocalRepos.Index(repos);
             Rearm(scanning);
-            host.Mutate(_ => MonitorSession.ApplyLocalRepos(_, index));
+            host.Mutate(_ => MonitorSession.ApplyLocalRepos(_, index, scanning));
             Log.Debug("Found {Count} local repositories under {Root}", repos.Length, scanning ?? "nothing");
         }
         catch (Exception exception)

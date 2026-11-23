@@ -40,5 +40,10 @@ public enum ChipKind
     // where it belongs by what it does, for the reason Repo is here: the numbers are the wire
     // format. It is drawn last on the row that has it; the only chips a queued row can carry
     // beside it are the pull request, Cancel and the checkout.
-    RunNext = 11
+    RunNext = 11,
+
+    // Opens GitHub Desktop's clone dialog for a GitHub repository with no checkout under the code
+    // directory. Here for the reason Repo is: the numbers are the wire format. Drawn where
+    // OpenDirectory is, since a row carries one or the other and never both.
+    Clone = 12
 }

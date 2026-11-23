@@ -34,6 +34,15 @@ public class ScreenTests
         Verify(Fixtures.Render(MonitorSession.Resize(Fixtures.WithLocalRepos(), 80, 30)));
 
     /// <summary>
+    /// With GitHub Desktop found, Verify, the GitHub repository with no checkout, carries the clone
+    /// chip where DiffEngine carries its folder. The Jenkins and Octopus rows name no GitHub
+    /// repository, so they carry neither.
+    /// </summary>
+    [Test]
+    public Task CloneInGitHubDesktop() =>
+        Verify(Fixtures.Render(Fixtures.WithGitHubDesktop()));
+
+    /// <summary>
     /// The failing row also has a checkout, which is the only shape that carries the triage chip.
     /// Its own fixture rather than a change to the folder one, so every other chip snapshot and
     /// both native baselines stay where they are.

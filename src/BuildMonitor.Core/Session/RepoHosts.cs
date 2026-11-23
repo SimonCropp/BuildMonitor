@@ -60,6 +60,14 @@ static class RepoHosts
         return url;
     }
 
+    /// <summary>
+    /// Whether <paramref name="url"/> is on GitHub, github.com or an enterprise server, by the
+    /// rule <see cref="MarkOf"/> gives it the GitHub mark by, so a row offers GitHub Desktop a
+    /// clone of exactly the repositories it draws the octocat beside.
+    /// </summary>
+    public static bool IsGitHub(string? url) =>
+        Known(url)?.Mark == github;
+
     static (string Mark, string Name)? Known(string? url)
     {
         if (url is null ||

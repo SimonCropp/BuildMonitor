@@ -486,6 +486,11 @@ static class MonitorSession
                 items.Add(new("Open directory", CommandKind.OpenRepoDirectory));
             }
 
+            if (GitHubDesktop.CloneLink(state, build) is not null)
+            {
+                items.Add(new("Clone in GitHub Desktop", CommandKind.CloneRepo));
+            }
+
             if (target is {Kind: RowKind.Member, Group: { } group})
             {
                 items.Add(new($"Collapse {group.Project}", CommandKind.ToggleGroup));
@@ -583,6 +588,7 @@ static class MonitorSession
                 CommandKind.CancelBlocker or
                 CommandKind.RunNext => 1,
             CommandKind.OpenRepoDirectory or
+                CommandKind.CloneRepo or
                 CommandKind.ToggleGroup or
                 CommandKind.Refresh or
                 CommandKind.GroupByPrefix or
@@ -612,7 +618,7 @@ static class MonitorSession
             return state;
         }
 
-        var items = RowChips.From(RowChips.Of(build, ProviderDescriptors.Get(rows[row].Connection!.Connection.ProviderId), state.LocalRepos, IsTriaging(state, build)), from)
+        var items = RowChips.From(RowChips.Of(build, ProviderDescriptors.Get(rows[row].Connection!.Connection.ProviderId), state.LocalRepos, IsTriaging(state, build), cloneable: GitHubDesktop.CloneLink(state, build) is not null), from)
             .Select(_ => new MenuItem(_.Label, RowChips.Command(_.Kind)))
             .ToImmutableArray();
         if (items.Length == 0)
@@ -2145,10 +2151,13 @@ static class MonitorSession
             Medians = medians
         };
 
-    public static SessionState ApplyLocalRepos(SessionState state, ImmutableDictionary<string, string> repos) =>
+    /// <param name="root">The code directory the index was scanned from, or null where none is
+    /// set.</param>
+    public static SessionState ApplyLocalRepos(SessionState state, ImmutableDictionary<string, string> repos, string? root) =>
         state with
         {
-            LocalRepos = repos
+            LocalRepos = repos,
+            ScannedCodeDirectory = root
         };
 
     static SessionState UpdateConnection(SessionState state, string connectionId, Func<ConnectionState, ConnectionState> change)
@@ -2266,6 +2275,22 @@ static class MonitorSession
         return state with
         {
             InstalledAssistants = found
+        };
+    }
+
+    /// <summary>
+    /// Whether GitHub Desktop's link handler was found. The same state where it is as it was.
+    /// </summary>
+    public static SessionState FoundGitHubDesktop(SessionState state, bool found)
+    {
+        if (state.GitHubDesktop == found)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            GitHubDesktop = found
         };
     }
 

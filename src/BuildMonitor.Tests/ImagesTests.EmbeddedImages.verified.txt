@@ -27,6 +27,8 @@
   glyph-busy-9-32.png,
   glyph-cancel-16.png,
   glyph-cancel-32.png,
+  glyph-clone-16.png,
+  glyph-clone-32.png,
   glyph-connections-16.png,
   glyph-connections-32.png,
   glyph-exit-16.png,

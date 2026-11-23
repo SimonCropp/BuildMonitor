@@ -785,7 +785,7 @@ static class ScreenBuilder
     static IReadOnlyList<RowChip> ChipsOf(SessionState state, Row row, Build build, ProviderDescriptor descriptor, DateTimeOffset now)
     {
         var assistant = Assistants.Resolve(state.Settings.TriageAssistant, state.InstalledAssistants);
-        var chips = RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build), now.ToUnixTimeSeconds(), assistant);
+        var chips = RowChips.Of(build, descriptor, state.LocalRepos, MonitorSession.IsTriaging(state, build), now.ToUnixTimeSeconds(), assistant, GitHubDesktop.CloneLink(state, build) is not null);
         if (row.Blocker is null)
         {
             return chips;

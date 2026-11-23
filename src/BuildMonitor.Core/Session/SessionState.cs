@@ -91,6 +91,22 @@ record SessionState(
     public ImmutableArray<Assistant> InstalledAssistants { get; init; } = [];
 
     /// <summary>
+    /// Whether GitHub Desktop's link handler was found, which is asked once at startup. Held here
+    /// for the reason <see cref="InstalledAssistants"/> is: the clone chip is on the screen, which
+    /// is built from the state alone.
+    /// </summary>
+    public bool GitHubDesktop { get; init; }
+
+    /// <summary>
+    /// The code directory <see cref="LocalRepos"/> was scanned from, or null before the first scan
+    /// lands and while no code directory is set. An empty index is otherwise the same whether the
+    /// scan found nothing or has not run yet, and the clone chip is offered only where it found
+    /// nothing: offered from an index still empty at startup, every GitHub row carried a clone
+    /// until the scan came back and turned the ones already checked out into folders.
+    /// </summary>
+    public string? ScannedCodeDirectory { get; init; }
+
+    /// <summary>
     /// Whether nobody can see the window: hidden, minimized, or behind a locked session. The loop
     /// idles as it does while hidden and the clock stops rebuilding the screen, rather than build
     /// and draw a frame every second, and on the native heads pump sixty a second, for nobody. The

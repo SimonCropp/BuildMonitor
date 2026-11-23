@@ -87,7 +87,11 @@ enum BmChipKind {
     /* Moves a queued build to the front of its service's queue. Drawn as the row icon registered
        under "run-next". Last among a row's chips rather than beside BM_CHIP_CANCEL, where it
        belongs by what it does, because these numbers are the wire format. */
-    BM_CHIP_RUN_NEXT = 11
+    BM_CHIP_RUN_NEXT = 11,
+    /* Opens GitHub Desktop's clone dialog for a repository with no local checkout. Drawn as the row
+       icon registered under "clone", where BM_CHIP_OPEN_DIRECTORY would be: a row has one or the
+       other. */
+    BM_CHIP_CLONE = 12
 };
 
 /*

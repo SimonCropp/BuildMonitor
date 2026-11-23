@@ -304,7 +304,7 @@ public class MonitorToolsTests
     {
         var (tools, host, _) = Create();
         WithPipelines(host);
-        host.Mutate(_ => MonitorSession.ApplyLocalRepos(_, Fixtures.LocalRepoIndex()));
+        host.Mutate(_ => MonitorSession.ApplyLocalRepos(_, Fixtures.LocalRepoIndex(), "/code"));
 
         var builds = await tools.ListBuilds(null, Cancel.None);
         await Assert.That(builds.Single(_ => _.Key == "gh/DiffEngine/test.yml/main").Directory).IsEqualTo("/code/DiffEngine");

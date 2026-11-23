@@ -58,7 +58,7 @@ public class ImagesTests
     [Test]
     public async Task EveryChipTheFixturesDrawIsHandedOver()
     {
-        var drawn = new[] { Fixtures.WithBuilds(), Fixtures.WithLocalRepos(), Fixtures.WithTwoFailures(), Fixtures.Triaging() }
+        var drawn = new[] { Fixtures.WithBuilds(), Fixtures.WithLocalRepos(), Fixtures.WithTwoFailures(), Fixtures.Triaging(), Fixtures.WithGitHubDesktop() }
             .SelectMany(_ => ScreenBuilder.Build(_, Fixtures.Now).Builds!.Rows)
             .SelectMany(_ => _.Chips)
             .Select(_ => _.Icon)

@@ -111,6 +111,8 @@ The tray menu gains an Open code directory item while this is set, above Open lo
 
 The list is kept current while BuildMonitor runs: a repository cloned into the directory gets its button without a restart. Only the folders that could hold a checkout are watched, not everything below them, so a directory full of repositories and their build output costs a bounded number of watches. An empty field watches nothing.
 
+Where [GitHub Desktop](https://desktop.github.com) is installed, a row whose repository is on GitHub, github.com or an enterprise server, and has no checkout here gets a clone button in place of the folder one, and its menu a Clone in GitHub Desktop item. Either opens GitHub Desktop's clone dialog with the repository filled in, which is where the folder it is cloned into is picked; a clone into the code directory turns the button into the folder one. No row offers a clone while this field is empty, since nothing then says which repositories are already checked out. Whether GitHub Desktop is installed is checked once, when BuildMonitor starts, so an install while it runs shows the button from the next start. GitHub Desktop has no Linux build, so there the button never shows.
+
 
 ### Triage prompt
 

@@ -29,6 +29,8 @@ public enum CommandKind
     // Moves a queued build to the front of its service's queue.
     RunNext,
     OpenRepoDirectory,
+    // Hands a GitHub repository with no checkout to GitHub Desktop, which offers to clone it.
+    CloneRepo,
     OpenCodeDirectory,
     BrowseCodeDirectory,
     Refresh,

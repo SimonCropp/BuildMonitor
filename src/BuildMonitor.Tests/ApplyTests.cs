@@ -698,7 +698,8 @@ public class ApplyTests
         var actions = new RecordingActions();
         var green = MonitorSession.ApplyLocalRepos(
             Fixtures.WithGreenProject(),
-            LocalRepos.Index([new("/code/Verify", "Verify", "VerifyTests/Verify")]));
+            LocalRepos.Index([new("/code/Verify", "Verify", "VerifyTests/Verify")]),
+            "/code");
         var row = Fixtures.RowOf(green, _ => _.Kind == RowKind.Group);
         var chips = ScreenBuilder.Build(green, Fixtures.Now).Builds!.Rows[row].Chips;
         await Assert.That(chips.Select(_ => _.Kind)).Contains(ChipKind.OpenDirectory);
@@ -711,7 +712,7 @@ public class ApplyTests
     [Test]
     public async Task AGroupWithNoCheckoutHasNoFolderChip()
     {
-        var green = MonitorSession.ApplyLocalRepos(Fixtures.WithGreenProject(), Fixtures.LocalRepoIndex());
+        var green = MonitorSession.ApplyLocalRepos(Fixtures.WithGreenProject(), Fixtures.LocalRepoIndex(), "/code");
         var row = Fixtures.RowOf(green, _ => _.Kind == RowKind.Group);
         var chips = ScreenBuilder.Build(green, Fixtures.Now).Builds!.Rows[row].Chips;
         await Assert.That(chips.Select(_ => _.Kind)).DoesNotContain(ChipKind.OpenDirectory);
@@ -848,7 +849,8 @@ public class ApplyTests
         var actions = new RecordingActions();
         var grouped = MonitorSession.ApplyLocalRepos(
             Fixtures.WithGreenProject(),
-            LocalRepos.Index([new("/code/Verify", "Verify", "VerifyTests/Verify")]));
+            LocalRepos.Index([new("/code/Verify", "Verify", "VerifyTests/Verify")]),
+            "/code");
         var row = Fixtures.RowOf(grouped, _ => _.Kind == RowKind.Group);
         var chips = ScreenBuilder.Build(grouped, Fixtures.Now).Builds!.Rows[row].Chips;
         await Assert.That(chips.Select(_ => _.Kind)).DoesNotContain(ChipKind.Triage);

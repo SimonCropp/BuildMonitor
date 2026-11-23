@@ -469,6 +469,19 @@ static class InputApplier
                 actions.OpenDirectory(directory);
                 return MonitorSession.SetStatus(state, $"Opened {directory}");
             }
+            case CommandKind.CloneRepo:
+            {
+                // Through the rule that offered the chip, so a checkout found since the row was
+                // drawn opens nothing rather than a second clone of it.
+                if (MonitorSession.SelectedBuild(state) is not { } cloning ||
+                    GitHubDesktop.CloneLink(state, cloning) is not { } link)
+                {
+                    return state;
+                }
+
+                actions.OpenUrl(link);
+                return MonitorSession.SetStatus(state, $"Opened GitHub Desktop to clone {cloning.RepoName}");
+            }
             case CommandKind.BrowseCodeDirectory:
             {
                 if (state.Form is not OptionsFormState browsing ||
